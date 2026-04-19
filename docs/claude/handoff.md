@@ -1,13 +1,13 @@
 ---
 plan: docs/superpowers/specs/2026-04-19-podium-backend-foundation-design.md
-task: subsystem 3 of 8 complete
+task: subsystem 4 of 8 complete
 status: complete
-last_updated: 2026-04-19T19:20:00Z
-head_sha: 34a57dc
+last_updated: 2026-04-19T23:25:00Z
+head_sha: 5a88d47
 ---
 
 <current_state>
-Subsystem 3: Discovery is COMPLETE and committed. Ready to start Subsystem 4: Messaging.
+Subsystem 4: Messaging is COMPLETE and committed. Ready to start Subsystem 5: Deals.
 </current_state>
 
 <completed_work>
@@ -18,14 +18,19 @@ Subsystem 3: Discovery is COMPLETE and committed. Ready to start Subsystem 4: Me
   - Connection requests: send (300-char limit), respond (accept/decline by recipient), withdraw (pending-only by sender)
   - Shortlists and blocks: add/list/remove (DELETEs are idempotent)
   - Corrective migration 09: partial unique index on connection_requests (sender_id, recipient_id) where status='pending'
-  - Code review applied — all critical/important issues fixed before commit
+- Subsystem 4 (Messaging): lib/supabase/messaging.ts (4 functions), 4 API routes, 269 passing tests total, e2e/messaging.spec.ts, docs/api/04-messaging.md
+  - sendMessage: proposal gate (PROPOSAL_REQUIRED if proposal_required=true and proposal_sent=false), flips proposal_sent after proposal_card, error on flip failure
+  - getMessages: match-existence guard (MATCH_NOT_FOUND via PGRST116) then list non-deleted ordered by sent_at
+  - deleteMessage: soft-delete (is_deleted=true, deleted_at=now) sender-only guard
+  - getMatches: OR filter (user_a_id OR user_b_id), status=active
+  - POST route validates content_type against enum allowlist before lib call → INVALID_CONTENT_TYPE 400
+  - All as SupabaseClient casts have explanatory comments
 </completed_work>
 
 <remaining_work>
-- Subsystem 4: Messaging — lib/supabase/messaging.ts + messaging API routes + docs/api/04-messaging.md
-  - Tables: messages (already migrated with RLS)
-  - Key constraint: brand must send proposal_card before free-text unlocks (proposal_required/proposal_sent on matches)
-- Subsystem 5: Deals
+- Subsystem 5: Deals — lib/supabase/deals.ts + deals API routes + docs/api/05-deals.md
+  - Tables: proposals, contracts (already migrated with RLS)
+  - Key logic: proposal lifecycle (pending→accepted/declined/countered/withdrawn), contract creation on acceptance
 - Subsystem 6: Payments
 - Subsystem 7: Notifications
 - Subsystem 8: Admin
@@ -38,6 +43,11 @@ Subsystem 3: Discovery is COMPLETE and committed. Ready to start Subsystem 4: Me
 - removeFromShortlist and unblockUser are idempotent DELETEs (200 even if not found) — documented in API contract
 - Duplicate connection requests blocked by partial unique index (status='pending'), not a full unique constraint
 - as SupabaseClient cast comment: "strips the Database generic to avoid deep PostgREST chain type inference"
+- getMessages pre-checks match existence (single query) before fetching messages — gives MATCH_NOT_FOUND instead of empty array
+- proposal_sent flip throws PROPOSAL_FLIP_FAILED on error (not silent) — message is already inserted at that point
+- content_type validated against VALID_MESSAGE_TYPES Set in route before reaching lib layer
+- MessagePayload interface is exported for downstream callers
+- DELETE message returns 200 {success:true} (consistent with discovery DELETEs, not 204)
 </decisions_made>
 
 <blockers>
@@ -45,13 +55,13 @@ None.
 </blockers>
 
 <context>
-Sequential backend build following the 8-subsystem spec in docs/superpowers/specs/2026-04-19-podium-backend-foundation-design.md. Each subsystem delivers: lib functions + API routes + API contract doc. TDD throughout (tests written before implementation). Pattern is consistent across subsystems — follow auth.ts, profiles.ts, and discovery.ts as the established template.
+Sequential backend build following the 8-subsystem spec in docs/superpowers/specs/2026-04-19-podium-backend-foundation-design.md. Each subsystem delivers: lib functions + API routes + API contract doc. TDD throughout (tests written before implementation). Pattern is consistent across subsystems — follow auth.ts, profiles.ts, discovery.ts, and messaging.ts as the established template.
 </context>
 
 <next_action>
-Start Subsystem 4: Messaging
-- Spec: docs/superpowers/specs/2026-04-19-podium-backend-foundation-design.md (Section 04-messaging)
-- Tables already migrated: messages
-- Key logic: matches.proposal_required/proposal_sent gate; only proposal_card allowed until brand sends one
-- Route: /new-feature → TDD → lib/supabase/messaging.ts + app/api/messaging/ + docs/api/04-messaging.md
+Start Subsystem 5: Deals
+- Spec: docs/superpowers/specs/2026-04-19-podium-backend-foundation-design.md (Section 05-deals)
+- Tables already migrated: proposals, contracts
+- Key logic: proposal status machine (pending→accepted/declined/countered/withdrawn), contract creation on acceptance, parent_proposal_id for counter-proposals
+- Route: /new-feature → TDD → lib/supabase/deals.ts + app/api/deals/ + docs/api/05-deals.md
 </next_action>
