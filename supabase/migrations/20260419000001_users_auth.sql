@@ -94,20 +94,6 @@ begin
 end;
 $$;
 
--- Returns true if the current authenticated user has the admin role.
-create or replace function public.is_admin()
-returns boolean
-language sql
-security definer set search_path = public
-stable
-as $$
-  select exists (
-    select 1 from public.users
-    where id = auth.uid()
-    and role = 'admin'
-  );
-$$;
-
 -- ============================================================
 -- USERS TABLE
 -- ============================================================
@@ -138,6 +124,21 @@ create trigger set_users_updated_at
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
+
+-- Returns true if the current authenticated user has the admin role.
+-- Defined here (after users table) because SQL functions validate their body at creation time.
+create or replace function public.is_admin()
+returns boolean
+language sql
+security definer set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from public.users
+    where id = auth.uid()
+    and role = 'admin'
+  );
+$$;
 
 -- ============================================================
 -- RLS — USERS

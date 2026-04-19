@@ -1,8 +1,1751 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
 export type Database = {
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
-    Tables: Record<string, never>
-    Views: Record<string, never>
-    Functions: Record<string, never>
-    Enums: Record<string, never>
+    Tables: {
+      agent_profiles: {
+        Row: {
+          agency_name: string | null
+          agent_full_name: string | null
+          bio: string | null
+          commission_rate_display: string | null
+          created_at: string
+          discovery_ui_mode: Database["public"]["Enums"]["ui_mode"]
+          display_theme: Database["public"]["Enums"]["display_theme"]
+          geographic_regions: string[]
+          id: string
+          is_verified: boolean
+          linkedin_url: string | null
+          logo_url: string | null
+          notification_prefs: Json
+          services_offered: string[]
+          sports_specialisms: string[]
+          status: Database["public"]["Enums"]["profile_status"]
+          updated_at: string
+          user_id: string
+          verified_at: string | null
+          website_url: string | null
+          years_in_industry: number | null
+        }
+        Insert: {
+          agency_name?: string | null
+          agent_full_name?: string | null
+          bio?: string | null
+          commission_rate_display?: string | null
+          created_at?: string
+          discovery_ui_mode?: Database["public"]["Enums"]["ui_mode"]
+          display_theme?: Database["public"]["Enums"]["display_theme"]
+          geographic_regions?: string[]
+          id?: string
+          is_verified?: boolean
+          linkedin_url?: string | null
+          logo_url?: string | null
+          notification_prefs?: Json
+          services_offered?: string[]
+          sports_specialisms?: string[]
+          status?: Database["public"]["Enums"]["profile_status"]
+          updated_at?: string
+          user_id: string
+          verified_at?: string | null
+          website_url?: string | null
+          years_in_industry?: number | null
+        }
+        Update: {
+          agency_name?: string | null
+          agent_full_name?: string | null
+          bio?: string | null
+          commission_rate_display?: string | null
+          created_at?: string
+          discovery_ui_mode?: Database["public"]["Enums"]["ui_mode"]
+          display_theme?: Database["public"]["Enums"]["display_theme"]
+          geographic_regions?: string[]
+          id?: string
+          is_verified?: boolean
+          linkedin_url?: string | null
+          logo_url?: string | null
+          notification_prefs?: Json
+          services_offered?: string[]
+          sports_specialisms?: string[]
+          status?: Database["public"]["Enums"]["profile_status"]
+          updated_at?: string
+          user_id?: string
+          verified_at?: string | null
+          website_url?: string | null
+          years_in_industry?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_profiles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      athlete_profiles: {
+        Row: {
+          availability_status:
+            | Database["public"]["Enums"]["availability_status"]
+            | null
+          available_from_date: string | null
+          chat_retention_days: number | null
+          created_at: string
+          date_of_birth: string | null
+          discovery_ui_mode: Database["public"]["Enums"]["ui_mode"]
+          display_name: string | null
+          display_theme: Database["public"]["Enums"]["display_theme"]
+          full_legal_name: string | null
+          guardian_accepted_at: string | null
+          guardian_email: string | null
+          guardian_name: string | null
+          guardian_phone: string | null
+          guardian_relationship: string | null
+          has_agent: boolean
+          height_cm: number | null
+          home_city: string | null
+          home_country: string | null
+          id: string
+          is_under_18: boolean
+          last_active_at: string | null
+          level: Database["public"]["Enums"]["athlete_level"] | null
+          notable_achievements: string | null
+          notification_prefs: Json
+          performance_stats: Json
+          phone: string | null
+          position: string | null
+          primary_sport: string | null
+          profile_photo_url: string | null
+          secondary_sport: string | null
+          seeking: string[]
+          social_accounts: Json
+          status: Database["public"]["Enums"]["profile_status"]
+          travel_radius_km: number | null
+          updated_at: string
+          user_id: string
+          weight_kg: number | null
+          years_active: number | null
+        }
+        Insert: {
+          availability_status?:
+            | Database["public"]["Enums"]["availability_status"]
+            | null
+          available_from_date?: string | null
+          chat_retention_days?: number | null
+          created_at?: string
+          date_of_birth?: string | null
+          discovery_ui_mode?: Database["public"]["Enums"]["ui_mode"]
+          display_name?: string | null
+          display_theme?: Database["public"]["Enums"]["display_theme"]
+          full_legal_name?: string | null
+          guardian_accepted_at?: string | null
+          guardian_email?: string | null
+          guardian_name?: string | null
+          guardian_phone?: string | null
+          guardian_relationship?: string | null
+          has_agent?: boolean
+          height_cm?: number | null
+          home_city?: string | null
+          home_country?: string | null
+          id?: string
+          is_under_18?: boolean
+          last_active_at?: string | null
+          level?: Database["public"]["Enums"]["athlete_level"] | null
+          notable_achievements?: string | null
+          notification_prefs?: Json
+          performance_stats?: Json
+          phone?: string | null
+          position?: string | null
+          primary_sport?: string | null
+          profile_photo_url?: string | null
+          secondary_sport?: string | null
+          seeking?: string[]
+          social_accounts?: Json
+          status?: Database["public"]["Enums"]["profile_status"]
+          travel_radius_km?: number | null
+          updated_at?: string
+          user_id: string
+          weight_kg?: number | null
+          years_active?: number | null
+        }
+        Update: {
+          availability_status?:
+            | Database["public"]["Enums"]["availability_status"]
+            | null
+          available_from_date?: string | null
+          chat_retention_days?: number | null
+          created_at?: string
+          date_of_birth?: string | null
+          discovery_ui_mode?: Database["public"]["Enums"]["ui_mode"]
+          display_name?: string | null
+          display_theme?: Database["public"]["Enums"]["display_theme"]
+          full_legal_name?: string | null
+          guardian_accepted_at?: string | null
+          guardian_email?: string | null
+          guardian_name?: string | null
+          guardian_phone?: string | null
+          guardian_relationship?: string | null
+          has_agent?: boolean
+          height_cm?: number | null
+          home_city?: string | null
+          home_country?: string | null
+          id?: string
+          is_under_18?: boolean
+          last_active_at?: string | null
+          level?: Database["public"]["Enums"]["athlete_level"] | null
+          notable_achievements?: string | null
+          notification_prefs?: Json
+          performance_stats?: Json
+          phone?: string | null
+          position?: string | null
+          primary_sport?: string | null
+          profile_photo_url?: string | null
+          secondary_sport?: string | null
+          seeking?: string[]
+          social_accounts?: Json
+          status?: Database["public"]["Enums"]["profile_status"]
+          travel_radius_km?: number | null
+          updated_at?: string
+          user_id?: string
+          weight_kg?: number | null
+          years_active?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "athlete_profiles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      audit_logs: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          id: string
+          ip_address: string | null
+          metadata: Json
+          target_id: string
+          target_type: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json
+          target_id: string
+          target_type: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json
+          target_id?: string
+          target_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      blocks: {
+        Row: {
+          blocked_id: string
+          blocker_id: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          blocked_id: string
+          blocker_id: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          blocked_id?: string
+          blocker_id?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blocks_blocked_id_fkey"
+            columns: ["blocked_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "blocks_blocker_id_fkey"
+            columns: ["blocker_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      brand_profiles: {
+        Row: {
+          admin_approved_at: string | null
+          admin_approved_by: string | null
+          company_name: string
+          company_registration_number: string | null
+          cover_image_url: string | null
+          created_at: string
+          description: string | null
+          discovery_ui_mode: Database["public"]["Enums"]["ui_mode"]
+          display_theme: Database["public"]["Enums"]["display_theme"]
+          geographic_preference: string | null
+          headquarters_city: string | null
+          headquarters_country: string | null
+          id: string
+          industry: Database["public"]["Enums"]["brand_industry"] | null
+          linkedin_url: string
+          logo_url: string | null
+          notification_prefs: Json
+          rejection_reason: string | null
+          seeking: string[]
+          social_accounts: Json
+          status: Database["public"]["Enums"]["brand_status"]
+          target_level: string | null
+          target_sports: string[]
+          trading_name: string | null
+          updated_at: string
+          user_id: string
+          vat_number: string | null
+          website_url: string | null
+        }
+        Insert: {
+          admin_approved_at?: string | null
+          admin_approved_by?: string | null
+          company_name: string
+          company_registration_number?: string | null
+          cover_image_url?: string | null
+          created_at?: string
+          description?: string | null
+          discovery_ui_mode?: Database["public"]["Enums"]["ui_mode"]
+          display_theme?: Database["public"]["Enums"]["display_theme"]
+          geographic_preference?: string | null
+          headquarters_city?: string | null
+          headquarters_country?: string | null
+          id?: string
+          industry?: Database["public"]["Enums"]["brand_industry"] | null
+          linkedin_url: string
+          logo_url?: string | null
+          notification_prefs?: Json
+          rejection_reason?: string | null
+          seeking?: string[]
+          social_accounts?: Json
+          status?: Database["public"]["Enums"]["brand_status"]
+          target_level?: string | null
+          target_sports?: string[]
+          trading_name?: string | null
+          updated_at?: string
+          user_id: string
+          vat_number?: string | null
+          website_url?: string | null
+        }
+        Update: {
+          admin_approved_at?: string | null
+          admin_approved_by?: string | null
+          company_name?: string
+          company_registration_number?: string | null
+          cover_image_url?: string | null
+          created_at?: string
+          description?: string | null
+          discovery_ui_mode?: Database["public"]["Enums"]["ui_mode"]
+          display_theme?: Database["public"]["Enums"]["display_theme"]
+          geographic_preference?: string | null
+          headquarters_city?: string | null
+          headquarters_country?: string | null
+          id?: string
+          industry?: Database["public"]["Enums"]["brand_industry"] | null
+          linkedin_url?: string
+          logo_url?: string | null
+          notification_prefs?: Json
+          rejection_reason?: string | null
+          seeking?: string[]
+          social_accounts?: Json
+          status?: Database["public"]["Enums"]["brand_status"]
+          target_level?: string | null
+          target_sports?: string[]
+          trading_name?: string | null
+          updated_at?: string
+          user_id?: string
+          vat_number?: string | null
+          website_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_profiles_admin_approved_by_fkey"
+            columns: ["admin_approved_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brand_profiles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      connection_requests: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          recipient_id: string
+          responded_at: string | null
+          sender_id: string
+          sent_at: string
+          status: Database["public"]["Enums"]["connection_status"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          recipient_id: string
+          responded_at?: string | null
+          sender_id: string
+          sent_at?: string
+          status?: Database["public"]["Enums"]["connection_status"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          recipient_id?: string
+          responded_at?: string | null
+          sender_id?: string
+          sent_at?: string
+          status?: Database["public"]["Enums"]["connection_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "connection_requests_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "connection_requests_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contracts: {
+        Row: {
+          agent_id: string | null
+          agent_signed_at: string | null
+          agent_signer_ip: string | null
+          athlete_or_team_id: string
+          athlete_signed_at: string | null
+          athlete_signer_device: string | null
+          athlete_signer_ip: string | null
+          brand_id: string
+          brand_signed_at: string | null
+          brand_signer_device: string | null
+          brand_signer_ip: string | null
+          created_at: string
+          document_url: string | null
+          esignature_envelope_id: string | null
+          esignature_provider: string | null
+          id: string
+          locked_at: string | null
+          match_id: string
+          proposal_id: string
+          retain_until: string | null
+          status: Database["public"]["Enums"]["contract_status"]
+          terminated_at: string | null
+          termination_reason: string | null
+          updated_at: string
+        }
+        Insert: {
+          agent_id?: string | null
+          agent_signed_at?: string | null
+          agent_signer_ip?: string | null
+          athlete_or_team_id: string
+          athlete_signed_at?: string | null
+          athlete_signer_device?: string | null
+          athlete_signer_ip?: string | null
+          brand_id: string
+          brand_signed_at?: string | null
+          brand_signer_device?: string | null
+          brand_signer_ip?: string | null
+          created_at?: string
+          document_url?: string | null
+          esignature_envelope_id?: string | null
+          esignature_provider?: string | null
+          id?: string
+          locked_at?: string | null
+          match_id: string
+          proposal_id: string
+          retain_until?: string | null
+          status?: Database["public"]["Enums"]["contract_status"]
+          terminated_at?: string | null
+          termination_reason?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string | null
+          agent_signed_at?: string | null
+          agent_signer_ip?: string | null
+          athlete_or_team_id?: string
+          athlete_signed_at?: string | null
+          athlete_signer_device?: string | null
+          athlete_signer_ip?: string | null
+          brand_id?: string
+          brand_signed_at?: string | null
+          brand_signer_device?: string | null
+          brand_signer_ip?: string | null
+          created_at?: string
+          document_url?: string | null
+          esignature_envelope_id?: string | null
+          esignature_provider?: string | null
+          id?: string
+          locked_at?: string | null
+          match_id?: string
+          proposal_id?: string
+          retain_until?: string | null
+          status?: Database["public"]["Enums"]["contract_status"]
+          terminated_at?: string | null
+          termination_reason?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contracts_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_athlete_or_team_id_fkey"
+            columns: ["athlete_or_team_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_listings: {
+        Row: {
+          application_deadline: string | null
+          brand_id: string
+          contract_duration_months: number | null
+          created_at: string
+          deliverables: Json
+          description: string | null
+          exclusivity_required: boolean
+          id: string
+          is_remote: boolean
+          level_required: string | null
+          location: string | null
+          max_hires: number | null
+          multiple_hires: boolean
+          number_of_teams_sought: number | null
+          pay_amount: number | null
+          pay_currency: string
+          pay_type: Database["public"]["Enums"]["pay_type"] | null
+          sponsorship_structure: string | null
+          sport_required: string | null
+          status: Database["public"]["Enums"]["listing_status"]
+          title: string
+          total_sponsorship_budget: number | null
+          type: Database["public"]["Enums"]["listing_type"]
+          updated_at: string
+          usage_rights: Json | null
+          what_expected: Json | null
+        }
+        Insert: {
+          application_deadline?: string | null
+          brand_id: string
+          contract_duration_months?: number | null
+          created_at?: string
+          deliverables?: Json
+          description?: string | null
+          exclusivity_required?: boolean
+          id?: string
+          is_remote?: boolean
+          level_required?: string | null
+          location?: string | null
+          max_hires?: number | null
+          multiple_hires?: boolean
+          number_of_teams_sought?: number | null
+          pay_amount?: number | null
+          pay_currency?: string
+          pay_type?: Database["public"]["Enums"]["pay_type"] | null
+          sponsorship_structure?: string | null
+          sport_required?: string | null
+          status?: Database["public"]["Enums"]["listing_status"]
+          title: string
+          total_sponsorship_budget?: number | null
+          type: Database["public"]["Enums"]["listing_type"]
+          updated_at?: string
+          usage_rights?: Json | null
+          what_expected?: Json | null
+        }
+        Update: {
+          application_deadline?: string | null
+          brand_id?: string
+          contract_duration_months?: number | null
+          created_at?: string
+          deliverables?: Json
+          description?: string | null
+          exclusivity_required?: boolean
+          id?: string
+          is_remote?: boolean
+          level_required?: string | null
+          location?: string | null
+          max_hires?: number | null
+          multiple_hires?: boolean
+          number_of_teams_sought?: number | null
+          pay_amount?: number | null
+          pay_currency?: string
+          pay_type?: Database["public"]["Enums"]["pay_type"] | null
+          sponsorship_structure?: string | null
+          sport_required?: string | null
+          status?: Database["public"]["Enums"]["listing_status"]
+          title?: string
+          total_sponsorship_budget?: number | null
+          type?: Database["public"]["Enums"]["listing_type"]
+          updated_at?: string
+          usage_rights?: Json | null
+          what_expected?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_listings_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      matches: {
+        Row: {
+          connection_request_id: string | null
+          created_at: string
+          id: string
+          matched_at: string
+          proposal_required: boolean
+          proposal_sent: boolean
+          status: Database["public"]["Enums"]["match_status"]
+          updated_at: string
+          user_a_id: string
+          user_b_id: string
+        }
+        Insert: {
+          connection_request_id?: string | null
+          created_at?: string
+          id?: string
+          matched_at?: string
+          proposal_required?: boolean
+          proposal_sent?: boolean
+          status?: Database["public"]["Enums"]["match_status"]
+          updated_at?: string
+          user_a_id: string
+          user_b_id: string
+        }
+        Update: {
+          connection_request_id?: string | null
+          created_at?: string
+          id?: string
+          matched_at?: string
+          proposal_required?: boolean
+          proposal_sent?: boolean
+          status?: Database["public"]["Enums"]["match_status"]
+          updated_at?: string
+          user_a_id?: string
+          user_b_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "matches_connection_request_id_fkey"
+            columns: ["connection_request_id"]
+            isOneToOne: false
+            referencedRelation: "connection_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "matches_user_a_id_fkey"
+            columns: ["user_a_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "matches_user_b_id_fkey"
+            columns: ["user_b_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          attachment_mime_type: string | null
+          attachment_size_bytes: number | null
+          attachment_url: string | null
+          content_type: Database["public"]["Enums"]["message_type"]
+          created_at: string
+          deleted_at: string | null
+          id: string
+          is_deleted: boolean
+          match_id: string
+          metadata: Json
+          sender_id: string
+          sent_at: string
+          text_content: string | null
+        }
+        Insert: {
+          attachment_mime_type?: string | null
+          attachment_size_bytes?: number | null
+          attachment_url?: string | null
+          content_type: Database["public"]["Enums"]["message_type"]
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          is_deleted?: boolean
+          match_id: string
+          metadata?: Json
+          sender_id: string
+          sent_at?: string
+          text_content?: string | null
+        }
+        Update: {
+          attachment_mime_type?: string | null
+          attachment_size_bytes?: number | null
+          attachment_url?: string | null
+          content_type?: Database["public"]["Enums"]["message_type"]
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          is_deleted?: boolean
+          match_id?: string
+          metadata?: Json
+          sender_id?: string
+          sent_at?: string
+          text_content?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notification_logs: {
+        Row: {
+          body: string
+          channel: Database["public"]["Enums"]["notification_channel"]
+          created_at: string
+          event_type: string
+          id: string
+          metadata: Json
+          read_at: string | null
+          sent_at: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          channel: Database["public"]["Enums"]["notification_channel"]
+          created_at?: string
+          event_type: string
+          id?: string
+          metadata?: Json
+          read_at?: string | null
+          sent_at?: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          channel?: Database["public"]["Enums"]["notification_channel"]
+          created_at?: string
+          event_type?: string
+          id?: string
+          metadata?: Json
+          read_at?: string | null
+          sent_at?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payments: {
+        Row: {
+          amount: number
+          contract_id: string
+          created_at: string
+          currency: string
+          id: string
+          net_amount: number | null
+          payee_id: string
+          payer_id: string
+          platform_fee: number | null
+          processed_at: string | null
+          receipt_url: string | null
+          status: Database["public"]["Enums"]["payment_status"]
+          stripe_fee: number | null
+          stripe_payment_intent_id: string
+          tax_disclaimer_shown: boolean
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          contract_id: string
+          created_at?: string
+          currency?: string
+          id?: string
+          net_amount?: number | null
+          payee_id: string
+          payer_id: string
+          platform_fee?: number | null
+          processed_at?: string | null
+          receipt_url?: string | null
+          status?: Database["public"]["Enums"]["payment_status"]
+          stripe_fee?: number | null
+          stripe_payment_intent_id: string
+          tax_disclaimer_shown?: boolean
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          contract_id?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          net_amount?: number | null
+          payee_id?: string
+          payer_id?: string
+          platform_fee?: number | null
+          processed_at?: string | null
+          receipt_url?: string | null
+          status?: Database["public"]["Enums"]["payment_status"]
+          stripe_fee?: number | null
+          stripe_payment_intent_id?: string
+          tax_disclaimer_shown?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_payee_id_fkey"
+            columns: ["payee_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_payer_id_fkey"
+            columns: ["payer_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      proposals: {
+        Row: {
+          additional_terms: string | null
+          created_at: string
+          deliverables: Json
+          id: string
+          match_id: string
+          parent_proposal_id: string | null
+          pay_amount: number
+          pay_currency: string
+          pay_type: Database["public"]["Enums"]["pay_type"]
+          responded_at: string | null
+          sender_id: string
+          status: Database["public"]["Enums"]["proposal_status"]
+          timeline_end: string | null
+          timeline_start: string | null
+          title: string
+          updated_at: string
+          usage_rights: Json | null
+        }
+        Insert: {
+          additional_terms?: string | null
+          created_at?: string
+          deliverables?: Json
+          id?: string
+          match_id: string
+          parent_proposal_id?: string | null
+          pay_amount: number
+          pay_currency?: string
+          pay_type: Database["public"]["Enums"]["pay_type"]
+          responded_at?: string | null
+          sender_id: string
+          status?: Database["public"]["Enums"]["proposal_status"]
+          timeline_end?: string | null
+          timeline_start?: string | null
+          title: string
+          updated_at?: string
+          usage_rights?: Json | null
+        }
+        Update: {
+          additional_terms?: string | null
+          created_at?: string
+          deliverables?: Json
+          id?: string
+          match_id?: string
+          parent_proposal_id?: string | null
+          pay_amount?: number
+          pay_currency?: string
+          pay_type?: Database["public"]["Enums"]["pay_type"]
+          responded_at?: string | null
+          sender_id?: string
+          status?: Database["public"]["Enums"]["proposal_status"]
+          timeline_end?: string | null
+          timeline_start?: string | null
+          title?: string
+          updated_at?: string
+          usage_rights?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposals_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_parent_proposal_id_fkey"
+            columns: ["parent_proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reports: {
+        Row: {
+          admin_notes: string | null
+          created_at: string
+          detail: string | null
+          id: string
+          reason: Database["public"]["Enums"]["report_reason"]
+          reported_message_id: string | null
+          reported_user_id: string | null
+          reporter_id: string
+          resolved_at: string | null
+          resolved_by: string | null
+          status: Database["public"]["Enums"]["report_status"]
+          updated_at: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          created_at?: string
+          detail?: string | null
+          id?: string
+          reason: Database["public"]["Enums"]["report_reason"]
+          reported_message_id?: string | null
+          reported_user_id?: string | null
+          reporter_id: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: Database["public"]["Enums"]["report_status"]
+          updated_at?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          created_at?: string
+          detail?: string | null
+          id?: string
+          reason?: Database["public"]["Enums"]["report_reason"]
+          reported_message_id?: string | null
+          reported_user_id?: string | null
+          reporter_id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: Database["public"]["Enums"]["report_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reports_reported_message_id_fkey"
+            columns: ["reported_message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_reported_user_id_fkey"
+            columns: ["reported_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      representation_links: {
+        Row: {
+          accepted_at: string | null
+          agent_id: string
+          can_edit_profile: boolean
+          can_message: boolean
+          can_sign_contracts: boolean
+          client_role: Database["public"]["Enums"]["user_role"]
+          client_user_id: string
+          commission_rate: string | null
+          contract_duration_months: number | null
+          created_at: string
+          id: string
+          requested_at: string
+          status: Database["public"]["Enums"]["link_status"]
+          terminated_at: string | null
+          termination_reason: string | null
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          agent_id: string
+          can_edit_profile?: boolean
+          can_message?: boolean
+          can_sign_contracts?: boolean
+          client_role: Database["public"]["Enums"]["user_role"]
+          client_user_id: string
+          commission_rate?: string | null
+          contract_duration_months?: number | null
+          created_at?: string
+          id?: string
+          requested_at?: string
+          status?: Database["public"]["Enums"]["link_status"]
+          terminated_at?: string | null
+          termination_reason?: string | null
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          agent_id?: string
+          can_edit_profile?: boolean
+          can_message?: boolean
+          can_sign_contracts?: boolean
+          client_role?: Database["public"]["Enums"]["user_role"]
+          client_user_id?: string
+          commission_rate?: string | null
+          contract_duration_months?: number | null
+          created_at?: string
+          id?: string
+          requested_at?: string
+          status?: Database["public"]["Enums"]["link_status"]
+          terminated_at?: string | null
+          termination_reason?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "representation_links_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agent_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "representation_links_client_user_id_fkey"
+            columns: ["client_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shortlists: {
+        Row: {
+          created_at: string
+          id: string
+          target_user_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          target_user_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          target_user_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shortlists_target_user_id_fkey"
+            columns: ["target_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shortlists_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscriptions: {
+        Row: {
+          brand_id: string
+          canceled_at: string | null
+          cancellation_scheduled_at: string | null
+          created_at: string
+          current_period_end: string
+          current_period_start: string
+          id: string
+          status: Database["public"]["Enums"]["subscription_status"]
+          stripe_customer_id: string
+          stripe_subscription_id: string
+          tier: number
+          trial_ends_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          brand_id: string
+          canceled_at?: string | null
+          cancellation_scheduled_at?: string | null
+          created_at?: string
+          current_period_end: string
+          current_period_start: string
+          id?: string
+          status: Database["public"]["Enums"]["subscription_status"]
+          stripe_customer_id: string
+          stripe_subscription_id: string
+          tier: number
+          trial_ends_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: string
+          canceled_at?: string | null
+          cancellation_scheduled_at?: string | null
+          created_at?: string
+          current_period_end?: string
+          current_period_start?: string
+          id?: string
+          status?: Database["public"]["Enums"]["subscription_status"]
+          stripe_customer_id?: string
+          stripe_subscription_id?: string
+          tier?: number
+          trial_ends_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "brand_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      team_profiles: {
+        Row: {
+          bio: string | null
+          commercial_manager_email: string | null
+          commercial_manager_name: string | null
+          commercial_manager_phone: string | null
+          competition_level: Database["public"]["Enums"]["team_level"] | null
+          cover_photo_url: string | null
+          created_at: string
+          discovery_ui_mode: Database["public"]["Enums"]["ui_mode"]
+          display_theme: Database["public"]["Enums"]["display_theme"]
+          fan_reach: Database["public"]["Enums"]["fan_reach"] | null
+          home_city: string | null
+          home_country: string | null
+          home_venue: string | null
+          id: string
+          logo_url: string | null
+          match_day_attendance: number | null
+          nickname: string | null
+          notification_prefs: Json
+          offers_to_sponsors: Json
+          press_mentions: string | null
+          primary_controller_email: string | null
+          primary_controller_name: string | null
+          primary_controller_phone: string | null
+          primary_controller_role: string | null
+          seeking_sponsorship_types: string[]
+          social_accounts: Json
+          sponsorship_brief_url: string | null
+          sports: string[]
+          status: Database["public"]["Enums"]["profile_status"]
+          team_name: string | null
+          total_social_following: number
+          total_sponsorship_value_sought: number | null
+          updated_at: string
+          user_id: string
+          year_founded: number | null
+        }
+        Insert: {
+          bio?: string | null
+          commercial_manager_email?: string | null
+          commercial_manager_name?: string | null
+          commercial_manager_phone?: string | null
+          competition_level?: Database["public"]["Enums"]["team_level"] | null
+          cover_photo_url?: string | null
+          created_at?: string
+          discovery_ui_mode?: Database["public"]["Enums"]["ui_mode"]
+          display_theme?: Database["public"]["Enums"]["display_theme"]
+          fan_reach?: Database["public"]["Enums"]["fan_reach"] | null
+          home_city?: string | null
+          home_country?: string | null
+          home_venue?: string | null
+          id?: string
+          logo_url?: string | null
+          match_day_attendance?: number | null
+          nickname?: string | null
+          notification_prefs?: Json
+          offers_to_sponsors?: Json
+          press_mentions?: string | null
+          primary_controller_email?: string | null
+          primary_controller_name?: string | null
+          primary_controller_phone?: string | null
+          primary_controller_role?: string | null
+          seeking_sponsorship_types?: string[]
+          social_accounts?: Json
+          sponsorship_brief_url?: string | null
+          sports?: string[]
+          status?: Database["public"]["Enums"]["profile_status"]
+          team_name?: string | null
+          total_social_following?: number
+          total_sponsorship_value_sought?: number | null
+          updated_at?: string
+          user_id: string
+          year_founded?: number | null
+        }
+        Update: {
+          bio?: string | null
+          commercial_manager_email?: string | null
+          commercial_manager_name?: string | null
+          commercial_manager_phone?: string | null
+          competition_level?: Database["public"]["Enums"]["team_level"] | null
+          cover_photo_url?: string | null
+          created_at?: string
+          discovery_ui_mode?: Database["public"]["Enums"]["ui_mode"]
+          display_theme?: Database["public"]["Enums"]["display_theme"]
+          fan_reach?: Database["public"]["Enums"]["fan_reach"] | null
+          home_city?: string | null
+          home_country?: string | null
+          home_venue?: string | null
+          id?: string
+          logo_url?: string | null
+          match_day_attendance?: number | null
+          nickname?: string | null
+          notification_prefs?: Json
+          offers_to_sponsors?: Json
+          press_mentions?: string | null
+          primary_controller_email?: string | null
+          primary_controller_name?: string | null
+          primary_controller_phone?: string | null
+          primary_controller_role?: string | null
+          seeking_sponsorship_types?: string[]
+          social_accounts?: Json
+          sponsorship_brief_url?: string | null
+          sports?: string[]
+          status?: Database["public"]["Enums"]["profile_status"]
+          team_name?: string | null
+          total_social_following?: number
+          total_sponsorship_value_sought?: number | null
+          updated_at?: string
+          user_id?: string
+          year_founded?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_profiles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      users: {
+        Row: {
+          created_at: string
+          data_export_requested_at: string | null
+          deactivated_at: string | null
+          deletion_requested_at: string | null
+          deletion_scheduled_at: string | null
+          email: string
+          email_verified: boolean
+          id: string
+          privacy_accepted_at: string | null
+          privacy_version: string | null
+          role: Database["public"]["Enums"]["user_role"] | null
+          role_locked_at: string | null
+          terms_accepted_at: string | null
+          terms_version: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          data_export_requested_at?: string | null
+          deactivated_at?: string | null
+          deletion_requested_at?: string | null
+          deletion_scheduled_at?: string | null
+          email: string
+          email_verified?: boolean
+          id: string
+          privacy_accepted_at?: string | null
+          privacy_version?: string | null
+          role?: Database["public"]["Enums"]["user_role"] | null
+          role_locked_at?: string | null
+          terms_accepted_at?: string | null
+          terms_version?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          data_export_requested_at?: string | null
+          deactivated_at?: string | null
+          deletion_requested_at?: string | null
+          deletion_scheduled_at?: string | null
+          email?: string
+          email_verified?: boolean
+          id?: string
+          privacy_accepted_at?: string | null
+          privacy_version?: string | null
+          role?: Database["public"]["Enums"]["user_role"] | null
+          role_locked_at?: string | null
+          terms_accepted_at?: string | null
+          terms_version?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      is_admin: { Args: never; Returns: boolean }
+      is_match_participant: { Args: { p_match_id: string }; Returns: boolean }
+    }
+    Enums: {
+      athlete_level:
+        | "recreational"
+        | "amateur"
+        | "semi_professional"
+        | "professional"
+        | "international"
+      availability_status: "available_now" | "available_from" | "not_available"
+      brand_industry:
+        | "sport"
+        | "fashion"
+        | "nutrition"
+        | "technology"
+        | "financial"
+        | "travel"
+        | "entertainment"
+        | "fmcg"
+        | "other"
+      brand_status: "pending_approval" | "active" | "suspended" | "rejected"
+      connection_status: "pending" | "accepted" | "declined" | "withdrawn"
+      contract_status:
+        | "draft"
+        | "pending_brand_signature"
+        | "pending_athlete_signature"
+        | "fully_signed"
+        | "terminated"
+      display_theme: "light" | "dark"
+      fan_reach: "local" | "regional" | "national" | "international"
+      link_status: "pending" | "active" | "terminated"
+      listing_status: "draft" | "active" | "paused" | "expired" | "filled"
+      listing_type: "athlete_endorsement" | "team_sponsorship"
+      match_status: "active" | "archived" | "blocked"
+      message_type:
+        | "text"
+        | "image"
+        | "video"
+        | "document"
+        | "proposal_card"
+        | "esignature_request"
+        | "payment_confirmation"
+      notification_channel: "push" | "email" | "in_app"
+      pay_type: "flat_fee" | "monthly_retainer" | "per_post" | "revenue_share"
+      payment_status:
+        | "pending"
+        | "processing"
+        | "succeeded"
+        | "failed"
+        | "refunded"
+      profile_status: "draft" | "pending_review" | "active" | "deactivated"
+      proposal_status:
+        | "pending"
+        | "accepted"
+        | "declined"
+        | "countered"
+        | "withdrawn"
+      report_reason:
+        | "fake_profile"
+        | "inappropriate_content"
+        | "harassment"
+        | "spam"
+        | "underage_concern"
+        | "other"
+      report_status: "pending" | "under_review" | "resolved" | "dismissed"
+      subscription_status:
+        | "trialing"
+        | "active"
+        | "past_due"
+        | "canceled"
+        | "paused"
+      team_level:
+        | "grassroots"
+        | "college"
+        | "semi_pro"
+        | "professional"
+        | "international"
+      ui_mode: "marketplace" | "swipe"
+      user_role: "athlete" | "team" | "brand" | "agent" | "admin"
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
 }
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
+  public: {
+    Enums: {
+      athlete_level: [
+        "recreational",
+        "amateur",
+        "semi_professional",
+        "professional",
+        "international",
+      ],
+      availability_status: ["available_now", "available_from", "not_available"],
+      brand_industry: [
+        "sport",
+        "fashion",
+        "nutrition",
+        "technology",
+        "financial",
+        "travel",
+        "entertainment",
+        "fmcg",
+        "other",
+      ],
+      brand_status: ["pending_approval", "active", "suspended", "rejected"],
+      connection_status: ["pending", "accepted", "declined", "withdrawn"],
+      contract_status: [
+        "draft",
+        "pending_brand_signature",
+        "pending_athlete_signature",
+        "fully_signed",
+        "terminated",
+      ],
+      display_theme: ["light", "dark"],
+      fan_reach: ["local", "regional", "national", "international"],
+      link_status: ["pending", "active", "terminated"],
+      listing_status: ["draft", "active", "paused", "expired", "filled"],
+      listing_type: ["athlete_endorsement", "team_sponsorship"],
+      match_status: ["active", "archived", "blocked"],
+      message_type: [
+        "text",
+        "image",
+        "video",
+        "document",
+        "proposal_card",
+        "esignature_request",
+        "payment_confirmation",
+      ],
+      notification_channel: ["push", "email", "in_app"],
+      pay_type: ["flat_fee", "monthly_retainer", "per_post", "revenue_share"],
+      payment_status: [
+        "pending",
+        "processing",
+        "succeeded",
+        "failed",
+        "refunded",
+      ],
+      profile_status: ["draft", "pending_review", "active", "deactivated"],
+      proposal_status: [
+        "pending",
+        "accepted",
+        "declined",
+        "countered",
+        "withdrawn",
+      ],
+      report_reason: [
+        "fake_profile",
+        "inappropriate_content",
+        "harassment",
+        "spam",
+        "underage_concern",
+        "other",
+      ],
+      report_status: ["pending", "under_review", "resolved", "dismissed"],
+      subscription_status: [
+        "trialing",
+        "active",
+        "past_due",
+        "canceled",
+        "paused",
+      ],
+      team_level: [
+        "grassroots",
+        "college",
+        "semi_pro",
+        "professional",
+        "international",
+      ],
+      ui_mode: ["marketplace", "swipe"],
+      user_role: ["athlete", "team", "brand", "agent", "admin"],
+    },
+  },
+} as const
+

@@ -112,20 +112,6 @@ create policy "connection_requests_update"
 -- MATCHES
 -- ============================================================
 
--- Helper: returns true if the current user is a participant in the given match.
-create or replace function public.is_match_participant(p_match_id uuid)
-returns boolean
-language sql
-security definer set search_path = public
-stable
-as $$
-  select exists (
-    select 1 from public.matches
-    where id = p_match_id
-    and (user_a_id = auth.uid() or user_b_id = auth.uid())
-  );
-$$;
-
 create table public.matches (
   id                    uuid primary key default gen_random_uuid(),
   user_a_id             uuid not null references public.users(id) on delete cascade,
@@ -145,6 +131,20 @@ create table public.matches (
 create trigger set_matches_updated_at
   before update on public.matches
   for each row execute procedure public.set_updated_at();
+
+-- Defined here (after matches table) because SQL functions validate their body at creation time.
+create or replace function public.is_match_participant(p_match_id uuid)
+returns boolean
+language sql
+security definer set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from public.matches
+    where id = p_match_id
+    and (user_a_id = auth.uid() or user_b_id = auth.uid())
+  );
+$$;
 
 alter table public.matches enable row level security;
 
