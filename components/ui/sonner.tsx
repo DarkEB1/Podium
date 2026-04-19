@@ -6,11 +6,11 @@ import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon
 
 const Toaster = (props: Omit<ToasterProps, "theme">) => {
   const { theme } = useTheme()
-  const resolvedTheme: "system" | "light" | "dark" = (theme === "light" || theme === "dark") ? theme : "system"
+  const sonnerTheme: "system" | "light" | "dark" = (theme === "light" || theme === "dark") ? theme : "system"
 
   return (
     <Sonner
-      theme={resolvedTheme}
+      theme={sonnerTheme}
       className="toaster group"
       icons={{
         success: (
@@ -42,7 +42,7 @@ const Toaster = (props: Omit<ToasterProps, "theme">) => {
           toast: "cn-toast",
         },
       }}
-      {...(props as Omit<ToasterProps, "theme">)}
+      {...props}
     />
   )
 }
