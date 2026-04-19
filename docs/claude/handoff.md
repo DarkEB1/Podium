@@ -1,59 +1,69 @@
 ---
-plan: docs/superpowers/plans/2026-04-19-podium-harness-setup.md
-task: 15 of 15
-status: complete
-last_updated: 2026-04-19T17:00:00Z
-head_sha: 96ae007
+plan: docs/superpowers/plans/2026-04-19-podium-backend-foundation.md
+task: 0 of 20
+status: ready_to_execute
+last_updated: 2026-04-19T16:41:38Z
+head_sha: c728e47
 ---
 
 <current_state>
-Harness setup is COMPLETE. All 15 tasks done and verified. Working directly on `main` branch in `C:/Users/nicho/Documents/Podium/Podium`. Ready to begin feature development.
+Foundation plan is written and committed. Ready to execute Task 1 of 20. No code written yet — only spec + plan documents exist. Start a fresh session and execute the plan.
 </current_state>
 
 <completed_work>
 
-- Task 1: Initialize Next.js 15 — DONE
-- Task 2: Install all dependencies — DONE
-- Task 3: Configure shadcn/ui — DONE (base-nova style, sonner replaces toast)
-- Task 4: Configure TypeScript strict mode — DONE (sonner.tsx fixed for exactOptionalPropertyTypes)
-- Task 5: Configure Vitest — DONE (jest-dom/vitest entrypoint, smoke test passing)
-- Task 6: Configure Playwright — DONE (CI-aware config, tsconfig isolation, smoke E2E passing)
-- Task 7: Add npm scripts — DONE (check, type-check, test, e2e, supabase:types)
-- Task 8: Supabase init + folder structure — DONE (route groups, gitkeep scaffold, .env.local.example)
-- Task 9: Supabase client helpers — DONE (env var guards, browser + server clients, tests)
-- Task 10: middleware.ts — DONE (auth gate fixed: exact '/' matching, cookie pattern corrected)
-- Task 11: CLAUDE.md — DONE (89 lines, full task routing + Bayesian protocol)
-- Task 12: Slash commands — DONE (7 files in .claude/commands/)
-- Task 13: Claude Code hooks — DONE (Stop hook uses exit codes, not text grep)
-- Task 14: Memory docs — DONE (architecture, patterns, lessons x6, testing, confidence-log)
-- Task 15: Final verification — DONE (check + E2E pass, confidence log written, commit 96ae007)
-
-HEAD is at 96ae007.
+- Brainstorming: decomposed backend into 8 subsystems, chose sequential approach
+- Design spec: docs/superpowers/specs/2026-04-19-podium-backend-foundation-design.md (approved, committed)
+- Implementation plan: docs/superpowers/plans/2026-04-19-podium-backend-foundation.md (20 tasks, 37 tests, committed)
+- Self-review: fixed import-order bug in Task 12 (imports must be at top of auth.ts, not appended mid-file)
 </completed_work>
+
+<remaining_work>
+
+All 20 implementation tasks are pending:
+- Tasks 1–9: Write 8 migration SQL files (19 tables, all enums, all RLS)
+- Task 10: Apply migrations + regenerate types/database.ts
+- Tasks 11–12: lib/supabase/auth.ts (TDD)
+- Tasks 13–18: 8 auth API routes in app/api/auth/ (TDD)
+- Task 19: docs/api/01-auth.md
+- Task 20: Full check + handoff update
+</remaining_work>
 
 <decisions_made>
 
-- Working directly on main branch (no worktrees) — user explicitly authorized
-- shadcn v4 base-nova style accepted over plan's default/slate — newer, RSC-compatible, @base-ui/react primitives
-- sonner replaces toast (shadcn v4 breaking change) — documented in lessons.md
-- @vitest/coverage-v8 added as fix (was omitted from plan's Task 2) — needed for npm run test:coverage
-- jest-dom/vitest entrypoint instead of bare jest-dom — correct Vitest type augmentation
-- Playwright: reuseExistingServer: !process.env.CI, retries: process.env.CI ? 2 : 0 — CI-hardened
-- Playwright: e2e/tsconfig.json isolates E2E types from Vitest types
-- Supabase client helpers use explicit env var guards (throw on missing vars) — consistent with strict mode stance
-- middleware.ts: fixed critical auth gate bug (startsWith('/') matched every path), fixed cookie reassignment in setAll
-- Stop hook uses exit codes not text grep — avoids false positives from "No errors found" type output
-
+- Backend scope: DB + RLS + lib/ + API routes only (no UI)
+- Supabase: local CLI only (npx supabase start)
+- Schema: all 17 spec tables + notification_logs + blocks = 19 tables in 8 domain-grouped migration files
+- API style: REST API routes (not Server Actions) for clean frontend-agnostic contract
+- Migration naming: 20260419000001_users_auth.sql through 20260419000008_admin.sql
+- Enums: all 24 defined in migration 01, referenced across all other migrations
+- Role lock: enforced at DB level via RLS WITH CHECK, not just application logic
+- Mandatory proposal mechanic: enforced via matches.proposal_required + messages INSERT RLS
+- Enumeration protection: signup + password-reset always return identical success messages
+- Admin role: not selectable via /api/auth/role — created out-of-band only
 </decisions_made>
 
-<next_action>
-Harness is fully operational. Next: start building features using CLAUDE.md task routing.
-- New feature → invoke `/new-feature`
-- Schema change → invoke `/new-migration`
-- Bug → invoke `/fix-bug`
+<blockers>
+None.
+</blockers>
 
-Recommended first steps:
-1. Set up `.env.local` with real Supabase project credentials
-2. Run `npx supabase start` to start local Supabase instance
-3. Begin with auth flow (sign-up, role selection)
+<context>
+This is Subsystem 1 of 8 of the Podium backend. The 8 subsystems are:
+1. Foundation (this plan) — schema + auth
+2. Profiles — athlete/team/brand/agent CRUD
+3. Discovery — connections, matches, search
+4. Messaging — real-time chat
+5. Deals — proposals + contracts + e-signature
+6. Payments — Stripe subscriptions + deal payments
+7. Notifications — push/email/in-app
+8. Admin — separate admin panel
+
+Each subsystem follows the same pattern: lib/supabase/<domain>.ts + app/api/<domain>/ routes + docs/api/0N-<domain>.md.
+
+The spec is at docs/superpowers/specs/2026-04-19-podium-backend-foundation-design.md.
+The plan is at docs/superpowers/plans/2026-04-19-podium-backend-foundation.md.
+</context>
+
+<next_action>
+/clear then execute the plan: open docs/superpowers/plans/2026-04-19-podium-backend-foundation.md and start at Task 1. Use superpowers:executing-plans or superpowers:subagent-driven-development skill.
 </next_action>
