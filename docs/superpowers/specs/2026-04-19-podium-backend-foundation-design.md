@@ -11,7 +11,7 @@
 
 Foundation lays everything the rest of the backend builds on:
 
-1. **8 migration files** — all 17 tables (+ `notification_logs`) with enums and RLS policies, defined before any product code touches the DB
+1. **8 migration files** — all 17 spec tables (+ `notification_logs`, + `blocks`) with enums and RLS policies, defined before any product code touches the DB
 2. **`lib/supabase/auth.ts`** — server-side functions wrapping Supabase auth
 3. **Auth API routes** — `app/api/auth/` handlers for sign-up, login, logout, role selection, password reset/update, session
 4. **API contract doc** — `docs/api/01-auth.md` listing every endpoint with request/response shapes and error codes
@@ -373,6 +373,16 @@ Mirrors `auth.users`. Populated by trigger on `auth.users` INSERT. Role and lega
 | `created_at` | `timestamptz DEFAULT now()` | |
 | — | `UNIQUE(user_id, target_user_id)` | |
 
+#### `blocks`
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | `uuid PK` | |
+| `blocker_id` | `uuid` | FK → `users.id` |
+| `blocked_id` | `uuid` | FK → `users.id` |
+| `created_at` | `timestamptz DEFAULT now()` | |
+| — | `UNIQUE(blocker_id, blocked_id)` | |
+
 ---
 
 ### `04-messaging.sql` — `messages`
@@ -585,6 +595,12 @@ Append-only. No UPDATE or DELETE permitted by any role.
 
 ### `shortlists`
 - `SELECT` / `INSERT` / `DELETE`: owner only
+
+### `blocks`
+- `SELECT`: blocker reads own blocks; blocked user cannot see that they are blocked
+- `INSERT`: any authenticated user (cannot block yourself)
+- `DELETE`: blocker only (unblock)
+- Admin: reads all via service role
 
 ### `messages`
 - `SELECT`: match participants; `is_deleted = true` rows — admin only
