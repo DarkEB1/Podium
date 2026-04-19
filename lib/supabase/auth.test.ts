@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { validatePassword } from './auth'
 
 describe('validatePassword', () => {
@@ -160,9 +160,9 @@ describe('requestDeletion', () => {
     await requestDeletion(client, 'user-123')
     const after = new Date()
 
-    const [[updateArg]] = mocks.mockUpdate.mock.calls
-    const requestedAt = new Date(updateArg.deletion_requested_at)
-    const scheduledAt = new Date(updateArg.deletion_scheduled_at)
+    const updateArg = mocks.mockUpdate.mock.calls[0]![0] as Record<string, string>
+    const requestedAt = new Date(updateArg['deletion_requested_at']!)
+    const scheduledAt = new Date(updateArg['deletion_scheduled_at']!)
 
     expect(requestedAt.getTime()).toBeGreaterThanOrEqual(before.getTime())
     expect(requestedAt.getTime()).toBeLessThanOrEqual(after.getTime())

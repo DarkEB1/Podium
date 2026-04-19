@@ -21,7 +21,7 @@ describe('POST /api/auth/password-update', () => {
   beforeEach(() => {
     vi.mocked(createClient).mockResolvedValue({
       auth: { getUser: mockGetUser, updateUser: mockUpdateUser },
-    } as ReturnType<Awaited<typeof createClient>>)
+    } as unknown as Awaited<ReturnType<typeof createClient>>)
   })
 
   it('returns 400 when password is missing', async () => {

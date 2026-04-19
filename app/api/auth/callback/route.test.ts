@@ -23,7 +23,7 @@ describe('GET /api/auth/callback', () => {
     vi.mocked(createClient).mockResolvedValue({
       auth: { exchangeCodeForSession: mockExchange },
       from: vi.fn().mockReturnValue({ update: mockUpdate }),
-    } as ReturnType<Awaited<typeof createClient>>)
+    } as unknown as Awaited<ReturnType<typeof createClient>>)
     mockExchange.mockResolvedValue({
       error: null,
       data: { session: { user: { id: 'user-123' } } },

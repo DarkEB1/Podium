@@ -21,7 +21,7 @@ describe('POST /api/auth/password-reset', () => {
     mockReset.mockClear()
     vi.mocked(createClient).mockResolvedValue({
       auth: { resetPasswordForEmail: mockReset },
-    } as ReturnType<Awaited<typeof createClient>>)
+    } as unknown as Awaited<ReturnType<typeof createClient>>)
     mockReset.mockResolvedValue({ error: null })
   })
 

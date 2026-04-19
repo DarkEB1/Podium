@@ -22,7 +22,7 @@ describe('POST /api/auth/signup', () => {
   beforeEach(() => {
     vi.mocked(createClient).mockResolvedValue({
       auth: { signUp: mockSignUp },
-    } as ReturnType<Awaited<typeof createClient>>)
+    } as unknown as Awaited<ReturnType<typeof createClient>>)
     mockSignUp.mockResolvedValue({ error: null })
   })
 

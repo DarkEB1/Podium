@@ -25,7 +25,7 @@ describe('POST /api/auth/login', () => {
   beforeEach(() => {
     vi.mocked(createClient).mockResolvedValue({
       auth: { signInWithPassword: mockSignIn },
-    } as ReturnType<Awaited<typeof createClient>>)
+    } as unknown as Awaited<ReturnType<typeof createClient>>)
   })
 
   it('returns 400 when email or password is missing', async () => {

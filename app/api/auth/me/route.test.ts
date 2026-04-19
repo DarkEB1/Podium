@@ -12,7 +12,7 @@ import { GET } from './route'
 
 describe('GET /api/auth/me', () => {
   beforeEach(() => {
-    vi.mocked(createClient).mockResolvedValue({} as ReturnType<Awaited<typeof createClient>>)
+    vi.mocked(createClient).mockResolvedValue({} as unknown as Awaited<ReturnType<typeof createClient>>)
   })
 
   it('returns 401 when not authenticated', async () => {

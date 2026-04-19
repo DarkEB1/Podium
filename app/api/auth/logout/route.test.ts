@@ -11,7 +11,7 @@ describe('POST /api/auth/logout', () => {
   beforeEach(() => {
     vi.mocked(createClient).mockResolvedValue({
       auth: { signOut: mockSignOut },
-    } as ReturnType<Awaited<typeof createClient>>)
+    } as unknown as Awaited<ReturnType<typeof createClient>>)
     mockSignOut.mockResolvedValue({ error: null })
   })
 
