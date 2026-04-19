@@ -1,13 +1,13 @@
 ---
 plan: docs/superpowers/specs/2026-04-19-podium-backend-foundation-design.md
-task: subsystem 4 of 8 complete
+task: subsystem 5 of 8 complete
 status: complete
-last_updated: 2026-04-19T23:25:00Z
-head_sha: 5a88d47
+last_updated: 2026-04-19T23:55:00Z
+head_sha: 1190cfd
 ---
 
 <current_state>
-Subsystem 4: Messaging is COMPLETE and committed. Ready to start Subsystem 5: Deals.
+Subsystem 5: Deals is COMPLETE and committed. Ready to start Subsystem 6: Payments.
 </current_state>
 
 <completed_work>
@@ -25,13 +25,23 @@ Subsystem 4: Messaging is COMPLETE and committed. Ready to start Subsystem 5: De
   - getMatches: OR filter (user_a_id OR user_b_id), status=active
   - POST route validates content_type against enum allowlist before lib call → INVALID_CONTENT_TYPE 400
   - All as SupabaseClient casts have explanatory comments
+- Subsystem 5 (Deals): lib/supabase/deals.ts (6 functions), 5 route files, 339 passing tests total, e2e/deals.spec.ts, docs/api/05-deals.md
+  - sendProposal: INSERT into proposals (brand participant via RLS)
+  - getProposals: pre-checks match existence for clean MATCH_NOT_FOUND (not empty array)
+  - respondToProposal: recipient-only guard, pending-only guard, on accept creates contract via adminSupabase (service role — contracts INSERT has no client RLS policy), records responded_at
+  - counterProposal: recipient-only, marks parent 'countered' + INSERT new proposal with parent_proposal_id; parent-update error is captured and thrown
+  - withdrawProposal: triple .eq() filter (id + sender_id + status=pending) + PGRST116 = PROPOSAL_NOT_FOUND
+  - getContract: select by proposal_id, PGRST116 → null (no contract yet)
+  - lib/supabase/server.ts: added createAdminClient() (synchronous, persistSession:false) for service role
+  - All DealsError codes handled in route handlers: no unstructured 500s
+  - pay_amount validated as positive number at route layer (INVALID_PAY_AMOUNT 400)
+  - responded_at used for all status-change timestamps (including withdraw) — tracks when status last changed
 </completed_work>
 
 <remaining_work>
-- Subsystem 5: Deals — lib/supabase/deals.ts + deals API routes + docs/api/05-deals.md
-  - Tables: proposals, contracts (already migrated with RLS)
-  - Key logic: proposal lifecycle (pending→accepted/declined/countered/withdrawn), contract creation on acceptance
-- Subsystem 6: Payments
+- Subsystem 6: Payments — lib/supabase/payments.ts + payments API routes + docs/api/06-payments.md
+  - Tables: subscriptions, payments (already migrated with RLS)
+  - Key logic: Stripe subscription management, payment intents, webhook handlers
 - Subsystem 7: Notifications
 - Subsystem 8: Admin
 </remaining_work>
@@ -48,6 +58,11 @@ Subsystem 4: Messaging is COMPLETE and committed. Ready to start Subsystem 5: De
 - content_type validated against VALID_MESSAGE_TYPES Set in route before reaching lib layer
 - MessagePayload interface is exported for downstream callers
 - DELETE message returns 200 {success:true} (consistent with discovery DELETEs, not 204)
+- contracts INSERT is service-role only — createAdminClient() used in respond route handler, passed to lib as adminSupabase param
+- counterProposal parent-update error is captured and thrown (PROPOSAL_UPDATE_FAILED), not silently dropped
+- responded_at is the status-change timestamp for ALL transitions including withdraw (not just recipient responses)
+- pay_amount validated as positive number (not just defined) — INVALID_PAY_AMOUNT 400
+- PROPOSAL_FETCH_FAILED used for non-PGRST116 fetch errors (distinct from PROPOSAL_NOT_FOUND)
 </decisions_made>
 
 <blockers>
@@ -55,13 +70,14 @@ None.
 </blockers>
 
 <context>
-Sequential backend build following the 8-subsystem spec in docs/superpowers/specs/2026-04-19-podium-backend-foundation-design.md. Each subsystem delivers: lib functions + API routes + API contract doc. TDD throughout (tests written before implementation). Pattern is consistent across subsystems — follow auth.ts, profiles.ts, discovery.ts, and messaging.ts as the established template.
+Sequential backend build following the 8-subsystem spec in docs/superpowers/specs/2026-04-19-podium-backend-foundation-design.md. Each subsystem delivers: lib functions + API routes + API contract doc. TDD throughout (tests written before implementation). Pattern is consistent across subsystems — follow auth.ts, profiles.ts, discovery.ts, messaging.ts, and deals.ts as the established template.
 </context>
 
 <next_action>
-Start Subsystem 5: Deals
-- Spec: docs/superpowers/specs/2026-04-19-podium-backend-foundation-design.md (Section 05-deals)
-- Tables already migrated: proposals, contracts
-- Key logic: proposal status machine (pending→accepted/declined/countered/withdrawn), contract creation on acceptance, parent_proposal_id for counter-proposals
-- Route: /new-feature → TDD → lib/supabase/deals.ts + app/api/deals/ + docs/api/05-deals.md
+Start Subsystem 6: Payments
+- Spec: docs/superpowers/specs/2026-04-19-podium-backend-foundation-design.md (Section 06-payments)
+- Tables already migrated: subscriptions, payments
+- Key logic: Stripe subscription tiers, payment intent flow, webhook verification
+- Route: /new-feature → TDD → lib/supabase/payments.ts + app/api/payments/ + app/api/webhooks/stripe/ + docs/api/06-payments.md
+- Note: Stripe calls belong in lib/stripe/ not lib/supabase/ per architecture rules
 </next_action>
