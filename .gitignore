@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.local.example
 
 # vercel
 .vercel
@@ -43,3 +44,4 @@ next-env.d.ts
 # Playwright
 /playwright-report/
 /test-results/
+.env.local
