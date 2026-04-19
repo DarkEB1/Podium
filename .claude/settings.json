@@ -43,7 +43,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash -c 'result=$(npm run test 2>&1 && npm run type-check 2>&1 && npm run lint 2>&1 && npx playwright test --project=chromium 2>&1); if echo \"$result\" | grep -qiE \"error|failed|FAIL\"; then echo \"STOP_HOOK_FAIL: not all checks pass — iterate\" >&2; exit 1; else echo \"TASK_COMPLETE\"; fi'"
+            "command": "bash -c 'npm run test 2>&1; test_exit=$?; npm run type-check 2>&1; tc_exit=$?; npm run lint 2>&1; lint_exit=$?; npx playwright test --project=chromium 2>&1; pw_exit=$?; if [[ $test_exit -ne 0 || $tc_exit -ne 0 || $lint_exit -ne 0 || $pw_exit -ne 0 ]]; then echo \"STOP_HOOK_FAIL: not all checks pass — iterate\" >&2; exit 1; else echo \"TASK_COMPLETE\"; fi'"
           }
         ]
       }
