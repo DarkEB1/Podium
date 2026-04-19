@@ -1,6 +1,6 @@
 # Lessons Learned
 
-- **This project uses shadcn v4 `base-nova` style with `@base-ui/react` primitives — NOT `@radix-ui/react-*`**: When adding new shadcn components, use `npx shadcn@latest add <component>` — do NOT manually import from `@radix-ui`. The `base-nova` style uses `@base-ui/react` instead of Radix. `toast` is replaced by `sonner`. Check `components.json` for the source of truth on style configuration.
+- **This project uses shadcn v4 `base-nova` style with `@base-ui/react` primitives — NOT `@radix-ui/react-*`**: When adding new shadcn components, use `npx shadcn@latest add <component>` — do NOT manually import from `@radix-ui/react-*` component primitives (e.g. `@radix-ui/react-dialog`, `@radix-ui/react-dropdown-menu`). `@radix-ui/react-slot` is acceptable — it is used by `button.tsx` and `form.tsx` via the `asChild` pattern. The `base-nova` style uses `@base-ui/react` instead of Radix. `toast` is replaced by `sonner`. Check `components.json` for the source of truth on style configuration.
 
 - **Always verify webhook HMAC before processing any event**: Skipping this means fraudulent Stripe or DocuSign events get processed as real. Use `stripe.webhooks.constructEvent()` — return 400 if it throws.
 
