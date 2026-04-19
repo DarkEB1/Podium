@@ -1,0 +1,52 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'f=\"$CLAUDE_FILE_PATH\"; ext=\"${f##*.}\"; if [[ \"$ext\" == \"ts\" || \"$ext\" == \"tsx\" || \"$ext\" == \"js\" || \"$ext\" == \"jsx\" || \"$ext\" == \"json\" || \"$ext\" == \"css\" || \"$ext\" == \"md\" ]]; then npx prettier --write \"$f\" 2>/dev/null && echo \"[hook] formatted: $f\"; fi'"
+          },
+          {
+            "type": "command",
+            "command": "bash -c 'f=\"$CLAUDE_FILE_PATH\"; ext=\"${f##*.}\"; if [[ \"$ext\" == \"ts\" || \"$ext\" == \"tsx\" ]]; then result=$(npx next lint --file \"$f\" 2>&1); if echo \"$result\" | grep -q \"Error\\|error\"; then echo \"$result\" >&2; echo \"[hook] lint errors in $f — fix before continuing\" >&2; fi; fi'"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'f=\"$CLAUDE_FILE_PATH\"; b=$(basename \"$f\"); if [[ \"$b\" == \".env\" || \"$b\" == \".env.local\" ]]; then echo \"Never edit .env directly — use .env.local.example as a template and set values in .env.local\" >&2; exit 2; fi'"
+          },
+          {
+            "type": "command",
+            "command": "bash -c 'f=\"$CLAUDE_FILE_PATH\"; if [[ \"$f\" == *\"lib/supabase\"* || \"$f\" == *\"types/database\"* ]]; then today=$(date +%Y%m%d); if ! ls supabase/migrations/ 2>/dev/null | grep -q \"$today\"; then echo \"[hook] Editing DB layer — if this involves a schema change, run /new-migration first\"; fi; fi'"
+          },
+          {
+            "type": "command",
+            "command": "bash -c 'f=\"$CLAUDE_FILE_PATH\"; if [[ \"$f\" != *\".test.\"* && \"$f\" != *\".spec.\"* && (\"$f\" == *\".ts\" || \"$f\" == *\".tsx\") ]]; then testf=\"${f%.ts}.test.ts\"; testfx=\"${f%.tsx}.test.tsx\"; if [[ ! -f \"$testf\" && ! -f \"$testfx\" ]]; then echo \"[hook] No test file found for $f — remember to create one\"; fi; fi'"
+          },
+          {
+            "type": "command",
+            "command": "bash -c 'f=\"$CLAUDE_FILE_PATH\"; if [[ \"$f\" == *\"api/webhooks\"* ]]; then if [[ -f \"$f\" ]] && ! grep -qiE \"hmac|constructEvent|verifySignature|webhook.*secret\" \"$f\" 2>/dev/null; then echo \"[hook] WARNING: Webhook handler may be missing HMAC signature verification\" >&2; fi; fi'"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'result=$(npm run test 2>&1 && npm run type-check 2>&1 && npm run lint 2>&1 && npx playwright test --project=chromium 2>&1); if echo \"$result\" | grep -qiE \"error|failed|FAIL\"; then echo \"STOP_HOOK_FAIL: not all checks pass — iterate\" >&2; exit 1; else echo \"TASK_COMPLETE\"; fi'"
+          }
+        ]
+      }
+    ]
+  }
+}
