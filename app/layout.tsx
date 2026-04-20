@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google'
 import { ThemeProvider } from 'next-themes'
 import { Toaster } from '@/components/ui/sonner'
 import './globals.css'
+import type { ReactNode } from 'react'
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
 const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] })
@@ -12,7 +13,7 @@ export const metadata: Metadata = {
   description: 'The marketplace connecting athletes and teams with sponsors.',
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
