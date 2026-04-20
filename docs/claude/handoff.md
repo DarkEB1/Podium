@@ -1,13 +1,13 @@
 ---
 plan: docs/superpowers/specs/2026-04-19-podium-backend-foundation-design.md
-task: subsystem 6 of 8 complete
+task: subsystem 7 of 8 complete
 status: complete
-last_updated: 2026-04-20T15:40:00Z
-head_sha: c33dc76
+last_updated: 2026-04-20T19:50:00Z
+head_sha: db5820a
 ---
 
 <current_state>
-Subsystem 6: Payments is COMPLETE and committed. Ready to start Subsystem 7: Notifications.
+Subsystem 7: Notifications is COMPLETE and committed. Ready to start Subsystem 8: Admin.
 </current_state>
 
 <completed_work>
@@ -21,6 +21,9 @@ Subsystem 6: Payments is COMPLETE and committed. Ready to start Subsystem 7: Not
   - lib/supabase/payments.ts: getSubscription, getSubscriptionForUser (joins brand_profiles by user_id), upsertSubscription, updateSubscription, getPayment, getPaymentHistory, createPaymentRecord, updatePaymentRecord, getContractForPayment
   - 6 API routes under app/api/payments/: subscriptions/me (GET), subscriptions/checkout (POST), subscriptions/cancel (POST), intents (POST), history (GET), [contractId] (GET)
   - app/api/webhooks/stripe/route.ts: HMAC-verified, handles customer.subscription.created/updated/deleted, payment_intent.created/succeeded/payment_failed
+- Subsystem 7 (Notifications): 439 total passing tests, docs/api/07-notifications.md, e2e/notifications.spec.ts
+  - lib/supabase/notifications.ts: getNotifications (user client), markRead (admin client + userId filter), createNotification (admin client)
+  - 3 API routes under app/api/notifications/: GET (list user's notifications), PATCH [id]/read (mark as read), POST (internal service-role create)
 </completed_work>
 
 <decisions_made>
@@ -32,19 +35,21 @@ Subsystem 6: Payments is COMPLETE and committed. Ready to start Subsystem 7: Not
 - charges accessed via unknown cast — Stripe SDK v17 type definition differs from runtime shape
 - adminSupabase used in: intents route (createPaymentRecord), cancel route (updateSubscription), all webhook writes
 - pay_amount sourced server-side from getContractForPayment (contract→proposal join) — client cannot override
+- markRead uses adminSupabase + explicit .eq('user_id', userId) — no UPDATE RLS policy on notification_logs (spec: "No UPDATE/DELETE from client"), so user client would PGRST116 silently
+- POST /api/notifications protected with timingSafeEqual comparison of SUPABASE_SERVICE_ROLE_KEY bearer token
 </decisions_made>
 
 <remaining_work>
-- Subsystem 7: Notifications — lib/supabase/notifications.ts + notifications API routes + docs/api/07-notifications.md
-  - Table: notification_logs (already migrated with RLS)
-  - Key logic: INSERT service-role only, SELECT own records, mark read_at for in-app
-- Subsystem 8: Admin
+- Subsystem 8: Admin — lib/supabase/admin.ts + admin API routes + docs/api/08-admin.md
+  - Tables: reports, audit_logs (already migrated with RLS)
+  - RLS: reports SELECT = reporter reads own + admin reads all; INSERT = any authenticated user; UPDATE = admin only
+  - audit_logs: SELECT = admin only; INSERT = service role only
 </remaining_work>
 
 <next_action>
-Start Subsystem 7: Notifications
-- Spec: docs/superpowers/specs/2026-04-19-podium-backend-foundation-design.md (Section 07-notifications)
-- Table: notification_logs (notification_channel enum: push | email | in_app)
-- Routes: GET /api/notifications, PATCH /api/notifications/[id]/read, POST internal (service-role create)
-- Pattern: follow lib/supabase/messaging.ts and deals.ts as template
+Start Subsystem 8: Admin
+- Spec: docs/superpowers/specs/2026-04-19-podium-backend-foundation-design.md (Section 08-admin)
+- Tables: reports, audit_logs
+- Pattern: follow lib/supabase/deals.ts and lib/supabase/payments.ts as template
+- Admin routes likely under app/(admin)/ — check CLAUDE.md note about separate middleware
 </next_action>
