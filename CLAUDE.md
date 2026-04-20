@@ -26,6 +26,7 @@ When intent is ambiguous: state which command you are applying and why before st
 - Every new DB table → write RLS policy before any code queries it
 - Every schema change → migration file in `supabase/migrations/` first, then code
 - `app/(admin)/` has separate middleware — never share auth logic with main app
+- No `<Button asChild>` — Button uses `@base-ui/react` (not Radix), which does not support `asChild`. Use `<Link className={buttonVariants({ variant, size })}>` from `@/components/ui/button` instead
 
 ## Layer Map
 ```
