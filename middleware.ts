@@ -43,7 +43,19 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // TODO: add role check here — redirect to /403 if user.role !== 'admin'
+  if (isAdmin && user) {
+    const { data: userData } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (!userData || userData.role !== 'admin') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/403'
+      return NextResponse.redirect(url)
+    }
+  }
 
   return supabaseResponse
 }
