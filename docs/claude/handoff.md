@@ -1,55 +1,57 @@
 ---
-plan: docs/superpowers/specs/2026-04-19-podium-backend-foundation-design.md
-task: subsystem 7 of 8 complete
-status: complete
-last_updated: 2026-04-20T19:50:00Z
-head_sha: db5820a
+plan: docs/superpowers/plans/2026-04-20-podium-frontend.md
+task: task 2 of 11 (code quality review pending)
+status: in_progress
+last_updated: 2026-04-20T21:33:56.902Z
+head_sha: 1278301
 ---
 
 <current_state>
-Subsystem 7: Notifications is COMPLETE and committed. Ready to start Subsystem 8: Admin.
+Executing Phase 1 (Public & Auth Shell) of the Podium frontend plan using subagent-driven development on main branch. Task 2 is implemented and committed and passed spec review — code quality review was interrupted by context limit. Tasks 3–11 not started.
 </current_state>
 
 <completed_work>
-- Subsystem 1 (Foundation): 8 migration files, 19 tables, RLS, auth lib, 8 auth API routes, docs/api/01-auth.md
-- Subsystem 2 (Profiles): lib/supabase/profiles.ts (8 functions), 8 API routes, 120 passing Vitest tests, e2e/profiles.spec.ts, docs/api/02-profiles.md
-- Subsystem 3 (Discovery): lib/supabase/discovery.ts (14 functions), 9 API route handlers, 226 passing tests, e2e/discovery.spec.ts, docs/api/03-discovery.md
-- Subsystem 4 (Messaging): lib/supabase/messaging.ts (4 functions), 4 API routes, 269 passing tests, e2e/messaging.spec.ts, docs/api/04-messaging.md
-- Subsystem 5 (Deals): lib/supabase/deals.ts (6 functions), 5 route files, 339 passing tests, e2e/deals.spec.ts, docs/api/05-deals.md
-- Subsystem 6 (Payments): 419 total passing tests, docs/api/06-payments.md, e2e/payments.spec.ts
-  - lib/stripe/index.ts: lazy Stripe client, createCheckoutSession (7-day trial), createPaymentIntent (idempotency key pi_{contractId}), cancelSubscription (update cancel_at_period_end=true), constructWebhookEvent
-  - lib/supabase/payments.ts: getSubscription, getSubscriptionForUser (joins brand_profiles by user_id), upsertSubscription, updateSubscription, getPayment, getPaymentHistory, createPaymentRecord, updatePaymentRecord, getContractForPayment
-  - 6 API routes under app/api/payments/: subscriptions/me (GET), subscriptions/checkout (POST), subscriptions/cancel (POST), intents (POST), history (GET), [contractId] (GET)
-  - app/api/webhooks/stripe/route.ts: HMAC-verified, handles customer.subscription.created/updated/deleted, payment_intent.created/succeeded/payment_failed
-- Subsystem 7 (Notifications): 439 total passing tests, docs/api/07-notifications.md, e2e/notifications.spec.ts
-  - lib/supabase/notifications.ts: getNotifications (user client), markRead (admin client + userId filter), createNotification (admin client)
-  - 3 API routes under app/api/notifications/: GET (list user's notifications), PATCH [id]/read (mark as read), POST (internal service-role create)
+
+- Frontend plan written: docs/superpowers/plans/2026-04-20-podium-frontend.md (Phase 1 fully detailed, Phases 2–7 page inventories)
+- Task 1: Root layout providers + shadcn additions ✅ — ThemeProvider, Toaster, app/(public)/layout.tsx, 9 shadcn components added (accordion, alert, separator, select, progress, textarea, switch, skeleton, radio-group). Quality reviewed and fixed (ReactNode import).
+- Task 2: Static pages (403, verify-email, footer) ✅ — app/403/page.tsx, app/(public)/auth/verify-email/page.tsx, components/layout/footer.tsx. Spec review PASSED. Code quality review NOT YET RUN (interrupted).
+  - Key discovery: Button uses @base-ui/react, not Radix — `asChild` unsupported. Fix: `<Link className={buttonVariants({ variant, size })}>`. CLAUDE.md updated with this rule.
 </completed_work>
 
-<decisions_made>
-- cancelSubscription uses subscriptions.update({cancel_at_period_end:true}) not .cancel() — schedules at period end, not immediate
-- Stripe client is lazy-initialized — avoids test failures when STRIPE_SECRET_KEY is absent at import time
-- getSubscriptionForUser(supabase, userId) joins brand_profiles — for routes; getSubscription(supabase, brandId) takes brand_profiles.id — for webhooks
-- checkout client_reference_id = user.id; webhook reads metadata.brandProfileId for brand_profiles lookup
-- payment_intent.created is a no-op when metadata.contractId absent (Stripe creates intents for subscriptions too)
-- charges accessed via unknown cast — Stripe SDK v17 type definition differs from runtime shape
-- adminSupabase used in: intents route (createPaymentRecord), cancel route (updateSubscription), all webhook writes
-- pay_amount sourced server-side from getContractForPayment (contract→proposal join) — client cannot override
-- markRead uses adminSupabase + explicit .eq('user_id', userId) — no UPDATE RLS policy on notification_logs (spec: "No UPDATE/DELETE from client"), so user client would PGRST116 silently
-- POST /api/notifications protected with timingSafeEqual comparison of SUPABASE_SERVICE_ROLE_KEY bearer token
-</decisions_made>
-
 <remaining_work>
-- Subsystem 8: Admin — lib/supabase/admin.ts + admin API routes + docs/api/08-admin.md
-  - Tables: reports, audit_logs (already migrated with RLS)
-  - RLS: reports SELECT = reporter reads own + admin reads all; INSERT = any authenticated user; UPDATE = admin only
-  - audit_logs: SELECT = admin only; INSERT = service role only
+
+- Task 2: Run code quality review (subagent: superpowers:code-reviewer), mark complete
+- Task 3: Password strength indicator (components/auth/password-strength.tsx + .test.tsx)
+- Task 4: Sign-up form + page (components/auth/sign-up-form.tsx + .test.tsx + app/(public)/auth/signup/page.tsx)
+- Task 5: Login form + page (components/auth/login-form.tsx + .test.tsx + app/(public)/auth/page.tsx)
+- Task 6: Password reset forms + pages (forgot-password-form, update-password-form + pages)
+- Task 7: Role selection form + page (role-select-form.tsx + .test.tsx + role-select/page.tsx — server component with getUser redirect)
+- Task 8: Landing page hero sections (hero, how-it-works, marketplace-preview)
+- Task 9: Landing page remaining (role-panels, social-proof, faq [use client], complete page.tsx + footer)
+- Task 10: E2E auth Playwright spec (e2e/auth.spec.ts)
+- Task 11: Final check (npm run check — must pass ≥496 + new tests)
 </remaining_work>
 
+<decisions_made>
+
+- Working on main branch (no worktrees) — user preference
+- Subagent-driven development (option 1): implementer subagent → spec reviewer → code quality reviewer per task
+- No `<Button asChild>` — Button uses @base-ui/react, not Radix. Use `<Link className={buttonVariants({ variant, size })}>` instead. Documented in CLAUDE.md Architecture Rules.
+- "Confidential & Proprietary" footer text is intentional (matches product spec)
+- Task sessions use TodoWrite tasks #1–#11 to track progress
+- Backend is complete — do not modify lib/supabase/, lib/stripe/, app/api/
+</decisions_made>
+
+<blockers>
+None currently.
+</blockers>
+
+<context>
+This is Phase 1 of a 7-phase frontend build plan for Podium (sports sponsorship marketplace). The subagent pattern is: dispatch implementer → spec compliance review → code quality review → mark complete → next task. All auth pages live under app/(public)/auth/ (covered by middleware PUBLIC_PATHS '/auth'). Role-select at /role-select and update-password at /update-password are authenticated but pre-dashboard flows. The middleware already handles admin role check; role-specific layouts (phases 2–6) will handle role-based redirects server-side using lib/supabase/auth.getUser().
+</context>
+
 <next_action>
-Start Subsystem 8: Admin
-- Spec: docs/superpowers/specs/2026-04-19-podium-backend-foundation-design.md (Section 08-admin)
-- Tables: reports, audit_logs
-- Pattern: follow lib/supabase/deals.ts and lib/supabase/payments.ts as template
-- Admin routes likely under app/(admin)/ — check CLAUDE.md note about separate middleware
+1. Run code quality review for Task 2 (dispatch superpowers:code-reviewer subagent to review app/403/page.tsx, app/(public)/auth/verify-email/page.tsx, components/layout/footer.tsx)
+2. Mark Task 2 complete in TodoWrite
+3. Dispatch Task 3 implementer subagent (password strength indicator)
 </next_action>
