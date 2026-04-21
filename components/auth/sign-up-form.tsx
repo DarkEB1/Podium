@@ -39,7 +39,7 @@ export default function SignUpForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(values),
       })
-      const data = await res.json()
+      const data = await res.json().catch(() => ({}))
       if (!res.ok) {
         toast.error(data.error?.message ?? 'Sign-up failed')
         return

@@ -3,12 +3,14 @@ import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import SignUpForm from './sign-up-form'
 
+const mockPush = vi.fn()
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: mockPush }),
 }))
 
 describe('SignUpForm', () => {
   beforeEach(() => {
+    mockPush.mockClear()
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ message: 'Check your email to verify your account' }),
@@ -35,5 +37,6 @@ describe('SignUpForm', () => {
     await userEvent.type(screen.getByLabelText(/password/i), 'ValidPass1!')
     await userEvent.click(screen.getByRole('button', { name: /create account/i }))
     await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/auth/signup', expect.objectContaining({ method: 'POST' })))
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/auth/verify-email'))
   })
 })
