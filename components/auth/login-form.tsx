@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -10,8 +9,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import Link from 'next/link'
+import type { Database } from '@/types/database'
 
-const ROLE_DASHBOARD: Record<string, string> = {
+type UserRole = Database['public']['Enums']['user_role']
+
+const ROLE_DASHBOARD: Partial<Record<UserRole, string>> = {
   athlete: '/athlete/dashboard',
   brand: '/brand/dashboard',
   team: '/team/dashboard',
@@ -27,30 +29,29 @@ type FormValues = z.infer<typeof schema>
 
 export default function LoginForm() {
   const router = useRouter()
-  const [loading, setLoading] = useState(false)
   const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: { email: '', password: '' } })
+  const { formState: { isSubmitting } } = form
 
   async function onSubmit(values: FormValues) {
-    setLoading(true)
-    try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(values),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        toast.error(data.error?.message ?? 'Login failed')
-        return
-      }
-      const { user } = data
-      if (!user.role || !user.role_locked_at) {
-        router.push('/role-select')
-      } else {
-        router.push(ROLE_DASHBOARD[user.role] ?? '/')
-      }
-    } finally {
-      setLoading(false)
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(values),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      toast.error(data.error?.message ?? 'Login failed')
+      return
+    }
+    const { user } = data
+    if (!user) {
+      toast.error('Login failed — please try again')
+      return
+    }
+    if (!user.role || !user.role_locked_at) {
+      router.push('/role-select')
+    } else {
+      router.push(ROLE_DASHBOARD[user.role] ?? '/')
     }
   }
 
@@ -88,8 +89,8 @@ export default function LoginForm() {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full" disabled={loading}>
-          {loading ? 'Signing in…' : 'Sign in'}
+        <Button type="submit" className="w-full" disabled={isSubmitting}>
+          {isSubmitting ? 'Signing in…' : 'Sign in'}
         </Button>
       </form>
     </Form>
