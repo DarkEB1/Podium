@@ -1,55 +1,47 @@
 ---
-plan: docs/superpowers/plans/2026-04-20-podium-frontend.md
-task: task 10 of 11 (Tasks 1–9 complete)
-status: in_progress
-last_updated: 2026-04-21T09:25:24.552Z
-head_sha: 12a4d51
+plan: docs/superpowers/plans/2026-04-21-athlete-dashboard.md
+task: Phase 2 — Task 1 of 12 (not started)
+status: ready_to_execute
+last_updated: 2026-04-21T13:37:57.477Z
+head_sha: 2104ffc
 ---
 
 <current_state>
-Executing Phase 1 (Public & Auth Shell) of the Podium frontend plan using subagent-driven development on main branch. Tasks 1–9 are complete and reviewed. Task 10 (E2E Playwright spec) and Task 11 (final check) remain.
+Phase 2 (Athlete Dashboard) plan is written and ready to execute. No tasks have been implemented yet. The detailed plan lives at docs/superpowers/plans/2026-04-21-athlete-dashboard.md. User chose subagent-driven-development (option 1) for execution. Session paused due to context limits before first task was dispatched.
 </current_state>
 
 <completed_work>
 
-- Task 1: Root layout providers + shadcn additions ✅
-- Task 2: Static pages (403, verify-email, footer) ✅ — quality fixes applied (footer hrefs, copyright year, CardContent classes)
-- Task 3: Password strength indicator ✅ — textColor consolidated in getStrength, Good test added, aria-hidden on bars
-- Task 4: Sign-up form + page ✅ — router mock isolation, redirect assertion, json parse guard
-- Task 5: Login form + page ✅ — null guard on user, typed ROLE_DASHBOARD, toast assertion, role-redirect test, isSubmitting from formState
-- Task 6: Password reset forms + pages ✅ — forgot-password uses isSubmitSuccessful, update-password with PasswordStrength + confirm
-- Task 7: Role selection form + page ✅ — aria-pressed on role cards, aria-busy on confirm, SelectableRole from DB enum, accessible test queries
-- Task 8+9: All landing page components ✅ — hero, how-it-works, marketplace-preview, role-panels, social-proof, faq, complete app/page.tsx + footer
-  - All use buttonVariants (NOT Button asChild — @base-ui/react doesn't support it)
-  - FAQ uses stable slug keys (not index), marketplace-preview uses numeric id keys
-  - Only faq.tsx has 'use client' (for Accordion)
-- Auto-handoff PreCompact hooks added to .claude/settings.json (project level)
-- login-form.tsx type fix: cast user.role as UserRole to satisfy Partial<Record<UserRole,string>> index
+- Phase 1: Public & Auth Shell ✅ (all 11 tasks, 511 tests passing)
+- Phase 2 plan written ✅ — docs/superpowers/plans/2026-04-21-athlete-dashboard.md
+  - 12 tasks, all files mapped, all code written in plan, no placeholders
 </completed_work>
 
 <remaining_work>
 
-- Task 10: E2E auth Playwright spec (e2e/auth.spec.ts) — 7 tests:
-  1. Landing page renders hero CTAs
-  2. Sign-up page renders form
-  3. Login page renders form with forgot-password link
-  4. Weak password shows strength indicator
-  5. Forgot-password page shows anti-enumeration message on submit
-  6. 403 page renders
-  7. Role-select redirects unauthenticated to /auth
-- Task 11: Final check — `npm run check` must pass ≥496 + new tests
+Phase 2 tasks (all pending):
+- Task 1: App shell — theme toggle
+- Task 2: App shell — notification bell + tests
+- Task 3: App shell — nav shell + athlete layout
+- Task 4: Athlete onboarding routes + wizard skeleton (step 1–6)
+- Task 5: Guardian form + profile preview + publish endpoint
+- Task 6: Athlete dashboard page
+- Task 7: Discovery — listing card + listings grid + discover page
+- Task 8: Saved page + connection request card + requests page
+- Task 9: Messages — match list + messages index page
+- Task 10: Chat — bubble + proposal card + chat window + chat page
+- Task 11: Settings page
+- Task 12: Final check + handoff update
 </remaining_work>
 
 <decisions_made>
 
 - Working on main branch (no worktrees) — user preference
-- Subagent-driven development: implementer → spec reviewer → code quality reviewer per task
-- No `<Button asChild>` — Button uses @base-ui/react, not Radix. Use `<Link className={buttonVariants({ variant, size })}>`. Documented in CLAUDE.md.
-- isSubmitting from formState preferred over manual useState(loading) for form loading state
-- Role type: use `Database['public']['Enums']['user_role']` from types/database.ts (includes admin), or `Exclude<..., 'admin'>` for SelectableRole
-- Task 10 Playwright spec: tests are static HTML/navigation only (no real Supabase auth — tests are offline-safe)
-- Backend is complete — do not modify lib/supabase/, lib/stripe/, app/api/
-- Auto-handoff via PreCompact hook (both auto and manual matchers) in .claude/settings.json
+- No Button asChild — Button uses @base-ui/react, not Radix. Use `<Link className={buttonVariants(...)}>`. In CLAUDE.md.
+- Backend is complete — do not modify lib/supabase/, lib/stripe/, app/api/ (exception: app/api/profiles/me/publish/route.ts is a new endpoint needed by wizard step 6)
+- Execution approach: subagent-driven-development (fresh subagent per task + two-stage review)
+- requests page uses direct Supabase query (no lib wrapper exists) — documented as tech debt
+- Photo upload deferred to future phase (requires presigned URL flow)
 </decisions_made>
 
 <blockers>
@@ -57,14 +49,16 @@ None.
 </blockers>
 
 <context>
-This is Phase 1 of a 7-phase frontend build plan for Podium (sports sponsorship marketplace). All auth pages live under app/(public)/auth/ (middleware PUBLIC_PATHS '/auth'). Role-select at /role-select and update-password at /update-password are authenticated but pre-dashboard. Role-specific layouts (phases 2–6) will handle role-based redirects server-side using lib/supabase/auth.getUser().
+The Phase 2 plan is self-contained with full code for every step. The implementer subagent should read the plan file and execute task by task. Key constraints for every task:
+1. No `<Button asChild>` — use `<Link className={buttonVariants({ variant, size })}>` from `@/components/ui/button`
+2. Server components fetch data; "use client" only for forms/interactive UI
+3. No Supabase calls in client components — API routes only
+4. Types from types/database.ts — never inline
+5. All tests must pass before committing
 
-Task 10 E2E spec is straightforward — all 7 tests are navigation + static UI checks (no real auth). The dev server must be running for Playwright (`npm run dev`). Task 11 runs `npm run check` which is unit tests + type-check + lint.
+The plan at docs/superpowers/plans/2026-04-21-athlete-dashboard.md has the complete implementation with exact file paths, full code, and test code for each task.
 </context>
 
 <next_action>
-1. Dispatch implementer subagent for Task 10: create e2e/auth.spec.ts with the 7 Playwright tests from the plan. The spec file content is fully defined in docs/superpowers/plans/2026-04-20-podium-frontend.md around line 1588–1637.
-2. Run spec + quality review for Task 10
-3. Mark Task 10 complete
-4. Task 11: run `npm run check` — must pass ≥496 + new unit tests
+Fresh session: invoke `gsd:resume-work`, then begin executing the plan at docs/superpowers/plans/2026-04-21-athlete-dashboard.md using superpowers:subagent-driven-development. Start with Task 1 (theme toggle).
 </next_action>
