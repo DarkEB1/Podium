@@ -1,0 +1,51 @@
+import { redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server'
+import { getUser } from '@/lib/supabase/auth'
+import { getOwnProfile } from '@/lib/supabase/profiles'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import ProfileWizard from '@/components/athlete/profile-wizard'
+import type { Database } from '@/types/database'
+
+type AthleteRow = Database['public']['Tables']['athlete_profiles']['Row']
+
+const VALID_STEPS = [1, 2, 3, 4, 5, 6]
+
+export default async function OnboardingStepPage({
+  params,
+}: {
+  params: Promise<{ step: string }>
+}) {
+  const { step: stepParam } = await params
+  const step = Number(stepParam)
+  if (!VALID_STEPS.includes(step)) redirect('/athlete/onboarding/step/1')
+
+  const supabase = await createClient()
+  const user = await getUser(supabase)
+  if (!user) redirect('/auth')
+
+  const profile = await getOwnProfile(supabase, user.id, 'athlete') as AthleteRow | null
+
+  if (profile?.status === 'active') redirect('/athlete/dashboard')
+
+  const STEP_TITLES: Record<number, string> = {
+    1: 'Basic info',
+    2: 'Your sport',
+    3: 'Availability',
+    4: 'Social & bio',
+    5: 'Guardian details',
+    6: 'Review & publish',
+  }
+
+  return (
+    <div className="flex min-h-screen items-center justify-center p-4">
+      <Card className="w-full max-w-xl">
+        <CardHeader>
+          <CardTitle>Set up your profile — {STEP_TITLES[step]}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ProfileWizard step={step} profile={profile} />
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
