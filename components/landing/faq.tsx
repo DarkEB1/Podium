@@ -21,7 +21,7 @@ export default function FAQ() {
     <section id="faq" className="bg-muted/30 py-24">
       <div className="mx-auto max-w-3xl px-6">
         <h2 className="mb-10 text-center text-3xl font-bold">Frequently Asked Questions</h2>
-        <Accordion type="single" collapsible className="space-y-2">
+        <Accordion className="space-y-2">
           {faqs.map((f) => {
             const slug = f.q.slice(0, 30).replace(/\s+/g, '-').toLowerCase()
             return (
