@@ -18,6 +18,11 @@ describe('PasswordStrength', () => {
     expect(screen.getByText(/fair/i)).toBeInTheDocument()
   })
 
+  it('shows good for password meeting 3 rules', () => {
+    render(<PasswordStrength password="Abcdefg1" />)
+    expect(screen.getByText(/good/i)).toBeInTheDocument()
+  })
+
   it('shows strong for password meeting all rules', () => {
     render(<PasswordStrength password="ValidPass1!" />)
     expect(screen.getByText(/strong/i)).toBeInTheDocument()
