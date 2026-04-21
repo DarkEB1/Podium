@@ -51,7 +51,7 @@ export default function LoginForm() {
     if (!user.role || !user.role_locked_at) {
       router.push('/role-select')
     } else {
-      router.push(ROLE_DASHBOARD[user.role] ?? '/')
+      router.push(ROLE_DASHBOARD[user.role as UserRole] ?? '/')
     }
   }
 
