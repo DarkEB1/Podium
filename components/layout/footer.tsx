@@ -1,9 +1,9 @@
 import Link from 'next/link'
 
 const links = [
-  { label: 'About', href: '#about' },
-  { label: 'Trust & Safety', href: '#trust' },
-  { label: 'FAQ', href: '#faq' },
+  { label: 'About', href: '/#about' },
+  { label: 'Trust & Safety', href: '/#trust' },
+  { label: 'FAQ', href: '/#faq' },
   { label: 'Contact', href: 'mailto:hello@podium.com' },
   { label: 'Terms of Service', href: '/terms' },
   { label: 'Privacy Policy', href: '/privacy' },
@@ -23,7 +23,7 @@ export default function Footer() {
             ))}
           </nav>
           <p className="text-xs text-muted-foreground">
-            © {new Date().getFullYear()} Podium. All rights reserved. Confidential &amp; Proprietary.
+            © 2026 Podium. All rights reserved. Confidential &amp; Proprietary.
           </p>
         </div>
       </div>

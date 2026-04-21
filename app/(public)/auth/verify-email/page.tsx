@@ -13,7 +13,7 @@ export default function VerifyEmailPage() {
             The link expires after 24 hours.
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col gap-3 text-center text-sm text-muted-foreground">
+        <CardContent className="flex flex-col gap-3 text-center">
           <p>Didn&apos;t receive it? Check your spam folder.</p>
           <Link href="/auth" className={buttonVariants({ variant: 'link' })}>Back to login</Link>
         </CardContent>
