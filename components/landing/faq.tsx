@@ -22,12 +22,15 @@ export default function FAQ() {
       <div className="mx-auto max-w-3xl px-6">
         <h2 className="mb-10 text-center text-3xl font-bold">Frequently Asked Questions</h2>
         <Accordion type="single" collapsible className="space-y-2">
-          {faqs.map((f, i) => (
-            <AccordionItem key={i} value={`item-${i}`} className="rounded-lg border bg-card px-4">
+          {faqs.map((f) => {
+            const slug = f.q.slice(0, 30).replace(/\s+/g, '-').toLowerCase()
+            return (
+            <AccordionItem key={slug} value={slug} className="rounded-lg border bg-card px-4">
               <AccordionTrigger className="text-left font-medium">{f.q}</AccordionTrigger>
               <AccordionContent className="text-muted-foreground">{f.a}</AccordionContent>
             </AccordionItem>
-          ))}
+            )
+          })}
         </Accordion>
       </div>
     </section>
