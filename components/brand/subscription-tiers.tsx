@@ -50,6 +50,8 @@ export default function SubscriptionTiers({ subscription }: Props) {
         return
       }
       window.location.href = data.url
+    } catch {
+      toast.error('Something went wrong. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -104,7 +106,7 @@ export default function SubscriptionTiers({ subscription }: Props) {
             <ul className="space-y-1">
               {t.features.map((f) => (
                 <li key={f} className="flex items-start gap-2 text-sm text-muted-foreground">
-                  <span className="text-green-500 mt-0.5">✓</span>
+                  <span className="text-green-500 mt-0.5" aria-hidden="true">✓</span>
                   {f}
                 </li>
               ))}
