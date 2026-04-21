@@ -7,15 +7,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { useState } from 'react'
 
 const schema = z.object({ email: z.string().email('Invalid email address') })
 type FormValues = z.infer<typeof schema>
 
 export default function ForgotPasswordForm() {
-  const [submitted, setSubmitted] = useState(false)
   const form = useForm<FormValues>({ resolver: zodResolver(schema) })
-  const { formState: { isSubmitting } } = form
+  const { formState: { isSubmitting, isSubmitSuccessful } } = form
 
   async function onSubmit(values: FormValues) {
     await fetch('/api/auth/password-reset', {
@@ -23,10 +21,9 @@ export default function ForgotPasswordForm() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(values),
     })
-    setSubmitted(true)
   }
 
-  if (submitted) {
+  if (isSubmitSuccessful) {
     return (
       <Alert>
         <AlertDescription>
