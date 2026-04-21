@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { publishProfile, ProfileError, type ProfileRole } from '@/lib/supabase/profiles'
 
-const PROFILE_ROLES = new Set<string>(['athlete', 'team', 'brand', 'agent'])
+const PROFILE_ROLES = new Set<string>(['athlete', 'team', 'agent'])
 
 export async function POST() {
   const supabase = await createClient()
@@ -18,25 +18,19 @@ export async function POST() {
 
   if (!user.role || !PROFILE_ROLES.has(user.role)) {
     return NextResponse.json(
-      { error: { code: 'ROLE_NOT_SET', message: 'Role has not been selected yet' } },
-      { status: 400 }
+      { error: { code: 'FORBIDDEN', message: 'Only athletes, teams and agents can publish' } },
+      { status: 403 }
     )
   }
 
   try {
     await publishProfile(supabase, user.id, user.role as ProfileRole)
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ message: 'Profile published' })
   } catch (err) {
     if (err instanceof ProfileError) {
-      if (err.code === 'BRAND_NOT_PUBLISHABLE') {
-        return NextResponse.json(
-          { error: { code: 'BRAND_NOT_PUBLISHABLE', message: 'Brand profiles require admin approval' } },
-          { status: 400 }
-        )
-      }
       if (err.code === 'PROFILE_NOT_FOUND') {
         return NextResponse.json(
-          { error: { code: 'PROFILE_NOT_FOUND', message: 'No profile found for this user' } },
+          { error: { code: 'PROFILE_NOT_FOUND', message: err.message } },
           { status: 404 }
         )
       }
