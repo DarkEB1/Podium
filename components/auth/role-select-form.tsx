@@ -5,10 +5,11 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import type { Database } from '@/types/database'
 
-type Role = 'athlete' | 'team' | 'brand' | 'agent'
+type SelectableRole = Exclude<Database['public']['Enums']['user_role'], 'admin'>
 
-const ROLES: { id: Role; title: string; description: string; badge: string }[] = [
+const ROLES: { id: SelectableRole; title: string; description: string; badge: string }[] = [
   {
     id: 'athlete',
     title: 'Athlete',
@@ -35,7 +36,7 @@ const ROLES: { id: Role; title: string; description: string; badge: string }[] =
   },
 ]
 
-const ROLE_ONBOARDING: Record<Role, string> = {
+const ROLE_ONBOARDING: Record<SelectableRole, string> = {
   athlete: '/athlete/onboarding',
   team: '/team/onboarding',
   brand: '/brand/onboarding',
@@ -44,7 +45,7 @@ const ROLE_ONBOARDING: Record<Role, string> = {
 
 export default function RoleSelectForm() {
   const router = useRouter()
-  const [selected, setSelected] = useState<Role | null>(null)
+  const [selected, setSelected] = useState<SelectableRole | null>(null)
   const [loading, setLoading] = useState(false)
 
   async function handleConfirm() {
@@ -75,6 +76,7 @@ export default function RoleSelectForm() {
             key={role.id}
             data-role={role.id}
             type="button"
+            aria-pressed={selected === role.id}
             onClick={() => setSelected(role.id)}
             className={cn(
               'relative rounded-xl border p-4 text-left transition-all',
@@ -91,15 +93,13 @@ export default function RoleSelectForm() {
           </button>
         ))}
       </div>
-      <p className="text-xs text-muted-foreground text-center">
-        Your role is permanent and cannot be changed after confirmation.
-      </p>
       <Button
         className="w-full"
         disabled={!selected || loading}
+        aria-busy={loading}
         onClick={handleConfirm}
       >
-        {loading ? 'Confirming\u2026' : 'Confirm role'}
+        {loading ? 'Confirming…' : 'Confirm role'}
       </Button>
     </div>
   )

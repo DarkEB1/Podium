@@ -25,20 +25,21 @@ describe('RoleSelectForm', () => {
 
   it('confirm button is disabled until a role is selected', async () => {
     render(<RoleSelectForm />)
-    expect(screen.getByRole('button', { name: /confirm/i })).toBeDisabled()
-    await userEvent.click(document.querySelector('[data-role="athlete"]')!)
-    expect(screen.getByRole('button', { name: /confirm/i })).not.toBeDisabled()
+    expect(screen.getByRole('button', { name: /confirm role/i })).toBeDisabled()
+    await userEvent.click(screen.getByRole('button', { name: /^Athlete/i }))
+    expect(screen.getByRole('button', { name: /confirm role/i })).not.toBeDisabled()
   })
 
   it('calls POST /api/auth/role with selected role on confirm', async () => {
     render(<RoleSelectForm />)
-    await userEvent.click(document.querySelector('[data-role="brand"]')!)
-    await userEvent.click(screen.getByRole('button', { name: /confirm/i }))
+    await userEvent.click(screen.getByRole('button', { name: /^Brand/i }))
+    await userEvent.click(screen.getByRole('button', { name: /confirm role/i }))
     await waitFor(() =>
       expect(fetch).toHaveBeenCalledWith('/api/auth/role', expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({ role: 'brand' }),
       }))
     )
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/brand/onboarding'))
   })
 })
