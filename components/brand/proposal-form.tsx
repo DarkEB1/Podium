@@ -18,7 +18,7 @@ const schema = z.object({
   title: z.string().min(1, 'Title is required').max(200),
   pay_amount: z.coerce.number().positive('Amount must be positive'),
   pay_type: z.enum(['flat_fee', 'monthly_retainer', 'per_post', 'revenue_share'] as const).optional(),
-  pay_currency: z.string().length(3).optional().default('GBP'),
+  pay_currency: z.string().length(3),
   timeline_start: z.string().optional(),
   timeline_end: z.string().optional(),
 })
