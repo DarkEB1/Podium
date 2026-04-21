@@ -231,3 +231,16 @@ export async function getRepresentationLinks(
 
   return (data ?? []) as RepLinkRow[]
 }
+
+export async function getActiveAthleteProfiles(
+  supabase: SupabaseClient<Database>
+): Promise<Database['public']['Tables']['athlete_profiles']['Row'][]> {
+  const { data, error } = await (supabase as SupabaseClient)
+    .from('athlete_profiles')
+    .select('*')
+    .eq('status', 'active')
+    .order('updated_at', { ascending: false })
+
+  if (error) throw new ProfileError('PROFILE_FETCH_FAILED', (error as { message: string }).message)
+  return (data ?? []) as Database['public']['Tables']['athlete_profiles']['Row'][]
+}
