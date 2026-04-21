@@ -30,6 +30,7 @@ export default async function BrandOnboardingStepPage({
   const user = await getUser(supabase)
   if (!user) redirect('/auth')
 
+  // getOwnProfile returns the row for the given role table; cast narrows the union to BrandRow
   const profile = await getOwnProfile(supabase, user.id, 'brand') as BrandRow | null
 
   if (profile?.status === 'active') redirect('/brand/dashboard')
