@@ -31,6 +31,26 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+### Or: let Claude Code do it for you
+
+Make sure Docker Desktop is running, then paste this into Claude Code from the project root:
+
+> Set this project up for local development end-to-end. Do every step yourself — do not ask me to run commands. Verify each step before moving on.
+>
+> 1. Confirm Node 20+, npm, the Supabase CLI, and Docker Desktop are installed and that Docker is running. If anything is missing, tell me exactly what to install and stop.
+> 2. Run `npm install`.
+> 3. Run `supabase start` and wait for it to finish. If it's already running, run `supabase status` instead.
+> 4. Read `supabase status --output env` to get `API_URL`, `ANON_KEY`, and `SERVICE_ROLE_KEY`. Write `.env.local` with:
+>     - `NEXT_PUBLIC_SUPABASE_URL` = API_URL
+>     - `NEXT_PUBLIC_SUPABASE_ANON_KEY` = ANON_KEY
+>     - `SUPABASE_SERVICE_ROLE_KEY` = SERVICE_ROLE_KEY
+>     - `NEXT_PUBLIC_APP_URL=http://localhost:3000`
+>     - Leave Stripe vars blank — payments are optional.
+> 5. Verify the schema is applied: `psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -c "\dt public.*"` should list tables including `users`, `athlete_profiles`, `brand_profiles`. If the list is empty, run `supabase db reset`.
+> 6. Run `npm run check` to confirm type-check, lint, and unit tests pass.
+> 7. Start `npm run dev` in the background and confirm it serves http://localhost:3000 (e.g. `curl -I http://localhost:3000`).
+> 8. Report: the dev URL, Supabase Studio URL, Mailpit URL, and a one-line "ready" summary.
+
 ## Environment Variables
 
 After `supabase start` finishes, run `supabase status --output env` and copy the output into `.env.local`:
