@@ -36,7 +36,13 @@ const PROTECTED_FIELDS = new Set([
 ])
 
 function sanitizeProfileData(data: Record<string, unknown>): Record<string, unknown> {
-  return Object.fromEntries(Object.entries(data).filter(([key]) => !PROTECTED_FIELDS.has(key)))
+  return Object.fromEntries(
+    Object.entries(data).filter(([key, value]) => {
+      if (PROTECTED_FIELDS.has(key)) return false
+      if (value === '') return false
+      return true
+    })
+  )
 }
 
 export class ProfileError extends Error {
