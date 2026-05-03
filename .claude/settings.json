@@ -47,6 +47,26 @@
           }
         ]
       }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "auto",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "printf '{\"hookSpecificOutput\":{\"hookEventName\":\"PreCompact\",\"additionalContext\":\"AUTO-COMPACTION TRIGGERED. MANDATORY: You must invoke the gsd:pause-work skill RIGHT NOW before this compaction proceeds. Write docs/claude/handoff.md with full current session state (what was done, what remains, decisions made, next action). This is Session Protocol rule 2 from CLAUDE.md. Invoke gsd:pause-work immediately.\"}}'"
+          }
+        ]
+      },
+      {
+        "matcher": "manual",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "printf '{\"hookSpecificOutput\":{\"hookEventName\":\"PreCompact\",\"additionalContext\":\"MANUAL COMPACTION TRIGGERED. MANDATORY: You must invoke the gsd:pause-work skill RIGHT NOW before this compaction proceeds. Write docs/claude/handoff.md with full current session state (what was done, what remains, decisions made, next action). This is Session Protocol rule 2 from CLAUDE.md. Invoke gsd:pause-work immediately.\"}}'"
+          }
+        ]
+      }
     ]
   }
 }
