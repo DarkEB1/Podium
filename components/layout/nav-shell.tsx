@@ -41,9 +41,10 @@ const NAV_LINKS: Record<NavShellProps['role'], NavLink[]> = {
   ],
   admin: [
     { label: 'Dashboard', href: '/admin/dashboard' },
-    { label: 'Reports', href: '/admin/reports' },
+    { label: 'Athletes', href: '/admin/athletes' },
+    { label: 'Brands', href: '/admin/brands' },
+    { label: 'Listings', href: '/admin/listings' },
     { label: 'Users', href: '/admin/users' },
-    { label: 'Audit', href: '/admin/audit-logs' },
   ],
 }
 

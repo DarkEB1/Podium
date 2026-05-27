@@ -7,6 +7,15 @@ type AuditLogRow = Database['public']['Tables']['audit_logs']['Row']
 type AuditLogInsert = Database['public']['Tables']['audit_logs']['Insert']
 type ReportStatus = Database['public']['Enums']['report_status']
 type ReportReason = Database['public']['Enums']['report_reason']
+type AthleteRow = Database['public']['Tables']['athlete_profiles']['Row']
+type BrandRow = Database['public']['Tables']['brand_profiles']['Row']
+type JobListingRow = Database['public']['Tables']['job_listings']['Row']
+type UserRow = Database['public']['Tables']['users']['Row']
+type ProfileStatus = Database['public']['Enums']['profile_status']
+type BrandStatus = Database['public']['Enums']['brand_status']
+
+export type AdminProfileType = 'athlete' | 'brand'
+export type AdminProfileStatus = ProfileStatus | BrandStatus
 
 export class AdminError extends Error {
   constructor(
@@ -205,4 +214,145 @@ export async function createAuditLog(
   }
 
   return data as AuditLogRow
+}
+
+// ---------------------------------------------------------------------------
+// Profile Management (Admin)
+// ---------------------------------------------------------------------------
+
+export async function getAllAthleteProfiles(
+  adminSupabase: SupabaseClient<Database>
+): Promise<AthleteRow[]> {
+  const { data, error } = await (adminSupabase as SupabaseClient)
+    .from('athlete_profiles')
+    .select('*')
+    .order('created_at', { ascending: false })
+
+  if (error) throw new AdminError('ATHLETE_FETCH_FAILED', (error as { message: string }).message)
+  return (data ?? []) as AthleteRow[]
+}
+
+export async function getAllBrandProfiles(
+  adminSupabase: SupabaseClient<Database>
+): Promise<BrandRow[]> {
+  const { data, error } = await (adminSupabase as SupabaseClient)
+    .from('brand_profiles')
+    .select('*')
+    .order('created_at', { ascending: false })
+
+  if (error) throw new AdminError('BRAND_FETCH_FAILED', (error as { message: string }).message)
+  return (data ?? []) as BrandRow[]
+}
+
+export async function getAllUsers(
+  adminSupabase: SupabaseClient<Database>
+): Promise<UserRow[]> {
+  const { data, error } = await (adminSupabase as SupabaseClient)
+    .from('users')
+    .select('*')
+    .order('created_at', { ascending: false })
+
+  if (error) throw new AdminError('USERS_FETCH_FAILED', (error as { message: string }).message)
+  return (data ?? []) as UserRow[]
+}
+
+export async function getAllListings(
+  adminSupabase: SupabaseClient<Database>
+): Promise<JobListingRow[]> {
+  const { data, error } = await (adminSupabase as SupabaseClient)
+    .from('job_listings')
+    .select('*')
+    .order('created_at', { ascending: false })
+
+  if (error) throw new AdminError('LISTINGS_FETCH_FAILED', (error as { message: string }).message)
+  return (data ?? []) as JobListingRow[]
+}
+
+export async function getPendingCount(
+  adminSupabase: SupabaseClient<Database>
+): Promise<{ athletes: number; brands: number }> {
+  const [athleteRes, brandRes] = await Promise.all([
+    (adminSupabase as SupabaseClient)
+      .from('athlete_profiles')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'pending_review'),
+    (adminSupabase as SupabaseClient)
+      .from('brand_profiles')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'pending_approval'),
+  ])
+
+  if (athleteRes.error) throw new AdminError('PENDING_COUNT_FAILED', (athleteRes.error as { message: string }).message)
+  if (brandRes.error) throw new AdminError('PENDING_COUNT_FAILED', (brandRes.error as { message: string }).message)
+
+  return {
+    athletes: athleteRes.count ?? 0,
+    brands: brandRes.count ?? 0,
+  }
+}
+
+export async function getAthleteProfileById(
+  adminSupabase: SupabaseClient<Database>,
+  id: string
+): Promise<AthleteRow | null> {
+  const { data, error } = await (adminSupabase as SupabaseClient)
+    .from('athlete_profiles')
+    .select('*')
+    .eq('id', id)
+    .single()
+
+  if (error) {
+    if ((error as { code?: string }).code === 'PGRST116') return null
+    throw new AdminError('ATHLETE_FETCH_FAILED', (error as { message: string }).message)
+  }
+  return data as AthleteRow
+}
+
+export async function getBrandProfileById(
+  adminSupabase: SupabaseClient<Database>,
+  id: string
+): Promise<BrandRow | null> {
+  const { data, error } = await (adminSupabase as SupabaseClient)
+    .from('brand_profiles')
+    .select('*')
+    .eq('id', id)
+    .single()
+
+  if (error) {
+    if ((error as { code?: string }).code === 'PGRST116') return null
+    throw new AdminError('BRAND_FETCH_FAILED', (error as { message: string }).message)
+  }
+  return data as BrandRow
+}
+
+export async function updateProfileStatus(
+  adminSupabase: SupabaseClient<Database>,
+  id: string,
+  profileType: AdminProfileType,
+  status: AdminProfileStatus,
+  adminId: string
+): Promise<void> {
+  if (profileType === 'athlete') {
+    const athleteStatus = status as ProfileStatus
+    const { error } = await (adminSupabase as SupabaseClient)
+      .from('athlete_profiles')
+      .update({
+        status: athleteStatus,
+        ...(athleteStatus === 'active' ? { admin_approved_at: new Date().toISOString(), admin_approved_by: adminId } : {}),
+      })
+      .eq('id', id)
+
+    if (error) throw new AdminError('STATUS_UPDATE_FAILED', (error as { message: string }).message)
+  } else {
+    const brandStatus = status as BrandStatus
+    const { error } = await (adminSupabase as SupabaseClient)
+      .from('brand_profiles')
+      .update({
+        status: brandStatus,
+        ...(brandStatus === 'active' ? { admin_approved_at: new Date().toISOString(), admin_approved_by: adminId } : {}),
+      })
+      .eq('id', id)
+
+    if (error) throw new AdminError('STATUS_UPDATE_FAILED', (error as { message: string }).message)
+  }
 }
