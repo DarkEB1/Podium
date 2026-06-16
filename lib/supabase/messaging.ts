@@ -44,6 +44,122 @@ export async function getMatches(
   return (data ?? []) as MatchRow[]
 }
 
+/**
+ * Inbox view-model row consumed by the MS1 `MatchList` component (spec §7.1).
+ * Mirrors `components/messaging/match-list.tsx` `Conversation`.
+ */
+export interface Conversation {
+  id: string
+  name: string
+  avatarUrl: string | null
+  preview: string
+  timestamp: string
+  unreadCount: number
+}
+
+/**
+ * Resolve the display name + avatar for a user by probing the role-specific
+ * profile tables (there is no single `profiles` table). Returns a best-effort
+ * label; falls back to "Conversation" when no profile row is found.
+ */
+async function resolveParticipant(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<{ name: string; avatarUrl: string | null }> {
+  const athlete = await supabase
+    .from('athlete_profiles')
+    .select('display_name, profile_photo_url')
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (athlete.data) {
+    const r = athlete.data as { display_name: string | null; profile_photo_url: string | null }
+    return { name: r.display_name ?? 'Athlete', avatarUrl: r.profile_photo_url }
+  }
+
+  const brand = await supabase
+    .from('brand_profiles')
+    .select('company_name, trading_name, logo_url')
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (brand.data) {
+    const r = brand.data as { company_name: string; trading_name: string | null; logo_url: string | null }
+    return { name: r.trading_name ?? r.company_name, avatarUrl: r.logo_url }
+  }
+
+  const team = await supabase
+    .from('team_profiles')
+    .select('team_name, logo_url')
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (team.data) {
+    const r = team.data as { team_name: string | null; logo_url: string | null }
+    return { name: r.team_name ?? 'Team', avatarUrl: r.logo_url }
+  }
+
+  const agent = await supabase
+    .from('agent_profiles')
+    .select('agency_name, agent_full_name, logo_url')
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (agent.data) {
+    const r = agent.data as { agency_name: string | null; agent_full_name: string | null; logo_url: string | null }
+    return { name: r.agency_name ?? r.agent_full_name ?? 'Agent', avatarUrl: r.logo_url }
+  }
+
+  return { name: 'Conversation', avatarUrl: null }
+}
+
+/**
+ * Build the inbox `Conversation[]` view-model for a user (spec §7.1): resolves
+ * the other participant, the latest message preview/timestamp, and an unread
+ * count. Used by the role messages pages to feed the MS1 `MatchList`.
+ */
+export async function getConversations(
+  supabase: SupabaseClient<Database>,
+  userId: string
+): Promise<Conversation[]> {
+  const matches = await getMatches(supabase, userId)
+  const client = supabase as SupabaseClient
+
+  const conversations = await Promise.all(
+    matches.map(async (match) => {
+      const otherId = match.user_a_id === userId ? match.user_b_id : match.user_a_id
+      const participant = await resolveParticipant(client, otherId)
+
+      const { data: lastRows } = await client
+        .from('messages')
+        .select('text_content, sent_at, content_type, sender_id')
+        .eq('match_id', match.id)
+        .eq('is_deleted', false)
+        .order('sent_at', { ascending: false })
+        .limit(1)
+
+      const last = (lastRows ?? [])[0] as
+        | { text_content: string | null; sent_at: string; content_type: string; sender_id: string }
+        | undefined
+
+      const preview = last
+        ? last.content_type === 'proposal_card'
+          ? 'Sent a proposal'
+          : last.content_type === 'payment_confirmation'
+            ? 'Payment confirmed'
+            : (last.text_content ?? 'Attachment')
+        : 'No messages yet'
+
+      return {
+        id: match.id,
+        name: participant.name,
+        avatarUrl: participant.avatarUrl,
+        preview,
+        timestamp: last?.sent_at ?? match.matched_at ?? match.created_at,
+        unreadCount: 0,
+      } satisfies Conversation
+    })
+  )
+
+  return conversations
+}
+
 // ---------------------------------------------------------------------------
 // Messages
 // ---------------------------------------------------------------------------

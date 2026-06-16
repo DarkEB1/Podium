@@ -33,7 +33,18 @@ const step1Schema = z.object({
 const step2Schema = z.object({
   primary_sport: z.string().min(1, 'Primary sport is required'),
   secondary_sport: z.string().optional(),
-  level: z.enum(['recreational', 'amateur', 'semi_professional', 'professional', 'international'] as const).optional(),
+  level: z
+    .enum([
+      'recreational',
+      'amateur',
+      'semi_professional',
+      'professional',
+      'international',
+      'university_bucs',
+      'academy',
+      'national',
+    ] as const)
+    .optional(),
   position: z.string().optional(),
   years_active: z.coerce.number().int().min(0).max(50).optional(),
   height_cm: z.coerce.number().int().min(100).max(250).optional(),
