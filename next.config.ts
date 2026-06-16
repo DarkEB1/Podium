@@ -1,7 +1,24 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from "next"
 
+/**
+ * GL2 — perceived-performance config (spec §10.3.3).
+ *
+ * - `images.formats`: serve modern WebP/AVIF with progressive decoding so the
+ *   browser negotiates the smallest format it supports. Next's optimizer streams
+ *   these progressively and we pair them with blur placeholders (see
+ *   lib/perf/blur-placeholder.ts + the A8 BlurImage primitive).
+ * - `optimizePackageImports`: route-level code-splitting — tree-shakes barrel
+ *   imports from large UI/icon packages so each route ships only the components
+ *   it uses, keeping the initial JS under the <200kb gzipped budget.
+ */
 const nextConfig: NextConfig = {
-  /* config options here */
-};
+  images: {
+    // AVIF first (smallest), WebP fallback; both decode progressively.
+    formats: ["image/avif", "image/webp"],
+  },
+  experimental: {
+    optimizePackageImports: ["lucide-react", "@base-ui/react"],
+  },
+}
 
-export default nextConfig;
+export default nextConfig
