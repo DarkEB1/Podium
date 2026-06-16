@@ -44,4 +44,31 @@ describe('ProfileWizard', () => {
     expect(screen.queryByLabelText(/guardian/i)).toBeNull()
     expect(screen.getByText(/this step is not required/i)).toBeInTheDocument()
   })
+
+  // Regression for spec §3A.5 / acceptance §7.6 ("Step 6 of 5 / 120%").
+  it('adult final step reads "Step 5 of 5" and 100% (never 6 of 5 / 120%)', () => {
+    const profile = { user_id: 'u1', is_under_18: false, status: 'draft' }
+    render(<ProfileWizard step={6} profile={profile as never} />)
+    expect(screen.getByText(/step 5 of 5/i)).toBeInTheDocument()
+    expect(screen.getByText(/100%/)).toBeInTheDocument()
+    expect(screen.queryByText(/step 6 of 5/i)).toBeNull()
+    expect(screen.queryByText(/120%/)).toBeNull()
+  })
+
+  it('u18 final step reads "Step 6 of 6" and 100%', () => {
+    const profile = { user_id: 'u1', is_under_18: true, status: 'draft' }
+    render(<ProfileWizard step={6} profile={profile as never} />)
+    expect(screen.getByText(/step 6 of 6/i)).toBeInTheDocument()
+    expect(screen.getByText(/100%/)).toBeInTheDocument()
+  })
+
+  it('progress never exceeds 100% across every adult route index', () => {
+    const profile = { user_id: 'u1', is_under_18: false, status: 'draft' }
+    for (const step of [1, 2, 3, 4, 6]) {
+      const { unmount } = render(<ProfileWizard step={step} profile={profile as never} />)
+      const pct = screen.getAllByText(/%$/)[0]?.textContent ?? '0%'
+      expect(Number.parseInt(pct, 10)).toBeLessThanOrEqual(100)
+      unmount()
+    }
+  })
 })

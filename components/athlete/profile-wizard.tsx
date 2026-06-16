@@ -594,20 +594,26 @@ export default function ProfileWizard({ step, profile: initialProfile }: Props) 
     router.push(`/athlete/onboarding/step/${prev}`)
   }
 
-  const TOTAL_STEPS = isUnder18 ? 6 : 5
+  // Adults skip the guardian step (5), so their route indices are 1,2,3,4,6.
+  // Display position must count sequence position, not the raw route index,
+  // otherwise an adult on step 6 reads "Step 6 of 5 / 120%" (spec §3A.5).
+  const stepSequence = isUnder18 ? [1, 2, 3, 4, 5, 6] : [1, 2, 3, 4, 6]
+  const TOTAL_STEPS = stepSequence.length
+  const displayPosition = Math.max(1, stepSequence.indexOf(step) + 1)
+  const progressPct = Math.min(100, Math.round((displayPosition / TOTAL_STEPS) * 100))
 
   return (
     <div className="space-y-6">
       {/* Progress header */}
       <div>
         <div className="flex justify-between text-xs text-muted-foreground mb-1">
-          <span>Step {step} of {TOTAL_STEPS} — {stepLabel(step)}</span>
-          <span>{Math.round((step / TOTAL_STEPS) * 100)}%</span>
+          <span>Step {displayPosition} of {TOTAL_STEPS} — {stepLabel(step)}</span>
+          <span>{progressPct}%</span>
         </div>
         <div className="h-1.5 rounded-full bg-muted overflow-hidden">
           <div
             className="h-full bg-foreground transition-all"
-            style={{ width: `${(step / TOTAL_STEPS) * 100}%` }}
+            style={{ width: `${progressPct}%` }}
           />
         </div>
       </div>
