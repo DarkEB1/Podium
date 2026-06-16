@@ -111,12 +111,28 @@ enabled = true
 # The maximum file size allowed (e.g. "5MB", "500KB").
 file_size_limit = "50MiB"
 
-# Uncomment to configure local storage buckets
-# [storage.buckets.images]
-# public = false
-# file_size_limit = "50MiB"
-# allowed_mime_types = ["image/png", "image/jpeg"]
-# objects_path = "./images"
+# Storage buckets (Podium v1 — spec §4A.1). Public-read so served images/docs
+# resolve without signed download URLs; writes are gated by RLS storage policies
+# that require the object path to be namespaced under the owner's user id.
+[storage.buckets.avatars]
+public = true
+file_size_limit = "10MiB"
+allowed_mime_types = ["image/png", "image/jpeg", "image/heic", "image/webp"]
+
+[storage.buckets.logos]
+public = true
+file_size_limit = "10MiB"
+allowed_mime_types = ["image/png", "image/jpeg", "image/heic", "image/webp"]
+
+[storage.buckets.covers]
+public = true
+file_size_limit = "10MiB"
+allowed_mime_types = ["image/png", "image/jpeg", "image/heic", "image/webp"]
+
+[storage.buckets.docs]
+public = true
+file_size_limit = "25MiB"
+allowed_mime_types = ["image/png", "image/jpeg", "image/heic", "image/webp", "application/pdf"]
 
 # Allow connections via S3 compatible clients
 [storage.s3_protocol]
