@@ -15,8 +15,10 @@ export default async function AthleteDiscoverPage() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Discover opportunities</h1>
-        <p className="text-muted-foreground">{active.length} brand campaigns available</p>
+        <h1 className="font-heading text-large font-medium">Discover opportunities</h1>
+        <p className="text-medium text-muted-foreground">
+          Browse brand campaigns and send a personalised connection request.
+        </p>
       </div>
       <ListingsGrid listings={active} />
     </div>
