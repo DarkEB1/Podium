@@ -27,7 +27,9 @@ describe("Select", () => {
     const trigger = screen.getByLabelText("Sport")
     expect(trigger.className).toContain("border-border")
     expect(trigger.className).not.toMatch(/border-border-ink/)
-    expect(trigger.className).not.toMatch(/border-foreground\b/)
+    // No heavy ink border: no fixed-width border and no full-opacity foreground border.
+    expect(trigger.className).not.toMatch(/border-\[1\.5px\]/)
+    expect(trigger.className).not.toMatch(/(?:^|\s)border-foreground(?:\s|$)/)
   })
 
   it("trigger uses a soft focus ring, not the hard offset focus shadow", () => {

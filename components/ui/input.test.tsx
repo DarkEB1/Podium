@@ -8,7 +8,9 @@ describe("Input", () => {
     const input = screen.getByLabelText("Email")
     expect(input.className).toContain("border-border")
     expect(input.className).not.toMatch(/border-border-ink/)
-    expect(input.className).not.toMatch(/border-foreground\b/)
+    // No heavy ink border: no fixed-width border and no full-opacity foreground border.
+    expect(input.className).not.toMatch(/border-\[1\.5px\]/)
+    expect(input.className).not.toMatch(/(?:^|\s)border-foreground(?:\s|$)/)
   })
 
   it("uses a soft focus ring, not the hard offset focus shadow", () => {

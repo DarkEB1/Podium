@@ -8,7 +8,9 @@ describe("Textarea", () => {
     const el = screen.getByLabelText("Bio")
     expect(el.className).toContain("border-border")
     expect(el.className).not.toMatch(/border-border-ink/)
-    expect(el.className).not.toMatch(/border-foreground\b/)
+    // No heavy ink border: no fixed-width border and no full-opacity foreground border.
+    expect(el.className).not.toMatch(/border-\[1\.5px\]/)
+    expect(el.className).not.toMatch(/(?:^|\s)border-foreground(?:\s|$)/)
   })
 
   it("uses a soft focus ring, not the hard offset focus shadow", () => {
