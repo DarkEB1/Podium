@@ -71,11 +71,12 @@ export function CardSelectGroup({
               aria-pressed={selected}
               onClick={() => handleSelect(option.value)}
               className={cn(
-                "pressable group flex flex-col items-start gap-1 rounded-xl border-[length:--border-ink-width] bg-card p-4 text-left outline-none",
-                "focus-visible:ring-3 focus-visible:ring-ring/50",
+                "pressable group flex flex-col items-start gap-2 rounded-2xl border bg-card p-5 text-left shadow-sm outline-none transition-shadow",
+                "hover:-translate-y-0.5 hover:shadow-lg",
+                "focus-visible:ring-2 focus-visible:ring-ring/50",
                 selected
-                  ? "border-border-ink bg-accent/20 shadow-press"
-                  : "border-transparent hover:border-border-ink/40"
+                  ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                  : "border-border hover:border-primary/30"
               )}
             >
               {option.icon ? (

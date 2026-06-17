@@ -107,18 +107,32 @@ describe("CardSelectGroup", () => {
     expect(screen.getByRole("button", { name: /Cycling/ })).toHaveAttribute("aria-pressed", "false")
   })
 
-  it("selected tile carries the neo-brutalist selected classes (accent fill + ink border + press shadow)", () => {
+  it("selected tile carries the clean Airbnb selected classes (primary border + light tint + soft ring)", () => {
     render(<CardSelectGroup options={options} value={["running"]} onChange={() => {}} />)
     const selected = screen.getByRole("button", { name: /Running/ })
-    expect(selected.className).toContain("bg-accent/20")
-    expect(selected.className).toContain("border-border-ink")
-    expect(selected.className).toContain("shadow-press")
+    expect(selected.className).toContain("border-primary")
+    expect(selected.className).toContain("bg-primary/5")
+    expect(selected.className).toContain("ring-primary/20")
+    // No hard offset/press shadow on the clean selected state.
+    expect(selected.className).not.toContain("shadow-press")
+    expect(selected.className).not.toContain("border-border-ink")
 
     const unselected = screen.getByRole("button", { name: /Cycling/ })
-    expect(unselected.className).not.toContain("shadow-press")
+    expect(unselected.className).not.toContain("ring-primary/20")
+    expect(unselected.className).not.toContain("bg-primary/5")
   })
 
-  it("every tile is pressable (press micro-interaction, reduced-motion safe via global util)", () => {
+  it("rests on a single light border with a soft shadow and gentle hover lift", () => {
+    render(<CardSelectGroup options={options} value={[]} onChange={() => {}} />)
+    for (const tile of screen.getAllByRole("button")) {
+      expect(tile.className).toContain("border-border")
+      expect(tile.className).toContain("shadow-sm")
+      // Gentle lift, not a hard press-into-shadow translate.
+      expect(tile.className).toContain("hover:-translate-y-0.5")
+    }
+  })
+
+  it("every tile is pressable (gentle micro-interaction, reduced-motion safe via global util)", () => {
     render(<CardSelectGroup options={options} value={[]} onChange={() => {}} />)
     for (const tile of screen.getAllByRole("button")) {
       expect(tile.className).toContain("pressable")
