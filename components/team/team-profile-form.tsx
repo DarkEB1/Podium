@@ -218,7 +218,7 @@ function PdfUpload({
       ) : null}
 
       {value ? (
-        <div className="flex items-start gap-3 rounded-xl border border-foreground/10 bg-card p-3 shadow-card">
+        <div className="flex items-start gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
           <FileText aria-hidden="true" className="mt-0.5 size-5 text-primary" />
           <div className="min-w-0 flex-1">
             <p className="truncate text-medium font-medium text-foreground">
@@ -407,7 +407,7 @@ export default function TeamProfileForm({
           </p>
           <div
             data-testid="team-header-preview"
-            className="overflow-hidden rounded-xl border bg-card shadow-card"
+            className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm"
           >
             <div className="relative aspect-[16/9] w-full bg-muted">
               {coverUrl ? (

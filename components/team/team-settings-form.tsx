@@ -180,7 +180,7 @@ export default function TeamSettingsForm({
           </p>
         </div>
 
-        <div className="overflow-x-auto rounded-[var(--radius)] border bg-card shadow-card">
+        <div className="overflow-x-auto rounded-2xl border border-border bg-card shadow-sm">
           <table className="w-full text-left text-medium" aria-label="Administrator list">
             <thead className="text-small text-muted-foreground">
               <tr className="border-b">
@@ -298,7 +298,7 @@ export default function TeamSettingsForm({
         {/* Invite a new administrator */}
         <form
           onSubmit={handleInvite}
-          className="flex flex-col gap-2 rounded-[var(--radius)] border bg-card p-4 shadow-card sm:flex-row sm:items-end"
+          className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-6 shadow-sm sm:flex-row sm:items-end"
           aria-label="Invite administrator"
         >
           <div className="flex-1 space-y-1">
@@ -347,7 +347,7 @@ export default function TeamSettingsForm({
           </p>
         </div>
 
-        <div className="flex items-center justify-between rounded-[var(--radius)] border bg-card p-4 shadow-card">
+        <div className="flex items-center justify-between rounded-2xl border border-border bg-card p-6 shadow-sm">
           <div className="pr-4">
             <p className="text-medium font-medium">Team profile is visible</p>
             <p className="text-small text-muted-foreground">
@@ -363,7 +363,7 @@ export default function TeamSettingsForm({
           />
         </div>
 
-        <fieldset className="space-y-2 rounded-[var(--radius)] border bg-card p-4 shadow-card">
+        <fieldset className="space-y-2 rounded-2xl border border-border bg-card p-6 shadow-sm">
           <legend className="text-medium font-medium">
             Public sections
           </legend>

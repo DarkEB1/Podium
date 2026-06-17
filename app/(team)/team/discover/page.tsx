@@ -36,12 +36,10 @@ export default async function TeamDiscoverPage() {
   const activeListings = listings.filter((l) => l.status === 'active')
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 px-4 py-8">
+    <div className="mx-auto max-w-6xl space-y-12 px-6 py-12 md:px-16 md:py-16">
       <div>
-        <h1 className="font-heading text-large font-semibold text-foreground">
-          Find sponsors
-        </h1>
-        <p className="mt-1 text-medium text-muted-foreground">
+        <h1 className="text-display text-foreground">Find sponsors</h1>
+        <p className="mt-3 text-medium text-muted-foreground">
           {activeListings.length} active sponsorship{' '}
           {activeListings.length === 1 ? 'listing' : 'listings'} on Podium
         </p>
@@ -50,7 +48,7 @@ export default async function TeamDiscoverPage() {
       {activeListings.length === 0 ? (
         <div
           data-testid="team-discover-empty"
-          className="rounded-[var(--radius)] border bg-card shadow-[var(--shadow-card)]"
+          className="rounded-2xl border border-border bg-card shadow-sm"
         >
           <EmptyState
             icon={<Compass aria-hidden="true" />}
@@ -60,7 +58,7 @@ export default async function TeamDiscoverPage() {
           />
         </div>
       ) : (
-        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {activeListings.map((listing) => (
             <li key={listing.id}>
               <MarketplaceCard

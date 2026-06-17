@@ -61,12 +61,12 @@ export default async function TeamDashboardPage() {
   const teamName = teamProfile.nickname ?? teamProfile.team_name ?? 'your team'
 
   return (
-    <div className="mx-auto max-w-5xl space-y-8 px-4 py-8">
+    <div className="mx-auto max-w-5xl space-y-12 px-6 py-12 md:px-16 md:py-16">
       <div>
-        <AccentHeading as="h1" className="text-large">
+        <AccentHeading as="h1" className="text-display">
           Welcome, {teamName}
         </AccentHeading>
-        <p className="mt-1 text-medium text-muted-foreground">{statusMessage}</p>
+        <p className="mt-3 text-medium text-muted-foreground">{statusMessage}</p>
       </div>
 
       <SectionDivider label="Your numbers" />
@@ -81,16 +81,14 @@ export default async function TeamDashboardPage() {
       />
 
       {!isActive && (
-        <div className="rounded-[var(--radius)] border border-warning/40 bg-warning/10 p-4">
-          <p className="text-medium font-semibold text-foreground">
-            Profile not yet live
-          </p>
-          <p className="mt-1 text-small text-muted-foreground">
+        <div className="rounded-2xl border border-warning/40 bg-warning/10 p-6 md:p-8">
+          <p className="text-large text-foreground">Profile not yet live</p>
+          <p className="mt-2 text-medium text-muted-foreground">
             Complete your team profile to appear in sponsor discovery feeds.
           </p>
           <Link
             href="/team/onboarding"
-            className={`${buttonVariants({ size: 'sm' })} mt-3`}
+            className={`${buttonVariants({ size: 'sm' })} mt-5`}
           >
             Finish profile
           </Link>
@@ -100,7 +98,7 @@ export default async function TeamDashboardPage() {
       {isActive && !hasActivity ? (
         <div
           data-testid="team-dashboard-empty"
-          className="rounded-[var(--radius)] border bg-card shadow-[var(--shadow-card)]"
+          className="rounded-2xl border border-border bg-card shadow-sm"
         >
           <EmptyState
             title="No activity yet"

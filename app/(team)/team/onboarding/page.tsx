@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getOwnProfile } from '@/lib/supabase/profiles'
 import { createTeamProfile } from '@/lib/supabase/teams'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import TeamProfileForm from '@/components/team/team-profile-form'
 import type { Database } from '@/types/database'
 
@@ -40,12 +40,16 @@ export default async function TeamOnboardingPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 py-8">
-      <Card>
-        <CardHeader>
-          <CardTitle>Create your team profile</CardTitle>
-        </CardHeader>
-        <CardContent>
+    <div className="mx-auto w-full max-w-2xl px-6 py-12 md:px-16 md:py-16">
+      <header className="mb-10">
+        <h1 className="text-display text-foreground">Create your team profile</h1>
+        <p className="mt-3 text-medium text-muted-foreground">
+          Tell sponsors who you are and what you&rsquo;re looking for. You can
+          refine everything later.
+        </p>
+      </header>
+      <Card className="rounded-2xl border border-border bg-card p-2 shadow-sm">
+        <CardContent className="p-6 md:p-8">
           <TeamProfileForm
             onCreate={onCreate}
             initialLogoUrl={profile?.logo_url ?? null}
