@@ -31,6 +31,12 @@ describe('T1 design tokens (globals.css)', () => {
     expect(css).toMatch(/--text-small:\s*var\(--text-small\)/)
   })
 
+  it('defines and exposes a display tier for big page titles (D1)', () => {
+    // defined in :root with a fluid clamp, and exposed via @theme as text-display
+    expect(css).toMatch(/--text-display:\s*clamp\(2rem,\s*1\.2rem \+ 3vw,\s*3rem\)/)
+    expect(css).toMatch(/--text-display:\s*var\(--text-display\)/)
+  })
+
   it('page background is near-white distinct from the white card surface', () => {
     expect(css).toMatch(/--background:\s*#FAFAFC/)
     expect(css).toMatch(/--card:\s*#FFFFFF/)

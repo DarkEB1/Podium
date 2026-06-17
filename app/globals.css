@@ -15,6 +15,8 @@
   --text-large: var(--text-large);
   --text-medium: var(--text-medium);
   --text-small: var(--text-small);
+  /* Display tier (D1) — exposes the text-display utility alongside large/medium/small */
+  --text-display: var(--text-display);
 
   /* Semantic colour utilities (spec §2.3) */
   --color-success: var(--success);
@@ -73,6 +75,9 @@
   --text-large: 1.5rem; /* headings / names */
   --text-medium: 1rem; /* labels / subtext */
   --text-small: 0.8125rem; /* metadata / timestamps */
+
+  /* Display tier (D1) — big page titles only; gl5-audit forbids raw text-2xl..7xl but allows text-display */
+  --text-display: clamp(2rem, 1.2rem + 3vw, 3rem);
 
   /* Colour — Nord palette (classic charcoal Polar Night + frost blues), light only */
   --background: #FAFAFC; /* page: near-white */
