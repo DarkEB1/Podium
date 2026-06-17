@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -13,7 +13,12 @@ import { ImageUpload } from '@/components/ui/image-upload'
 import { CharacterCounter } from '@/components/ui/character-counter'
 import SettingsShell from '@/components/layout/settings-shell'
 import { createClient } from '@/lib/supabase/client'
-import { updateSettings, requestDataExport } from '@/lib/supabase/settings'
+import {
+  updateSettings,
+  requestDataExport,
+  getActiveSessions,
+  revokeSession,
+} from '@/lib/supabase/settings'
 import type { Database } from '@/types/database'
 
 type AthleteRow = Database['public']['Tables']['athlete_profiles']['Row']
@@ -24,6 +29,7 @@ type SeekingType = Database['public']['Enums']['seeking_type']
 type UiMode = Database['public']['Enums']['ui_mode']
 type EmailDigest = Database['public']['Enums']['email_digest']
 type LocationPrecision = Database['public']['Enums']['location_precision']
+type DisplayCurrency = Database['public']['Enums']['display_currency']
 
 // --- Display labels (component-specific UI data) --------------------------
 
@@ -62,7 +68,87 @@ const SECTIONS = [
   { id: 'visibility', label: 'Visibility & Discovery' },
   { id: 'notifications', label: 'Notifications' },
   { id: 'privacy', label: 'Privacy & Data' },
+  { id: 'payments', label: 'Payments & Financial' },
+  { id: 'representation', label: 'Representation' },
+  { id: 'security', label: 'Security' },
+  { id: 'account', label: 'Account' },
 ]
+
+// --- Section 5: Payments & Financial --------------------------------------
+
+/** A single payment row, projected from the `payments` table server-side with
+ *  the counterparty's display name resolved. Passed in read-only. */
+export interface PaymentEntry {
+  id: string
+  amount: number // minor units (pence/cents)
+  currency: string
+  status: Database['public']['Enums']['payment_status']
+  receipt_url: string | null
+  created_at: string
+  counterparty: string
+}
+
+const CURRENCY_OPTIONS: { value: DisplayCurrency; label: string; symbol: string }[] = [
+  { value: 'gbp', label: 'GBP (£)', symbol: '£' },
+  { value: 'usd', label: 'USD ($)', symbol: '$' },
+  { value: 'eur', label: 'EUR (€)', symbol: '€' },
+]
+
+const CURRENCY_SYMBOL: Record<string, string> = {
+  gbp: '£',
+  usd: '$',
+  eur: '€',
+}
+
+const STRIPE_CONNECT_LABELS: Record<
+  NonNullable<AthleteRow['stripe_connect_status']>,
+  string
+> = {
+  not_started: 'Not started',
+  pending: 'Pending',
+  restricted: 'Restricted',
+  active: 'Active',
+}
+
+function formatMoney(minorUnits: number, currency: string): string {
+  const symbol = CURRENCY_SYMBOL[currency.toLowerCase()] ?? ''
+  return `${symbol}${(minorUnits / 100).toFixed(2)}`
+}
+
+// --- Section 6: Representation ---------------------------------------------
+
+/** A link between this athlete and an agent, projected from `athlete_agent_links`
+ *  server-side with the agent's display name. Per-link permissions are a small,
+ *  fixed set of booleans the athlete controls. */
+export interface LinkedAgent {
+  id: string
+  agentName: string
+  permissions: Record<string, boolean>
+}
+
+const AGENT_PERMISSIONS: { key: string; label: string; description: string }[] = [
+  { key: 'negotiate', label: 'Negotiate deals', description: 'Send and counter offers on your behalf' },
+  { key: 'view_messages', label: 'View messages', description: 'Read your brand conversations' },
+  { key: 'manage_profile', label: 'Manage profile', description: 'Edit your public profile details' },
+]
+
+// --- Section 7: Security ---------------------------------------------------
+
+/** Active session row projected from `active_sessions` (B4/B9). */
+interface SessionEntry {
+  id: string
+  device_label: string | null
+  ip_address: string | null
+  last_active_at: string
+}
+
+/** Login-history row projected from `login_history` (B4/B9). Passed in read-only. */
+export interface LoginHistoryEntry {
+  id: string
+  success: boolean
+  location: string | null
+  created_at: string
+}
 
 // --- Section 3: Notifications ---------------------------------------------
 
@@ -161,6 +247,20 @@ interface Props {
    */
   blockedUsers?: BlockedUser[]
   onUnblock?: (id: string) => void
+  /** Section 5 — payment history (read-only, server-projected). */
+  payments?: PaymentEntry[]
+  /** Section 6 — agents currently linked to this athlete. */
+  linkedAgents?: LinkedAgent[]
+  /** Revoke an agent link (after in-UI confirmation). */
+  onRevokeAgent?: (linkId: string) => void
+  /** Toggle a single per-link permission. */
+  onAgentPermissionChange?: (linkId: string, permission: string, value: boolean) => void
+  /** Section 7 — recent login history (read-only). */
+  loginHistory?: LoginHistoryEntry[]
+  /** Section 8 — toggle account (de)activation. */
+  onDeactivateChange?: (deactivated: boolean) => void
+  /** Section 8 — confirmed account deletion (type-DELETE gate already passed). */
+  onDeleteAccount?: () => void
 }
 
 const DEFAULT_VISIBILITY = { profile_visible: true, pause_matches: false }
@@ -170,6 +270,13 @@ export default function SettingsForm({
   settings,
   blockedUsers = [],
   onUnblock,
+  payments = [],
+  linkedAgents = [],
+  onRevokeAgent,
+  onAgentPermissionChange,
+  loginHistory = [],
+  onDeactivateChange,
+  onDeleteAccount,
 }: Props) {
   const visibility = {
     profile_visible: settings?.profile_visible ?? DEFAULT_VISIBILITY.profile_visible,
@@ -228,6 +335,89 @@ export default function SettingsForm({
   )
   const [savingPrivacy, setSavingPrivacy] = useState(false)
   const [exporting, setExporting] = useState(false)
+
+  // Section 5 — Payments & Financial.
+  const [displayCurrency, setDisplayCurrency] = useState<DisplayCurrency>(
+    settings?.display_currency ?? 'gbp',
+  )
+  const [savingPayments, setSavingPayments] = useState(false)
+
+  // Section 6 — Representation.
+  const [revokeTargetId, setRevokeTargetId] = useState<string | null>(null)
+
+  // Section 7 — Security.
+  const [newEmail, setNewEmail] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [twoFactorSetup, setTwoFactorSetup] = useState(false)
+  const [sessions, setSessions] = useState<SessionEntry[]>([])
+  const [revokingSessionId, setRevokingSessionId] = useState<string | null>(null)
+
+  // Section 8 — Account.
+  const [deactivated, setDeactivated] = useState(profile.status === 'deactivated')
+  const [deleteConfirm, setDeleteConfirm] = useState('')
+
+  // Load active sessions for the Security section (B9).
+  useEffect(() => {
+    let cancelled = false
+    getActiveSessions(createClient(), profile.user_id)
+      .then((rows) => {
+        if (!cancelled) {
+          setSessions(
+            rows.map((r) => ({
+              id: r.id,
+              device_label: r.device_label,
+              ip_address: r.ip_address,
+              last_active_at: r.last_active_at,
+            })),
+          )
+        }
+      })
+      .catch(() => {
+        /* sessions list stays empty; non-blocking */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [profile.user_id])
+
+  async function savePayments() {
+    setSavingPayments(true)
+    try {
+      await updateSettings(createClient(), profile.user_id, {
+        display_currency: displayCurrency,
+      })
+      toast.success('Payment preferences saved')
+    } catch {
+      toast.error('Failed to save setting')
+    } finally {
+      setSavingPayments(false)
+    }
+  }
+
+  function confirmRevokeAgent() {
+    if (revokeTargetId) {
+      onRevokeAgent?.(revokeTargetId)
+      setRevokeTargetId(null)
+    }
+  }
+
+  async function signOutSession(sessionId: string) {
+    setRevokingSessionId(sessionId)
+    try {
+      await revokeSession(createClient(), sessionId)
+      setSessions((prev) => prev.filter((s) => s.id !== sessionId))
+      toast.success('Signed out of session')
+    } catch {
+      toast.error('Failed to sign out of session')
+    } finally {
+      setRevokingSessionId(null)
+    }
+  }
+
+  function toggleDeactivate(next: boolean) {
+    setDeactivated(next)
+    onDeactivateChange?.(next)
+  }
 
   function toggleChannel(event: string, channel: NotificationChannel) {
     setMatrix((prev) => {
@@ -1000,6 +1190,446 @@ export default function SettingsForm({
                 data. You can request a full export or deletion of your account at any time.
               </p>
             </div>
+          </div>
+        </section>
+
+        {/* ---------------- Section 5: Payments & Financial ---------------- */}
+        <section
+          id="payments"
+          role="region"
+          aria-labelledby="payments-heading"
+          className="space-y-6 border-t pt-8"
+        >
+          <h2 id="payments-heading" className="text-large font-heading">
+            Payments &amp; Financial
+          </h2>
+
+          {/* Payment history + receipts + pending */}
+          <div className="space-y-2">
+            <p className="text-medium font-medium">Payment history</p>
+            {payments.length === 0 ? (
+              <p className="text-small text-muted-foreground">No payments yet.</p>
+            ) : (
+              <ul className="divide-y rounded-[var(--radius)] border bg-card shadow-card">
+                {payments.map((p) => (
+                  <li key={p.id} className="flex items-center justify-between gap-4 p-4">
+                    <div>
+                      <p className="text-medium">{p.counterparty}</p>
+                      <p className="text-small text-muted-foreground">
+                        <time dateTime={p.created_at}>{p.created_at}</time> ·{' '}
+                        <span
+                          className={
+                            p.status === 'succeeded'
+                              ? 'text-success'
+                              : p.status === 'failed' || p.status === 'refunded'
+                                ? 'text-destructive'
+                                : 'text-warning'
+                          }
+                        >
+                          {p.status === 'pending' || p.status === 'processing'
+                            ? 'Pending'
+                            : p.status.charAt(0).toUpperCase() + p.status.slice(1)}
+                        </span>
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <span className="text-medium tabular-nums">
+                        {formatMoney(p.amount, p.currency)}
+                      </span>
+                      {p.receipt_url ? (
+                        <a
+                          href={p.receipt_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-small text-primary hover:underline"
+                        >
+                          Receipt
+                        </a>
+                      ) : (
+                        <span className="text-small text-muted-foreground">—</span>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* Payout / bank + Stripe Connect status */}
+          <div className="space-y-2 rounded-[var(--radius)] border bg-card p-4 shadow-card">
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-medium font-medium">Payout account</p>
+              <span className="text-small text-muted-foreground">
+                Stripe Connect:{' '}
+                <span className="text-foreground">
+                  {STRIPE_CONNECT_LABELS[profile.stripe_connect_status ?? 'not_started']}
+                </span>
+              </span>
+            </div>
+            {profile.payout_method ? (
+              <p className="text-small text-muted-foreground">
+                {profile.payout_method === 'bank_transfer'
+                  ? 'Bank transfer'
+                  : 'Stripe Connect'}
+                {profile.payout_bank_name ? ` · ${profile.payout_bank_name}` : ''}
+                {profile.payout_account_last4
+                  ? ` · ending ${profile.payout_account_last4}`
+                  : ''}
+              </p>
+            ) : (
+              <p className="text-small text-muted-foreground">
+                No payout method set up yet.
+              </p>
+            )}
+          </div>
+
+          {/* Tax information disclaimer */}
+          <div className="rounded-[var(--radius)] border bg-card p-4 text-small text-muted-foreground shadow-card">
+            <p className="mb-1 font-medium text-foreground">Tax information</p>
+            <p>
+              You are responsible for declaring income from sponsorships to your local tax
+              authority. Podium does not provide tax advice. Receipts above can be used as
+              records of payments received.
+            </p>
+          </div>
+
+          {/* Display currency */}
+          <div>
+            <label htmlFor="display_currency" className="mb-1 block text-medium font-medium">
+              Display currency
+            </label>
+            <select
+              id="display_currency"
+              value={displayCurrency}
+              onChange={(e) => setDisplayCurrency(e.target.value as DisplayCurrency)}
+              className="h-9 w-full rounded-[var(--radius)] border bg-card px-3 text-medium sm:w-64"
+            >
+              {CURRENCY_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <Button type="button" onClick={savePayments} disabled={savingPayments}>
+            {savingPayments ? 'Saving…' : 'Save payment settings'}
+          </Button>
+        </section>
+
+        {/* ---------------- Section 6: Representation ---------------- */}
+        <section
+          id="representation"
+          role="region"
+          aria-labelledby="representation-heading"
+          className="space-y-6 border-t pt-8"
+        >
+          <h2 id="representation-heading" className="text-large font-heading">
+            Representation
+          </h2>
+
+          {/* Linked agents + per-link permissions + revoke */}
+          <div className="space-y-3">
+            <p className="text-medium font-medium">Linked agents</p>
+            {linkedAgents.length === 0 ? (
+              <p className="text-small text-muted-foreground">
+                You don&apos;t have an agent linked.
+              </p>
+            ) : (
+              <ul className="space-y-4">
+                {linkedAgents.map((agent) => (
+                  <li
+                    key={agent.id}
+                    className="space-y-3 rounded-[var(--radius)] border bg-card p-4 shadow-card"
+                  >
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="text-medium font-medium">{agent.agentName}</span>
+                      <button
+                        type="button"
+                        className="text-small text-destructive hover:underline"
+                        onClick={() => setRevokeTargetId(agent.id)}
+                      >
+                        Revoke
+                      </button>
+                    </div>
+                    <fieldset className="space-y-2">
+                      <legend className="sr-only">
+                        Permissions for {agent.agentName}
+                      </legend>
+                      {AGENT_PERMISSIONS.map((perm) => (
+                        <div
+                          key={perm.key}
+                          className="flex items-start justify-between gap-4"
+                        >
+                          <div>
+                            <span
+                              className="text-medium"
+                              id={`perm-${agent.id}-${perm.key}-label`}
+                            >
+                              {perm.label}
+                            </span>
+                            <p className="text-small text-muted-foreground">
+                              {perm.description}
+                            </p>
+                          </div>
+                          <Switch
+                            aria-labelledby={`perm-${agent.id}-${perm.key}-label`}
+                            aria-label={perm.label}
+                            checked={Boolean(agent.permissions[perm.key])}
+                            onCheckedChange={(next) =>
+                              onAgentPermissionChange?.(agent.id, perm.key, next)
+                            }
+                          />
+                        </div>
+                      ))}
+                    </fieldset>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* Revoke confirmation */}
+          {revokeTargetId && (
+            <div
+              role="alertdialog"
+              aria-label="Confirm revoke representation"
+              className="space-y-3 rounded-[var(--radius)] border border-destructive/40 bg-card p-4 shadow-card"
+            >
+              <p className="text-medium font-medium">Revoke representation?</p>
+              <p className="text-small text-muted-foreground">
+                Your agent will lose access to your deals and messages. This can&apos;t be
+                undone without re-inviting them.
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={confirmRevokeAgent}
+                >
+                  Confirm revoke
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setRevokeTargetId(null)}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Guardian details (under-18) */}
+          {profile.is_under_18 && (
+            <div className="space-y-1 rounded-[var(--radius)] border bg-card p-4 shadow-card">
+              <p className="text-medium font-medium">Guardian / parent</p>
+              <p className="text-small text-muted-foreground">
+                {profile.guardian_name ?? 'Not provided'}
+                {profile.guardian_relationship
+                  ? ` · ${profile.guardian_relationship}`
+                  : ''}
+              </p>
+              {profile.guardian_email && (
+                <p className="text-small text-muted-foreground">{profile.guardian_email}</p>
+              )}
+              {profile.guardian_phone && (
+                <p className="text-small text-muted-foreground">{profile.guardian_phone}</p>
+              )}
+            </div>
+          )}
+        </section>
+
+        {/* ---------------- Section 7: Security ---------------- */}
+        <section
+          id="security"
+          role="region"
+          aria-labelledby="security-heading"
+          className="space-y-6 border-t pt-8"
+        >
+          <h2 id="security-heading" className="text-large font-heading">
+            Security
+          </h2>
+
+          {/* Change email */}
+          <div>
+            <label htmlFor="new_email" className="mb-1 block text-medium font-medium">
+              New email
+            </label>
+            <Input
+              id="new_email"
+              type="email"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+              placeholder="you@example.com"
+            />
+          </div>
+
+          {/* Change password */}
+          <div>
+            <label htmlFor="new_password" className="mb-1 block text-medium font-medium">
+              New password
+            </label>
+            <Input
+              id="new_password"
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="At least 8 characters"
+            />
+          </div>
+
+          {/* Two-factor authentication */}
+          <div className="space-y-3">
+            <p className="text-medium font-medium">Two-factor authentication</p>
+            {twoFactorSetup ? (
+              <div className="space-y-2">
+                {/* next/image is inappropriate for a per-user, non-cacheable SVG QR
+                    served from an auth-gated API route; a plain <img> is correct here. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/api/security/2fa/qr.svg"
+                  alt="2FA QR code — scan with your authenticator app"
+                  className="size-40 rounded-[var(--radius)] border bg-card"
+                />
+                <p className="text-small text-muted-foreground">
+                  Scan this code with an authenticator app, then enter the 6-digit code to
+                  confirm.
+                </p>
+              </div>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setTwoFactorSetup(true)}
+              >
+                Set up two-factor
+              </Button>
+            )}
+          </div>
+
+          {/* Active sessions */}
+          <div className="space-y-2">
+            <p className="text-medium font-medium">Active sessions</p>
+            {sessions.length === 0 ? (
+              <p className="text-small text-muted-foreground">No other active sessions.</p>
+            ) : (
+              <ul className="divide-y rounded-[var(--radius)] border bg-card shadow-card">
+                {sessions.map((s) => (
+                  <li key={s.id} className="flex items-center justify-between gap-4 p-4">
+                    <div>
+                      <p className="text-medium">{s.device_label ?? 'Unknown device'}</p>
+                      <p className="text-small text-muted-foreground">
+                        {s.ip_address ?? 'Unknown IP'} ·{' '}
+                        <time dateTime={s.last_active_at}>{s.last_active_at}</time>
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => signOutSession(s.id)}
+                      disabled={revokingSessionId === s.id}
+                    >
+                      {revokingSessionId === s.id ? 'Signing out…' : 'Sign out'}
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* Login history */}
+          <div className="space-y-2">
+            <p className="text-medium font-medium">Recent login activity</p>
+            {loginHistory.length === 0 ? (
+              <p className="text-small text-muted-foreground">No recent activity.</p>
+            ) : (
+              <ul className="space-y-1 text-small text-muted-foreground">
+                {loginHistory.map((h) => (
+                  <li key={h.id} className="flex items-center justify-between gap-2">
+                    <span>
+                      {h.location ?? 'Unknown location'}
+                      {!h.success && (
+                        <span className="ml-2 text-destructive">Failed attempt</span>
+                      )}
+                    </span>
+                    <time dateTime={h.created_at}>{h.created_at}</time>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </section>
+
+        {/* ---------------- Section 8: Account ---------------- */}
+        <section
+          id="account"
+          role="region"
+          aria-labelledby="account-heading"
+          className="space-y-6 border-t pt-8"
+        >
+          <h2 id="account-heading" className="text-large font-heading">
+            Account
+          </h2>
+
+          {/* Under-18 transition banner */}
+          {profile.is_under_18 && (
+            <div className="rounded-[var(--radius)] border border-accent/40 bg-card p-4 text-small text-muted-foreground shadow-card">
+              <p className="mb-1 font-medium text-foreground">Approaching 18</p>
+              <p>
+                When you turn 18, your account transitions to full adult features and guardian
+                approval is no longer required. We&apos;ll guide you through the changes
+                closer to the time.
+              </p>
+            </div>
+          )}
+
+          {/* Deactivate */}
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-medium font-medium" id="deactivate-label">
+                Deactivate account
+              </p>
+              <p className="text-small text-muted-foreground">
+                Temporarily hide your profile and pause all activity. You can reactivate any
+                time by logging back in.
+              </p>
+            </div>
+            <Switch
+              aria-labelledby="deactivate-label"
+              aria-label="Deactivate account"
+              checked={deactivated}
+              onCheckedChange={toggleDeactivate}
+            />
+          </div>
+
+          {/* Delete with type-DELETE + 14-day grace */}
+          <div className="space-y-3 rounded-[var(--radius)] border border-destructive/40 bg-card p-4 shadow-card">
+            <p className="text-medium font-medium text-destructive">Delete account</p>
+            <p className="text-small text-muted-foreground">
+              Deletion starts a 14-day grace period during which you can log in to cancel.
+              After 14 days your data is permanently removed. This cannot be undone.
+            </p>
+            <div>
+              <label htmlFor="delete_confirm" className="mb-1 block text-small font-medium">
+                Type DELETE to confirm
+              </label>
+              <Input
+                id="delete_confirm"
+                value={deleteConfirm}
+                onChange={(e) => setDeleteConfirm(e.target.value)}
+                placeholder="DELETE"
+                autoComplete="off"
+              />
+            </div>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={deleteConfirm !== 'DELETE'}
+              onClick={() => onDeleteAccount?.()}
+            >
+              Delete my account
+            </Button>
           </div>
         </section>
       </div>

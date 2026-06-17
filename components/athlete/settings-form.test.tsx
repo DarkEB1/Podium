@@ -22,9 +22,13 @@ type SettingsRow = Database['public']['Tables']['profile_settings']['Row']
 // section. We assert the component calls it rather than hitting the DB.
 const updateSettingsMock = vi.fn()
 const requestDataExportMock = vi.fn()
+const getActiveSessionsMock = vi.fn()
+const revokeSessionMock = vi.fn()
 vi.mock('@/lib/supabase/settings', () => ({
   updateSettings: (...args: unknown[]) => updateSettingsMock(...args),
   requestDataExport: (...args: unknown[]) => requestDataExportMock(...args),
+  getActiveSessions: (...args: unknown[]) => getActiveSessionsMock(...args),
+  revokeSession: (...args: unknown[]) => revokeSessionMock(...args),
 }))
 vi.mock('@/lib/supabase/client', () => ({
   createClient: () => ({ __browser: true }),
@@ -112,6 +116,10 @@ describe('SettingsForm', () => {
     updateSettingsMock.mockResolvedValue(makeSettings())
     requestDataExportMock.mockReset()
     requestDataExportMock.mockResolvedValue({ id: 'ex1', status: 'pending' })
+    getActiveSessionsMock.mockReset()
+    getActiveSessionsMock.mockResolvedValue([])
+    revokeSessionMock.mockReset()
+    revokeSessionMock.mockResolvedValue(undefined)
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue({ ok: true, json: async () => makeProfile() }),
@@ -327,5 +335,231 @@ describe('SettingsForm', () => {
     const region = screen.getByRole('region', { name: /privacy & data/i })
     expect(within(region).getByText(/spam brand/i)).toBeInTheDocument()
     expect(within(region).getByText(/how we use your data/i)).toBeInTheDocument()
+  })
+
+  // --- Section 5: Payments & Financial ---
+
+  it('renders payment history with a receipt link and a pending row', () => {
+    render(
+      <SettingsForm
+        profile={makeProfile()}
+        settings={makeSettings()}
+        payments={[
+          {
+            id: 'pay1',
+            amount: 25000,
+            currency: 'gbp',
+            status: 'succeeded',
+            receipt_url: 'https://receipts.test/pay1.pdf',
+            created_at: '2026-05-01',
+            counterparty: 'Acme Sports',
+          },
+          {
+            id: 'pay2',
+            amount: 10000,
+            currency: 'gbp',
+            status: 'pending',
+            receipt_url: null,
+            created_at: '2026-06-01',
+            counterparty: 'Beta Brand',
+          },
+        ]}
+      />,
+    )
+    const region = screen.getByRole('region', { name: /payments & financial/i })
+    expect(within(region).getByText(/acme sports/i)).toBeInTheDocument()
+    expect(within(region).getByRole('link', { name: /receipt/i })).toHaveAttribute(
+      'href',
+      'https://receipts.test/pay1.pdf',
+    )
+    expect(within(region).getByText(/pending/i)).toBeInTheDocument()
+  })
+
+  it('shows Stripe Connect status and payout bank details', () => {
+    render(
+      <SettingsForm
+        profile={makeProfile({
+          stripe_connect_status: 'active',
+          payout_method: 'bank_transfer',
+          payout_bank_name: 'Test Bank',
+          payout_account_last4: '4242',
+        })}
+        settings={makeSettings()}
+      />,
+    )
+    const region = screen.getByRole('region', { name: /payments & financial/i })
+    expect(within(region).getByText(/test bank/i)).toBeInTheDocument()
+    expect(within(region).getByText(/4242/)).toBeInTheDocument()
+    expect(within(region).getByText(/active/i)).toBeInTheDocument()
+  })
+
+  it('persists the display currency via updateSettings', async () => {
+    render(<SettingsForm profile={makeProfile()} settings={makeSettings({ display_currency: 'gbp' })} />)
+    const region = screen.getByRole('region', { name: /payments & financial/i })
+    await userEvent.selectOptions(within(region).getByLabelText(/display currency/i), 'usd')
+    await userEvent.click(within(region).getByRole('button', { name: /save payment/i }))
+    await waitFor(() =>
+      expect(updateSettingsMock).toHaveBeenCalledWith(
+        expect.anything(),
+        'u1',
+        expect.objectContaining({ display_currency: 'usd' }),
+      ),
+    )
+  })
+
+  // --- Section 6: Representation ---
+
+  it('lists a linked agent and revokes the link after confirmation', async () => {
+    const onRevokeAgent = vi.fn()
+    render(
+      <SettingsForm
+        profile={makeProfile({ has_agent: true })}
+        settings={makeSettings()}
+        linkedAgents={[
+          { id: 'lnk1', agentName: 'Star Agency', permissions: { negotiate: true, view_messages: false } },
+        ]}
+        onRevokeAgent={onRevokeAgent}
+      />,
+    )
+    const region = screen.getByRole('region', { name: /representation/i })
+    expect(within(region).getAllByText(/star agency/i).length).toBeGreaterThan(0)
+    await userEvent.click(within(region).getByRole('button', { name: /^revoke$/i }))
+    // confirmation step required before the callback fires
+    expect(onRevokeAgent).not.toHaveBeenCalled()
+    await userEvent.click(screen.getByRole('button', { name: /confirm revoke/i }))
+    await waitFor(() => expect(onRevokeAgent).toHaveBeenCalledWith('lnk1'))
+  })
+
+  it('toggles a per-link permission via callback', async () => {
+    const onAgentPermissionChange = vi.fn()
+    render(
+      <SettingsForm
+        profile={makeProfile({ has_agent: true })}
+        settings={makeSettings()}
+        linkedAgents={[
+          { id: 'lnk1', agentName: 'Star Agency', permissions: { negotiate: false, view_messages: false } },
+        ]}
+        onAgentPermissionChange={onAgentPermissionChange}
+      />,
+    )
+    const region = screen.getByRole('region', { name: /representation/i })
+    fireEvent.click(within(region).getByRole('switch', { name: /negotiate/i }))
+    await waitFor(() =>
+      expect(onAgentPermissionChange).toHaveBeenCalledWith('lnk1', 'negotiate', true),
+    )
+  })
+
+  it('shows guardian details for under-18 athletes', () => {
+    render(
+      <SettingsForm
+        profile={makeProfile({
+          is_under_18: true,
+          guardian_name: 'Pat Carer',
+          guardian_relationship: 'Parent',
+          guardian_email: 'pat@example.com',
+        })}
+        settings={makeSettings()}
+      />,
+    )
+    const region = screen.getByRole('region', { name: /representation/i })
+    expect(within(region).getByText(/pat carer · parent/i)).toBeInTheDocument()
+    expect(within(region).getByText(/pat@example\.com/i)).toBeInTheDocument()
+  })
+
+  // --- Section 7: Security ---
+
+  it('renders change-email and change-password controls', () => {
+    render(<SettingsForm profile={makeProfile()} settings={makeSettings()} />)
+    const region = screen.getByRole('region', { name: /security/i })
+    expect(within(region).getByLabelText(/new email/i)).toBeInTheDocument()
+    expect(within(region).getByLabelText(/new password/i)).toBeInTheDocument()
+  })
+
+  it('reveals a 2FA QR setup when enabling two-factor', async () => {
+    render(<SettingsForm profile={makeProfile()} settings={makeSettings()} />)
+    const region = screen.getByRole('region', { name: /security/i })
+    expect(within(region).queryByRole('img', { name: /2fa qr/i })).not.toBeInTheDocument()
+    await userEvent.click(within(region).getByRole('button', { name: /set up two-factor/i }))
+    expect(within(region).getByRole('img', { name: /2fa qr/i })).toBeInTheDocument()
+  })
+
+  it('loads active sessions and signs one out via revokeSession (B9)', async () => {
+    getActiveSessionsMock.mockResolvedValue([
+      {
+        id: 'sess1',
+        device_label: 'Chrome on Mac',
+        ip_address: '1.2.3.4',
+        last_active_at: '2026-06-10T12:00:00Z',
+      },
+    ])
+    render(<SettingsForm profile={makeProfile()} settings={makeSettings()} />)
+    const region = screen.getByRole('region', { name: /security/i })
+    await waitFor(() =>
+      expect(within(region).getByText(/chrome on mac/i)).toBeInTheDocument(),
+    )
+    await userEvent.click(within(region).getByRole('button', { name: /sign out/i }))
+    await waitFor(() =>
+      expect(revokeSessionMock).toHaveBeenCalledWith(expect.anything(), 'sess1'),
+    )
+  })
+
+  it('renders login history rows from props', () => {
+    render(
+      <SettingsForm
+        profile={makeProfile()}
+        settings={makeSettings()}
+        loginHistory={[
+          { id: 'lh1', success: true, location: 'London, UK', created_at: '2026-06-15T09:00:00Z' },
+        ]}
+      />,
+    )
+    const region = screen.getByRole('region', { name: /security/i })
+    expect(within(region).getByText(/london, uk/i)).toBeInTheDocument()
+  })
+
+  // --- Section 8: Account ---
+
+  it('toggles account deactivation via callback', async () => {
+    const onDeactivateChange = vi.fn()
+    render(
+      <SettingsForm
+        profile={makeProfile({ status: 'active' })}
+        settings={makeSettings()}
+        onDeactivateChange={onDeactivateChange}
+      />,
+    )
+    const region = screen.getByRole('region', { name: /account/i })
+    fireEvent.click(within(region).getByRole('switch', { name: /deactivate account/i }))
+    await waitFor(() => expect(onDeactivateChange).toHaveBeenCalledWith(true))
+  })
+
+  it('requires typing DELETE before account deletion is enabled, then shows a 14-day grace summary', async () => {
+    const onDeleteAccount = vi.fn()
+    render(
+      <SettingsForm
+        profile={makeProfile()}
+        settings={makeSettings()}
+        onDeleteAccount={onDeleteAccount}
+      />,
+    )
+    const region = screen.getByRole('region', { name: /account/i })
+    expect(within(region).getByText(/14[- ]day/i)).toBeInTheDocument()
+    const confirmBtn = within(region).getByRole('button', { name: /delete my account/i })
+    expect(confirmBtn).toBeDisabled()
+    await userEvent.type(within(region).getByLabelText(/type delete/i), 'DELETE')
+    expect(confirmBtn).toBeEnabled()
+    await userEvent.click(confirmBtn)
+    await waitFor(() => expect(onDeleteAccount).toHaveBeenCalled())
+  })
+
+  it('shows an under-18 transition banner when the athlete is a minor', () => {
+    render(
+      <SettingsForm
+        profile={makeProfile({ is_under_18: true, date_of_birth: '2009-06-17' })}
+        settings={makeSettings()}
+      />,
+    )
+    const region = screen.getByRole('region', { name: /account/i })
+    expect(within(region).getByText(/turn 18/i)).toBeInTheDocument()
   })
 })
