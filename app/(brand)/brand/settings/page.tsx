@@ -29,18 +29,18 @@ export default async function BrandSettingsPage() {
     !subscription.cancellation_scheduled_at
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8 space-y-10">
-      <h1 className="text-2xl font-bold">Settings</h1>
+    <div className="mx-auto max-w-2xl px-6 py-8 space-y-10 md:px-16">
+      <h1 className="text-large font-bold">Settings</h1>
 
       <section className="space-y-4">
-        <h2 className="text-lg font-semibold">Company details</h2>
+        <h2 className="text-large font-semibold">Company details</h2>
         <BrandSettingsForm profile={brandProfile} />
       </section>
 
       {hasActiveSubscription && (
         <section className="space-y-4">
-          <h2 className="text-lg font-semibold">Subscription</h2>
-          <p className="text-sm text-muted-foreground">
+          <h2 className="text-large font-semibold">Subscription</h2>
+          <p className="text-medium text-muted-foreground">
             You are on Tier {subscription!.tier}. Your subscription renews on{' '}
             {new Date(subscription!.current_period_end).toLocaleDateString()}.
           </p>

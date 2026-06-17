@@ -16,8 +16,8 @@ export default async function AthleteSettingsPage() {
   if (!profile) redirect('/athlete/onboarding')
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8 space-y-6">
-      <h1 className="text-2xl font-bold">Settings</h1>
+    <div className="mx-auto max-w-2xl px-6 py-8 space-y-6 md:px-16">
+      <h1 className="text-large font-bold">Settings</h1>
       <SettingsForm profile={profile} />
     </div>
   )

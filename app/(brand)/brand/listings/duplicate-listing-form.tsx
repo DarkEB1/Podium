@@ -114,7 +114,7 @@ export default function DuplicateListingForm({ source }: Props) {
 
         <FormField control={form.control} name="description" render={({ field }) => (
           <FormItem>
-            <FormLabel>Description <span className="text-muted-foreground text-xs">(optional)</span></FormLabel>
+            <FormLabel>Description <span className="text-muted-foreground text-small">(optional)</span></FormLabel>
             <FormControl><Textarea rows={4} className="resize-none" {...field} /></FormControl>
             <FormMessage />
           </FormItem>
@@ -123,14 +123,14 @@ export default function DuplicateListingForm({ source }: Props) {
         <div className="grid grid-cols-2 gap-4">
           <FormField control={form.control} name="sport_required" render={({ field }) => (
             <FormItem>
-              <FormLabel>Sport <span className="text-muted-foreground text-xs">(optional)</span></FormLabel>
+              <FormLabel>Sport <span className="text-muted-foreground text-small">(optional)</span></FormLabel>
               <FormControl><Input {...field} /></FormControl>
               <FormMessage />
             </FormItem>
           )} />
           <FormField control={form.control} name="level_required" render={({ field }) => (
             <FormItem>
-              <FormLabel>Level <span className="text-muted-foreground text-xs">(optional)</span></FormLabel>
+              <FormLabel>Level <span className="text-muted-foreground text-small">(optional)</span></FormLabel>
               <FormControl><Input {...field} /></FormControl>
               <FormMessage />
             </FormItem>
@@ -139,7 +139,7 @@ export default function DuplicateListingForm({ source }: Props) {
 
         <FormField control={form.control} name="location" render={({ field }) => (
           <FormItem>
-            <FormLabel>Location <span className="text-muted-foreground text-xs">(optional)</span></FormLabel>
+            <FormLabel>Location <span className="text-muted-foreground text-small">(optional)</span></FormLabel>
             <FormControl><Input {...field} /></FormControl>
             <FormMessage />
           </FormItem>

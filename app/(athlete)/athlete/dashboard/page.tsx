@@ -28,9 +28,9 @@ export default async function AthleteDashboardPage() {
   const activeMatches = matches.filter((m) => m.status === 'active')
 
   return (
-    <div className="mx-auto max-w-5xl space-y-8 px-4 py-8">
+    <div className="mx-auto max-w-5xl space-y-8 px-6 py-8 md:px-16">
       <div>
-        <h1 className="text-2xl font-bold">Welcome back, {profile.display_name}</h1>
+        <h1 className="text-large font-bold">Welcome back, {profile.display_name}</h1>
         <p className="text-muted-foreground">
           {profile.status === 'pending_review'
             ? 'Your profile is under review. We will notify you when it goes live.'
@@ -41,28 +41,30 @@ export default async function AthleteDashboardPage() {
       <div className="grid gap-4 sm:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Active conversations</CardTitle>
+            <CardTitle className="text-medium font-medium text-muted-foreground">Active conversations</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">{activeMatches.length}</p>
+            <p className="text-large font-bold">{activeMatches.length}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Sport</CardTitle>
+            <CardTitle className="text-medium font-medium text-muted-foreground">Sport</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-lg font-semibold">{profile.primary_sport ?? '—'}</p>
+            <p className="text-large font-semibold">{profile.primary_sport ?? '—'}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Profile status</CardTitle>
+            <CardTitle className="text-medium font-medium text-muted-foreground">Profile status</CardTitle>
           </CardHeader>
           <CardContent>
             <span className={cn(
-              'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
-              profile.status === 'active' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+              'inline-flex items-center rounded-full border px-2 py-0.5 text-small font-medium',
+              profile.status === 'active'
+                ? 'border-success/30 bg-success/15 text-success'
+                : 'border-warning/40 bg-warning/15 text-warning'
             )}>
               {profile.status.replace('_', ' ')}
             </span>

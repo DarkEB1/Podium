@@ -22,9 +22,9 @@ export default async function AthleteSavedPage() {
   const brands = profiles.filter(Boolean) as BrandRow[]
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8 space-y-6">
+    <div className="mx-auto max-w-4xl px-6 py-8 space-y-6 md:px-16">
       <div>
-        <h1 className="text-2xl font-bold">Saved brands</h1>
+        <h1 className="text-large font-bold">Saved brands</h1>
         <p className="text-muted-foreground">{brands.length} saved</p>
       </div>
       {brands.length === 0 ? (

@@ -24,9 +24,9 @@ export default async function AthleteRequestsPage() {
   const requests = (data ?? []) as ConnectionRequestRow[]
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8 space-y-6">
+    <div className="mx-auto max-w-3xl px-6 py-8 space-y-6 md:px-16">
       <div>
-        <h1 className="text-2xl font-bold">Connection requests</h1>
+        <h1 className="text-large font-bold">Connection requests</h1>
         <p className="text-muted-foreground">{requests.length} pending</p>
       </div>
       <RequestsList requests={requests} />
