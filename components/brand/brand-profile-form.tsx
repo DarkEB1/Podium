@@ -11,11 +11,34 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { ImageUpload } from '@/components/ui/image-upload'
+import { CardSelectGroup } from '@/components/ui/card-select'
+import { CharacterCounter } from '@/components/ui/character-counter'
+import { MarketplaceCard } from '@/components/ui/marketplace-card'
+import {
+  Award,
+  Users,
+  Megaphone,
+  Share2,
+  CalendarDays,
+  Package,
+  Trophy,
+  Dumbbell,
+  Goal,
+  CircleDot,
+  Flag,
+  Waves,
+  Bike,
+  type LucideIcon,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Database } from '@/types/database'
 
 type BrandRow = Database['public']['Tables']['brand_profiles']['Row']
 type BrandIndustry = Database['public']['Enums']['brand_industry']
+
+const DESCRIPTION_MAX = 2000
+const MAX_TARGET_SPORTS = 5
 
 const step1Schema = z.object({
   company_name: z.string().min(1, 'Company name is required').max(100),
@@ -28,12 +51,13 @@ const step1Schema = z.object({
 
 const step2Schema = z.object({
   industry: z.enum(['sport', 'fashion', 'nutrition', 'technology', 'financial', 'travel', 'entertainment', 'fmcg', 'other'] as const).optional(),
+  industry_other: z.string().max(100).optional(),
   target_level: z.string().optional(),
   geographic_preference: z.string().optional(),
 })
 
 const step3Schema = z.object({
-  description: z.string().max(2000).optional(),
+  description: z.string().max(DESCRIPTION_MAX).optional(),
 })
 
 type Step1Values = z.infer<typeof step1Schema>
@@ -52,18 +76,28 @@ const INDUSTRY_OPTIONS: { value: BrandIndustry; label: string }[] = [
   { value: 'other', label: 'Other' },
 ]
 
-const SEEKING_OPTIONS = [
-  { value: 'endorsement', label: 'Endorsement' },
-  { value: 'team_sponsorship', label: 'Team Sponsorship' },
-  { value: 'ambassador', label: 'Brand Ambassador' },
-  { value: 'social_media', label: 'Social Media' },
-  { value: 'event_appearance', label: 'Event Appearance' },
-  { value: 'product_deal', label: 'Product Deal' },
+const SEEKING_OPTIONS: { value: string; label: string; description: string; icon: LucideIcon }[] = [
+  { value: 'endorsement', label: 'Endorsement', description: 'Athletes who endorse your products', icon: Award },
+  { value: 'team_sponsorship', label: 'Team Sponsorship', description: 'Sponsor a club or squad', icon: Users },
+  { value: 'ambassador', label: 'Brand Ambassador', description: 'Long-term brand partners', icon: Megaphone },
+  { value: 'social_media', label: 'Social Media', description: 'Posts and content campaigns', icon: Share2 },
+  { value: 'event_appearance', label: 'Event Appearance', description: 'Appearances and meet-and-greets', icon: CalendarDays },
+  { value: 'product_deal', label: 'Product Deal', description: 'Gifted or discounted products', icon: Package },
 ]
 
-const TARGET_SPORTS = [
-  'Football', 'Athletics', 'Tennis', 'Basketball', 'Rugby', 'Cricket',
-  'Cycling', 'Swimming', 'Golf', 'Boxing', 'MMA', 'Other',
+const TARGET_SPORTS: { name: string; icon: LucideIcon }[] = [
+  { name: 'Football', icon: Goal },
+  { name: 'Athletics', icon: Trophy },
+  { name: 'Tennis', icon: CircleDot },
+  { name: 'Basketball', icon: CircleDot },
+  { name: 'Rugby', icon: Goal },
+  { name: 'Cricket', icon: CircleDot },
+  { name: 'Cycling', icon: Bike },
+  { name: 'Swimming', icon: Waves },
+  { name: 'Golf', icon: Flag },
+  { name: 'Boxing', icon: Dumbbell },
+  { name: 'MMA', icon: Dumbbell },
+  { name: 'Other', icon: Flag },
 ]
 
 function stepLabel(step: number): string {
@@ -72,6 +106,9 @@ function stepLabel(step: number): string {
 
 function Step1({ profile, onSaved }: { profile: BrandRow | null; onSaved: (p: BrandRow) => void }) {
   const [loading, setLoading] = useState(false)
+  const [logoUrl, setLogoUrl] = useState<string | null>(profile?.logo_url ?? null)
+  const [coverUrl, setCoverUrl] = useState<string | null>(profile?.cover_image_url ?? null)
+  const [coverError, setCoverError] = useState(false)
   const form = useForm<Step1Values>({
     resolver: zodResolver(step1Schema),
     defaultValues: {
@@ -84,14 +121,21 @@ function Step1({ profile, onSaved }: { profile: BrandRow | null; onSaved: (p: Br
     },
   })
 
+  const companyName = form.watch('company_name')
+
   async function onSubmit(values: Step1Values) {
+    if (!coverUrl) {
+      setCoverError(true)
+      return
+    }
+    setCoverError(false)
     setLoading(true)
     try {
-      const method = profile ? 'PATCH' : 'POST'
+      const method = profile?.id ? 'PATCH' : 'POST'
       const res = await fetch('/api/profiles/me', {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(values),
+        body: JSON.stringify({ ...values, logo_url: logoUrl, cover_image_url: coverUrl }),
       })
       const data = await res.json()
       if (!res.ok) { toast.error(data.error?.message ?? 'Failed to save'); return }
@@ -104,6 +148,44 @@ function Step1({ profile, onSaved }: { profile: BrandRow | null; onSaved: (p: Br
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        {/* Logo — prominent at the top, with a live discovery-card preview. */}
+        <div className="space-y-3 rounded-xl border bg-muted/20 p-4">
+          <ImageUpload
+            value={logoUrl}
+            onUploaded={setLogoUrl}
+            aspect={1}
+            shape="square"
+            label="Company logo"
+            subtext="Square image, at least 500px. Shown across the marketplace."
+          />
+          <div>
+            <p className="text-small font-medium text-muted-foreground">How you&apos;ll appear in discovery</p>
+            <div className="mt-2 max-w-[15rem]">
+              <MarketplaceCard
+                image={coverUrl ?? logoUrl ?? '/placeholder-cover.svg'}
+                imageAlt={`${companyName || 'Your brand'} preview`}
+                title={companyName || 'Your brand'}
+                subtitle={profile?.industry ? profile.industry.replace('_', ' ') : 'Brand'}
+                cta={{ label: 'View brand' }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Cover image — mandatory. */}
+        <ImageUpload
+          value={coverUrl}
+          onUploaded={(url) => { setCoverUrl(url); setCoverError(false) }}
+          aspect={16 / 9}
+          shape="square"
+          required
+          label="Cover image"
+          subtext="Wide banner shown on your brand page and discovery card (required)."
+        />
+        {coverError ? (
+          <p role="alert" className="text-small text-destructive">Cover image is required to continue.</p>
+        ) : null}
+
         <FormField control={form.control} name="company_name" render={({ field }) => (
           <FormItem>
             <FormLabel>Company name</FormLabel>
@@ -160,17 +242,31 @@ function Step2({ profile, onSaved }: { profile: BrandRow | null; onSaved: (p: Br
   const [loading, setLoading] = useState(false)
   const [seeking, setSeeking] = useState<string[]>(profile?.seeking ?? [])
   const [targetSports, setTargetSports] = useState<string[]>(profile?.target_sports ?? [])
+  const [sportError, setSportError] = useState(false)
   const form = useForm<Step2Values>({
     resolver: zodResolver(step2Schema),
     defaultValues: {
       industry: (profile?.industry as BrandIndustry | undefined) ?? undefined,
+      industry_other: '',
       target_level: profile?.target_level ?? '',
       geographic_preference: profile?.geographic_preference ?? '',
     },
   })
 
-  function toggle(arr: string[], val: string, setter: (v: string[]) => void) {
-    setter(arr.includes(val) ? arr.filter((s) => s !== val) : [...arr, val])
+  const industry = form.watch('industry')
+
+  function toggleSport(name: string) {
+    if (targetSports.includes(name)) {
+      setSportError(false)
+      setTargetSports(targetSports.filter((s) => s !== name))
+      return
+    }
+    if (targetSports.length >= MAX_TARGET_SPORTS) {
+      setSportError(true)
+      return
+    }
+    setSportError(false)
+    setTargetSports([...targetSports, name])
   }
 
   async function onSubmit(values: Step2Values) {
@@ -208,45 +304,62 @@ function Step2({ profile, onSaved }: { profile: BrandRow | null; onSaved: (p: Br
             <FormMessage />
           </FormItem>
         )} />
+        {industry === 'other' ? (
+          <FormField control={form.control} name="industry_other" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Please specify your industry</FormLabel>
+              <FormControl><Input placeholder="e.g. Renewable energy" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+        ) : null}
         <div>
-          <p className="mb-2 text-sm font-medium">We are seeking to sponsor</p>
-          <div className="flex flex-wrap gap-2">
-            {SEEKING_OPTIONS.map((o) => (
-              <button
-                key={o.value}
-                type="button"
-                onClick={() => toggle(seeking, o.value, setSeeking)}
-                className={cn(
-                  'rounded-full border px-3 py-1 text-sm transition-colors',
-                  seeking.includes(o.value)
-                    ? 'border-foreground bg-foreground text-background'
-                    : 'border-border hover:border-foreground/50'
-                )}
-              >
-                {o.label}
-              </button>
-            ))}
-          </div>
+          <p className="mb-2 text-sm font-medium">What your brand is looking for</p>
+          <CardSelectGroup
+            multiple
+            options={SEEKING_OPTIONS.map((o) => ({
+              value: o.value,
+              label: o.label,
+              description: o.description,
+              icon: <o.icon aria-hidden="true" className="size-5" />,
+            }))}
+            value={seeking}
+            onChange={setSeeking}
+          />
         </div>
         <div>
-          <p className="mb-2 text-sm font-medium">Target sports</p>
+          <p className="mb-2 text-sm font-medium">
+            Target sports <span className="text-muted-foreground text-xs">(up to {MAX_TARGET_SPORTS})</span>
+          </p>
           <div className="flex flex-wrap gap-2">
-            {TARGET_SPORTS.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => toggle(targetSports, s, setTargetSports)}
-                className={cn(
-                  'rounded-full border px-3 py-1 text-sm transition-colors',
-                  targetSports.includes(s)
-                    ? 'border-foreground bg-foreground text-background'
-                    : 'border-border hover:border-foreground/50'
-                )}
-              >
-                {s}
-              </button>
-            ))}
+            {TARGET_SPORTS.map((s) => {
+              const Icon = s.icon
+              const active = targetSports.includes(s.name)
+              return (
+                <button
+                  key={s.name}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => toggleSport(s.name)}
+                  className={cn(
+                    'flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm transition-colors',
+                    'focus-visible:ring-3 focus-visible:ring-ring/50 outline-none',
+                    active
+                      ? 'border-primary bg-primary/10 text-foreground'
+                      : 'border-border hover:border-foreground/50'
+                  )}
+                >
+                  <Icon aria-hidden="true" className="size-4" />
+                  {s.name}
+                </button>
+              )
+            })}
           </div>
+          {sportError ? (
+            <p role="alert" className="mt-2 text-small text-destructive">
+              You can select a maximum of {MAX_TARGET_SPORTS} sports.
+            </p>
+          ) : null}
         </div>
         <FormField control={form.control} name="target_level" render={({ field }) => (
           <FormItem>
@@ -279,6 +392,8 @@ function Step3({ profile, onSaved }: { profile: BrandRow | null; onSaved: (p: Br
     },
   })
 
+  const description = form.watch('description') ?? ''
+
   async function onSubmit(values: Step3Values) {
     setLoading(true)
     try {
@@ -305,10 +420,17 @@ function Step3({ profile, onSaved }: { profile: BrandRow | null; onSaved: (p: Br
               <Textarea
                 placeholder="Tell athletes and teams about your brand, your values, and what you're looking for in a sponsorship partner…"
                 rows={5}
+                maxLength={DESCRIPTION_MAX}
                 className="resize-none"
                 {...field}
               />
             </FormControl>
+            <div className="flex items-start justify-between gap-4">
+              <p className="text-small text-muted-foreground">
+                Keep it concise — lead with what makes your brand a great partner.
+              </p>
+              <CharacterCounter value={description} max={DESCRIPTION_MAX} />
+            </div>
             <FormMessage />
           </FormItem>
         )} />
