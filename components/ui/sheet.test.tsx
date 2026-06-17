@@ -14,14 +14,17 @@ function open() {
   )
 }
 
-describe("SheetContent surface re-skin (T12)", () => {
-  it("carries the ink border + hard shadow token on the surface", () => {
+describe("SheetContent surface re-skin (C10 clean airbnb)", () => {
+  it("carries a clean light border + soft shadow on the surface", () => {
     open()
     const surface = document.querySelector('[data-slot="sheet-content"]')
     expect(surface).not.toBeNull()
     const cls = surface!.className
-    expect(cls).toContain("border-border-ink")
+    expect(cls).toContain("border-border")
     expect(cls).toContain("shadow-card")
+    // no heavy ink border / fixed ink width remains
+    expect(cls).not.toContain("border-border-ink")
+    expect(cls).not.toContain("border-ink-width")
   })
 
   it("keeps the v1 slide (translate) entrance/exit transitions", () => {
