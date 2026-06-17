@@ -72,8 +72,8 @@ export default function ProfileHero({
       >
         <ImageIcon aria-hidden="true" className="size-10" />
       </div>
-      <div className="mx-auto -mt-12 max-w-7xl px-4 sm:-mt-16">
-        <div className="rounded-[var(--radius)] border bg-card p-4 shadow-[var(--shadow-card)] sm:p-8">
+      <div className="mx-auto -mt-12 max-w-7xl px-6 sm:-mt-16 md:px-16">
+        <div className="rounded-2xl border border-border bg-card p-6 shadow-card sm:p-8">
           {panel}
         </div>
       </div>

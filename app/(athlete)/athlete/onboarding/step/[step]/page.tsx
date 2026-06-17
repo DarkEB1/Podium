@@ -2,7 +2,6 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getOwnProfile } from '@/lib/supabase/profiles'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import ProfileWizard from '@/components/athlete/profile-wizard'
 import type { Database } from '@/types/database'
 
@@ -37,15 +36,14 @@ export default async function OnboardingStepPage({
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
-      <Card className="w-full max-w-xl">
-        <CardHeader>
-          <CardTitle>Set up your profile — {STEP_TITLES[step]}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ProfileWizard step={step} profile={profile} />
-        </CardContent>
-      </Card>
+    <div className="mx-auto min-h-screen max-w-xl px-6 py-12 md:px-16 md:py-16">
+      <header className="mb-10 space-y-2">
+        <p className="text-small font-medium uppercase tracking-[0.18em] text-muted-foreground">
+          Set up your profile
+        </p>
+        <h1 className="text-display text-foreground">{STEP_TITLES[step]}</h1>
+      </header>
+      <ProfileWizard step={step} profile={profile} />
     </div>
   )
 }

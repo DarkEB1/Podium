@@ -32,12 +32,12 @@ export default async function AthleteChatPage({
   }
 
   return (
-    <div className="mx-auto max-w-2xl h-screen flex flex-col">
-      <div className="flex items-center gap-3 border-b px-4 py-3">
+    <div className="mx-auto flex h-screen max-w-2xl flex-col">
+      <div className="flex items-center gap-3 border-b border-border px-6 py-4 md:px-16">
         <Link href="/athlete/messages" className={buttonVariants({ variant: 'ghost', size: 'sm' })}>
           ←
         </Link>
-        <h1 className="font-semibold">Conversation</h1>
+        <h1 className="text-large text-foreground">Conversation</h1>
       </div>
       <ChatWindow
         matchId={matchId}

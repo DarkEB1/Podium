@@ -259,14 +259,14 @@ function Step1({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
         <div className="grid gap-4 sm:grid-cols-2">
           <FormField control={form.control} name="full_legal_name" render={({ field }) => (
             <FormItem>
-              <FormLabel>Full legal name <span className="text-muted-foreground text-xs">(private)</span></FormLabel>
+              <FormLabel>Full legal name <span className="text-small text-muted-foreground">(private)</span></FormLabel>
               <FormControl><Input placeholder="For contracts" {...field} /></FormControl>
               <FormMessage />
             </FormItem>
           )} />
           <FormField control={form.control} name="date_of_birth" render={({ field }) => (
             <FormItem>
-              <FormLabel>Date of birth <span className="text-muted-foreground text-xs">(private)</span></FormLabel>
+              <FormLabel>Date of birth <span className="text-small text-muted-foreground">(private)</span></FormLabel>
               <FormControl><Input type="date" {...field} /></FormControl>
               <FormMessage />
             </FormItem>
@@ -294,7 +294,7 @@ function Step1({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
 
         <FormField control={form.control} name="phone" render={({ field }) => (
           <FormItem>
-            <FormLabel>Phone <span className="text-muted-foreground text-xs">(private)</span></FormLabel>
+            <FormLabel>Phone <span className="text-small text-muted-foreground">(private)</span></FormLabel>
             <FormControl><Input type="tel" placeholder="+44 7700 900000" {...field} /></FormControl>
             <FormMessage />
           </FormItem>
@@ -359,7 +359,7 @@ function Step2({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
           )} />
           <FormField control={form.control} name="secondary_sport" render={({ field }) => (
             <FormItem>
-              <FormLabel>Secondary sport <span className="text-muted-foreground text-xs">(optional)</span></FormLabel>
+              <FormLabel>Secondary sport <span className="text-small text-muted-foreground">(optional)</span></FormLabel>
               <FormControl><Input placeholder="Athletics" {...field} /></FormControl>
               <FormMessage />
             </FormItem>
@@ -564,7 +564,7 @@ function Step3({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
           </FormItem>
         )} />
         <div>
-          <p className="mb-2 text-sm font-medium">I am seeking</p>
+          <p className="mb-2 text-medium font-medium">I am seeking</p>
           <div className="flex flex-wrap gap-2">
             {SEEKING_OPTIONS.map((o) => (
               <button
@@ -572,7 +572,7 @@ function Step3({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
                 type="button"
                 onClick={() => toggleSeeking(o.value)}
                 className={cn(
-                  'rounded-full border px-3 py-1 text-sm transition-colors',
+                  'rounded-full border px-3 py-1 text-small transition-colors',
                   seeking.includes(o.value)
                     ? 'border-primary bg-primary/10 text-foreground'
                     : 'border-border hover:border-foreground/50'
@@ -672,7 +672,7 @@ function Step5({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
   if (!profile?.is_under_18) {
     return (
       <div className="space-y-4">
-        <p className="text-sm text-muted-foreground">This step is not required for athletes 18 and over.</p>
+        <p className="text-medium text-muted-foreground">This step is not required for athletes 18 and over.</p>
         <Button type="button" className="w-full" onClick={() => onSaved(profile!)}>
           Next →
         </Button>
@@ -757,11 +757,11 @@ function Step6({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* §3A.6: Discovery Interests — what the athlete wants to be found for. */}
-      <div className="space-y-3">
-        <div>
-          <p className="text-sm font-semibold">Discovery interests</p>
+      <div className="space-y-4">
+        <div className="space-y-1">
+          <h2 className="text-large text-foreground">Discovery interests</h2>
           <p className="text-small text-muted-foreground">
             Pick the kinds of opportunities you want brands to find you for.
           </p>
@@ -783,16 +783,16 @@ function Step6({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
         </Button>
       </div>
 
-      <div className="rounded-xl border bg-muted/30 p-4 space-y-2">
-        <p className="text-sm font-semibold">Profile summary</p>
-        <dl className="space-y-1 text-sm">
-          <div className="flex gap-2"><dt className="text-muted-foreground w-32">Display name</dt><dd>{profile?.display_name ?? '—'}</dd></div>
-          <div className="flex gap-2"><dt className="text-muted-foreground w-32">Sport</dt><dd>{profile?.primary_sport ?? '—'}</dd></div>
-          <div className="flex gap-2"><dt className="text-muted-foreground w-32">Level</dt><dd>{profile?.level ?? '—'}</dd></div>
-          <div className="flex gap-2"><dt className="text-muted-foreground w-32">Location</dt><dd>{[profile?.home_city, profile?.home_country].filter(Boolean).join(', ') || '—'}</dd></div>
+      <div className="space-y-3 rounded-2xl border border-border bg-muted p-6">
+        <h2 className="text-large text-foreground">Profile summary</h2>
+        <dl className="space-y-1 text-medium">
+          <div className="flex gap-2"><dt className="w-32 text-muted-foreground">Display name</dt><dd>{profile?.display_name ?? '—'}</dd></div>
+          <div className="flex gap-2"><dt className="w-32 text-muted-foreground">Sport</dt><dd>{profile?.primary_sport ?? '—'}</dd></div>
+          <div className="flex gap-2"><dt className="w-32 text-muted-foreground">Level</dt><dd>{profile?.level ?? '—'}</dd></div>
+          <div className="flex gap-2"><dt className="w-32 text-muted-foreground">Location</dt><dd>{[profile?.home_city, profile?.home_country].filter(Boolean).join(', ') || '—'}</dd></div>
         </dl>
       </div>
-      <p className="text-xs text-muted-foreground">
+      <p className="text-small text-muted-foreground">
         Publishing makes your profile visible to brands and agents. You can edit it at any time from Settings.
       </p>
       <Button className="w-full" disabled={loading || !profile} onClick={handlePublish}>
@@ -832,14 +832,14 @@ export default function ProfileWizard({ step, profile: initialProfile }: Props) 
   const progressPct = Math.min(100, Math.round((displayPosition / TOTAL_STEPS) * 100))
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Progress header */}
       <div>
-        <div className="flex justify-between text-xs text-muted-foreground mb-1">
+        <div className="mb-2 flex justify-between text-small text-muted-foreground">
           <span>Step {displayPosition} of {TOTAL_STEPS} — {stepLabel(step)}</span>
           <span>{progressPct}%</span>
         </div>
-        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+        <div className="h-1.5 overflow-hidden rounded-full bg-muted">
           <div
             className="h-full bg-foreground transition-all"
             style={{ width: `${progressPct}%` }}

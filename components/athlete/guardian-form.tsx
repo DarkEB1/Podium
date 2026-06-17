@@ -31,7 +31,7 @@ export default function GuardianForm({ initialValues, loading, onSubmit }: Props
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-medium text-muted-foreground">
           Because you are under 18, a parent or guardian must be registered for contract and payment purposes.
         </p>
         <FormField control={form.control} name="guardian_name" render={({ field }) => (
