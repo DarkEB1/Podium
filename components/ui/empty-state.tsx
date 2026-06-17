@@ -23,10 +23,10 @@ export interface EmptyStateProps {
 }
 
 /**
- * EmptyState — characterful placeholder for empty lists/searches: a circular
- * accent disc holding a Lucide `Icon` (or arbitrary node), an energetic title,
- * supporting body copy, and an optional primary action rendered as a Link
- * (href) or Button (onClick).
+ * EmptyState — clean, tasteful placeholder for empty lists/searches: a soft
+ * tinted circle holding a Lucide `Icon` (or arbitrary node), an energetic
+ * title, supporting body copy, and an optional primary action rendered as a
+ * Link (href) or Button (onClick).
  *
  * Pass a `variant` to default title/body/CTA from `copy.emptyStates`; any
  * explicit `title`/`description`/`action.label` overrides the variant's copy.
@@ -67,7 +67,7 @@ function EmptyState({
         <div
           data-slot="empty-state-icon"
           aria-hidden="true"
-          className="mb-1 flex size-16 items-center justify-center rounded-full border-[length:var(--border-ink-width)] border-border-ink bg-accent text-accent-foreground shadow-card [&_svg]:size-7"
+          className="mb-2 flex size-16 items-center justify-center rounded-full bg-primary/10 text-primary [&_svg]:size-7"
         >
           {discContent}
         </div>
