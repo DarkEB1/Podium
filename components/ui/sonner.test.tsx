@@ -27,7 +27,7 @@ function renderToaster(): Record<string, unknown> {
   return captured
 }
 
-describe("Toaster (neo-brutalist re-skin)", () => {
+describe("Toaster (clean Airbnb re-skin)", () => {
   beforeEach(() => {
     sonnerProps.current = null
   })
@@ -59,26 +59,33 @@ describe("Toaster (neo-brutalist re-skin)", () => {
     }
   })
 
-  it("renders toasts as a bordered block with an ink border and hard shadow", () => {
+  it("renders toasts as a clean white card: single light border, soft shadow, rounded corners", () => {
     const props = renderToaster()
     const toastOptions = props.toastOptions as { classNames?: Record<string, string> }
     const toastClass = toastOptions.classNames?.toast ?? ""
-    expect(toastClass).toMatch(/border/)
-    expect(toastClass).toMatch(/border-border-ink/)
-    expect(toastClass).toMatch(/shadow-card/)
+    // Single light border (no heavy ink stroke).
+    expect(toastClass).toMatch(/\bborder\b/)
+    expect(toastClass).toMatch(/border-border\b/)
+    // Soft (not hard offset) shadow.
+    expect(toastClass).toMatch(/shadow-card\b/)
+    // Generous rounded corners.
+    expect(toastClass).toMatch(/rounded-(xl|2xl)/)
+    // No brutalist artefacts: no thick left accent bar, no hard offset shadow,
+    // no rotation, no ink border.
+    expect(toastClass).not.toMatch(/border-l-\[6px\]/)
+    expect(toastClass).not.toMatch(/shadow-\[/)
+    expect(toastClass).not.toMatch(/-?rotate-/)
+    expect(toastClass).not.toMatch(/border-border-ink/)
   })
 
-  it("draws a 6px left accent bar coloured by status", () => {
+  it("conveys status via a coloured Lucide icon, not a hard left bar", () => {
     const props = renderToaster()
     const toastOptions = props.toastOptions as { classNames?: Record<string, string> }
     const classNames = toastOptions.classNames ?? {}
-    // Left accent bar realised via a thick left border.
-    expect(classNames.toast ?? "").toMatch(/border-l-\[6px\]/)
-    // Each status recolours that left bar.
-    expect(classNames.success ?? "").toMatch(/border-l-/)
-    expect(classNames.error ?? "").toMatch(/border-l-/)
-    expect(classNames.warning ?? "").toMatch(/border-l-/)
-    expect(classNames.info ?? "").toMatch(/border-l-/)
+    // No thick recolourable left accent bar on any status.
+    for (const status of ["toast", "success", "info", "warning", "error"]) {
+      expect(classNames[status] ?? "").not.toMatch(/border-l-\[6px\]/)
+    }
   })
 
   it("keeps the public API: forwards extra props and omits theme from its own type", () => {

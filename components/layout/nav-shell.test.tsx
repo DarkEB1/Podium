@@ -36,6 +36,24 @@ describe('NavShell', () => {
     )
   })
 
+  it('gives the active top-level item a subtle primary accent (clean, no ink border)', () => {
+    render(
+      <NavShell role="athlete">
+        <div>page</div>
+      </NavShell>,
+    )
+    const primary = screen.getByRole('navigation', { name: /primary/i })
+    const active = within(primary).getByRole('link', { name: 'Discover' })
+    // Clean Airbnb: a soft primary fill + weight carry the active state; aria-current
+    // keeps it from being colour-alone. No heavy ink border.
+    expect(active.className).toMatch(/bg-primary\/10/)
+    expect(active.className).toMatch(/text-primary/)
+    expect(active.className).toMatch(/font-semibold/)
+    expect(active.className).not.toMatch(/border-border-ink/)
+    const inactive = within(primary).getByRole('link', { name: 'Listings' })
+    expect(inactive.className).not.toMatch(/bg-primary\/10/)
+  })
+
   it('renders a persistent role-appropriate top-right CTA', () => {
     render(
       <NavShell role="brand">
@@ -46,13 +64,17 @@ describe('NavShell', () => {
     expect(screen.getByRole('link', { name: /post a listing/i })).toBeInTheDocument()
   })
 
-  it('renders a mobile bottom navigation', () => {
+  it('renders a mobile bottom navigation with a light top divider', () => {
     render(
       <NavShell role="athlete">
         <div>page</div>
       </NavShell>,
     )
-    expect(screen.getByRole('navigation', { name: /bottom/i })).toBeInTheDocument()
+    const bottom = screen.getByRole('navigation', { name: /bottom/i })
+    expect(bottom).toBeInTheDocument()
+    // Clean Airbnb: a single light divider, not a heavy ink border.
+    expect(bottom.className).toMatch(/border-t/)
+    expect(bottom.className).not.toMatch(/border-border-ink/)
   })
 
   it('renders breadcrumbs derived from the pathname', () => {

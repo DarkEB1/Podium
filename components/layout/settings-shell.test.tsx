@@ -38,4 +38,31 @@ describe('SettingsShell', () => {
     )
     expect(screen.getByText('my settings content')).toBeInTheDocument()
   })
+
+  it('gives the active section a subtle primary accent (clean, no ink border)', () => {
+    render(
+      <SettingsShell sections={sections} active="security">
+        <div>content</div>
+      </SettingsShell>,
+    )
+    const active = screen.getByRole('link', { name: 'Security' })
+    // Clean Airbnb: soft primary fill + weight, no ink border ring.
+    expect(active.className).toMatch(/bg-primary\/10/)
+    expect(active.className).toMatch(/text-primary/)
+    expect(active.className).toMatch(/font-semibold/)
+    expect(active.className).not.toMatch(/border-border-ink/)
+  })
+
+  it('separates the two columns with a light rule on desktop', () => {
+    render(
+      <SettingsShell sections={sections} active="profile">
+        <div>content</div>
+      </SettingsShell>,
+    )
+    const nav = screen.getByRole('navigation', { name: /settings sections/i })
+    // Clean Airbnb: a single light divider between the columns on desktop.
+    expect(nav.className).toMatch(/md:border-r/)
+    expect(nav.className).toMatch(/md:border-border\b/)
+    expect(nav.className).not.toMatch(/border-border-ink/)
+  })
 })

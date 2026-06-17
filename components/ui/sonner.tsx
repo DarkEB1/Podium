@@ -6,9 +6,10 @@ import { BadgeCheck, Info, TriangleAlert, OctagonX, Loader2 } from "lucide-react
 
 import { Icon } from "@/components/ui/icon"
 
-// Neo-brutalist toast: bordered block + 6px left accent bar (recoloured per
-// status) + hard offset shadow + Lucide status icon. Status is never conveyed
-// by colour alone — every variant pairs the accent bar with a distinct icon.
+// Clean Airbnb toast: white rounded-xl card, single light border, soft layered
+// shadow, and a small coloured Lucide status icon. Status is never conveyed by
+// colour alone — every variant pairs a subtly coloured icon with a distinct
+// glyph. No hard left bar, no offset shadow, no rotation.
 const Toaster = (props: Omit<ToasterProps, "theme">) => {
   const { theme } = useTheme()
   const sonnerTheme: "system" | "light" | "dark" =
@@ -29,22 +30,17 @@ const Toaster = (props: Omit<ToasterProps, "theme">) => {
         {
           "--normal-bg": "var(--popover)",
           "--normal-text": "var(--popover-foreground)",
-          "--normal-border": "var(--border-ink)",
-          "--border-radius": "var(--radius)",
+          "--normal-border": "var(--border)",
+          "--border-radius": "var(--radius-xl)",
         } as React.CSSProperties
       }
       toastOptions={{
         classNames: {
-          // Bordered block: ink border on all sides, thick recolourable left
-          // accent bar, and a hard (offset, non-blurred) shadow.
+          // Clean white card: single light border, generous rounded corners,
+          // soft layered shadow, roomy padding. Status comes from the coloured
+          // Lucide icon, so colour is never the sole signal.
           toast:
-            "cn-toast group rounded-[var(--radius)] border border-border-ink border-l-[6px] border-l-border-ink shadow-card",
-          // Per-status left accent bar colour. Icon + bar together so colour is
-          // never the sole status signal.
-          success: "border-l-success",
-          info: "border-l-foreground",
-          warning: "border-l-warning",
-          error: "border-l-destructive",
+            "cn-toast group rounded-xl border border-border bg-popover px-4 py-3 shadow-card",
         },
       }}
       {...props}

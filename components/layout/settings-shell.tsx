@@ -12,6 +12,10 @@ interface SettingsShellProps {
  * SettingsShell — two-column settings layout (spec §10.2.3): a left section
  * nav and a right content column. Sections link via hash to allow deep-linking;
  * the active section is marked with aria-current.
+ *
+ * Clean Airbnb: a single light divider rule separates the two columns on
+ * desktop, and the active section carries a subtle primary accent (soft fill +
+ * weight) — no ink border ring.
  */
 export default function SettingsShell({
   sections,
@@ -26,7 +30,10 @@ export default function SettingsShell({
         className,
       )}
     >
-      <nav aria-label="Settings sections">
+      <nav
+        aria-label="Settings sections"
+        className="md:border-r md:border-border md:pr-8"
+      >
         <ul className="flex gap-1 overflow-x-auto md:flex-col md:overflow-visible">
           {sections.map((section) => {
             const isActive = section.id === active
@@ -36,9 +43,9 @@ export default function SettingsShell({
                   href={`#${section.id}`}
                   aria-current={isActive ? 'page' : undefined}
                   className={cn(
-                    'block rounded-[var(--radius)] px-3 py-2 text-medium whitespace-nowrap transition-colors',
+                    'block rounded-xl px-3 py-2 text-medium whitespace-nowrap transition-colors',
                     isActive
-                      ? 'bg-muted font-semibold text-foreground'
+                      ? 'bg-primary/10 font-semibold text-primary'
                       : 'text-muted-foreground hover:bg-muted hover:text-foreground',
                   )}
                 >

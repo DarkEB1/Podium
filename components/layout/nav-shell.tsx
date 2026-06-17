@@ -115,7 +115,7 @@ export default function NavShell({ role, children }: NavShellProps) {
                   aria-current={active ? 'page' : undefined}
                   className={cn(
                     buttonVariants({ variant: 'ghost', size: 'sm' }),
-                    active && 'bg-muted font-semibold',
+                    active && 'bg-primary/10 font-semibold text-primary',
                   )}
                 >
                   {item.label}
@@ -179,7 +179,9 @@ export default function NavShell({ role, children }: NavShellProps) {
               aria-current={active ? 'page' : undefined}
               className={cn(
                 'flex flex-col items-center gap-1 py-2 text-small',
-                active ? 'text-primary' : 'text-muted-foreground',
+                active
+                  ? 'font-semibold text-primary'
+                  : 'text-muted-foreground',
               )}
             >
               <Icon className="size-5" aria-hidden="true" />
