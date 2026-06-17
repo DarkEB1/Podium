@@ -13,18 +13,27 @@ function styledOf(textNode: HTMLElement): HTMLElement {
   return (textNode.closest('[data-slot="badge"]') as HTMLElement) ?? textNode
 }
 
+// Clean Airbnb badges: soft rounded pills, subtle tinted backgrounds, no
+// heavy ink border. Assert there is NO brutalist ink border anywhere.
+function expectNoInkBorder(el: HTMLElement) {
+  expect(el.className).not.toMatch(/border-border-ink/)
+  expect(el.className).not.toMatch(/border-foreground/)
+  expect(el.className).not.toMatch(/shadow-\[/)
+  expect(el.className).not.toMatch(/-?rotate-/)
+}
+
 describe('LevelChip', () => {
-  it('renders the level text as an accent block with an ink border', () => {
+  it('renders the level text as a soft accent pill (no ink border)', () => {
     render(<LevelChip level="National" />)
     const chip = styledOf(screen.getByText('National'))
     expect(chip).toBeInTheDocument()
     expect(chip.className).toMatch(/accent/)
-    expect(chip.className).toMatch(/border-border-ink/)
+    expectNoInkBorder(chip)
   })
 })
 
 describe('AvailabilityBadge', () => {
-  it('renders available_now in green with a Circle icon (not colour alone) + ink border', () => {
+  it('renders available_now in green with a Circle icon (not colour alone), soft pill', () => {
     render(<AvailabilityBadge status="available_now" />)
     const badge = styledOf(screen.getByText(/available now/i))
     expect(badge).toBeInTheDocument()
@@ -34,7 +43,7 @@ describe('AvailabilityBadge', () => {
     expect(svg).toHaveClass('lucide-circle')
     expect(svg).toHaveAttribute('aria-hidden', 'true')
     expect(badge.className).toMatch(/success/)
-    expect(badge.className).toMatch(/border-border-ink/)
+    expectNoInkBorder(badge)
   })
 
   it('renders available_from including the optional date in amber with a Circle icon', () => {
@@ -45,7 +54,7 @@ describe('AvailabilityBadge', () => {
     expect(svg).not.toBeNull()
     expect(svg).toHaveClass('lucide-circle')
     expect(badge.className).toMatch(/warning/)
-    expect(badge.className).toMatch(/border-border-ink/)
+    expectNoInkBorder(badge)
   })
 
   it('renders not_available in red with a Circle icon', () => {
@@ -56,7 +65,7 @@ describe('AvailabilityBadge', () => {
     expect(svg).not.toBeNull()
     expect(svg).toHaveClass('lucide-circle')
     expect(badge.className).toMatch(/destructive/)
-    expect(badge.className).toMatch(/border-border-ink/)
+    expectNoInkBorder(badge)
   })
 })
 
@@ -70,7 +79,7 @@ describe('VerifiedBadge', () => {
     expect(svg).toHaveClass('lucide-badge-check')
     expect(svg).toHaveAttribute('aria-hidden', 'true')
     expect(badge.className).toMatch(/primary/)
-    expect(badge.className).toMatch(/border-border-ink/)
+    expectNoInkBorder(badge)
   })
 
   it('renders a grey Unverified badge (no icon, label carries meaning) when not verified', () => {
@@ -78,17 +87,17 @@ describe('VerifiedBadge', () => {
     const badge = styledOf(screen.getByText(/unverified/i))
     expect(badge).toBeInTheDocument()
     expect(badge.className).toMatch(/muted/)
-    expect(badge.className).toMatch(/border-border-ink/)
+    expectNoInkBorder(badge)
   })
 })
 
 describe('SeekingTag', () => {
-  it('renders children with low-opacity primary background and ink border', () => {
+  it('renders children with low-opacity primary background as a soft pill', () => {
     render(<SeekingTag>Seeking sponsor</SeekingTag>)
     const tag = styledOf(screen.getByText('Seeking sponsor'))
     expect(tag).toBeInTheDocument()
     expect(tag.className).toMatch(/bg-primary\//)
     expect(tag.className).toMatch(/text-primary/)
-    expect(tag.className).toMatch(/border-border-ink/)
+    expectNoInkBorder(tag)
   })
 })

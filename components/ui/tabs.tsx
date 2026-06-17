@@ -28,8 +28,7 @@ const tabsListVariants = cva(
   {
     variants: {
       variant: {
-        default:
-          "border-[length:var(--border-ink-width)] border-border-ink bg-muted shadow-card",
+        default: "border border-border bg-muted shadow-sm",
         line: "gap-1 bg-transparent",
       },
     },

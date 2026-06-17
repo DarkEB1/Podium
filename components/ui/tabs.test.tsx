@@ -16,14 +16,17 @@ function renderTabs() {
   )
 }
 
-describe("Tabs surface re-skin (T12)", () => {
-  it("gives the default tabs list an ink border + hard shadow surface", () => {
+describe("Tabs surface re-skin (C10 clean airbnb)", () => {
+  it("gives the default tabs list a clean light border + soft shadow surface", () => {
     renderTabs()
     const list = document.querySelector('[data-slot="tabs-list"]')
     expect(list).not.toBeNull()
     const cls = list!.className
-    expect(cls).toContain("border-border-ink")
-    expect(cls).toContain("shadow-card")
+    expect(cls).toContain("border-border")
+    expect(cls).toContain("shadow-sm")
+    // no heavy ink border / hard offset shadow remains
+    expect(cls).not.toContain("border-border-ink")
+    expect(cls).not.toContain("border-ink-width")
   })
 
   it("keeps the active trigger transition intact", () => {

@@ -6,8 +6,8 @@ import { Icon } from "@/components/ui/icon"
 import { cn } from "@/lib/utils"
 
 /**
- * LevelChip — competition/skill level shown as a flat accent block with the
- * shared ink border (spec §2.4, §3B.1, §6 re-skin).
+ * LevelChip — competition/skill level shown as a soft, tinted accent pill
+ * (clean Airbnb re-skin: no ink border, rounded-full via the shared Badge).
  */
 function LevelChip({ level }: { level: string }) {
   return (
@@ -38,11 +38,11 @@ const availabilityConfig: Record<
 }
 
 /**
- * AvailabilityBadge — green/amber/red availability state as a flat block + ink
- * border. ALWAYS pairs a Lucide `Circle` icon with the label so meaning is never
- * conveyed by colour alone (spec §6, §10 accessibility). The icon inherits the
- * status colour via `currentColor` and the label distinguishes the three states.
- * `available_from` appends the optional `date` to the label.
+ * AvailabilityBadge — green/amber/red availability state as a soft, tinted pill
+ * (clean Airbnb re-skin: no ink border). ALWAYS pairs a Lucide `Circle` icon
+ * with the label so meaning is never conveyed by colour alone (accessibility).
+ * The icon inherits the status colour via `currentColor` and the label
+ * distinguishes the three states. `available_from` appends the optional `date`.
  */
 function AvailabilityBadge({
   status,
@@ -64,8 +64,8 @@ function AvailabilityBadge({
 }
 
 /**
- * VerifiedBadge — blue "Verified" with a `BadgeCheck` icon, or grey "Unverified"
- * (spec §3B.1, §6). The icon backs the colour so verified state reads without
+ * VerifiedBadge — blue "Verified" soft pill with a `BadgeCheck` icon, or grey
+ * "Unverified". The icon backs the colour so verified state reads without
  * relying on colour alone; the unverified label is self-describing.
  */
 function VerifiedBadge({ verified }: { verified: boolean }) {
@@ -86,8 +86,8 @@ function VerifiedBadge({ verified }: { verified: boolean }) {
 }
 
 /**
- * SeekingTag — low-opacity primary block + ink border, used for "seeking
- * sponsor" style marketplace tags (spec §2.4, §6).
+ * SeekingTag — low-opacity primary soft pill, used for "seeking sponsor" style
+ * marketplace tags (clean Airbnb re-skin: no ink border).
  */
 function SeekingTag({ children }: { children: React.ReactNode }) {
   return (
