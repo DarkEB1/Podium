@@ -1,9 +1,20 @@
 'use client'
 
-import { useId, useMemo, useState } from 'react'
+import { useId, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { HelpCircle } from 'lucide-react'
+import {
+  FileText,
+  Gift,
+  HelpCircle,
+  Loader2,
+  Megaphone,
+  Shirt,
+  Sparkles,
+  Star,
+  Ticket,
+  Users,
+} from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,8 +22,12 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Combobox } from '@/components/ui/combobox'
 import { ImageUpload } from '@/components/ui/image-upload'
+import { CardSelectGroup } from '@/components/ui/card-select'
 import { CharacterCounter } from '@/components/ui/character-counter'
 import { RequiredKey } from '@/components/ui/required-key'
+import { Switch } from '@/components/ui/switch'
+import { createClient } from '@/lib/supabase/client'
+import { createUploadUrl } from '@/lib/storage'
 import { cn } from '@/lib/utils'
 import type { Database } from '@/types/database'
 
@@ -75,17 +90,194 @@ function teamLevelFor(value: string | null): TeamLevel | null {
   return COMPETITION_LEVELS.find((l) => l.value === value)?.team_level ?? null
 }
 
+// What the team is seeking — rendered as CardSelectGroup tiles, the same
+// component as the brand profile (spec §5A.2). Multi-select.
+const SEEKING_OPTIONS: { value: string; label: string; description?: string }[] = [
+  { value: 'title_sponsor', label: 'Title sponsor', description: 'Headline naming-rights partner' },
+  { value: 'kit_sponsor', label: 'Kit / shirt sponsor', description: 'Branding on playing kit' },
+  { value: 'matchday', label: 'Matchday sponsor', description: 'Single-event partnership' },
+  { value: 'equipment', label: 'Equipment / supplier', description: 'Gear, apparel or product' },
+  { value: 'venue', label: 'Venue / facilities', description: 'Stadium or ground branding' },
+  { value: 'community', label: 'Community programme', description: 'Grassroots & outreach support' },
+  { value: 'digital', label: 'Digital / social', description: 'Online content partnership' },
+  { value: 'travel', label: 'Travel / logistics', description: 'Transport & accommodation' },
+]
+
+// What the team offers — two-column icon checklist (spec §5A.3).
+const OFFER_OPTIONS: { value: string; label: string; icon: React.ReactNode }[] = [
+  { value: 'kit_logo', label: 'Logo on kit', icon: <Shirt className="size-5" aria-hidden="true" /> },
+  { value: 'social_mentions', label: 'Social media mentions', icon: <Megaphone className="size-5" aria-hidden="true" /> },
+  { value: 'venue_branding', label: 'Venue branding', icon: <Ticket className="size-5" aria-hidden="true" /> },
+  { value: 'matchday_hospitality', label: 'Matchday hospitality', icon: <Users className="size-5" aria-hidden="true" /> },
+  { value: 'player_appearances', label: 'Player appearances', icon: <Star className="size-5" aria-hidden="true" /> },
+  { value: 'product_sampling', label: 'Product sampling', icon: <Gift className="size-5" aria-hidden="true" /> },
+  { value: 'content_creation', label: 'Content creation', icon: <Sparkles className="size-5" aria-hidden="true" /> },
+  { value: 'community_events', label: 'Community events', icon: <Users className="size-5" aria-hidden="true" /> },
+]
+
+/** Human-readable size of an uploaded document (spec §5A.2 preview). */
+function formatFileSize(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${bytes} B`
+}
+
+interface UploadedDoc {
+  url: string
+  name: string
+  size: number
+  uploadedAt: string
+}
+
+/** Default PDF upload via presigned URL (lib/storage B8) — bytes go straight to
+ * Supabase Storage, never through Next.js. */
+async function uploadPdfDefault(file: File): Promise<string> {
+  const supabase = createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) throw new Error('You must be signed in to upload a file.')
+  const { uploadUrl, publicUrl } = await createUploadUrl(supabase, {
+    bucket: 'docs',
+    userId: user.id,
+    ext: 'pdf',
+  })
+  const res = await fetch(uploadUrl, {
+    method: 'PUT',
+    body: file,
+    headers: { 'content-type': file.type || 'application/pdf' },
+  })
+  if (!res.ok) throw new Error('Upload failed. Please try again.')
+  return publicUrl
+}
+
+interface PdfUploadProps {
+  testId: string
+  label: string
+  subtext?: string
+  value: UploadedDoc | null
+  onUploaded: (doc: UploadedDoc) => void
+  /** Test seam mirroring ImageUpload — defaults to the presigned-URL pipeline. */
+  uploadFile?: ((file: File) => Promise<string>) | undefined
+}
+
+/**
+ * PdfUpload — sponsorship-brief / media-pack document picker. ImageUpload only
+ * accepts images, so PDFs use this sibling control. After a successful upload it
+ * shows the file name, size and upload date so brands can see them before
+ * downloading (spec §5A.2).
+ */
+function PdfUpload({
+  testId,
+  label,
+  subtext,
+  value,
+  onUploaded,
+  uploadFile,
+}: PdfUploadProps) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  const errorId = useId()
+  const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const doUpload = uploadFile ?? uploadPdfDefault
+
+  async function handleFiles(files: FileList | null) {
+    setError(null)
+    const file = files?.[0]
+    if (!file) return
+    if (file.type !== 'application/pdf') {
+      setError('Please choose a PDF file.')
+      return
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setError('File must be 10MB or smaller.')
+      return
+    }
+    setUploading(true)
+    try {
+      const url = await doUpload(file)
+      onUploaded({
+        url,
+        name: file.name,
+        size: file.size,
+        uploadedAt: new Date().toISOString(),
+      })
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Upload failed.')
+    } finally {
+      setUploading(false)
+      if (inputRef.current) inputRef.current.value = ''
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={`${testId}-trigger`}>{label}</Label>
+      {subtext ? (
+        <p className="text-small text-muted-foreground">{subtext}</p>
+      ) : null}
+
+      {value ? (
+        <div className="flex items-start gap-3 rounded-xl border border-foreground/10 bg-card p-3 shadow-card">
+          <FileText aria-hidden="true" className="mt-0.5 size-5 text-primary" />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-medium font-medium text-foreground">
+              {value.name}
+            </p>
+            <p className="text-small text-muted-foreground">
+              {formatFileSize(value.size)} · Uploaded{' '}
+              {new Date(value.uploadedAt).toLocaleDateString()}
+            </p>
+          </div>
+        </div>
+      ) : null}
+
+      <Button
+        id={`${testId}-trigger`}
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={uploading}
+        onClick={() => inputRef.current?.click()}
+      >
+        {uploading ? (
+          <Loader2 aria-hidden="true" className="size-4 animate-spin" />
+        ) : null}
+        {value ? 'Replace PDF' : 'Upload PDF'}
+      </Button>
+
+      <input
+        ref={inputRef}
+        data-testid={testId}
+        type="file"
+        accept="application/pdf,.pdf"
+        className="sr-only"
+        onChange={(e) => void handleFiles(e.target.files)}
+      />
+
+      {error ? (
+        <p id={errorId} role="alert" className="text-small text-destructive">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
 export interface TeamProfileFormProps {
   /** Server action wrapping createTeamProfile (B9). Returns the created row. */
   onCreate: (data: TeamInsert) => Promise<{ id: string }>
   initialLogoUrl?: string | null
   initialCoverUrl?: string | null
+  /** Test/override seam for the PDF upload pipeline (mirrors ImageUpload). */
+  uploadDoc?: (file: File) => Promise<string>
 }
 
 export default function TeamProfileForm({
   onCreate,
   initialLogoUrl = null,
   initialCoverUrl = null,
+  uploadDoc,
 }: TeamProfileFormProps) {
   const router = useRouter()
   const bioHelpId = useId()
@@ -98,6 +290,15 @@ export default function TeamProfileForm({
   const [level, setLevel] = useState<string>('')
   const [yearFounded, setYearFounded] = useState('')
   const [bio, setBio] = useState('')
+
+  // TM2 — sponsorship needs & offers (spec §5A.2–5A.3).
+  const [seeking, setSeeking] = useState<string[]>([])
+  const [annualTarget, setAnnualTarget] = useState('')
+  const [briefDoc, setBriefDoc] = useState<UploadedDoc | null>(null)
+  const [offerings, setOfferings] = useState<string[]>([])
+  const [reachPerPost, setReachPerPost] = useState('')
+  const [mediaPackEnabled, setMediaPackEnabled] = useState(false)
+  const [mediaPackDoc, setMediaPackDoc] = useState<UploadedDoc | null>(null)
 
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -118,6 +319,8 @@ export default function TeamProfileForm({
       (s): s is string => Boolean(s)
     )
 
+    const parsedTarget = annualTarget ? Number(annualTarget) : null
+
     const data: TeamInsert = {
       team_name: teamName.trim(),
       logo_url: logoUrl,
@@ -129,6 +332,17 @@ export default function TeamProfileForm({
           ? parsedYear
           : null,
       bio: bio.trim() || null,
+      seeking_sponsorship_types: seeking,
+      annual_sponsorship_target:
+        parsedTarget !== null && Number.isFinite(parsedTarget) && parsedTarget > 0
+          ? parsedTarget
+          : null,
+      sponsorship_brief_url: briefDoc?.url ?? null,
+      offers_to_sponsors: {
+        offerings,
+        estimated_reach_per_post: reachPerPost.trim() || null,
+      },
+      media_pack_url: mediaPackEnabled ? (mediaPackDoc?.url ?? null) : null,
     }
 
     setLoading(true)
@@ -357,6 +571,117 @@ export default function TeamProfileForm({
           <CharacterCounter value={bio} max={BIO_MAX} />
         </div>
       </div>
+
+      {/* Sponsorship needs (spec §5A.2) */}
+      <section className="space-y-4">
+        <div
+          role="group"
+          aria-labelledby="seeking-label"
+          className="space-y-2"
+        >
+          <p
+            id="seeking-label"
+            className="text-medium font-medium text-foreground"
+          >
+            What is your team seeking?
+          </p>
+          <CardSelectGroup
+            options={SEEKING_OPTIONS}
+            value={seeking}
+            onChange={setSeeking}
+            multiple
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="annual-target">
+            Annual Sponsorship Target{' '}
+            <span className="text-small text-muted-foreground">(optional)</span>
+          </Label>
+          <Input
+            id="annual-target"
+            type="number"
+            inputMode="numeric"
+            min={0}
+            value={annualTarget}
+            onChange={(e) => setAnnualTarget(e.target.value)}
+            placeholder="e.g. 50000"
+            aria-describedby="annual-target-help"
+          />
+          <p id="annual-target-help" className="text-small text-muted-foreground">
+            This helps brands understand the scale of partnership you&rsquo;re
+            looking for.
+          </p>
+        </div>
+
+        <PdfUpload
+          testId="sponsorship-brief-input"
+          label="Sponsorship brief (PDF)"
+          subtext="Optional. Brands can review the file details before downloading."
+          value={briefDoc}
+          onUploaded={setBriefDoc}
+          uploadFile={uploadDoc}
+        />
+      </section>
+
+      {/* What the team offers (spec §5A.3) */}
+      <section className="space-y-4">
+        <div
+          role="group"
+          aria-labelledby="offers-label"
+          className="space-y-2"
+        >
+          <p
+            id="offers-label"
+            className="text-medium font-medium text-foreground"
+          >
+            What your team offers
+          </p>
+          <CardSelectGroup
+            options={OFFER_OPTIONS}
+            value={offerings}
+            onChange={setOfferings}
+            multiple
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="reach-per-post">
+            Estimated reach per post{' '}
+            <span className="text-small text-muted-foreground">(optional)</span>
+          </Label>
+          <Input
+            id="reach-per-post"
+            value={reachPerPost}
+            onChange={(e) => setReachPerPost(e.target.value)}
+            placeholder="e.g. 10k–20k"
+          />
+        </div>
+
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <Switch
+              id="media-pack-toggle"
+              aria-label="Media pack available"
+              checked={mediaPackEnabled}
+              onCheckedChange={(checked: boolean) => setMediaPackEnabled(checked)}
+            />
+            <Label htmlFor="media-pack-toggle" className="cursor-pointer">
+              Media pack available?
+            </Label>
+          </div>
+          {mediaPackEnabled ? (
+            <PdfUpload
+              testId="media-pack-input"
+              label="Media pack (PDF)"
+              subtext="Upload your media pack so brands can see your audience and inventory."
+              value={mediaPackDoc}
+              onUploaded={setMediaPackDoc}
+              uploadFile={uploadDoc}
+            />
+          ) : null}
+        </div>
+      </section>
 
       <Button type="submit" className="w-full" disabled={loading}>
         {loading ? 'Creating…' : 'Create team profile →'}
