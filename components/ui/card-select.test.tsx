@@ -106,4 +106,22 @@ describe("CardSelectGroup", () => {
     expect(screen.getByRole("button", { name: /Running/ })).toHaveAttribute("aria-pressed", "true")
     expect(screen.getByRole("button", { name: /Cycling/ })).toHaveAttribute("aria-pressed", "false")
   })
+
+  it("selected tile carries the neo-brutalist selected classes (accent fill + ink border + press shadow)", () => {
+    render(<CardSelectGroup options={options} value={["running"]} onChange={() => {}} />)
+    const selected = screen.getByRole("button", { name: /Running/ })
+    expect(selected.className).toContain("bg-accent/20")
+    expect(selected.className).toContain("border-border-ink")
+    expect(selected.className).toContain("shadow-press")
+
+    const unselected = screen.getByRole("button", { name: /Cycling/ })
+    expect(unselected.className).not.toContain("shadow-press")
+  })
+
+  it("every tile is pressable (press micro-interaction, reduced-motion safe via global util)", () => {
+    render(<CardSelectGroup options={options} value={[]} onChange={() => {}} />)
+    for (const tile of screen.getAllByRole("button")) {
+      expect(tile.className).toContain("pressable")
+    }
+  })
 })
