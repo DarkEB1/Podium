@@ -20,10 +20,14 @@ export default async function BrandDiscoverPage() {
   const savedUserIds = shortlist.map((s) => s.target_user_id)
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 space-y-6">
+    <div className="mx-auto max-w-6xl space-y-12 px-6 py-12 md:px-16 md:py-16">
       <div>
-        <h1 className="text-large font-heading">Discover athletes</h1>
-        <p className="text-muted-foreground">{athletes.length} active athletes on Podium</p>
+        <h1 className="font-heading text-display font-extrabold tracking-tight text-foreground">
+          Discover athletes
+        </h1>
+        <p className="mt-3 text-medium text-muted-foreground">
+          {athletes.length} active athletes on Podium
+        </p>
       </div>
       <AthletesGrid
         athletes={athletes}

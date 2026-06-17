@@ -150,7 +150,7 @@ export default function AthletesGrid({
       {/* Filter panel: always visible on lg, collapsible below it */}
       <div
         className={cn(
-          'rounded-xl border border-border bg-card p-4',
+          'rounded-2xl border border-border bg-card p-6 shadow-sm',
           panelOpen ? 'block' : 'hidden lg:block'
         )}
       >

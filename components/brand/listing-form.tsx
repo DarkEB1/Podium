@@ -122,7 +122,7 @@ export default function ListingForm({ listing }: Props) {
 
         <FormField control={form.control} name="description" render={({ field }) => (
           <FormItem>
-            <FormLabel>Description <span className="text-muted-foreground text-xs">(optional)</span></FormLabel>
+            <FormLabel>Description <span className="text-muted-foreground text-small">(optional)</span></FormLabel>
             <FormControl>
               <Textarea rows={4} className="resize-none" placeholder="Describe what you're looking for…" {...field} />
             </FormControl>
@@ -133,14 +133,14 @@ export default function ListingForm({ listing }: Props) {
         <div className="grid grid-cols-2 gap-4">
           <FormField control={form.control} name="sport_required" render={({ field }) => (
             <FormItem>
-              <FormLabel>Sport <span className="text-muted-foreground text-xs">(optional)</span></FormLabel>
+              <FormLabel>Sport <span className="text-muted-foreground text-small">(optional)</span></FormLabel>
               <FormControl><Input placeholder="Football" {...field} /></FormControl>
               <FormMessage />
             </FormItem>
           )} />
           <FormField control={form.control} name="level_required" render={({ field }) => (
             <FormItem>
-              <FormLabel>Level <span className="text-muted-foreground text-xs">(optional)</span></FormLabel>
+              <FormLabel>Level <span className="text-muted-foreground text-small">(optional)</span></FormLabel>
               <FormControl><Input placeholder="Semi-Pro" {...field} /></FormControl>
               <FormMessage />
             </FormItem>
@@ -150,14 +150,14 @@ export default function ListingForm({ listing }: Props) {
         <div className="grid grid-cols-2 gap-4">
           <FormField control={form.control} name="location" render={({ field }) => (
             <FormItem>
-              <FormLabel>Location <span className="text-muted-foreground text-xs">(optional)</span></FormLabel>
+              <FormLabel>Location <span className="text-muted-foreground text-small">(optional)</span></FormLabel>
               <FormControl><Input placeholder="London" {...field} /></FormControl>
               <FormMessage />
             </FormItem>
           )} />
           <FormField control={form.control} name="contract_duration_months" render={({ field }) => (
             <FormItem>
-              <FormLabel>Duration (months) <span className="text-muted-foreground text-xs">(optional)</span></FormLabel>
+              <FormLabel>Duration (months) <span className="text-muted-foreground text-small">(optional)</span></FormLabel>
               <FormControl><Input type="number" min={1} max={36} placeholder="12" {...field} /></FormControl>
               <FormMessage />
             </FormItem>
@@ -166,7 +166,7 @@ export default function ListingForm({ listing }: Props) {
 
         <FormField control={form.control} name="pay_type" render={({ field }) => (
           <FormItem>
-            <FormLabel>Pay type <span className="text-muted-foreground text-xs">(optional)</span></FormLabel>
+            <FormLabel>Pay type <span className="text-muted-foreground text-small">(optional)</span></FormLabel>
             <Select onValueChange={field.onChange} defaultValue={field.value}>
               <FormControl>
                 <SelectTrigger><SelectValue placeholder="Select pay type" /></SelectTrigger>
@@ -184,7 +184,7 @@ export default function ListingForm({ listing }: Props) {
         <div className="grid grid-cols-2 gap-4">
           <FormField control={form.control} name="pay_amount" render={({ field }) => (
             <FormItem>
-              <FormLabel>Amount <span className="text-muted-foreground text-xs">(optional)</span></FormLabel>
+              <FormLabel>Amount <span className="text-muted-foreground text-small">(optional)</span></FormLabel>
               <FormControl><Input type="number" min={0} placeholder="5000" {...field} /></FormControl>
               <FormMessage />
             </FormItem>
@@ -200,7 +200,7 @@ export default function ListingForm({ listing }: Props) {
 
         <FormField control={form.control} name="application_deadline" render={({ field }) => (
           <FormItem>
-            <FormLabel>Application deadline <span className="text-muted-foreground text-xs">(optional)</span></FormLabel>
+            <FormLabel>Application deadline <span className="text-muted-foreground text-small">(optional)</span></FormLabel>
             <FormControl><Input type="date" {...field} /></FormControl>
             <FormMessage />
           </FormItem>

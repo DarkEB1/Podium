@@ -67,12 +67,12 @@ export default function ListingsManager({ listings }: Props) {
   }
 
   return (
-    <ul className="divide-y rounded-[var(--radius)] border bg-card">
+    <ul className="divide-y divide-border rounded-2xl border border-border bg-card shadow-sm">
       {rows.map((l) => {
         const isPaused = l.status === 'paused'
         const isClosed = l.status === 'filled' || l.status === 'expired'
         return (
-          <li key={l.id} className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <li key={l.id} className="flex flex-col gap-3 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
               <p className="truncate font-medium text-foreground">{l.title}</p>
               <p className="text-small text-muted-foreground">

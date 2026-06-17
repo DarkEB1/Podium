@@ -3,7 +3,6 @@ import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getOwnProfile } from '@/lib/supabase/profiles'
 import { getListing } from '@/lib/supabase/discovery'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import ListingForm from '@/components/brand/listing-form'
 import DuplicateListingForm from '../duplicate-listing-form'
 import type { Database } from '@/types/database'
@@ -21,15 +20,11 @@ export default async function NewListingPage({
   // No duplicate source — plain create via the canonical ListingForm.
   if (!from) {
     return (
-      <div className="mx-auto max-w-3xl px-4 py-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>Create a listing</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ListingForm listing={null} />
-          </CardContent>
-        </Card>
+      <div className="mx-auto max-w-3xl space-y-10 px-6 py-12 md:px-16 md:py-16">
+        <h1 className="font-heading text-display font-extrabold tracking-tight text-foreground">
+          Create a listing
+        </h1>
+        <ListingForm listing={null} />
       </div>
     )
   }
@@ -49,29 +44,21 @@ export default async function NewListingPage({
   // Only allow duplicating the brand's own listings; otherwise fall back to a blank create.
   if (!source || source.brand_id !== profile.id) {
     return (
-      <div className="mx-auto max-w-3xl px-4 py-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>Create a listing</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ListingForm listing={null} />
-          </CardContent>
-        </Card>
+      <div className="mx-auto max-w-3xl space-y-10 px-6 py-12 md:px-16 md:py-16">
+        <h1 className="font-heading text-display font-extrabold tracking-tight text-foreground">
+          Create a listing
+        </h1>
+        <ListingForm listing={null} />
       </div>
     )
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8">
-      <Card>
-        <CardHeader>
-          <CardTitle>Duplicate listing</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <DuplicateListingForm source={source} />
-        </CardContent>
-      </Card>
+    <div className="mx-auto max-w-3xl space-y-10 px-6 py-12 md:px-16 md:py-16">
+      <h1 className="font-heading text-display font-extrabold tracking-tight text-foreground">
+        Duplicate listing
+      </h1>
+      <DuplicateListingForm source={source} />
     </div>
   )
 }

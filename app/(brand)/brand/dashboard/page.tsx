@@ -9,7 +9,6 @@ import { getListings } from '@/lib/supabase/discovery'
 import { getProposals } from '@/lib/supabase/deals'
 import StatStrip from '@/components/layout/stat-strip'
 import { AccentHeading } from '@/components/ui/accent-heading'
-import { SectionDivider } from '@/components/ui/section-divider'
 import { EmptyState } from '@/components/ui/empty-state'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -65,34 +64,38 @@ export default async function BrandDashboardPage() {
   const companyName = brandProfile.trading_name ?? brandProfile.company_name
 
   return (
-    <div className="mx-auto max-w-5xl space-y-8 px-4 py-8">
+    <div className="mx-auto max-w-5xl space-y-12 px-6 py-12 md:px-16 md:py-16">
       <div>
-        <AccentHeading as="h1" className="text-large">
-          Welcome, {companyName}
-        </AccentHeading>
-        <p className="mt-1 text-medium text-muted-foreground">{statusMessage}</p>
+        <p className="text-medium font-medium text-muted-foreground">Welcome back</p>
+        <h1 className="mt-2 font-heading text-display font-extrabold tracking-tight text-foreground">
+          {companyName}
+        </h1>
+        <p className="mt-3 max-w-[52ch] text-medium text-muted-foreground">{statusMessage}</p>
       </div>
 
-      <SectionDivider label="Your numbers" />
-
-      <StatStrip
-        stats={[
-          { label: 'Active Listings', value: String(activeListings) },
-          { label: 'Total Matches', value: String(totalMatches) },
-          { label: 'Proposals Sent', value: String(proposalsSent) },
-          { label: 'Deals Closed', value: String(dealsClosed) },
-        ]}
-      />
+      <section className="space-y-6">
+        <AccentHeading as="h2" className="text-large">
+          Your numbers
+        </AccentHeading>
+        <StatStrip
+          stats={[
+            { label: 'Active Listings', value: String(activeListings) },
+            { label: 'Total Matches', value: String(totalMatches) },
+            { label: 'Proposals Sent', value: String(proposalsSent) },
+            { label: 'Deals Closed', value: String(dealsClosed) },
+          ]}
+        />
+      </section>
 
       {!hasSubscription && (
-        <div className="rounded-[var(--radius)] border border-warning/40 bg-warning/10 p-4">
+        <div className="rounded-2xl border border-warning/40 bg-warning/10 p-6 md:p-8">
           <p className="text-medium font-semibold text-foreground">Subscription required</p>
-          <p className="mt-1 text-small text-muted-foreground">
+          <p className="mt-2 text-small text-muted-foreground">
             Set up a subscription to discover and connect with athletes and teams.
           </p>
           <Link
             href="/brand/subscription"
-            className={cn(buttonVariants({ size: 'sm' }), 'mt-3')}
+            className={cn(buttonVariants({ size: 'sm' }), 'mt-4')}
           >
             Choose a plan
           </Link>
@@ -102,7 +105,7 @@ export default async function BrandDashboardPage() {
       {isActive && hasSubscription && !hasActivity ? (
         <div
           data-testid="brand-dashboard-empty"
-          className="rounded-[var(--radius)] border bg-card shadow-[var(--shadow-card)]"
+          className="rounded-2xl border border-border bg-card shadow-sm"
         >
           <EmptyState
             title="No activity yet"

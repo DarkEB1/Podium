@@ -25,9 +25,11 @@ export default async function BrandListingsPage() {
   const myListings = allListings.filter((l) => l.brand_id === profile.id)
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="font-heading text-large font-bold text-foreground">My listings</h1>
+    <div className="mx-auto max-w-4xl space-y-12 px-6 py-12 md:px-16 md:py-16">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <h1 className="font-heading text-display font-extrabold tracking-tight text-foreground">
+          My listings
+        </h1>
         <Link href="/brand/listings/new" className={buttonVariants()}>+ New listing</Link>
       </div>
 
