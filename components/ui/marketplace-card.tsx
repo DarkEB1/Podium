@@ -20,6 +20,8 @@ export interface MarketplaceCardProps {
   onToggleSave?: () => void
   /** When set, the whole card links here (rendered as an overlay anchor so the CTA stays clickable). */
   href?: string
+  /** Highlight this card with a folded-corner accent tab (plan §6/§7). */
+  featured?: boolean
 }
 
 export function MarketplaceCard({
@@ -35,15 +37,26 @@ export function MarketplaceCard({
   saved,
   onToggleSave,
   href,
+  featured = false,
 }: MarketplaceCardProps) {
   return (
     <div
       data-slot="marketplace-card"
       data-testid="marketplace-card"
+      data-featured={featured ? "true" : "false"}
       className={cn(
-        "group/marketplace-card relative flex flex-col overflow-hidden rounded-xl bg-card text-card-foreground ring-1 ring-foreground/10",
-        // hover lift: translateY -2px + shadow ramp, 150ms ease (spec §2.4)
-        "shadow-card transition-[transform,box-shadow] duration-150 ease-out hover:-translate-y-0.5 hover:shadow-card-hover"
+        // Neo-brutalist surface: ink border + hard offset shadow (plan §6/§1.1).
+        "group/marketplace-card relative flex flex-col overflow-hidden rounded-xl border border-border-ink bg-card text-card-foreground shadow-card",
+        // Hover lift: translate (-2,-2) → --shadow-card-hover over 150ms, degrades to
+        // shadow-only under prefers-reduced-motion. Centralised in globals.css §1.5.
+        "liftable",
+        // Featured: folded-corner accent tab drawn with a CSS ::after triangle.
+        featured && [
+          "marketplace-card--featured",
+          "after:pointer-events-none after:absolute after:right-0 after:top-0 after:z-30 after:h-0 after:w-0",
+          "after:border-t-[28px] after:border-l-[28px] after:border-t-primary after:border-l-transparent",
+          "after:content-['']",
+        ]
       )}
     >
       {/* Image — fills the top 60-70% of the card. aspect-ratio = width fraction interpreted as ratio token. */}

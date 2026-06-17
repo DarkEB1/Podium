@@ -120,14 +120,31 @@ describe('MarketplaceCard', () => {
     expect(figure2.style.aspectRatio).toBe('0.7')
   })
 
-  it('applies a hover lift transition (translate + shadow ramp, 150ms)', () => {
+  it('carries the neo-brutalist ink border + hard shadow + liftable hover utility (plan §6/§7)', () => {
     render(<MarketplaceCard {...baseProps} cta={{ label: 'View', href: '/a/1' }} />)
     const card = screen.getByTestId('marketplace-card')
-    expect(card.className).toMatch(/duration-150/)
-    expect(card.className).toMatch(/transition/)
-    expect(card.className).toMatch(/hover:-translate-y-0\.5/)
-    expect(card.className).toMatch(/shadow-card/)
-    expect(card.className).toMatch(/hover:shadow-card-hover/)
+    // ink border
+    expect(card.className).toMatch(/\bborder\b/)
+    expect(card.className).toMatch(/border-border-ink/)
+    // resting hard shadow token
+    expect(card.className).toMatch(/\bshadow-card\b/)
+    // hover lift handled by the .liftable utility (translate -2,-2 → shadow-card-hover,
+    // reduced-motion shadow-only — defined once in globals.css §1.5)
+    expect(card.className).toMatch(/\bliftable\b/)
+  })
+
+  it('renders a folded-corner featured tab when featured is set', () => {
+    const { rerender } = render(
+      <MarketplaceCard {...baseProps} cta={{ label: 'View', href: '/a/1' }} />
+    )
+    const plain = screen.getByTestId('marketplace-card')
+    expect(plain.getAttribute('data-featured')).toBe('false')
+
+    rerender(<MarketplaceCard {...baseProps} featured cta={{ label: 'View', href: '/a/1' }} />)
+    const featured = screen.getByTestId('marketplace-card')
+    expect(featured.getAttribute('data-featured')).toBe('true')
+    // folded corner drawn via a CSS ::after on the card, toggled by a marker class
+    expect(featured.className).toMatch(/marketplace-card--featured/)
   })
 
   it('keeps the CTA reachable when the card itself is a link (no nested interactive in card link)', () => {

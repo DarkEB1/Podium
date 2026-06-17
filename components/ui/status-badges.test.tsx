@@ -14,64 +14,81 @@ function styledOf(textNode: HTMLElement): HTMLElement {
 }
 
 describe('LevelChip', () => {
-  it('renders the level text as an accent pill', () => {
+  it('renders the level text as an accent block with an ink border', () => {
     render(<LevelChip level="National" />)
-    const chip = screen.getByText('National')
+    const chip = styledOf(screen.getByText('National'))
     expect(chip).toBeInTheDocument()
-    expect(styledOf(chip).className).toMatch(/accent/)
+    expect(chip.className).toMatch(/accent/)
+    expect(chip.className).toMatch(/border-border-ink/)
   })
 })
 
 describe('AvailabilityBadge', () => {
-  it('renders available_now with a visible label and an icon (not colour alone)', () => {
+  it('renders available_now in green with a Circle icon (not colour alone) + ink border', () => {
     render(<AvailabilityBadge status="available_now" />)
     const badge = styledOf(screen.getByText(/available now/i))
     expect(badge).toBeInTheDocument()
     // icon present alongside the label -> never colour alone
-    expect(badge.querySelector('svg')).not.toBeNull()
+    const svg = badge.querySelector('svg')
+    expect(svg).not.toBeNull()
+    expect(svg).toHaveClass('lucide-circle')
+    expect(svg).toHaveAttribute('aria-hidden', 'true')
     expect(badge.className).toMatch(/success/)
+    expect(badge.className).toMatch(/border-border-ink/)
   })
 
-  it('renders available_from including the optional date in amber', () => {
+  it('renders available_from including the optional date in amber with a Circle icon', () => {
     render(<AvailabilityBadge status="available_from" date="Sep 2026" />)
     const badge = styledOf(screen.getByText(/available from sep 2026/i))
     expect(badge).toBeInTheDocument()
-    expect(badge.querySelector('svg')).not.toBeNull()
+    const svg = badge.querySelector('svg')
+    expect(svg).not.toBeNull()
+    expect(svg).toHaveClass('lucide-circle')
     expect(badge.className).toMatch(/warning/)
+    expect(badge.className).toMatch(/border-border-ink/)
   })
 
-  it('renders not_available in red with an icon', () => {
+  it('renders not_available in red with a Circle icon', () => {
     render(<AvailabilityBadge status="not_available" />)
     const badge = styledOf(screen.getByText(/not available/i))
     expect(badge).toBeInTheDocument()
-    expect(badge.querySelector('svg')).not.toBeNull()
+    const svg = badge.querySelector('svg')
+    expect(svg).not.toBeNull()
+    expect(svg).toHaveClass('lucide-circle')
     expect(badge.className).toMatch(/destructive/)
+    expect(badge.className).toMatch(/border-border-ink/)
   })
 })
 
 describe('VerifiedBadge', () => {
-  it('renders a blue Verified badge with an icon when verified', () => {
+  it('renders a blue Verified badge with a BadgeCheck icon when verified', () => {
     render(<VerifiedBadge verified />)
     const badge = styledOf(screen.getByText(/^verified$/i))
     expect(badge).toBeInTheDocument()
-    expect(badge.querySelector('svg')).not.toBeNull()
+    const svg = badge.querySelector('svg')
+    expect(svg).not.toBeNull()
+    expect(svg).toHaveClass('lucide-badge-check')
+    expect(svg).toHaveAttribute('aria-hidden', 'true')
     expect(badge.className).toMatch(/primary/)
+    expect(badge.className).toMatch(/border-border-ink/)
   })
 
-  it('renders a grey Unverified badge when not verified', () => {
+  it('renders a grey Unverified badge (no icon, label carries meaning) when not verified', () => {
     render(<VerifiedBadge verified={false} />)
     const badge = styledOf(screen.getByText(/unverified/i))
     expect(badge).toBeInTheDocument()
     expect(badge.className).toMatch(/muted/)
+    expect(badge.className).toMatch(/border-border-ink/)
   })
 })
 
 describe('SeekingTag', () => {
-  it('renders children with low-opacity accent background and accent text', () => {
+  it('renders children with low-opacity primary background and ink border', () => {
     render(<SeekingTag>Seeking sponsor</SeekingTag>)
     const tag = styledOf(screen.getByText('Seeking sponsor'))
     expect(tag).toBeInTheDocument()
-    expect(tag.className).toMatch(/bg-accent\//)
-    expect(tag.className).toMatch(/text-accent/)
+    expect(tag.className).toMatch(/bg-primary\//)
+    expect(tag.className).toMatch(/text-primary/)
+    expect(tag.className).toMatch(/border-border-ink/)
   })
 })
