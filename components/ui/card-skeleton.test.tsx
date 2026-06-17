@@ -11,15 +11,18 @@ describe("CardSkeleton", () => {
     expect(root).toHaveAttribute("aria-busy", "true")
   })
 
-  it("matches the new bordered card silhouette: ink border, no shadow while loading", () => {
+  it("matches the clean card silhouette: soft rounded box, single light border, no hard shadow", () => {
     const { container } = render(<CardSkeleton />)
     const root = container.querySelector('[data-slot="card-skeleton"]')
-    // Neo-brutalist silhouette = ink border at the locked ink-border width (plan §1.1).
-    expect(root?.className).toContain("border-border-ink")
-    expect(root?.className).toContain("border-[length:--border-ink-width]")
-    // No hard-offset card shadow while loading — the bordered box reserves space without
-    // pretending to be a settled, interactive surface.
+    // Clean Airbnb silhouette: a softly rounded surface with a single light border.
+    expect(root?.className).toContain("rounded-2xl")
+    expect(root?.className).toContain("border-border")
+    // No heavy ink border and no hard-offset / settled card shadow while loading —
+    // the reserved frame stays calm and flat until data lands.
+    expect(root?.className).not.toContain("border-border-ink")
+    expect(root?.className).not.toContain("border-[length:--border-ink-width]")
     expect(root?.className).not.toContain("shadow-card")
+    expect(root?.className).not.toMatch(/shadow-\[/)
   })
 
   it("reserves the image block at MarketplaceCard's 0.6 aspect ratio to prevent layout shift", () => {
