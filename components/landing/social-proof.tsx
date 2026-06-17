@@ -1,10 +1,8 @@
-import { Users, Building2, Banknote, Zap, Quote } from 'lucide-react'
-
 const STATS = [
-  { icon: Users, value: '2,400+', label: 'athletes & teams' },
-  { icon: Building2, value: '180+', label: 'brands hiring' },
-  { icon: Banknote, value: '£1.2m', label: 'deals matched' },
-  { icon: Zap, value: '92%', label: 'matched in 48h' },
+  { value: '2,400+', label: 'athletes & teams' },
+  { value: '180+', label: 'brands hiring' },
+  { value: '£1.2m', label: 'deals matched' },
+  { value: '92%', label: 'matched in 48h' },
 ]
 
 const TESTIMONIALS = [
@@ -27,58 +25,41 @@ const TESTIMONIALS = [
 
 export default function SocialProof() {
   return (
-    <section id="about" className="relative overflow-hidden border-b border-border py-20 md:py-24">
-      {/* decorative accent blocks */}
-      <div aria-hidden className="pointer-events-none absolute -right-12 top-10 h-24 w-24 rounded-2xl bg-accent/30" />
-      <div aria-hidden className="pointer-events-none absolute left-[-28px] bottom-16 h-20 w-20 rounded-2xl bg-primary/10" />
-
-      <div className="mx-auto max-w-6xl px-6">
+    <section id="about" className="border-t border-border bg-background">
+      <div className="mx-auto max-w-6xl px-6 py-16 md:px-16 md:py-24">
         {/* heading */}
-        <div className="relative z-10 text-center">
-          <span className="inline-flex items-center gap-2 rounded-full bg-accent/15 px-3 py-1 font-heading text-small font-bold text-accent-foreground">
+        <div className="max-w-2xl">
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             Real deals, real fast
-          </span>
-          <h2 className="mx-auto mt-6 max-w-2xl font-heading text-4xl font-extrabold leading-[1.05] tracking-tight md:text-5xl">
-            Talent&apos;s already{' '}
-            <span className="relative z-0 inline-block before:absolute before:inset-x-[-4px] before:bottom-1 before:-z-10 before:h-4 before:bg-accent/40 before:content-['']">
-              winning
-            </span>{' '}
-            here
+          </p>
+          <h2 className="mt-6 font-heading text-4xl font-extrabold leading-[1.0] tracking-[-0.03em] text-foreground sm:text-5xl md:text-6xl">
+            Talent&apos;s already <span className="text-primary">winning</span> here.
           </h2>
         </div>
 
         {/* stat band */}
-        <div className="relative z-10 mt-12 grid grid-cols-2 gap-5 md:grid-cols-4">
-          {STATS.map(({ icon: Icon, value, label }) => (
-            <div
-              key={label}
-              className="rounded-2xl border border-border bg-card p-6 shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover motion-reduce:transform-none motion-reduce:transition-none"
-            >
-              <span className="inline-flex rounded-xl bg-accent/15 p-2 text-accent-foreground">
-                <Icon className="h-4 w-4" strokeWidth={2} />
-              </span>
-              <p className="mt-4 font-heading text-3xl font-extrabold leading-none tracking-tight md:text-4xl">
+        <div className="mt-14 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-border bg-border md:grid-cols-4">
+          {STATS.map(({ value, label }) => (
+            <div key={label} className="bg-card p-8">
+              <p className="font-heading text-3xl font-extrabold leading-none tracking-tight text-foreground md:text-4xl">
                 {value}
               </p>
-              <p className="mt-2 text-small text-muted-foreground">{label}</p>
+              <p className="mt-3 text-sm text-muted-foreground">{label}</p>
             </div>
           ))}
         </div>
 
         {/* testimonials */}
-        <div className="relative z-10 mt-14 grid gap-6 md:grid-cols-3">
+        <div className="mt-6 grid gap-6 md:grid-cols-3">
           {TESTIMONIALS.map(({ quote, name, role }) => (
             <figure
               key={name}
-              className="flex flex-col rounded-2xl border border-border bg-card p-7 shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover motion-reduce:transform-none motion-reduce:transition-none"
+              className="flex flex-col rounded-2xl border border-border bg-card p-8 shadow-sm"
             >
-              <span className="inline-flex w-fit rounded-xl bg-accent/15 p-2 text-accent-foreground">
-                <Quote className="h-4 w-4" strokeWidth={2} />
-              </span>
-              <blockquote className="mt-5 text-medium font-medium leading-relaxed">
+              <blockquote className="text-base font-medium leading-relaxed text-foreground">
                 &ldquo;{quote}&rdquo;
               </blockquote>
-              <figcaption className="mt-6 flex items-center gap-1 border-t border-border pt-4 font-heading text-small font-bold">
+              <figcaption className="mt-6 flex items-center gap-1 border-t border-border pt-5 font-heading text-sm font-bold text-foreground">
                 {name}
                 <span className="font-normal text-muted-foreground">· {role}</span>
               </figcaption>

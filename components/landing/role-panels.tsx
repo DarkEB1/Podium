@@ -52,55 +52,50 @@ const panels: Panel[] = [
 
 export default function RolePanels() {
   return (
-    <section id="who" className="relative overflow-hidden border-b border-border bg-muted/30 py-24">
-      {/* decorative accent block */}
-      <div aria-hidden className="pointer-events-none absolute -right-10 top-20 h-24 w-24 rounded-2xl bg-accent/30 blur-2xl" />
-
-      <div className="relative z-10 mx-auto max-w-6xl px-6">
-        <div className="mb-14 text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1 font-heading text-small font-semibold text-muted-foreground shadow-card">
+    <section id="who" className="border-t border-border bg-background">
+      <div className="mx-auto max-w-6xl px-6 py-16 md:px-16 md:py-24">
+        <div className="max-w-2xl">
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             One platform, four playbooks
-          </span>
-          <h2 className="mt-6 font-heading text-4xl font-extrabold tracking-tight md:text-5xl">
-            Built for everyone in <span className="text-primary">the game</span>
+          </p>
+          <h2 className="mt-6 font-heading text-4xl font-extrabold leading-[1.0] tracking-[-0.03em] text-foreground sm:text-5xl md:text-6xl">
+            Built for everyone in <span className="text-primary">the game</span>.
           </h2>
-          <p className="mx-auto mt-4 max-w-md text-medium leading-relaxed text-muted-foreground">
+          <p className="mt-6 max-w-[46ch] text-lg leading-relaxed text-muted-foreground">
             Whichever side of the deal you&apos;re on, Podium gets you there faster.
           </p>
         </div>
 
-        <div className="grid gap-6 sm:grid-cols-2">
+        <div className="mt-16 grid gap-6 sm:grid-cols-2">
           {panels.map(({ role, icon: Icon, tagline, points, cta, href, free }) => (
             <div
               key={role}
-              className="flex flex-col rounded-2xl border border-border bg-card p-6 shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover active:scale-[0.99] motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+              className="flex flex-col rounded-2xl border border-border bg-card p-8 shadow-sm"
             >
               <div className="flex items-start justify-between gap-3">
-                <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-accent/40 text-accent-foreground">
+                <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl border border-border bg-background text-foreground">
                   <Icon className="h-6 w-6" strokeWidth={2} aria-hidden="true" />
                 </span>
                 {free && (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-success/10 px-2.5 py-1 text-small font-semibold text-success">
+                  <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-success">
                     <span className="h-1.5 w-1.5 rounded-full bg-success" /> Free forever
                   </span>
                 )}
               </div>
 
-              <h3 className="mt-5 font-heading text-2xl font-extrabold tracking-tight">{role}</h3>
-              <p className="mt-1.5 text-medium font-medium text-muted-foreground">{tagline}</p>
+              <h3 className="mt-6 font-heading text-2xl font-extrabold tracking-tight text-foreground">{role}</h3>
+              <p className="mt-2 text-base font-medium text-muted-foreground">{tagline}</p>
 
-              <ul className="mt-5 space-y-2.5 text-small">
+              <ul className="mt-6 space-y-3 text-sm">
                 {points.map((pt) => (
-                  <li key={pt} className="flex items-start gap-2">
-                    <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent/40 text-accent-foreground">
-                      <Check className="h-3 w-3" strokeWidth={3} aria-hidden="true" />
-                    </span>
+                  <li key={pt} className="flex items-start gap-3 text-foreground">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" strokeWidth={2.5} aria-hidden="true" />
                     <span className="leading-snug">{pt}</span>
                   </li>
                 ))}
               </ul>
 
-              <Link href={href} className={cn(buttonVariants({ size: 'lg' }), 'mt-7')}>
+              <Link href={href} className={cn(buttonVariants({ size: 'lg' }), 'mt-8')}>
                 {cta} <ArrowRight className="ml-1 h-4 w-4" strokeWidth={2.5} aria-hidden="true" />
               </Link>
             </div>

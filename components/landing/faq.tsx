@@ -39,42 +39,42 @@ const faqs = [
 
 export default function FAQ() {
   return (
-    <section id="faq" className="border-b border-border bg-muted/30 py-24">
-      <div className="mx-auto max-w-3xl px-6">
-        <div className="mb-12 text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1 font-heading text-small font-semibold text-muted-foreground shadow-card">
+    <section id="faq" className="border-t border-border bg-background">
+      <div className="mx-auto max-w-3xl px-6 py-16 md:px-16 md:py-24">
+        <div className="max-w-2xl">
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             FAQ
-          </span>
-          <h2 className="mt-5 font-heading text-4xl font-extrabold leading-[1.05] tracking-tight md:text-5xl">
-            Questions? We&apos;ve got answers
+          </p>
+          <h2 className="mt-6 font-heading text-4xl font-extrabold leading-[1.0] tracking-[-0.03em] text-foreground sm:text-5xl md:text-6xl">
+            Questions? We&apos;ve got answers.
           </h2>
-          <p className="mx-auto mt-4 max-w-md text-medium leading-relaxed text-muted-foreground">
+          <p className="mt-6 max-w-[46ch] text-lg leading-relaxed text-muted-foreground">
             Everything you need to know before you step on the Podium.
           </p>
         </div>
 
-        <Accordion className="space-y-4">
+        <Accordion className="mt-14 space-y-4">
           {faqs.map((f) => {
             const slug = f.q.slice(0, 30).replace(/\s+/g, '-').toLowerCase()
             return (
               <AccordionItem
                 key={slug}
                 value={slug}
-                className="overflow-hidden rounded-2xl border border-border bg-card shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover data-open:bg-accent/5 motion-reduce:transform-none motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                className="overflow-hidden rounded-2xl border border-border bg-card shadow-card transition-colors data-open:bg-muted/40 motion-reduce:transition-none"
               >
                 <AccordionPrimitive.Header className="flex">
                   <AccordionPrimitive.Trigger
                     data-slot="accordion-trigger"
-                    className="group/faq flex flex-1 items-center justify-between gap-4 px-6 py-5 text-left font-heading text-medium font-bold leading-snug outline-none transition-colors hover:text-primary focus-visible:text-primary md:text-lg"
+                    className="group/faq flex flex-1 items-center justify-between gap-4 px-8 py-6 text-left font-heading text-lg font-bold leading-snug text-foreground outline-none transition-colors hover:text-primary focus-visible:text-primary"
                   >
                     {f.q}
-                    <span className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground transition-colors group-aria-expanded/faq:bg-accent/15 group-aria-expanded/faq:text-foreground">
+                    <span className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground transition-colors group-aria-expanded/faq:bg-primary group-aria-expanded/faq:text-primary-foreground">
                       <Plus className="size-4 group-aria-expanded/faq:hidden" strokeWidth={2} />
                       <Minus className="hidden size-4 group-aria-expanded/faq:block" strokeWidth={2} />
                     </span>
                   </AccordionPrimitive.Trigger>
                 </AccordionPrimitive.Header>
-                <AccordionContent className="px-6 text-medium leading-relaxed text-muted-foreground">
+                <AccordionContent className="px-8 text-base leading-relaxed text-muted-foreground">
                   {f.a}
                 </AccordionContent>
               </AccordionItem>
@@ -82,8 +82,8 @@ export default function FAQ() {
           })}
         </Accordion>
 
-        <div className="mt-12 flex flex-col items-center gap-3 text-center">
-          <p className="font-heading text-medium font-bold">Still curious? The best way to learn is to dive in.</p>
+        <div className="mt-14 flex flex-col items-center gap-4 text-center">
+          <p className="font-heading text-lg font-bold text-foreground">Still curious? The best way to learn is to dive in.</p>
           <Link href="/auth/signup" className={buttonVariants({ size: 'lg' })}>
             Get started free <ArrowRight className="ml-1 h-4 w-4" strokeWidth={2.5} />
           </Link>
