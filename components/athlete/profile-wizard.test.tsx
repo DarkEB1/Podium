@@ -109,6 +109,39 @@ describe('ProfileWizard', () => {
     expect(body).toHaveProperty('highest_level')
   })
 
+  // spec §3A.4: clean human-readable availability labels; selecting "Available
+  // From" reveals an inline date picker (otherwise hidden).
+  it('step 3: availability options use clean human-readable labels', async () => {
+    render(<ProfileWizard step={3} profile={null} />)
+    await userEvent.click(screen.getByRole('combobox', { name: /availability/i }))
+    for (const label of [/^Available Now$/, /^Available From a Date$/, /^Not Available$/]) {
+      expect(await screen.findByRole('option', { name: label })).toBeInTheDocument()
+    }
+  })
+
+  it('step 3: the date picker is hidden until "Available From" is selected', () => {
+    render(<ProfileWizard step={3} profile={null} />)
+    expect(screen.queryByLabelText(/available from/i)).toBeNull()
+  })
+
+  it('step 3: selecting "Available From a Date" reveals the inline date picker', async () => {
+    render(<ProfileWizard step={3} profile={null} />)
+    await userEvent.click(screen.getByRole('combobox', { name: /availability/i }))
+    await userEvent.click(await screen.findByRole('option', { name: /^Available From a Date$/ }))
+    const date = await screen.findByLabelText(/available from/i)
+    expect(date).toBeInTheDocument()
+    expect(date).toHaveAttribute('type', 'date')
+  })
+
+  it('step 3: a saved "Available From" profile shows the date picker pre-filled', () => {
+    const profile = {
+      user_id: 'u1', is_under_18: false, status: 'draft',
+      availability_status: 'available_from', available_from_date: '2026-09-01',
+    }
+    render(<ProfileWizard step={3} profile={profile as never} />)
+    expect(screen.getByLabelText(/available from/i)).toHaveValue('2026-09-01')
+  })
+
   it('step 5: guardian step is skipped when is_under_18 is false', () => {
     const profile = {
       user_id: 'u1', is_under_18: false, display_name: 'James', status: 'draft',

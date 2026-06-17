@@ -92,6 +92,14 @@ interface Props {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+// §3A.4: clean, human-readable availability labels (never the raw enum values).
+// Mirrors the AvailabilityBadge wording in components/ui/status-badges.tsx (§1.2).
+const AVAILABILITY_OPTIONS: { value: AvailabilityStatus; label: string }[] = [
+  { value: 'available_now', label: 'Available Now' },
+  { value: 'available_from', label: 'Available From a Date' },
+  { value: 'not_available', label: 'Not Available' },
+]
+
 const SEEKING_OPTIONS = [
   { value: 'endorsement', label: 'Endorsement' },
   { value: 'sponsorship', label: 'Sponsorship' },
@@ -487,14 +495,24 @@ function Step3({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
         <FormField control={form.control} name="availability_status" render={({ field }) => (
           <FormItem>
             <FormLabel>Availability</FormLabel>
-            <Select onValueChange={field.onChange} defaultValue={field.value}>
+            <Select
+              onValueChange={(v) => {
+                field.onChange(v)
+                // §3A.4: the date only applies to "Available From"; clear any stale
+                // value when switching to a status that hides the picker.
+                if (v !== 'available_from') {
+                  form.setValue('available_from_date', '', { shouldValidate: true })
+                }
+              }}
+              defaultValue={field.value}
+            >
               <FormControl>
                 <SelectTrigger><SelectValue placeholder="Select availability" /></SelectTrigger>
               </FormControl>
               <SelectContent>
-                <SelectItem value="available_now">Available now</SelectItem>
-                <SelectItem value="available_from">Available from a date</SelectItem>
-                <SelectItem value="not_available">Not available</SelectItem>
+                {AVAILABILITY_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <FormMessage />
@@ -503,8 +521,8 @@ function Step3({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
         {availStatus === 'available_from' && (
           <FormField control={form.control} name="available_from_date" render={({ field }) => (
             <FormItem>
-              <FormLabel>Available from</FormLabel>
-              <FormControl><Input type="date" {...field} /></FormControl>
+              <FormLabel htmlFor="available_from_date">Available from</FormLabel>
+              <FormControl><Input id="available_from_date" type="date" {...field} /></FormControl>
               <FormMessage />
             </FormItem>
           )} />
