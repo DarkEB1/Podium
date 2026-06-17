@@ -110,8 +110,8 @@ export default function MatchList({ conversations, basePath, onArchive }: Props)
   const hasConversations = conversations.some((c) => !archived.has(c.id))
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+    <div className="space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="flex-1">
           <label htmlFor="conversation-search" className="sr-only">
             Search conversations
@@ -133,7 +133,7 @@ export default function MatchList({ conversations, basePath, onArchive }: Props)
             id="conversation-sort"
             value={sort}
             onChange={(e) => setSort(e.target.value as SortMode)}
-            className="h-9 rounded-md border border-input bg-card px-3 text-medium"
+            className="h-10 rounded-xl border border-border bg-card px-4 text-medium"
           >
             <option value="recent">Most recent</option>
             <option value="oldest">Oldest</option>
@@ -143,15 +143,15 @@ export default function MatchList({ conversations, basePath, onArchive }: Props)
       </div>
 
       {!hasConversations ? (
-        <p className="text-center text-muted-foreground py-12">
+        <p className="py-16 text-center text-medium text-muted-foreground">
           No conversations yet. Accept a connection request to start chatting.
         </p>
       ) : visible.length === 0 ? (
-        <p className="text-center text-muted-foreground py-12">
+        <p className="py-16 text-center text-medium text-muted-foreground">
           No conversations match your search.
         </p>
       ) : (
-        <ul className="divide-y rounded-xl border">
+        <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
           {visible.map((c) => {
             const unread = c.unreadCount > 0
             return (
@@ -176,7 +176,7 @@ export default function MatchList({ conversations, basePath, onArchive }: Props)
                   <Link
                     href={`${basePath}/${c.id}`}
                     className={cn(
-                      'flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/50',
+                      'flex items-center gap-4 px-5 py-4 transition-colors hover:bg-muted/50',
                       'border-l-4',
                       unread ? 'border-l-primary bg-primary/5' : 'border-l-transparent'
                     )}
@@ -321,7 +321,7 @@ function ContextMenu({
     <div
       ref={ref}
       role="menu"
-      className="absolute right-4 top-2 z-20 min-w-32 overflow-hidden rounded-md border bg-card shadow-card"
+      className="absolute right-4 top-2 z-20 min-w-32 overflow-hidden rounded-xl border border-border bg-card shadow-card"
     >
       {children}
     </div>

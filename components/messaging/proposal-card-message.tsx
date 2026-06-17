@@ -72,7 +72,7 @@ export default function ProposalCardMessage({
       <div
         data-testid="payment-confirmation-card"
         role="status"
-        className="max-w-sm space-y-1 rounded-xl border border-success/30 bg-success/10 p-4 shadow-card"
+        className="max-w-sm space-y-1 rounded-2xl border border-success/30 bg-success/10 p-6 shadow-sm"
       >
         <div className="flex items-center gap-2">
           <Check aria-hidden="true" className="size-4 shrink-0 text-success" />
@@ -89,7 +89,7 @@ export default function ProposalCardMessage({
   return (
     <div
       data-testid="proposal-card"
-      className="max-w-sm space-y-3 rounded-xl border bg-card p-4 shadow-card"
+      className="max-w-sm space-y-4 rounded-2xl border border-border bg-card p-6 shadow-sm"
     >
       <div className="flex items-center justify-between">
         <p className="text-small font-medium uppercase tracking-wide text-muted-foreground">Proposal</p>

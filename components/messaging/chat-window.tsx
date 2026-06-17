@@ -161,7 +161,7 @@ export default function ChatWindow({ matchId, initialMessages, proposals, curren
 
   return (
     <div className="flex h-[calc(100vh-8rem)] flex-col">
-      <div className="flex-1 space-y-3 overflow-y-auto p-4">
+      <div className="flex-1 space-y-4 overflow-y-auto px-6 py-8">
         {messages.map((msg, i) => {
           if (msg.content_type === 'proposal_card' || msg.content_type === 'payment_confirmation') {
             const meta = msg.metadata as { proposal_id?: string } | null
@@ -200,7 +200,7 @@ export default function ChatWindow({ matchId, initialMessages, proposals, curren
         {otherTyping && <TypingIndicator />}
         <div ref={bottomRef} />
       </div>
-      <form onSubmit={sendText} className="flex gap-2 border-t p-3">
+      <form onSubmit={sendText} className="flex gap-3 border-t border-border px-6 py-4">
         <Input
           value={text}
           onChange={(e) => handleTextChange(e.target.value)}

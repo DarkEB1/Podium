@@ -52,12 +52,12 @@ export default function BrandChatEntry({
   }
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
-      <div className="max-w-sm space-y-2">
+    <div className="flex flex-1 flex-col items-center justify-center gap-8 px-6 py-16 text-center md:px-16">
+      <div className="max-w-md space-y-4">
         <h2 className="font-heading text-large font-semibold text-foreground">
           Send a Proposal to Start the Conversation
         </h2>
-        <p className="text-medium text-muted-foreground">
+        <p className="text-medium leading-relaxed text-muted-foreground">
           Podium requires you to send a formal proposal before messaging. Outline
           the opportunity, pay, and timeline so the athlete can respond. Once your
           proposal is sent, you can chat freely.
