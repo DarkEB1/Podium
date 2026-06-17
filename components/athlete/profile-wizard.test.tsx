@@ -178,4 +178,48 @@ describe('ProfileWizard', () => {
       unmount()
     }
   })
+
+  // spec §3A.6: Discovery Interests — 10 NIL options as a multi-select
+  // CardSelectGroup with subtitles, persisted to seeking_type[].
+  it('step 6: renders the NIL discovery interests as selectable cards with subtitles', () => {
+    const profile = { user_id: 'u1', is_under_18: false, status: 'draft', level: 'professional' }
+    render(<ProfileWizard step={6} profile={profile as never} />)
+    expect(screen.getByRole('button', { name: /product gifting/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /paid partnership/i })).toBeInTheDocument()
+    // A subtitle is present on the cards.
+    expect(screen.getByText(/free products in exchange/i)).toBeInTheDocument()
+  })
+
+  it('step 6: hides the University / NIL Collective option for non-University athletes', () => {
+    const profile = { user_id: 'u1', is_under_18: false, status: 'draft', level: 'professional' }
+    render(<ProfileWizard step={6} profile={profile as never} />)
+    expect(screen.queryByRole('button', { name: /nil collective/i })).toBeNull()
+  })
+
+  it('step 6: shows the University / NIL Collective option only for University/BUCS athletes', () => {
+    const profile = { user_id: 'u1', is_under_18: false, status: 'draft', level: 'university_bucs' }
+    render(<ProfileWizard step={6} profile={profile as never} />)
+    expect(screen.getByRole('button', { name: /nil collective/i })).toBeInTheDocument()
+  })
+
+  it('step 6: multi-selecting discovery interests persists seeking_type[] to the API', async () => {
+    const profile = { user_id: 'u1', is_under_18: false, status: 'draft', level: 'professional', seeking: [] }
+    render(<ProfileWizard step={6} profile={profile as never} />)
+    await userEvent.click(screen.getByRole('button', { name: /product gifting/i }))
+    await userEvent.click(screen.getByRole('button', { name: /paid partnership/i }))
+    await userEvent.click(screen.getByRole('button', { name: /save (interests|discovery)/i }))
+    await waitFor(() => expect(fetch).toHaveBeenCalled())
+    const mockFetch = fetch as unknown as { mock: { calls: [string, { body: string }][] } }
+    const body = JSON.parse(mockFetch.mock.calls[0]![1].body) as { seeking?: string[] }
+    expect(body.seeking).toEqual(expect.arrayContaining(['product_gifting', 'paid_partnership']))
+  })
+
+  it('step 6: pre-selects previously saved discovery interests', () => {
+    const profile = {
+      user_id: 'u1', is_under_18: false, status: 'draft', level: 'professional',
+      seeking: ['paid_partnership'],
+    }
+    render(<ProfileWizard step={6} profile={profile as never} />)
+    expect(screen.getByRole('button', { name: /paid partnership/i })).toHaveAttribute('aria-pressed', 'true')
+  })
 })

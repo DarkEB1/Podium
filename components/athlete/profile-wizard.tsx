@@ -14,6 +14,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { CountrySelect } from '@/components/ui/country-select'
 import { Combobox } from '@/components/ui/combobox'
 import { ImageUpload } from '@/components/ui/image-upload'
+import { CardSelectGroup } from '@/components/ui/card-select'
 import { RequiredKey } from '@/components/ui/required-key'
 import { cn } from '@/lib/utils'
 import GuardianForm, { type GuardianValues } from './guardian-form'
@@ -22,6 +23,7 @@ import type { Database } from '@/types/database'
 type AthleteRow = Database['public']['Tables']['athlete_profiles']['Row']
 type AthleteLevel = Database['public']['Enums']['athlete_level']
 type AvailabilityStatus = Database['public']['Enums']['availability_status']
+type SeekingType = Database['public']['Enums']['seeking_type']
 
 // ─── Schemas ─────────────────────────────────────────────────────────────────
 
@@ -139,6 +141,32 @@ const UNIVERSITY_TEAM_OPTIONS = [
 const HIGHEST_LEVEL_OPTIONS = LEVEL_OPTIONS.filter(
   (o) => !['university_bucs', 'academy', 'national'].includes(o.value)
 )
+
+// §3A.6: the 10 NIL Discovery Interests, persisted to seeking seeking_type[].
+// "University / NIL Collective Deals" (university_nil_collective) is gated to
+// University/BUCS athletes only — see DISCOVERY_OPTIONS filter in Step 6.
+const DISCOVERY_OPTIONS: {
+  value: SeekingType
+  label: string
+  description: string
+  universityOnly?: boolean
+}[] = [
+  { value: 'product_gifting', label: 'Product Gifting', description: 'Free products in exchange for posts' },
+  { value: 'paid_partnership', label: 'Paid Partnership', description: 'Paid campaigns and collaborations' },
+  { value: 'brand_ambassador', label: 'Brand Ambassador', description: 'Ongoing, longer-term representation' },
+  { value: 'social_content', label: 'Social Content', description: 'Sponsored posts, reels and stories' },
+  { value: 'event_appearance', label: 'Event Appearance', description: 'Show up, host or represent at events' },
+  { value: 'affiliate_code', label: 'Affiliate / Discount Code', description: 'Earn commission on referred sales' },
+  { value: 'equipment_sponsorship', label: 'Equipment Sponsorship', description: 'Kit and gear from sports brands' },
+  { value: 'nutrition_supplement', label: 'Nutrition & Supplements', description: 'Fuelling and supplement partnerships' },
+  { value: 'apparel_deal', label: 'Apparel Deal', description: 'Clothing and footwear partnerships' },
+  {
+    value: 'university_nil_collective',
+    label: 'University / NIL Collective Deals',
+    description: 'Collective deals through your university',
+    universityOnly: true,
+  },
+]
 
 function nextStep(current: number, isUnder18: boolean): number {
   if (current === 4 && !isUnder18) return 6
@@ -683,9 +711,36 @@ function Step5({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
 
 // ─── Step 6 (Review & Publish) ───────────────────────────────────────────────
 
-function Step6({ profile }: { profile: AthleteRow | null }) {
+function Step6({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: AthleteRow) => void }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [savingInterests, setSavingInterests] = useState(false)
+  const [seeking, setSeeking] = useState<SeekingType[]>(
+    (profile?.seeking as SeekingType[] | null) ?? []
+  )
+
+  // §3A.6: the University/NIL Collective option is only relevant to
+  // University/BUCS athletes — gate it on the athlete's level.
+  const discoveryOptions = DISCOVERY_OPTIONS.filter(
+    (o) => !o.universityOnly || profile?.level === 'university_bucs'
+  )
+
+  async function handleSaveInterests() {
+    setSavingInterests(true)
+    try {
+      const res = await fetch('/api/profiles/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ seeking }),
+      })
+      const data = await res.json()
+      if (!res.ok) { toast.error(data.error?.message ?? 'Failed to save'); return }
+      toast.success('Discovery interests saved')
+      onSaved(data as AthleteRow)
+    } finally {
+      setSavingInterests(false)
+    }
+  }
 
   async function handlePublish() {
     setLoading(true)
@@ -702,6 +757,31 @@ function Step6({ profile }: { profile: AthleteRow | null }) {
 
   return (
     <div className="space-y-6">
+      {/* §3A.6: Discovery Interests — what the athlete wants to be found for. */}
+      <div className="space-y-3">
+        <div>
+          <p className="text-sm font-semibold">Discovery interests</p>
+          <p className="text-small text-muted-foreground">
+            Pick the kinds of opportunities you want brands to find you for.
+          </p>
+        </div>
+        <CardSelectGroup
+          multiple
+          options={discoveryOptions}
+          value={seeking}
+          onChange={(v) => setSeeking(v as SeekingType[])}
+        />
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full"
+          disabled={savingInterests}
+          onClick={handleSaveInterests}
+        >
+          {savingInterests ? 'Saving…' : 'Save interests'}
+        </Button>
+      </div>
+
       <div className="rounded-xl border bg-muted/30 p-4 space-y-2">
         <p className="text-sm font-semibold">Profile summary</p>
         <dl className="space-y-1 text-sm">
@@ -771,7 +851,7 @@ export default function ProfileWizard({ step, profile: initialProfile }: Props) 
       {step === 3 && <Step3 profile={profile} onSaved={handleSaved} />}
       {step === 4 && <Step4 profile={profile} onSaved={handleSaved} />}
       {step === 5 && <Step5 profile={profile} onSaved={handleSaved} />}
-      {step === 6 && <Step6 profile={profile} />}
+      {step === 6 && <Step6 profile={profile} onSaved={setProfile} />}
 
       {step > 1 && (
         <Button variant="ghost" size="sm" className="w-full" onClick={handleBack}>
