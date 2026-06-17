@@ -3,19 +3,20 @@ import { describe, it, expect } from "vitest"
 import { Input } from "./input"
 
 describe("Input", () => {
-  it("renders with an ink border and no soft ring", () => {
+  it("renders with a clean light border and no hard ink border", () => {
     render(<Input aria-label="Email" />)
     const input = screen.getByLabelText("Email")
-    expect(input.className).toContain("border-border-ink")
-    // Soft ring replaced by the hard focus shadow.
-    expect(input.className).not.toMatch(/ring-ring/)
+    expect(input.className).toContain("border-border")
+    expect(input.className).not.toMatch(/border-border-ink/)
+    expect(input.className).not.toMatch(/border-foreground\b/)
   })
 
-  it("throws the focus shadow and primary border on focus-visible", () => {
+  it("uses a soft focus ring, not the hard offset focus shadow", () => {
     render(<Input aria-label="Email" />)
     const input = screen.getByLabelText("Email")
-    expect(input.className).toContain("focus-visible:shadow-focus")
-    expect(input.className).toContain("focus-visible:border-primary")
+    expect(input.className).toContain("focus-visible:ring-2")
+    expect(input.className).toContain("focus-visible:ring-primary/40")
+    expect(input.className).not.toMatch(/shadow-focus/)
   })
 
   it("keeps its public props (type, placeholder, value)", () => {

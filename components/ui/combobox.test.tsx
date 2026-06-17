@@ -41,13 +41,14 @@ describe("Combobox", () => {
     expect(screen.getByPlaceholderText("Select a university")).toBeInTheDocument()
   })
 
-  it("input has an ink border and the hard focus shadow, not a soft ring", () => {
+  it("input has a clean light border and a soft focus ring", () => {
     render(<Controlled />)
     const input = screen.getByPlaceholderText("Select a university")
-    expect(input.className).toContain("border-border-ink")
-    expect(input.className).toContain("focus-visible:shadow-focus")
-    expect(input.className).toContain("focus-visible:border-primary")
-    expect(input.className).not.toMatch(/ring-ring/)
+    expect(input.className).toContain("border-border")
+    expect(input.className).not.toMatch(/border-border-ink/)
+    expect(input.className).toContain("focus-visible:ring-2")
+    expect(input.className).toContain("focus-visible:ring-primary/40")
+    expect(input.className).not.toMatch(/shadow-focus/)
   })
 
   it("type-to-filter narrows the visible options", async () => {

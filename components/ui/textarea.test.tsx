@@ -3,18 +3,20 @@ import { describe, it, expect } from "vitest"
 import { Textarea } from "./textarea"
 
 describe("Textarea", () => {
-  it("renders with an ink border and no soft ring", () => {
+  it("renders with a clean light border and no hard ink border", () => {
     render(<Textarea aria-label="Bio" />)
     const el = screen.getByLabelText("Bio")
-    expect(el.className).toContain("border-border-ink")
-    expect(el.className).not.toMatch(/ring-ring/)
+    expect(el.className).toContain("border-border")
+    expect(el.className).not.toMatch(/border-border-ink/)
+    expect(el.className).not.toMatch(/border-foreground\b/)
   })
 
-  it("throws the focus shadow and primary border on focus-visible", () => {
+  it("uses a soft focus ring, not the hard offset focus shadow", () => {
     render(<Textarea aria-label="Bio" />)
     const el = screen.getByLabelText("Bio")
-    expect(el.className).toContain("focus-visible:shadow-focus")
-    expect(el.className).toContain("focus-visible:border-primary")
+    expect(el.className).toContain("focus-visible:ring-2")
+    expect(el.className).toContain("focus-visible:ring-primary/40")
+    expect(el.className).not.toMatch(/shadow-focus/)
   })
 
   it("keeps its public props (placeholder, value, rows)", () => {

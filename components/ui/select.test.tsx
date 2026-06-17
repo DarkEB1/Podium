@@ -22,18 +22,20 @@ function renderSelect() {
 }
 
 describe("Select", () => {
-  it("trigger renders with an ink border and no soft ring", () => {
+  it("trigger renders with a clean light border and no hard ink border", () => {
     renderSelect()
     const trigger = screen.getByLabelText("Sport")
-    expect(trigger.className).toContain("border-border-ink")
-    expect(trigger.className).not.toMatch(/ring-ring/)
+    expect(trigger.className).toContain("border-border")
+    expect(trigger.className).not.toMatch(/border-border-ink/)
+    expect(trigger.className).not.toMatch(/border-foreground\b/)
   })
 
-  it("trigger throws the focus shadow and primary border on focus-visible", () => {
+  it("trigger uses a soft focus ring, not the hard offset focus shadow", () => {
     renderSelect()
     const trigger = screen.getByLabelText("Sport")
-    expect(trigger.className).toContain("focus-visible:shadow-focus")
-    expect(trigger.className).toContain("focus-visible:border-primary")
+    expect(trigger.className).toContain("focus-visible:ring-2")
+    expect(trigger.className).toContain("focus-visible:ring-primary/40")
+    expect(trigger.className).not.toMatch(/shadow-focus/)
   })
 
   it("renders the placeholder label text", () => {
