@@ -71,7 +71,7 @@ function InfoTooltip({ label, children }: { label: string; children: React.React
         <span
           id={id}
           role="note"
-          className="absolute left-0 top-6 z-10 w-64 rounded-lg border bg-card p-3 text-small text-muted-foreground shadow-card"
+          className="absolute left-0 top-6 z-10 w-64 rounded-2xl border border-border bg-card p-4 text-small text-muted-foreground shadow-card"
         >
           {children}
         </span>
@@ -156,7 +156,7 @@ export default function AgentProfileForm({ profile, onApplyForVerification }: Pr
           prominent element (spec §6A.1). */}
       <section
         aria-labelledby="verification-heading"
-        className="rounded-xl border bg-muted/20 p-4"
+        className="rounded-2xl border border-border bg-card p-6 shadow-sm md:p-8"
       >
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="space-y-2">
@@ -182,7 +182,7 @@ export default function AgentProfileForm({ profile, onApplyForVerification }: Pr
       </section>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <FormField
             control={form.control}
             name="agent_full_name"

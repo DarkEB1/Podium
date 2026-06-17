@@ -25,8 +25,15 @@ export default async function AgentProfilePage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8">
-      <h1 className="mb-6 font-heading text-large font-bold">Your agency profile</h1>
+    <div className="mx-auto max-w-2xl px-6 py-12 md:px-16 md:py-16">
+      <header className="mb-10 max-w-[20ch]">
+        <h1 className="font-heading text-display font-extrabold leading-[1.02] tracking-tight text-foreground">
+          Your agency profile
+        </h1>
+        <p className="mt-4 text-base text-muted-foreground">
+          How athletes and brands see your agency on Podium.
+        </p>
+      </header>
       <AgentProfileForm
         profile={profile}
         onApplyForVerification={applyForVerificationAction}

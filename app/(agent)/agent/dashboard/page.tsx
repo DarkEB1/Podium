@@ -131,11 +131,11 @@ export default async function AgentDashboardPage() {
   ]
 
   return (
-    <div className="mx-auto max-w-6xl space-y-8 px-4 py-8">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <AccentHeading as="h1" className="text-large">
+    <div className="mx-auto max-w-6xl space-y-12 px-6 py-12 md:px-16 md:py-16">
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <h1 className="font-heading text-display font-extrabold leading-[1.02] tracking-tight text-foreground">
           Agent dashboard
-        </AccentHeading>
+        </h1>
         {pendingActions > 0 ? (
           <span
             className="inline-flex items-center gap-2 rounded-full border border-warning/40 bg-warning/15 px-3 py-1 text-medium text-warning"
@@ -158,14 +158,14 @@ export default async function AgentDashboardPage() {
 
       <StatStrip stats={stats} />
 
-      <section aria-labelledby="clients-heading" className="space-y-3">
+      <section aria-labelledby="clients-heading" className="space-y-6">
         <AccentHeading as="h2" id="clients-heading" className="text-large">
           Clients
         </AccentHeading>
         <ClientRoster clients={clientRows} onRevoke={revokeClientAction} />
       </section>
 
-      <section id="pipeline" aria-labelledby="pipeline-heading" className="space-y-3">
+      <section id="pipeline" aria-labelledby="pipeline-heading" className="space-y-6">
         <AccentHeading as="h2" id="pipeline-heading" className="text-large">
           Deal pipeline
         </AccentHeading>

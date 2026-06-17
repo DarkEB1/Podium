@@ -85,7 +85,7 @@ export default function DealPipeline({ deals }: Props) {
   for (const deal of deals) byStage.get(deal.stage)?.push(deal)
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
       {PIPELINE_STAGES.map((stage) => {
         const stageDeals = byStage.get(stage.id) ?? []
         return (
@@ -93,36 +93,36 @@ export default function DealPipeline({ deals }: Props) {
             key={stage.id}
             data-testid={`stage-${stage.id}`}
             aria-labelledby={`stage-${stage.id}-heading`}
-            className="flex flex-col gap-2 rounded-xl border bg-muted/20 p-2"
+            className="flex flex-col gap-4"
           >
-            <div className="flex items-center justify-between px-1 py-1">
+            <div className="flex items-center justify-between border-b border-border pb-3">
               <h3
                 id={`stage-${stage.id}-heading`}
-                className="font-heading text-medium font-semibold"
+                className="font-heading text-medium font-semibold text-foreground"
               >
                 {stage.label}
               </h3>
               <span
                 aria-label={`${stageDeals.length} deals`}
-                className="inline-flex min-w-5 items-center justify-center rounded-full bg-card px-1.5 text-small text-muted-foreground"
+                className="inline-flex min-w-5 items-center justify-center rounded-full bg-muted px-1.5 text-small text-muted-foreground"
               >
                 {stageDeals.length}
               </span>
             </div>
 
-            <ul className="flex flex-col gap-2">
+            <ul className="flex flex-col gap-3">
               {stageDeals.map((deal) => (
                 <li
                   key={deal.id}
                   className={cn(
-                    'rounded-lg border bg-card p-2 shadow-card',
-                    'transition-shadow hover:shadow-card-hover'
+                    'rounded-2xl border border-border bg-card p-4 shadow-sm',
+                    'transition-shadow hover:shadow-card'
                   )}
                 >
                   <p className="font-medium text-foreground">{deal.brandName}</p>
-                  <p className="text-small text-muted-foreground">{deal.clientName}</p>
+                  <p className="mt-0.5 text-small text-muted-foreground">{deal.clientName}</p>
                   {formatDate(deal.updatedAt) ? (
-                    <p className="text-small text-muted-foreground">
+                    <p className="mt-2 text-small text-muted-foreground">
                       Updated {formatDate(deal.updatedAt)}
                     </p>
                   ) : null}

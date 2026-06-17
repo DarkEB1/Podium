@@ -74,47 +74,47 @@ export default function ClientTable({ clients, onRevoke }: Props) {
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border bg-card shadow-card">
+    <div className="overflow-x-auto rounded-2xl border border-border bg-card shadow-sm">
       <table className="w-full border-collapse text-medium">
         <caption className="sr-only">Your clients</caption>
         <thead>
-          <tr className="border-b text-left text-small text-muted-foreground">
-            <th scope="col" className="px-4 py-3 font-medium">
+          <tr className="border-b border-border text-left text-small text-muted-foreground">
+            <th scope="col" className="px-6 py-4 font-medium">
               Client
             </th>
-            <th scope="col" className="px-4 py-3 font-medium">
+            <th scope="col" className="px-6 py-4 font-medium">
               Sport
             </th>
-            <th scope="col" className="px-4 py-3 font-medium">
+            <th scope="col" className="px-6 py-4 font-medium">
               Level
             </th>
-            <th scope="col" className="px-4 py-3 font-medium">
+            <th scope="col" className="px-6 py-4 font-medium">
               Active deals
             </th>
-            <th scope="col" className="px-4 py-3 font-medium">
+            <th scope="col" className="px-6 py-4 font-medium">
               Last activity
             </th>
-            <th scope="col" className="px-4 py-3 font-medium">
+            <th scope="col" className="px-6 py-4 font-medium">
               <span className="sr-only">Actions</span>
             </th>
           </tr>
         </thead>
         <tbody>
           {clients.map((client) => (
-            <tr key={client.linkId} className="border-b last:border-0 align-middle">
-              <td className="px-4 py-3">
+            <tr key={client.linkId} className="border-b border-border last:border-0 align-middle">
+              <td className="px-6 py-4">
                 <div className="flex items-center gap-3">
                   {client.photoUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element -- avatar thumbnails are user-uploaded URLs; next/image is reserved for marketplace media
                     <img
                       src={client.photoUrl}
                       alt={client.name}
-                      className="size-9 shrink-0 rounded-full object-cover"
+                      className="size-10 shrink-0 rounded-full object-cover"
                     />
                   ) : (
                     <span
                       aria-hidden="true"
-                      className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-small font-medium text-muted-foreground"
+                      className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-small font-medium text-muted-foreground"
                     >
                       {initials(client.name)}
                     </span>
@@ -122,15 +122,15 @@ export default function ClientTable({ clients, onRevoke }: Props) {
                   <span className="font-medium text-foreground">{client.name}</span>
                 </div>
               </td>
-              <td className="px-4 py-3 text-muted-foreground">{client.sport ?? '—'}</td>
-              <td className="px-4 py-3">
+              <td className="px-6 py-4 text-muted-foreground">{client.sport ?? '—'}</td>
+              <td className="px-6 py-4">
                 {client.level ? <LevelChip level={client.level} /> : <span className="text-muted-foreground">—</span>}
               </td>
-              <td className="px-4 py-3 tabular-nums">{client.activeDeals}</td>
-              <td className="px-4 py-3 text-small text-muted-foreground">
+              <td className="px-6 py-4 tabular-nums">{client.activeDeals}</td>
+              <td className="px-6 py-4 text-small text-muted-foreground">
                 {formatActivity(client.lastActivity)}
               </td>
-              <td className="px-4 py-3">
+              <td className="px-6 py-4">
                 <div className="flex flex-wrap items-center justify-end gap-1.5">
                   <Link
                     href={`/agent/profile/${client.clientUserId}`}

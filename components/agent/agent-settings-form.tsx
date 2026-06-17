@@ -195,7 +195,7 @@ export default function AgentSettingsForm({ profile, settings }: Props) {
           id="visibility"
           role="region"
           aria-labelledby="agent-visibility-heading"
-          className="space-y-6 border-t pt-8"
+          className="space-y-6 border-t border-border pt-8"
         >
           <h2 id="agent-visibility-heading" className="text-large font-heading">
             Visibility &amp; notifications
