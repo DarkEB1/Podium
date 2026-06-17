@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { Check } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -74,7 +75,7 @@ export default function ProposalCardMessage({
         className="max-w-sm space-y-1 rounded-xl border border-success/30 bg-success/10 p-4 shadow-card"
       >
         <div className="flex items-center gap-2">
-          <span aria-hidden="true" className="text-success text-base">✓</span>
+          <Check aria-hidden="true" className="size-4 shrink-0 text-success" />
           <p className="text-medium font-semibold text-foreground">Payment confirmed</p>
         </div>
         <p className="text-medium text-foreground">

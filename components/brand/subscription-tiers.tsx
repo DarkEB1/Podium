@@ -137,26 +137,21 @@ export default function SubscriptionTiers({ subscription }: Props) {
             data-testid={`tier-card-${t.tier}`}
             data-featured={t.popular ? 'true' : 'false'}
             className={cn(
-              // Neo-brutalist surface (plan §1.1/§6): ink border + hard offset shadow.
-              'relative flex flex-col rounded-xl border border-border-ink bg-card p-5 shadow-card',
-              // Featured tier gets the folded-corner accent tab (same treatment as
-              // a featured MarketplaceCard, plan §7) and a heavier primary border.
-              t.popular && [
-                'border-primary',
-                'after:pointer-events-none after:absolute after:right-0 after:top-0 after:z-30 after:h-0 after:w-0',
-                'after:border-t-[28px] after:border-l-[28px] after:border-t-primary after:border-l-transparent',
-                "after:content-['']",
-              ]
+              // Clean Airbnb surface: white card, light border, soft layered shadow.
+              'relative flex flex-col rounded-2xl border border-border bg-card p-5 shadow-card',
+              // Featured tier is highlighted with a primary border and a slightly
+              // stronger soft shadow — no folded corner, no hard offset.
+              t.popular && 'border-primary shadow-lg'
             )}
           >
             {t.popular && (
               <>
-                {/* "Most popular" + "7-day free trial" bespoke Stickers (plan §7).
-                    Static rotation — no motion, nothing to gate behind reduced-motion. */}
-                <Sticker className="absolute -top-3 left-1/2 -translate-x-1/2 -rotate-2">
+                {/* "Most popular" + "7-day free trial" Stickers — flat, upright
+                    accent pills (clean Airbnb aesthetic), no tilt. */}
+                <Sticker className="absolute -top-3 left-1/2 -translate-x-1/2">
                   Most popular
                 </Sticker>
-                <Sticker rotate={2} className="absolute -right-2 top-8">
+                <Sticker className="absolute -right-2 top-8">
                   7-day free trial
                 </Sticker>
               </>

@@ -81,7 +81,7 @@ export default function RoleSelectForm() {
             className={cn(
               'relative rounded-xl border p-4 text-left transition-all',
               selected === role.id
-                ? 'border-foreground bg-foreground/5 ring-2 ring-foreground'
+                ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
                 : 'border-border hover:border-foreground/50'
             )}
           >

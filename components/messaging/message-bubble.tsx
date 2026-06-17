@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { Download, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Database } from '@/types/database'
 
@@ -99,7 +100,7 @@ function AttachmentTile({ message, isMine }: { message: MessageRow; isMine: bool
         isMine ? 'border-primary-foreground/30' : 'border-border'
       )}
     >
-      <span aria-hidden="true" className="text-base">📄</span>
+      <FileText aria-hidden="true" className="size-4 shrink-0" />
       <span className="min-w-0 flex-1">
         <span className="block truncate font-medium">{name}</span>
         {typeof size === 'number' && (
@@ -108,7 +109,7 @@ function AttachmentTile({ message, isMine }: { message: MessageRow; isMine: bool
           </span>
         )}
       </span>
-      <span aria-hidden="true">⬇</span>
+      <Download aria-hidden="true" className="size-4 shrink-0" />
     </a>
   )
 }

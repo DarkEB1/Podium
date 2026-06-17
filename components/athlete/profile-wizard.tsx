@@ -574,7 +574,7 @@ function Step3({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
                 className={cn(
                   'rounded-full border px-3 py-1 text-sm transition-colors',
                   seeking.includes(o.value)
-                    ? 'border-foreground bg-foreground text-background'
+                    ? 'border-primary bg-primary/10 text-foreground'
                     : 'border-border hover:border-foreground/50'
                 )}
               >
