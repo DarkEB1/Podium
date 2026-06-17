@@ -1,7 +1,9 @@
 'use client'
 
 import { useState } from 'react'
+import { Inbox } from 'lucide-react'
 import ConnectionRequestCard from './connection-request-card'
+import { EmptyState } from '@/components/ui/empty-state'
 import type { Database } from '@/types/database'
 
 type ConnectionRequestRow = Database['public']['Tables']['connection_requests']['Row']
@@ -16,7 +18,14 @@ export default function RequestsList({ requests: initial }: Props) {
   }
 
   if (requests.length === 0) {
-    return <p className="text-center text-muted-foreground py-12">No pending connection requests.</p>
+    return (
+      <EmptyState
+        icon={<Inbox aria-hidden="true" />}
+        title="No pending connection requests"
+        description="When a brand sends you a connection request, it will appear here for you to accept or decline."
+        action={{ label: 'Discover brands', href: '/athlete/discover' }}
+      />
+    )
   }
 
   return (

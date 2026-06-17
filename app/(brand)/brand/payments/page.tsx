@@ -1,8 +1,10 @@
 import { redirect } from 'next/navigation'
+import { Receipt } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getPaymentHistory } from '@/lib/supabase/payments'
 import PaymentForm from '@/components/brand/payment-form'
+import { EmptyState } from '@/components/ui/empty-state'
 import { cn } from '@/lib/utils'
 import type { Database } from '@/types/database'
 
@@ -31,7 +33,11 @@ export default async function BrandPaymentsPage() {
       <section className="space-y-4">
         <h2 className="text-lg font-semibold">Payment history</h2>
         {payments.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No payments yet.</p>
+          <EmptyState
+            icon={<Receipt aria-hidden="true" />}
+            title="No payments yet"
+            description="Once you initiate a payment from a fully signed deal, its history will appear here."
+          />
         ) : (
           <ul className="divide-y rounded-xl border">
             {payments.map((p) => (

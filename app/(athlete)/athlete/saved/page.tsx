@@ -1,8 +1,10 @@
 import { redirect } from 'next/navigation'
+import { Bookmark } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getShortlist } from '@/lib/supabase/discovery'
 import { getPublicProfile } from '@/lib/supabase/profiles'
+import { EmptyState } from '@/components/ui/empty-state'
 import type { Database } from '@/types/database'
 
 type BrandRow = Database['public']['Tables']['brand_profiles']['Row']
@@ -26,9 +28,12 @@ export default async function AthleteSavedPage() {
         <p className="text-muted-foreground">{brands.length} saved</p>
       </div>
       {brands.length === 0 ? (
-        <p className="text-center text-muted-foreground py-12">
-          No saved brands yet. Browse <a href="/athlete/discover" className="underline">opportunities</a> to find brands you like.
-        </p>
+        <EmptyState
+          icon={<Bookmark aria-hidden="true" />}
+          title="No saved brands yet"
+          description="Browse opportunities and save the brands you like so you can find them again here."
+          action={{ label: 'Browse opportunities', href: '/athlete/discover' }}
+        />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {brands.map((brand) => (
