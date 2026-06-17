@@ -30,7 +30,7 @@ export default async function AgentSettingsPage() {
         <h1 className="font-heading text-display font-extrabold leading-[1.02] tracking-tight text-foreground">
           Settings
         </h1>
-        <p className="mt-4 max-w-[48ch] text-base text-muted-foreground">
+        <p className="mt-4 max-w-[48ch] text-medium text-muted-foreground">
           Manage your agency profile, visibility, and notifications.
         </p>
       </header>

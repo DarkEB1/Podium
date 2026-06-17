@@ -30,7 +30,7 @@ export default async function AgentProfilePage() {
         <h1 className="font-heading text-display font-extrabold leading-[1.02] tracking-tight text-foreground">
           Your agency profile
         </h1>
-        <p className="mt-4 text-base text-muted-foreground">
+        <p className="mt-4 text-medium text-muted-foreground">
           How athletes and brands see your agency on Podium.
         </p>
       </header>
