@@ -2,6 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import ProfileWizard from './profile-wizard'
+import { copy } from '@/lib/copy'
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 
@@ -30,8 +31,8 @@ describe('ProfileWizard', () => {
     render(<ProfileWizard step={1} profile={null} />)
     expect(screen.getByLabelText(/country/i)).toBeInTheDocument()
     expect(screen.getByRole('group', { name: /profile photo/i })).toBeInTheDocument()
-    // Subtext nudging a clear face photo (spec §3A.2).
-    expect(screen.getByText(/clear photo of your face/i)).toBeInTheDocument()
+    // Subtext nudging a photo, in the energetic Podium voice (copy.prompts.addPhoto).
+    expect(screen.getByText(copy.prompts.addPhoto)).toBeInTheDocument()
   })
 
   it('step 1: cannot advance without a profile photo — shows the required message', async () => {

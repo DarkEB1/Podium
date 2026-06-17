@@ -9,6 +9,7 @@ import {
   VerifiedBadge,
   LevelChip,
 } from '@/components/ui/status-badges'
+import { copy } from '@/lib/copy'
 import type { Database } from '@/types/database'
 
 type AthleteRow = Database['public']['Tables']['athlete_profiles']['Row']
@@ -79,6 +80,7 @@ export default function AthleteCard({ athlete, verified = false, initialSaved = 
       if (!res.ok && !(next && res.status === 409)) {
         throw new Error('request failed')
       }
+      if (next) toast.success(copy.toasts.saved)
     } catch {
       setSaved(!next)
       toast.error('Could not update your shortlist. Please try again.')

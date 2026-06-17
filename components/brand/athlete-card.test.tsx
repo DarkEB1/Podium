@@ -3,6 +3,13 @@ import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import AthleteCard from './athlete-card'
 import type { Database } from '@/types/database'
+import { copy } from '@/lib/copy'
+
+const toastSuccess = vi.fn()
+const toastError = vi.fn()
+vi.mock('sonner', () => ({
+  toast: { success: (...a: unknown[]) => toastSuccess(...a), error: (...a: unknown[]) => toastError(...a) },
+}))
 
 type AthleteRow = Database['public']['Tables']['athlete_profiles']['Row']
 
@@ -54,6 +61,8 @@ describe('AthleteCard', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
     vi.useRealTimers()
+    toastSuccess.mockClear()
+    toastError.mockClear()
   })
 
   it('renders name, sport and a single primary CTA (no inline message form)', () => {
@@ -114,6 +123,8 @@ describe('AthleteCard', () => {
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /remove from saved/i })).toBeInTheDocument()
     )
+    // confirms with the energetic Podium shortlist toast copy
+    await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith(copy.toasts.saved))
   })
 
   it('removes from the shortlist when toggled off (DELETE, not a request)', async () => {
