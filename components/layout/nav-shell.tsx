@@ -94,11 +94,11 @@ export default function NavShell({ role, children }: NavShellProps) {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-7xl items-center gap-4 px-4">
+      <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur">
+        <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-6 md:px-16">
           <Link
             href={`/${role}/discover`}
-            className="mr-4 font-heading text-lg font-bold tracking-tight"
+            className="mr-6 font-heading text-xl font-extrabold tracking-tight text-foreground"
           >
             Podium
           </Link>
@@ -137,7 +137,7 @@ export default function NavShell({ role, children }: NavShellProps) {
         {crumbs.length > 0 && (
           <nav
             aria-label="Breadcrumb"
-            className="mx-auto hidden max-w-7xl px-4 pb-2 md:block"
+            className="mx-auto hidden max-w-7xl px-6 pb-3 md:block md:px-16"
           >
             <ol className="flex items-center gap-1 text-small text-muted-foreground">
               {crumbs.map((crumb, i) => {
@@ -167,7 +167,7 @@ export default function NavShell({ role, children }: NavShellProps) {
       {/* Mobile bottom navigation: the four top-level destinations as icons. */}
       <nav
         aria-label="Bottom navigation"
-        className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t bg-background/95 backdrop-blur md:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-border bg-background/95 backdrop-blur md:hidden"
       >
         {items.map((item) => {
           const active = isActiveHref(pathname, item.href)

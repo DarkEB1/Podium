@@ -29,7 +29,7 @@ export default function StatStrip({ stats, className }: StatStripProps) {
   return (
     <ul
       className={cn(
-        'grid grid-cols-2 gap-4 sm:grid-cols-4',
+        'grid grid-cols-2 gap-6 sm:grid-cols-4',
         className,
       )}
     >
@@ -39,19 +39,19 @@ export default function StatStrip({ stats, className }: StatStripProps) {
           <li
             key={stat.label}
             className={cn(
-              'rounded-2xl border border-border bg-card p-6',
+              'rounded-2xl border border-border bg-card p-8',
               'shadow-sm transition-[transform,box-shadow] duration-200 ease-out',
-              'hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.99]',
+              'hover:-translate-y-0.5 hover:shadow-card active:scale-[0.99]',
               'motion-reduce:transform-none motion-reduce:transition-none',
             )}
           >
             {StatIcon ? (
-              <Icon icon={StatIcon} className="mb-3 text-muted-foreground" />
+              <Icon icon={StatIcon} className="mb-4 text-muted-foreground" />
             ) : null}
-            <p className="font-heading text-large font-semibold text-foreground">
+            <p className="font-heading text-display font-semibold leading-none tracking-tight text-foreground">
               {stat.value}
             </p>
-            <p className="mt-1.5 text-small text-muted-foreground">{stat.label}</p>
+            <p className="mt-3 text-small text-muted-foreground">{stat.label}</p>
           </li>
         )
       })}

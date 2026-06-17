@@ -24,7 +24,7 @@ export default function HeroPanel({ image, alt, children, className }: HeroPanel
         alt={alt}
         className="h-48 w-full object-cover sm:h-64 md:h-80"
       />
-      <div className="mx-auto -mt-12 max-w-7xl px-4 sm:-mt-16">
+      <div className="mx-auto -mt-12 max-w-7xl px-6 sm:-mt-16 md:px-16">
         <div className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)] sm:p-8">
           {children}
         </div>

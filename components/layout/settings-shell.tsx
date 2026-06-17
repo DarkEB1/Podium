@@ -26,15 +26,19 @@ export default function SettingsShell({
   return (
     <div
       className={cn(
-        'mx-auto grid max-w-7xl gap-8 px-4 py-8 md:grid-cols-[16rem_1fr]',
+        'mx-auto max-w-7xl px-6 py-12 md:px-16 md:py-16',
         className,
       )}
     >
-      <nav
-        aria-label="Settings sections"
-        className="md:border-r md:border-border md:pr-8"
-      >
-        <ul className="flex gap-1 overflow-x-auto md:flex-col md:overflow-visible">
+      <h1 className="font-heading text-display font-semibold tracking-tight text-foreground">
+        Settings
+      </h1>
+      <div className="mt-10 grid gap-10 md:grid-cols-[16rem_1fr]">
+        <nav
+          aria-label="Settings sections"
+          className="md:border-r md:border-border md:pr-10"
+        >
+          <ul className="flex gap-1 overflow-x-auto md:flex-col md:overflow-visible">
           {sections.map((section) => {
             const isActive = section.id === active
             return (
@@ -54,9 +58,10 @@ export default function SettingsShell({
               </li>
             )
           })}
-        </ul>
-      </nav>
-      <div className="min-w-0">{children}</div>
+          </ul>
+        </nav>
+        <div className="min-w-0">{children}</div>
+      </div>
     </div>
   )
 }
