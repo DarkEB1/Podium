@@ -2,8 +2,9 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 
-// T1 — neo-brutalist design token + typeface system contract (plan §1.1, §1.2, §1.5).
-// These assertions lock the EXACT token values that every other task consumes.
+// C1 — clean Airbnb design token + typeface system contract.
+// Re-tokened away from neo-brutalism: soft grey borders, soft layered shadows,
+// 14px radius, flat warm off-white page (no paper-grain). Bricolage/DM Sans wiring kept.
 
 const css = readFileSync(path.resolve(__dirname, 'globals.css'), 'utf8')
 const layout = readFileSync(path.resolve(__dirname, 'layout.tsx'), 'utf8')
@@ -35,33 +36,31 @@ describe('T1 design tokens (globals.css)', () => {
     expect(css).toMatch(/--card:\s*oklch\(1 0 0\)/)
   })
 
-  it('defines the ink border token and width', () => {
-    expect(css).toMatch(/--border-ink:\s*oklch\(0\.20 0 0\)/)
-    expect(css).toMatch(/--border-ink-width:\s*1\.5px/)
-    expect(css).toMatch(/--border:\s*oklch\(0\.88 0 0\)/)
+  it('uses a light grey border token', () => {
+    expect(css).toMatch(/--border:\s*oklch\(0\.92 0 0\)/)
   })
 
   it('uses a punchier amber accent for flat blocks', () => {
     expect(css).toMatch(/--accent:\s*oklch\(0\.80 0\.13 85\)/)
   })
 
-  it('defines the hard-offset shadow token family', () => {
-    expect(css).toMatch(/--shadow-card:\s*3px 3px 0 oklch\(0\.20 0 0 \/ 0\.92\)/)
-    expect(css).toMatch(/--shadow-card-hover:\s*6px 6px 0 oklch\(0\.20 0 0 \/ 0\.92\)/)
-    expect(css).toMatch(/--shadow-press:\s*2px 2px 0 oklch\(0\.20 0 0\)/)
-    expect(css).toMatch(/--shadow-focus:\s*3px 3px 0 var\(--primary\)/)
+  it('defines soft layered card shadows', () => {
+    expect(css).toMatch(/--shadow-card:\s*0 1px 2px rgba\(0,0,0,0\.06\), 0 6px 16px rgba\(0,0,0,0\.08\)/)
+    expect(css).toMatch(/--shadow-card-hover:\s*0 10px 28px rgba\(0,0,0,0\.12\)/)
   })
 
-  it('sets radius to 10px', () => {
-    expect(css).toMatch(/--radius:\s*0\.625rem/)
+  it('drops the hard neo-brutalist shadow tokens', () => {
+    expect(css).not.toMatch(/--shadow-press:\s*2px 2px 0/)
+    expect(css).not.toMatch(/3px 3px 0 var\(--primary\)/)
   })
 
-  it('exposes the shadow + ink-border tokens as Tailwind utilities via @theme', () => {
+  it('sets radius to 14px', () => {
+    expect(css).toMatch(/--radius:\s*0\.875rem/)
+  })
+
+  it('exposes the card shadow tokens as Tailwind utilities via @theme', () => {
     expect(css).toMatch(/--shadow-card:\s*var\(--shadow-card\)/)
     expect(css).toMatch(/--shadow-card-hover:\s*var\(--shadow-card-hover\)/)
-    expect(css).toMatch(/--shadow-press:\s*var\(--shadow-press\)/)
-    expect(css).toMatch(/--shadow-focus:\s*var\(--shadow-focus\)/)
-    expect(css).toMatch(/--color-border-ink:\s*var\(--border-ink\)/)
   })
 
   it('sets heading and body type rhythm (line-height + tracking)', () => {
@@ -70,11 +69,15 @@ describe('T1 design tokens (globals.css)', () => {
     expect(css).toMatch(/line-height:\s*1\.55/)
   })
 
-  it('defines pressable + liftable motion utilities', () => {
+  it('defines gentle pressable + liftable motion utilities', () => {
     expect(css).toMatch(/\.pressable\b/)
     expect(css).toMatch(/\.liftable\b/)
-    expect(css).toMatch(/translate\(2px,\s*2px\)/)
-    expect(css).toMatch(/translate\(-2px,\s*-2px\)/)
+    // liftable: gentle -2px lift on the Y axis + soft hover shadow
+    expect(css).toMatch(/translateY\(-2px\)/)
+    expect(css).toMatch(/box-shadow:\s*var\(--shadow-card-hover\)/)
+    // pressable: subtle scale only, no hard 2px translate
+    expect(css).toMatch(/scale\(0?\.99\)/)
+    expect(css).not.toMatch(/translate\(2px,\s*2px\)/)
   })
 
   it('degrades motion under prefers-reduced-motion', () => {
@@ -82,9 +85,8 @@ describe('T1 design tokens (globals.css)', () => {
     expect(css).toMatch(/transform:\s*none/)
   })
 
-  it('adds a faint fractalNoise grain to the body background', () => {
-    expect(css).toMatch(/fractalNoise/)
-    expect(css).toMatch(/background-image/)
+  it('removes the fractalNoise paper-grain body background', () => {
+    expect(css).not.toMatch(/fractalNoise/)
   })
 
   it('is light-mode only: no dark-mode token block', () => {
