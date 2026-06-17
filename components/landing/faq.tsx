@@ -39,10 +39,10 @@ const faqs = [
 
 export default function FAQ() {
   return (
-    <section id="faq" className="border-b-[1.5px] border-foreground bg-muted/30 py-24">
+    <section id="faq" className="border-b border-border bg-muted/30 py-24">
       <div className="mx-auto max-w-3xl px-6">
         <div className="mb-12 text-center">
-          <span className="inline-flex -rotate-2 items-center gap-2 rounded-full border-[1.5px] border-foreground bg-accent px-3 py-1 font-heading text-small font-extrabold shadow-[2px_2px_0_rgba(26,26,26,0.92)]">
+          <span className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1 font-heading text-small font-semibold text-muted-foreground shadow-card">
             FAQ
           </span>
           <h2 className="mt-5 font-heading text-4xl font-extrabold leading-[1.05] tracking-tight md:text-5xl">
@@ -53,28 +53,28 @@ export default function FAQ() {
           </p>
         </div>
 
-        <Accordion className="space-y-3">
+        <Accordion className="space-y-4">
           {faqs.map((f) => {
             const slug = f.q.slice(0, 30).replace(/\s+/g, '-').toLowerCase()
             return (
               <AccordionItem
                 key={slug}
                 value={slug}
-                className="overflow-hidden rounded-[10px] border-[1.5px] border-foreground bg-card shadow-[3px_3px_0_rgba(26,26,26,0.92)] not-last:border-b-[1.5px] data-open:border-l-[6px] data-open:bg-accent/20"
+                className="overflow-hidden rounded-2xl border border-border bg-card shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover data-open:bg-accent/5 motion-reduce:transform-none motion-reduce:transition-none motion-reduce:hover:translate-y-0"
               >
                 <AccordionPrimitive.Header className="flex">
                   <AccordionPrimitive.Trigger
                     data-slot="accordion-trigger"
-                    className="group/faq flex flex-1 items-center justify-between gap-4 px-5 py-4 text-left font-heading text-medium font-extrabold leading-snug outline-none transition-colors hover:bg-accent/10 focus-visible:bg-accent/20 md:text-lg"
+                    className="group/faq flex flex-1 items-center justify-between gap-4 px-6 py-5 text-left font-heading text-medium font-bold leading-snug outline-none transition-colors hover:text-primary focus-visible:text-primary md:text-lg"
                   >
                     {f.q}
-                    <span className="grid size-7 shrink-0 place-items-center rounded-md border-[1.5px] border-foreground bg-card text-foreground transition-colors group-aria-expanded/faq:bg-accent">
+                    <span className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground transition-colors group-aria-expanded/faq:bg-accent/15 group-aria-expanded/faq:text-foreground">
                       <Plus className="size-4 group-aria-expanded/faq:hidden" strokeWidth={2} />
                       <Minus className="hidden size-4 group-aria-expanded/faq:block" strokeWidth={2} />
                     </span>
                   </AccordionPrimitive.Trigger>
                 </AccordionPrimitive.Header>
-                <AccordionContent className="px-5 text-medium leading-relaxed text-muted-foreground">
+                <AccordionContent className="px-6 text-medium leading-relaxed text-muted-foreground">
                   {f.a}
                 </AccordionContent>
               </AccordionItem>
