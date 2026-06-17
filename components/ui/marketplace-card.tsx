@@ -45,20 +45,25 @@ export function MarketplaceCard({
       data-testid="marketplace-card"
       data-featured={featured ? "true" : "false"}
       className={cn(
-        // Neo-brutalist surface: ink border + hard offset shadow (plan §6/§1.1).
-        "group/marketplace-card relative flex flex-col overflow-hidden rounded-xl border border-border-ink bg-card text-card-foreground shadow-card",
-        // Hover lift: translate (-2,-2) → --shadow-card-hover over 150ms, degrades to
-        // shadow-only under prefers-reduced-motion. Centralised in globals.css §1.5.
+        // Clean Airbnb surface: white card, generous rounding, a single light border and
+        // a soft layered shadow (--shadow-card, now soft — globals.css §1).
+        "group/marketplace-card relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-card",
+        // Gentle hover lift: translateY(-2px) → soft elevated shadow over ~180ms, degrades
+        // to shadow-only under prefers-reduced-motion. Centralised in globals.css §1.5.
         "liftable",
-        // Featured: folded-corner accent tab drawn with a CSS ::after triangle.
-        featured && [
-          "marketplace-card--featured",
-          "after:pointer-events-none after:absolute after:right-0 after:top-0 after:z-30 after:h-0 after:w-0",
-          "after:border-t-[28px] after:border-l-[28px] after:border-t-primary after:border-l-transparent",
-          "after:content-['']",
-        ]
+        // Featured: marker class retained as a styling hook (ribbon rendered below).
+        featured && "marketplace-card--featured"
       )}
     >
+      {/* Featured: a soft, upright clean ribbon/pill — no hard shadow, no rotation. */}
+      {featured ? (
+        <span
+          className="absolute right-3 top-3 z-30 inline-flex items-center rounded-full bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground shadow-sm"
+        >
+          Featured
+        </span>
+      ) : null}
+
       {/* Image — fills the top 60-70% of the card. aspect-ratio = width fraction interpreted as ratio token. */}
       <figure
         className="relative w-full overflow-hidden bg-muted"

@@ -120,31 +120,41 @@ describe('MarketplaceCard', () => {
     expect(figure2.style.aspectRatio).toBe('0.7')
   })
 
-  it('carries the neo-brutalist ink border + hard shadow + liftable hover utility (plan §6/§7)', () => {
+  it('carries the clean airbnb surface: light border, soft shadow, rounded-2xl + gentle liftable hover (C3)', () => {
     render(<MarketplaceCard {...baseProps} cta={{ label: 'View', href: '/a/1' }} />)
     const card = screen.getByTestId('marketplace-card')
-    // ink border
+    // light single border, not the heavy ink border
     expect(card.className).toMatch(/\bborder\b/)
-    expect(card.className).toMatch(/border-border-ink/)
-    // resting hard shadow token
+    expect(card.className).toMatch(/border-border\b/)
+    expect(card.className).not.toMatch(/border-border-ink/)
+    // soft resting shadow token (now soft, see globals.css §1)
     expect(card.className).toMatch(/\bshadow-card\b/)
-    // hover lift handled by the .liftable utility (translate -2,-2 → shadow-card-hover,
+    // generous rounded corners
+    expect(card.className).toMatch(/rounded-2xl/)
+    // gentle hover lift handled by the .liftable utility (translateY(-2px) → soft shadow,
     // reduced-motion shadow-only — defined once in globals.css §1.5)
     expect(card.className).toMatch(/\bliftable\b/)
   })
 
-  it('renders a folded-corner featured tab when featured is set', () => {
+  it('renders a clean soft featured ribbon when featured is set, upright with no hard shadow/rotation', () => {
     const { rerender } = render(
       <MarketplaceCard {...baseProps} cta={{ label: 'View', href: '/a/1' }} />
     )
     const plain = screen.getByTestId('marketplace-card')
     expect(plain.getAttribute('data-featured')).toBe('false')
+    expect(screen.queryByText(/featured/i)).toBeNull()
 
     rerender(<MarketplaceCard {...baseProps} featured cta={{ label: 'View', href: '/a/1' }} />)
     const featured = screen.getByTestId('marketplace-card')
     expect(featured.getAttribute('data-featured')).toBe('true')
-    // folded corner drawn via a CSS ::after on the card, toggled by a marker class
+    // marker class retained for styling hooks
     expect(featured.className).toMatch(/marketplace-card--featured/)
+    // soft clean pill/ribbon rendered as a real element (not a hard CSS triangle)
+    const ribbon = screen.getByText(/featured/i)
+    expect(ribbon).toBeInTheDocument()
+    // upright + flat: no rotation, no hard offset shadow on the ribbon
+    expect(ribbon.className).not.toMatch(/rotate-/)
+    expect(ribbon.className).not.toMatch(/shadow-\[/)
   })
 
   it('keeps the CTA reachable when the card itself is a link (no nested interactive in card link)', () => {

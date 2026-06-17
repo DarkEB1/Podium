@@ -38,12 +38,17 @@ describe('Card', () => {
     expect(card.getAttribute('data-size')).toBe('sm')
   })
 
-  it('carries the neo-brutalist ink border + hard shadow token (plan §6)', () => {
+  it('carries the clean airbnb surface: light border, soft shadow, rounded-2xl (C3)', () => {
     const { container } = render(<Card>x</Card>)
     const card = container.querySelector('[data-slot="card"]') as HTMLElement
+    // light single border, not the heavy ink border
     expect(card.className).toMatch(/\bborder\b/)
-    expect(card.className).toMatch(/border-border-ink/)
+    expect(card.className).toMatch(/border-border\b/)
+    expect(card.className).not.toMatch(/border-border-ink/)
+    // soft card shadow token (now soft, see globals.css §1)
     expect(card.className).toMatch(/\bshadow-card\b/)
+    // generous rounded corners
+    expect(card.className).toMatch(/rounded-2xl/)
   })
 
   it('forwards className and arbitrary props', () => {
