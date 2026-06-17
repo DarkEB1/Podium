@@ -5,6 +5,11 @@ import { Skeleton } from "@/components/ui/skeleton"
  * CardSkeleton — placeholder that mirrors MarketplaceCard's proportions so the
  * grid reserves the same footprint while data loads, preventing layout shift.
  * The image block uses aspect-[3/5] (= 0.6, MarketplaceCard's default imageRatio).
+ *
+ * Neo-brutalist silhouette (plan §6/§1.1): the ink border at --border-ink-width
+ * draws the same bordered box as the settled card, but the hard-offset
+ * --shadow-card is intentionally omitted while loading — the surface hasn't
+ * "landed" yet, so it reads as a reserved frame rather than an interactive card.
  */
 function CardSkeleton({ className }: { className?: string }) {
   return (
@@ -13,7 +18,11 @@ function CardSkeleton({ className }: { className?: string }) {
       role="status"
       aria-busy="true"
       className={cn(
-        "overflow-hidden rounded-[--radius] border border-border bg-card shadow-[--shadow-card]",
+        "overflow-hidden rounded-[--radius] border-[length:--border-ink-width] border-border-ink bg-card",
+        // Reduced-motion (plan §0.4): the pulse is a movement-based loading cue;
+        // freeze it for users who opt out. Scoped to skeletons inside this card
+        // so the shared Skeleton primitive's API is untouched.
+        "[&_[data-slot=skeleton]]:motion-reduce:animate-none",
         className
       )}
     >
