@@ -12,6 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { CountrySelect } from '@/components/ui/country-select'
+import { Combobox } from '@/components/ui/combobox'
 import { ImageUpload } from '@/components/ui/image-upload'
 import { RequiredKey } from '@/components/ui/required-key'
 import { cn } from '@/lib/utils'
@@ -55,6 +56,11 @@ const step2Schema = z.object({
   years_active: z.coerce.number().int().min(0).max(50).optional(),
   height_cm: z.coerce.number().int().min(100).max(250).optional(),
   weight_kg: z.coerce.number().min(30).max(200).optional(),
+  // Conditional secondary fields (§3A.3) — persisted to the B1 columns.
+  university_team: z.string().optional(),
+  highest_level: z.string().optional(),
+  academy_club: z.string().optional(),
+  national_programme: z.string().optional(),
 })
 
 const step3Schema = z.object({
@@ -100,7 +106,31 @@ const LEVEL_OPTIONS: { value: AthleteLevel; label: string }[] = [
   { value: 'semi_professional', label: 'Semi-Professional' },
   { value: 'professional', label: 'Professional' },
   { value: 'international', label: 'International' },
+  { value: 'university_bucs', label: 'University / BUCS' },
+  { value: 'academy', label: 'Academy' },
+  { value: 'national', label: 'National' },
 ]
+
+// UK university team options for the §3A.3 autocomplete. The Combobox runs in
+// allowCreate mode so athletes can type any team not listed here.
+const UNIVERSITY_TEAM_OPTIONS = [
+  { value: 'university-of-oxford', label: 'University of Oxford' },
+  { value: 'university-of-cambridge', label: 'University of Cambridge' },
+  { value: 'durham-university', label: 'Durham University' },
+  { value: 'loughborough-university', label: 'Loughborough University' },
+  { value: 'university-of-bath', label: 'University of Bath' },
+  { value: 'university-of-edinburgh', label: 'University of Edinburgh' },
+  { value: 'university-of-leeds', label: 'University of Leeds' },
+  { value: 'university-of-nottingham', label: 'University of Nottingham' },
+  { value: 'cardiff-university', label: 'Cardiff University' },
+  { value: 'university-of-birmingham', label: 'University of Birmingham' },
+]
+
+// Levels offered in the "highest level played outside university" picker (§3A.3) —
+// the five standard tiers, never the university/academy/national tiers themselves.
+const HIGHEST_LEVEL_OPTIONS = LEVEL_OPTIONS.filter(
+  (o) => !['university_bucs', 'academy', 'national'].includes(o.value)
+)
 
 function nextStep(current: number, isUnder18: boolean): number {
   if (current === 4 && !isUnder18) return 6
@@ -254,8 +284,14 @@ function Step2({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
       years_active: profile?.years_active ?? undefined,
       height_cm: profile?.height_cm ?? undefined,
       weight_kg: profile?.weight_kg ?? undefined,
+      university_team: profile?.university_team ?? '',
+      highest_level: profile?.highest_level ?? '',
+      academy_club: profile?.academy_club ?? '',
+      national_programme: profile?.national_programme ?? '',
     },
   })
+
+  const level = form.watch('level')
 
   async function onSubmit(values: Step2Values) {
     setLoading(true)
@@ -308,6 +344,66 @@ function Step2({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
             <FormMessage />
           </FormItem>
         )} />
+
+        {/* Conditional secondary fields per level (§3A.3). */}
+        {level === 'university_bucs' && (
+          <div className="space-y-4">
+            <FormField control={form.control} name="university_team" render={({ field }) => (
+              <FormItem>
+                <FormLabel htmlFor="university_team">University team</FormLabel>
+                <FormControl>
+                  <Combobox
+                    id="university_team"
+                    aria-label="University team"
+                    options={UNIVERSITY_TEAM_OPTIONS}
+                    value={field.value || null}
+                    onChange={(v) => form.setValue('university_team', v, { shouldValidate: true })}
+                    placeholder="Search your university team"
+                    allowCreate
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <FormField control={form.control} name="highest_level" render={({ field }) => (
+              <FormItem>
+                <FormLabel htmlFor="highest_level">Highest level played outside university?</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger id="highest_level" aria-label="Highest level played outside university?">
+                      <SelectValue placeholder="Select level" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {HIGHEST_LEVEL_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )} />
+          </div>
+        )}
+        {level === 'academy' && (
+          <FormField control={form.control} name="academy_club" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Academy / club</FormLabel>
+              <FormControl><Input placeholder="e.g. Arsenal Academy" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+        )}
+        {level === 'national' && (
+          <FormField control={form.control} name="national_programme" render={({ field }) => (
+            <FormItem>
+              <FormLabel>National programme</FormLabel>
+              <FormControl><Input placeholder="e.g. British Athletics World Class Programme" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+        )}
+
         <FormField control={form.control} name="position" render={({ field }) => (
           <FormItem>
             <FormLabel>Position / discipline</FormLabel>

@@ -57,6 +57,58 @@ describe('ProfileWizard', () => {
     expect(body).toMatchObject({ home_country: 'GB', profile_photo_url: 'https://cdn/x.jpg' })
   })
 
+  // spec §3A.3: 8 levels, conditional secondary fields per selected level.
+  it('step 2: all 8 levels are offered in the level selector', async () => {
+    render(<ProfileWizard step={2} profile={null} />)
+    await userEvent.click(screen.getByRole('combobox', { name: /level/i }))
+    for (const label of [
+      /^recreational$/i, /^amateur$/i, /^semi-professional$/i, /^professional$/i,
+      /^international$/i, /^university \/ bucs$/i, /^academy$/i, /^national$/i,
+    ]) {
+      expect(await screen.findByRole('option', { name: label })).toBeInTheDocument()
+    }
+  })
+
+  it('step 2: University/BUCS level reveals team autocomplete + highest-level-outside field', async () => {
+    const profile = { user_id: 'u1', is_under_18: false, status: 'draft', level: 'university_bucs' }
+    render(<ProfileWizard step={2} profile={profile as never} />)
+    expect(screen.getByLabelText(/university.*team/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/highest level played outside university/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/academy/i)).toBeNull()
+    expect(screen.queryByLabelText(/programme/i)).toBeNull()
+  })
+
+  it('step 2: Academy level reveals academy/club free text only', () => {
+    const profile = { user_id: 'u1', is_under_18: false, status: 'draft', level: 'academy' }
+    render(<ProfileWizard step={2} profile={profile as never} />)
+    expect(screen.getByLabelText(/academy.*club/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/university.*team/i)).toBeNull()
+    expect(screen.queryByLabelText(/programme/i)).toBeNull()
+  })
+
+  it('step 2: National level reveals programme free text only', () => {
+    const profile = { user_id: 'u1', is_under_18: false, status: 'draft', level: 'national' }
+    render(<ProfileWizard step={2} profile={profile as never} />)
+    expect(screen.getByLabelText(/programme/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/university.*team/i)).toBeNull()
+    expect(screen.queryByLabelText(/academy.*club/i)).toBeNull()
+  })
+
+  it('step 2: persists secondary fields for University/BUCS to the B1 columns', async () => {
+    const profile = {
+      user_id: 'u1', is_under_18: false, status: 'draft', level: 'university_bucs',
+      primary_sport: 'Rugby', university_team: '', highest_level: null,
+    }
+    render(<ProfileWizard step={2} profile={profile as never} />)
+    await userEvent.type(screen.getByLabelText(/highest level played outside university/i), 'amateur')
+    await userEvent.click(screen.getByRole('button', { name: /next/i }))
+    await waitFor(() => expect(fetch).toHaveBeenCalled())
+    const mockFetch = fetch as unknown as { mock: { calls: [string, { body: string }][] } }
+    const body = JSON.parse(mockFetch.mock.calls[0]![1].body) as Record<string, unknown>
+    expect(body).toHaveProperty('university_team')
+    expect(body).toHaveProperty('highest_level')
+  })
+
   it('step 5: guardian step is skipped when is_under_18 is false', () => {
     const profile = {
       user_id: 'u1', is_under_18: false, display_name: 'James', status: 'draft',
