@@ -4,14 +4,14 @@ import path from 'node:path'
 
 // C1 — clean Airbnb design token + typeface system contract.
 // Re-tokened away from neo-brutalism: soft grey borders, soft layered shadows,
-// 14px radius, flat warm off-white page (no paper-grain). Bricolage/DM Sans wiring kept.
+// 14px radius, flat warm off-white page (no paper-grain). Inter/DM Sans wiring kept.
 
 const css = readFileSync(path.resolve(__dirname, 'globals.css'), 'utf8')
 const layout = readFileSync(path.resolve(__dirname, 'layout.tsx'), 'utf8')
 
 describe('T1 design tokens (globals.css)', () => {
-  it('maps the heading typeface to Bricolage and body to DM Sans', () => {
-    expect(css).toMatch(/--font-heading:\s*var\(--font-bricolage\)/)
+  it('maps the heading typeface to Inter and body to DM Sans', () => {
+    expect(css).toMatch(/--font-heading:\s*var\(--font-inter\)/)
     expect(css).toMatch(/--font-sans:\s*var\(--font-dm-sans\)/)
   })
 
@@ -95,9 +95,9 @@ describe('T1 design tokens (globals.css)', () => {
 })
 
 describe('T1 typefaces (layout.tsx)', () => {
-  it('wires Bricolage Grotesque and DM Sans via next/font/google', () => {
+  it('wires Inter and DM Sans via next/font/google', () => {
     expect(layout).toMatch(/from ['"]next\/font\/google['"]/)
-    expect(layout).toMatch(/Bricolage_Grotesque/)
+    expect(layout).toMatch(/\bInter\b/)
     expect(layout).toMatch(/DM_Sans/)
   })
 
@@ -106,7 +106,7 @@ describe('T1 typefaces (layout.tsx)', () => {
   })
 
   it('binds the font CSS variables expected by the tokens', () => {
-    expect(layout).toMatch(/--font-bricolage/)
+    expect(layout).toMatch(/--font-inter/)
     expect(layout).toMatch(/--font-dm-sans/)
   })
 })

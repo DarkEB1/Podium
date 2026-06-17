@@ -6,9 +6,9 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
 
-  /* Two-typeface system (plan §1.2): Bricolage headings, DM Sans body */
+  /* Two-typeface system: Inter (Helvetica-like) headings, DM Sans body */
   --font-sans: var(--font-dm-sans);
-  --font-heading: var(--font-bricolage);
+  --font-heading: var(--font-inter);
   --font-mono: var(--font-geist-mono);
 
   /* Three-size type scale — the only permitted sizes (spec §2.2) */
