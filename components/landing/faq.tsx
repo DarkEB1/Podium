@@ -1,37 +1,93 @@
 'use client'
 
+import Link from 'next/link'
+import { Plus, Minus, ArrowRight } from 'lucide-react'
+import { buttonVariants } from '@/components/ui/button'
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
-  AccordionTrigger,
 } from '@/components/ui/accordion'
+import { Accordion as AccordionPrimitive } from '@base-ui/react/accordion'
 
 const faqs = [
-  { q: 'Is Podium really free for athletes and teams?', a: 'Yes. Athletes, teams, and agents never pay. All features — listing, searching, messaging, deal proposals, contracts, and payments — are completely free and unlimited.' },
-  { q: 'How does brand pricing work?', a: 'Brands pay a monthly subscription at Tier 1, Tier 2, or Tier 3. All tiers include a 7-day free trial with no charge during the trial period.' },
-  { q: 'How do e-signatures work?', a: 'Contracts are signed digitally via our integrated e-signature provider. Each signature is logged with a full audit trail including IP address, device, and timestamp.' },
-  { q: 'How are payments processed?', a: 'Payments go directly from brand to athlete or team via Stripe. Podium is not the employer or payroll agent — athletes and teams are responsible for their own tax obligations.' },
-  { q: 'What happens if I need to report a user?', a: 'Use the three-dot menu on any profile or message to file a report. All reports are reviewed by our admin team within 48 hours.' },
-  { q: 'How do I delete my account?', a: 'Go to Settings → Account → Delete Account. You have a 14-day grace period to change your mind. Your data is permanently deleted after that (except retained payment records, as required by law).' },
+  {
+    q: 'Is it really free for athletes and teams?',
+    a: 'One hundred percent free, forever. Athletes, teams, and agents never pay a penny — list your profile, message brands, sign contracts, and get paid with zero fees. Brands cover the cost, you keep the spotlight.',
+  },
+  {
+    q: 'How do brands find me?',
+    a: 'Brands search Podium by sport, location, audience size, and budget — your profile is your shop window. Keep it sharp with stats, highlights, and your availability, and the right sponsors come knocking. The stronger your profile, the higher you rank.',
+  },
+  {
+    q: 'How do payments work?',
+    a: 'Deals pay out directly from brand to athlete through Stripe — fast, secure, and traceable. Podium never sits between you and your money, so there are no payout fees on your side. You handle your own tax, we handle the plumbing.',
+  },
+  {
+    q: 'Do I need an agent?',
+    a: 'Nope — Podium cuts out the gatekeepers entirely. You deal with brands directly, on your terms, at your pace. Already have an agent? They can run your account for free too.',
+  },
+  {
+    q: 'What sports are supported?',
+    a: 'All of them. Football, athletics, rugby, netball, cycling, boxing, swimming, hockey, tennis, rowing — and plenty more. If you compete and have an audience, there is a brand on Podium for you.',
+  },
+  {
+    q: 'How do I get verified?',
+    a: 'Upload proof of your identity and competitive status, and our team reviews it within 48 hours. Once verified you get the blue badge that tells brands you are the real deal. Verified profiles win more deals, full stop.',
+  },
 ]
 
 export default function FAQ() {
   return (
-    <section id="faq" className="bg-muted/30 py-24">
+    <section id="faq" className="border-b-[1.5px] border-foreground bg-muted/30 py-24">
       <div className="mx-auto max-w-3xl px-6">
-        <h2 className="mb-10 text-center text-3xl font-bold">Frequently Asked Questions</h2>
-        <Accordion className="space-y-2">
+        <div className="mb-12 text-center">
+          <span className="inline-flex -rotate-2 items-center gap-2 rounded-full border-[1.5px] border-foreground bg-accent px-3 py-1 font-heading text-small font-extrabold shadow-[2px_2px_0_rgba(26,26,26,0.92)]">
+            FAQ
+          </span>
+          <h2 className="mt-5 font-heading text-4xl font-extrabold leading-[1.05] tracking-tight md:text-5xl">
+            Questions? We&apos;ve got answers
+          </h2>
+          <p className="mx-auto mt-4 max-w-md text-medium leading-relaxed text-muted-foreground">
+            Everything you need to know before you step on the Podium.
+          </p>
+        </div>
+
+        <Accordion className="space-y-3">
           {faqs.map((f) => {
             const slug = f.q.slice(0, 30).replace(/\s+/g, '-').toLowerCase()
             return (
-            <AccordionItem key={slug} value={slug} className="rounded-lg border bg-card px-4">
-              <AccordionTrigger className="text-left font-medium">{f.q}</AccordionTrigger>
-              <AccordionContent className="text-muted-foreground">{f.a}</AccordionContent>
-            </AccordionItem>
+              <AccordionItem
+                key={slug}
+                value={slug}
+                className="overflow-hidden rounded-[10px] border-[1.5px] border-foreground bg-card shadow-[3px_3px_0_rgba(26,26,26,0.92)] not-last:border-b-[1.5px] data-open:border-l-[6px] data-open:bg-accent/20"
+              >
+                <AccordionPrimitive.Header className="flex">
+                  <AccordionPrimitive.Trigger
+                    data-slot="accordion-trigger"
+                    className="group/faq flex flex-1 items-center justify-between gap-4 px-5 py-4 text-left font-heading text-medium font-extrabold leading-snug outline-none transition-colors hover:bg-accent/10 focus-visible:bg-accent/20 md:text-lg"
+                  >
+                    {f.q}
+                    <span className="grid size-7 shrink-0 place-items-center rounded-md border-[1.5px] border-foreground bg-card text-foreground transition-colors group-aria-expanded/faq:bg-accent">
+                      <Plus className="size-4 group-aria-expanded/faq:hidden" strokeWidth={2} />
+                      <Minus className="hidden size-4 group-aria-expanded/faq:block" strokeWidth={2} />
+                    </span>
+                  </AccordionPrimitive.Trigger>
+                </AccordionPrimitive.Header>
+                <AccordionContent className="px-5 text-medium leading-relaxed text-muted-foreground">
+                  {f.a}
+                </AccordionContent>
+              </AccordionItem>
             )
           })}
         </Accordion>
+
+        <div className="mt-12 flex flex-col items-center gap-3 text-center">
+          <p className="font-heading text-medium font-bold">Still curious? The best way to learn is to dive in.</p>
+          <Link href="/auth/signup" className={buttonVariants({ size: 'lg' })}>
+            Get started free <ArrowRight className="ml-1 h-4 w-4" strokeWidth={2.5} />
+          </Link>
+        </div>
       </div>
     </section>
   )
