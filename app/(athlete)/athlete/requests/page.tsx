@@ -27,7 +27,7 @@ export default async function AthleteRequestsPage() {
     <div className="mx-auto max-w-3xl space-y-10 px-6 py-12 md:px-16 md:py-16">
       <div>
         <h1 className="font-heading text-display tracking-tight text-foreground">Connection requests</h1>
-        <p className="mt-3 text-lg text-muted-foreground">{requests.length} pending</p>
+        <p className="mt-3 text-medium text-muted-foreground">{requests.length} pending</p>
       </div>
       <RequestsList requests={requests} />
     </div>

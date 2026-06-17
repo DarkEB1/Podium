@@ -34,7 +34,7 @@ export default async function AthleteDashboardPage() {
         <AccentHeading as="h1" className="text-display">
           Welcome back, {profile.display_name}
         </AccentHeading>
-        <p className="mt-3 max-w-[46ch] text-lg leading-relaxed text-muted-foreground">
+        <p className="mt-3 max-w-[46ch] text-medium leading-relaxed text-muted-foreground">
           {profile.status === 'pending_review'
             ? 'Your profile is under review. We will notify you when it goes live.'
             : 'Your profile is live.'}
