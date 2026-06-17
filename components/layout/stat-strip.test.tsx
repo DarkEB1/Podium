@@ -27,11 +27,21 @@ describe('StatStrip', () => {
     expect(screen.getAllByRole('listitem')).toHaveLength(2)
   })
 
-  it('gives each tile an ink border and hard shadow', () => {
+  it('gives each tile a clean light surface with a soft shadow', () => {
     render(<StatStrip stats={[{ label: 'A', value: '1' }]} />)
     const tile = screen.getByRole('listitem')
-    expect(tile.className).toContain('border-border-ink')
-    expect(tile.className).toContain('shadow-[var(--shadow-card)]')
+    // Clean Airbnb: single light border, soft resting shadow, no ink border.
+    expect(tile.className).toContain('border-border')
+    expect(tile.className).not.toContain('border-border-ink')
+    expect(tile.className).toContain('shadow-sm')
+    expect(tile.className).not.toMatch(/shadow-\[\d/)
+  })
+
+  it('lifts gently on hover instead of pressing into a hard shadow', () => {
+    render(<StatStrip stats={[{ label: 'A', value: '1' }]} />)
+    const tile = screen.getByRole('listitem')
+    expect(tile.className).toContain('hover:-translate-y-0.5')
+    expect(tile.className).not.toMatch(/rotate-/)
   })
 
   it('renders an aria-hidden Lucide icon when an icon component is passed', () => {

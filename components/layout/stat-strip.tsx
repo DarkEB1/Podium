@@ -19,10 +19,11 @@ interface StatStripProps {
 
 /**
  * StatStrip — a row of metric tiles (e.g. dashboard headline numbers).
- * Each tile is a bordered card (ink border + hard shadow) showing a large
- * value above a muted label, with an optional Lucide icon for the metric.
- * The icon is decorative (aria-hidden); the label remains the visible,
- * accessible text. Renders as a semantic list.
+ * Each tile is a clean, light card (single soft border + gentle shadow)
+ * showing a large value above a muted label, with an optional Lucide icon
+ * for the metric. Hovering lifts the tile slightly; motion is suppressed
+ * under prefers-reduced-motion. The icon is decorative (aria-hidden); the
+ * label remains the visible, accessible text. Renders as a semantic list.
  */
 export default function StatStrip({ stats, className }: StatStripProps) {
   return (
@@ -37,15 +38,20 @@ export default function StatStrip({ stats, className }: StatStripProps) {
         return (
           <li
             key={stat.label}
-            className="rounded-[var(--radius)] border-[length:--border-ink-width] border-border-ink bg-card p-4 shadow-[var(--shadow-card)]"
+            className={cn(
+              'rounded-2xl border border-border bg-card p-6',
+              'shadow-sm transition-[transform,box-shadow] duration-200 ease-out',
+              'hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.99]',
+              'motion-reduce:transform-none motion-reduce:transition-none',
+            )}
           >
             {StatIcon ? (
-              <Icon icon={StatIcon} className="mb-2 text-muted-foreground" />
+              <Icon icon={StatIcon} className="mb-3 text-muted-foreground" />
             ) : null}
             <p className="font-heading text-large font-semibold text-foreground">
               {stat.value}
             </p>
-            <p className="mt-1 text-small text-muted-foreground">{stat.label}</p>
+            <p className="mt-1.5 text-small text-muted-foreground">{stat.label}</p>
           </li>
         )
       })}
