@@ -29,7 +29,7 @@ export default function RequestsList({ requests: initial }: Props) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {requests.map((req) => (
         <ConnectionRequestCard
           key={req.id}

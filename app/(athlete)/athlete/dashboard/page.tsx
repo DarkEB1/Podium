@@ -29,12 +29,12 @@ export default async function AthleteDashboardPage() {
   const activeMatches = matches.filter((m) => m.status === 'active')
 
   return (
-    <div className="mx-auto max-w-5xl space-y-8 px-6 py-8 md:px-16">
+    <div className="mx-auto max-w-5xl space-y-12 px-6 py-12 md:px-16 md:py-16">
       <div>
-        <AccentHeading as="h1" className="text-large">
+        <AccentHeading as="h1" className="text-display">
           Welcome back, {profile.display_name}
         </AccentHeading>
-        <p className="mt-1 text-muted-foreground">
+        <p className="mt-3 max-w-[46ch] text-lg leading-relaxed text-muted-foreground">
           {profile.status === 'pending_review'
             ? 'Your profile is under review. We will notify you when it goes live.'
             : 'Your profile is live.'}

@@ -200,11 +200,11 @@ export default function ListingsGrid({ listings, loading = false }: Props) {
   const searchPlaceholder = `Search ${listings.length} campaigns by sport, brand or location…`
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Sticky toolbar: search + filter chips + sort (spec §3D.1) */}
       <div
         data-testid="discover-toolbar"
-        className="sticky top-0 z-20 -mx-4 space-y-3 border-b border-border bg-background/95 px-4 py-3 backdrop-blur supports-backdrop-filter:bg-background/80"
+        className="sticky top-0 z-20 -mx-6 space-y-3 border-b border-border bg-background/95 px-6 py-4 backdrop-blur supports-backdrop-filter:bg-background/80 md:-mx-16 md:px-16"
       >
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="relative flex-1">
@@ -265,7 +265,7 @@ export default function ListingsGrid({ listings, loading = false }: Props) {
       </p>
 
       {loading ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <CardSkeleton key={i} />
           ))}
@@ -279,7 +279,7 @@ export default function ListingsGrid({ listings, loading = false }: Props) {
       ) : (
         <div
           data-testid="listings-grid"
-          className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
+          className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3"
         >
           {filtered.map((l) => (
             <ListingCard key={l.id} listing={l} />
