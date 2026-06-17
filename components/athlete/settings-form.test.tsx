@@ -166,7 +166,7 @@ describe('SettingsForm', () => {
         expect.objectContaining({ method: 'PATCH' }),
       ),
     )
-  })
+  }, 15000) // interaction-heavy (clear + per-char type); extend timeout for full-suite parallel load
 
   // --- Section 2: Visibility & Discovery ---
 
