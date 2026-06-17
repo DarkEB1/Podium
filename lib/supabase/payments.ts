@@ -7,6 +7,7 @@ type SubscriptionUpdate = Database['public']['Tables']['subscriptions']['Update'
 type PaymentRow = Database['public']['Tables']['payments']['Row']
 type PaymentInsert = Database['public']['Tables']['payments']['Insert']
 type PaymentUpdate = Database['public']['Tables']['payments']['Update']
+type PaymentMethodRow = Database['public']['Tables']['payment_methods']['Row']
 
 export class PaymentsError extends Error {
   constructor(
@@ -210,6 +211,93 @@ export async function getContractForPayment(
     pay_amount: proposalData.pay_amount,
     pay_currency: proposalData.pay_currency ?? 'GBP',
   }
+}
+
+// ---------------------------------------------------------------------------
+// Billing history & seats (brand subscriptions)
+// ---------------------------------------------------------------------------
+
+export type BillingHistoryItem = {
+  id: string
+  amount: number
+  currency: string
+  status: PaymentRow['status']
+  created_at: string
+  receipt_url: string | null
+}
+
+// Brand billing history is sourced from the `payments` table (Stripe-synced),
+// surfacing the amount, status, and the receipt/invoice PDF url per charge.
+export async function getBillingHistory(
+  supabase: SupabaseClient<Database>,
+  brandId: string
+): Promise<BillingHistoryItem[]> {
+  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
+  const { data, error } = await (supabase as SupabaseClient)
+    .from('payments')
+    .select('id, amount, currency, status, created_at, receipt_url')
+    .eq('payer_id', brandId)
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    throw new PaymentsError('BILLING_HISTORY_FETCH_FAILED', (error as { message: string }).message)
+  }
+
+  return (data ?? []) as BillingHistoryItem[]
+}
+
+export type SeatSummary = {
+  seats_total: number
+  seats_used: number
+  members: PaymentMethodRow[]
+}
+
+// Lists the brand's subscription seat allocation. Seats are tracked as counts on
+// the subscription row (seats_total / seats_used); there is no per-seat member
+// table in v1, so members is returned empty until that schema lands.
+export async function listSeats(
+  supabase: SupabaseClient<Database>,
+  brandId: string
+): Promise<SeatSummary> {
+  const subscription = await getSubscription(supabase, brandId)
+
+  if (!subscription) {
+    throw new PaymentsError('SUBSCRIPTION_NOT_FOUND', 'No subscription for this brand')
+  }
+
+  return {
+    seats_total: subscription.seats_total,
+    seats_used: subscription.seats_used,
+    members: [],
+  }
+}
+
+// Releases one occupied seat by decrementing seats_used on the subscription.
+export async function removeSeat(
+  supabase: SupabaseClient<Database>,
+  brandId: string
+): Promise<SubscriptionRow> {
+  const subscription = await getSubscription(supabase, brandId)
+
+  if (!subscription) {
+    throw new PaymentsError('SUBSCRIPTION_NOT_FOUND', 'No subscription for this brand')
+  }
+
+  const nextUsed = Math.max(0, subscription.seats_used - 1)
+
+  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
+  const { data, error } = await (supabase as SupabaseClient)
+    .from('subscriptions')
+    .update({ seats_used: nextUsed })
+    .eq('brand_id', brandId)
+    .select()
+    .single()
+
+  if (error) {
+    throw new PaymentsError('SEAT_REMOVE_FAILED', (error as { message: string }).message)
+  }
+
+  return data as SubscriptionRow
 }
 
 export async function updatePaymentRecord(
