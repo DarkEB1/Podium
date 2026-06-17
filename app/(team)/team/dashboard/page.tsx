@@ -7,6 +7,8 @@ import { getMatches } from '@/lib/supabase/messaging'
 import { getListings } from '@/lib/supabase/discovery'
 import { getProposals } from '@/lib/supabase/deals'
 import StatStrip from '@/components/layout/stat-strip'
+import { AccentHeading } from '@/components/ui/accent-heading'
+import { SectionDivider } from '@/components/ui/section-divider'
 import { EmptyState } from '@/components/ui/empty-state'
 import { buttonVariants } from '@/components/ui/button'
 import type { Database } from '@/types/database'
@@ -61,11 +63,13 @@ export default async function TeamDashboardPage() {
   return (
     <div className="mx-auto max-w-5xl space-y-8 px-4 py-8">
       <div>
-        <h1 className="font-heading text-large font-semibold text-foreground">
+        <AccentHeading as="h1" className="text-large">
           Welcome, {teamName}
-        </h1>
+        </AccentHeading>
         <p className="mt-1 text-medium text-muted-foreground">{statusMessage}</p>
       </div>
+
+      <SectionDivider label="Your numbers" />
 
       <StatStrip
         stats={[

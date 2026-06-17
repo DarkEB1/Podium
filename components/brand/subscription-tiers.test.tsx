@@ -19,16 +19,28 @@ describe('SubscriptionTiers', () => {
     expect(screen.getAllByText(/tier 3/i).length).toBeGreaterThanOrEqual(1)
   })
 
-  it('highlights Tier 2 as Most Popular', () => {
+  it('highlights Tier 2 as Most Popular with a Sticker on a featured card', () => {
     render(<SubscriptionTiers subscription={null} />)
-    expect(screen.getByText(/most popular/i)).toBeInTheDocument()
+    // The "Most popular" label is rendered as a Sticker (rotated accent pill).
+    const sticker = screen.getByText(/most popular/i)
+    expect(sticker).toBeInTheDocument()
+    expect(sticker.closest('[data-slot="sticker"]')).not.toBeNull()
+    // The popular tier card carries the featured treatment.
+    expect(screen.getByTestId('tier-card-2')).toHaveAttribute('data-featured', 'true')
   })
 
-  it('shows a 7-day free trial headline on each card', () => {
+  it('shows a 7-day free trial Sticker on the featured card', () => {
     render(<SubscriptionTiers subscription={null} />)
-    const headlines = screen.getAllByText(/7-day free trial/i)
-    // one headline per card (the comparison footnote is excluded from the regex by being plural/different)
-    expect(headlines.length).toBeGreaterThanOrEqual(3)
+    const featured = screen.getByTestId('tier-card-2')
+    const trialSticker = within(featured).getByText(/7-day free trial/i)
+    expect(trialSticker.closest('[data-slot="sticker"]')).not.toBeNull()
+  })
+
+  it('still explains the 7-day free trial on every plan in the footnote', () => {
+    render(<SubscriptionTiers subscription={null} />)
+    expect(
+      screen.getByText(/every plan starts with a 7-day free trial/i),
+    ).toBeInTheDocument()
   })
 
   it('renders one Start Free Trial CTA per tier', () => {

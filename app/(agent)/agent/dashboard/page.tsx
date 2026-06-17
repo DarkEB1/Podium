@@ -5,6 +5,8 @@ import { getUser } from '@/lib/supabase/auth'
 import { getOwnProfile, getPublicProfile } from '@/lib/supabase/profiles'
 import { getAgentClients, getAgentDealPipeline } from '@/lib/supabase/agents'
 import StatStrip from '@/components/layout/stat-strip'
+import { AccentHeading } from '@/components/ui/accent-heading'
+import { SectionDivider } from '@/components/ui/section-divider'
 import DealPipeline, {
   stageForContractStatus,
   type PipelineDeal,
@@ -131,7 +133,9 @@ export default async function AgentDashboardPage() {
   return (
     <div className="mx-auto max-w-6xl space-y-8 px-4 py-8">
       <header className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="font-heading text-large font-bold">Agent dashboard</h1>
+        <AccentHeading as="h1" className="text-large">
+          Agent dashboard
+        </AccentHeading>
         {pendingActions > 0 ? (
           <span
             className="inline-flex items-center gap-2 rounded-full border border-warning/40 bg-warning/15 px-3 py-1 text-medium text-warning"
@@ -150,19 +154,21 @@ export default async function AgentDashboardPage() {
         )}
       </header>
 
+      <SectionDivider label="Your numbers" />
+
       <StatStrip stats={stats} />
 
       <section aria-labelledby="clients-heading" className="space-y-3">
-        <h2 id="clients-heading" className="font-heading text-large">
+        <AccentHeading as="h2" id="clients-heading" className="text-large">
           Clients
-        </h2>
+        </AccentHeading>
         <ClientRoster clients={clientRows} onRevoke={revokeClientAction} />
       </section>
 
       <section id="pipeline" aria-labelledby="pipeline-heading" className="space-y-3">
-        <h2 id="pipeline-heading" className="font-heading text-large">
+        <AccentHeading as="h2" id="pipeline-heading" className="text-large">
           Deal pipeline
-        </h2>
+        </AccentHeading>
         <DealPipeline deals={deals} />
       </section>
     </div>

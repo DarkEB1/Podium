@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Check, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { Sticker } from '@/components/ui/sticker'
 import { cn } from '@/lib/utils'
 import type { Database } from '@/types/database'
 
@@ -133,15 +134,32 @@ export default function SubscriptionTiers({ subscription }: Props) {
         {TIERS.map((t) => (
           <div
             key={t.tier}
+            data-testid={`tier-card-${t.tier}`}
+            data-featured={t.popular ? 'true' : 'false'}
             className={cn(
-              'relative flex flex-col rounded-xl border bg-card p-5 shadow-card',
-              t.popular ? 'border-accent ring-2 ring-accent' : 'border-border'
+              // Neo-brutalist surface (plan §1.1/§6): ink border + hard offset shadow.
+              'relative flex flex-col rounded-xl border border-border-ink bg-card p-5 shadow-card',
+              // Featured tier gets the folded-corner accent tab (same treatment as
+              // a featured MarketplaceCard, plan §7) and a heavier primary border.
+              t.popular && [
+                'border-primary',
+                'after:pointer-events-none after:absolute after:right-0 after:top-0 after:z-30 after:h-0 after:w-0',
+                'after:border-t-[28px] after:border-l-[28px] after:border-t-primary after:border-l-transparent',
+                "after:content-['']",
+              ]
             )}
           >
             {t.popular && (
-              <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-accent px-2 py-1 text-small font-semibold text-accent-foreground">
-                Most Popular
-              </span>
+              <>
+                {/* "Most popular" + "7-day free trial" bespoke Stickers (plan §7).
+                    Static rotation — no motion, nothing to gate behind reduced-motion. */}
+                <Sticker className="absolute -top-3 left-1/2 -translate-x-1/2 -rotate-2">
+                  Most popular
+                </Sticker>
+                <Sticker rotate={2} className="absolute -right-2 top-8">
+                  7-day free trial
+                </Sticker>
+              </>
             )}
             <div className="space-y-1">
               <p className="text-medium font-bold">{t.name}</p>
@@ -151,9 +169,11 @@ export default function SubscriptionTiers({ subscription }: Props) {
               <span className="text-large font-extrabold">{t.price}</span>
               <span className="text-medium text-muted-foreground">{t.cadence}</span>
             </div>
-            <p className="mt-2 text-medium font-semibold text-success">
-              Starts with a 7-day free trial
-            </p>
+            {!t.popular && (
+              <p className="mt-2 text-medium font-semibold text-success">
+                Starts with a 7-day free trial
+              </p>
+            )}
             <Button
               className="mt-4 w-full"
               variant={t.popular ? 'default' : 'outline'}
