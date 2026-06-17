@@ -34,11 +34,11 @@ export default async function BrandChatPage({
 
   return (
     <div className="mx-auto max-w-2xl h-screen flex flex-col">
-      <div className="flex items-center gap-3 border-b px-4 py-3">
+      <div className="flex items-center gap-3 border-b border-border px-6 py-4">
         <Link href="/brand/messages" className={buttonVariants({ variant: 'ghost', size: 'sm' })}>
           ←
         </Link>
-        <h1 className="font-semibold">Conversation</h1>
+        <h1 className="text-large">Conversation</h1>
       </div>
       <BrandChatEntry
         matchId={matchId}

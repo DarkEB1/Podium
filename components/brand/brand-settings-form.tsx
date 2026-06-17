@@ -132,7 +132,7 @@ export default function BrandSettingsForm({ profile, stats, subscription, billin
       {isPastDue && (
         <div
           role="alert"
-          className="flex flex-col gap-3 rounded-[var(--radius)] border border-destructive/40 bg-destructive/10 p-4 sm:flex-row sm:items-center sm:justify-between"
+          className="flex flex-col gap-3 rounded-2xl border border-destructive/40 bg-destructive/10 p-6 sm:flex-row sm:items-center sm:justify-between"
         >
           <div>
             <p className="font-medium text-destructive">Your last payment failed</p>
@@ -182,7 +182,7 @@ export default function BrandSettingsForm({ profile, stats, subscription, billin
             )} />
             <FormField control={form.control} name="trading_name" render={({ field }) => (
               <FormItem>
-                <FormLabel>Trading name <span className="text-muted-foreground text-xs">(optional)</span></FormLabel>
+                <FormLabel>Trading name <span className="text-muted-foreground text-small">(optional)</span></FormLabel>
                 <FormControl><Input {...field} /></FormControl>
                 <FormMessage />
               </FormItem>
@@ -205,21 +205,21 @@ export default function BrandSettingsForm({ profile, stats, subscription, billin
             </div>
             <FormField control={form.control} name="website_url" render={({ field }) => (
               <FormItem>
-                <FormLabel>Website <span className="text-muted-foreground text-xs">(optional)</span></FormLabel>
+                <FormLabel>Website <span className="text-muted-foreground text-small">(optional)</span></FormLabel>
                 <FormControl><Input type="url" {...field} /></FormControl>
                 <FormMessage />
               </FormItem>
             )} />
             <FormField control={form.control} name="linkedin_url" render={({ field }) => (
               <FormItem>
-                <FormLabel>LinkedIn <span className="text-muted-foreground text-xs">(optional)</span></FormLabel>
+                <FormLabel>LinkedIn <span className="text-muted-foreground text-small">(optional)</span></FormLabel>
                 <FormControl><Input type="url" {...field} /></FormControl>
                 <FormMessage />
               </FormItem>
             )} />
             <FormField control={form.control} name="description" render={({ field }) => (
               <FormItem>
-                <FormLabel>About your brand <span className="text-muted-foreground text-xs">(optional)</span></FormLabel>
+                <FormLabel>About your brand <span className="text-muted-foreground text-small">(optional)</span></FormLabel>
                 <FormControl>
                   <Textarea rows={4} className="resize-none" {...field} />
                 </FormControl>
@@ -240,7 +240,7 @@ export default function BrandSettingsForm({ profile, stats, subscription, billin
             Subscription &amp; seats
           </h2>
 
-          <div className="rounded-[var(--radius)] border bg-card p-4 shadow-[var(--shadow-card)]">
+          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
             <p className="text-medium text-foreground">
               Current plan: <span className="font-semibold">{currentTier?.name ?? `Tier ${subscription.tier}`}</span>
               {currentTier ? <span className="text-muted-foreground"> · £{currentTier.price}/mo</span> : null}
@@ -284,12 +284,12 @@ export default function BrandSettingsForm({ profile, stats, subscription, billin
               </span>
               .
             </p>
-            <ul className="divide-y rounded-[var(--radius)] border bg-card">
+            <ul className="divide-y divide-border rounded-2xl border border-border bg-card shadow-sm">
               {TIER_CATALOGUE.filter((t) => t.tier !== subscription.tier).map((t) => {
                 const diff = t.price - (currentTier?.price ?? 0)
                 const isUpgrade = diff > 0
                 return (
-                  <li key={t.tier} className="flex items-center justify-between px-4 py-3">
+                  <li key={t.tier} className="flex items-center justify-between px-6 py-4">
                     <div>
                       <p className="font-medium text-foreground">
                         {isUpgrade ? 'Upgrade' : 'Downgrade'} to {t.name}
@@ -324,9 +324,9 @@ export default function BrandSettingsForm({ profile, stats, subscription, billin
           {billing.length === 0 ? (
             <p className="text-small text-muted-foreground">No invoices yet.</p>
           ) : (
-            <ul className="divide-y rounded-[var(--radius)] border bg-card">
+            <ul className="divide-y divide-border rounded-2xl border border-border bg-card shadow-sm">
               {billing.map((item) => (
-                <li key={item.id} className="flex items-center justify-between px-4 py-3">
+                <li key={item.id} className="flex items-center justify-between px-6 py-4">
                   <div>
                     <p className="font-medium text-foreground">{formatGBP(item.amount)} {item.currency}</p>
                     <p className="text-small text-muted-foreground">

@@ -65,8 +65,8 @@ export default function ProposalForm({ matchId, onSent }: Props) {
   }
 
   return (
-    <div className="border-t pt-4">
-      <p className="text-sm font-semibold mb-3">Send a proposal</p>
+    <div className="border-t border-border pt-6">
+      <p className="text-large mb-4">Send a proposal</p>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
           <FormField control={form.control} name="title" render={({ field }) => (

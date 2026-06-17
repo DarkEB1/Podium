@@ -32,8 +32,8 @@ export default function CancelSubscription() {
   }
 
   return (
-    <div className="rounded-xl border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20 p-4 space-y-3">
-      <p className="text-sm font-medium text-red-800 dark:text-red-200">
+    <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-6 space-y-4">
+      <p className="text-medium font-medium text-destructive">
         Are you sure? You will lose access to brand features at the end of the billing period.
       </p>
       <div className="flex gap-2">

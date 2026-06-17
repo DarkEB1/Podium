@@ -19,19 +19,24 @@ export default async function BrandPaymentsPage() {
   const payments = (await getPaymentHistory(supabase, user.id)) as PaymentRow[]
 
   return (
-    <div className="mx-auto max-w-4xl px-6 py-8 space-y-8 md:px-16">
-      <h1 className="text-large font-bold">Payments</h1>
+    <div className="mx-auto max-w-4xl px-6 py-12 space-y-16 md:px-16 md:py-16">
+      <header className="space-y-3">
+        <h1 className="text-display">Payments</h1>
+        <p className="text-medium text-muted-foreground">
+          Initiate payments from signed deals and review your full history.
+        </p>
+      </header>
 
-      <section className="space-y-4">
-        <h2 className="text-large font-semibold">Initiate a payment</h2>
+      <section className="space-y-6">
+        <h2 className="text-large">Initiate a payment</h2>
         <p className="text-medium text-muted-foreground">
           Enter the contract ID from a fully signed deal to initiate a Stripe payment to the athlete or team.
         </p>
         <PaymentForm />
       </section>
 
-      <section className="space-y-4">
-        <h2 className="text-large font-semibold">Payment history</h2>
+      <section className="space-y-6">
+        <h2 className="text-large">Payment history</h2>
         {payments.length === 0 ? (
           <EmptyState
             icon={<Receipt aria-hidden="true" />}
@@ -39,17 +44,17 @@ export default async function BrandPaymentsPage() {
             description="Once you initiate a payment from a fully signed deal, its history will appear here."
           />
         ) : (
-          <ul className="divide-y rounded-xl border">
+          <ul className="divide-y divide-border rounded-2xl border border-border bg-card shadow-sm">
             {payments.map((p) => (
-              <li key={p.id} className="flex items-center justify-between px-4 py-3">
+              <li key={p.id} className="flex items-center justify-between px-6 py-4">
                 <div>
-                  <p className="text-medium font-medium font-mono">{p.contract_id.slice(0, 8)}…</p>
+                  <p className="text-medium font-medium font-mono text-foreground">{p.contract_id.slice(0, 8)}…</p>
                   <p className="text-small text-muted-foreground">
                     {new Date(p.created_at).toLocaleDateString()}
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="font-semibold">{p.currency} {p.amount.toLocaleString()}</p>
+                  <p className="font-semibold text-foreground">{p.currency} {p.amount.toLocaleString()}</p>
                   <span className={cn(
                     'text-small rounded-full border px-2 py-0.5',
                     p.status === 'succeeded' ? 'border-success/30 bg-success/15 text-success' :

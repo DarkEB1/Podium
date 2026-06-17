@@ -61,7 +61,7 @@ function ValueCell({ value }: { value: boolean | string }) {
       </span>
     )
   }
-  return <span className="text-sm">{value}</span>
+  return <span className="text-small text-foreground">{value}</span>
 }
 
 function CurrentSubscription({ subscription }: { subscription: SubscriptionRow }) {
@@ -128,20 +128,20 @@ export default function SubscriptionTiers({ subscription }: Props) {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-12">
       {/* Pricing cards — side by side on desktop, stacked on mobile */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-3">
         {TIERS.map((t) => (
           <div
             key={t.tier}
             data-testid={`tier-card-${t.tier}`}
             data-featured={t.popular ? 'true' : 'false'}
             className={cn(
-              // Clean Airbnb surface: white card, light border, soft layered shadow.
-              'relative flex flex-col rounded-2xl border border-border bg-card p-5 shadow-card',
+              // Flat, minimal surface: card background, hairline border, soft shadow.
+              'relative flex flex-col rounded-2xl border border-border bg-card p-6 shadow-sm',
               // Featured tier is highlighted with a primary border and a slightly
               // stronger soft shadow — no folded corner, no hard offset.
-              t.popular && 'border-primary shadow-lg'
+              t.popular && 'border-primary shadow-card'
             )}
           >
             {t.popular && (
@@ -170,7 +170,7 @@ export default function SubscriptionTiers({ subscription }: Props) {
               </p>
             )}
             <Button
-              className="mt-4 w-full"
+              className="mt-6 w-full"
               variant={t.popular ? 'default' : 'outline'}
               disabled={loadingTier !== null}
               onClick={() => handleStartTrial(t.tier)}

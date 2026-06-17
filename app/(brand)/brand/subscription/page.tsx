@@ -11,15 +11,15 @@ export default async function BrandSubscriptionPage() {
   const subscription = await getSubscriptionForUser(supabase, user.id)
 
   return (
-    <div className="mx-auto max-w-4xl px-6 py-8 space-y-6 md:px-16">
-      <div>
-        <h1 className="text-large font-bold">Subscription</h1>
-        <p className="text-muted-foreground">
+    <div className="mx-auto max-w-4xl px-6 py-12 space-y-12 md:px-16 md:py-16">
+      <header className="space-y-3">
+        <h1 className="text-display">Subscription</h1>
+        <p className="text-medium text-muted-foreground">
           {subscription
             ? 'Manage your current plan.'
             : 'Choose a plan to start discovering athletes and teams.'}
         </p>
-      </div>
+      </header>
       <SubscriptionTiers subscription={subscription} />
     </div>
   )
