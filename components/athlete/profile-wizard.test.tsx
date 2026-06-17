@@ -25,14 +25,36 @@ describe('ProfileWizard', () => {
     expect(await screen.findByText(/display name is required/i)).toBeInTheDocument()
   })
 
-  it('step 1: calls POST /api/profiles/me on first submit when profile is null', async () => {
+  // spec §3A.1–3A.2: country + profile photo are both mandatory and block advance.
+  it('step 1: renders a mandatory CountrySelect and circular profile photo upload', () => {
     render(<ProfileWizard step={1} profile={null} />)
+    expect(screen.getByLabelText(/country/i)).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: /profile photo/i })).toBeInTheDocument()
+    // Subtext nudging a clear face photo (spec §3A.2).
+    expect(screen.getByText(/clear photo of your face/i)).toBeInTheDocument()
+  })
+
+  it('step 1: cannot advance without a profile photo — shows the required message', async () => {
+    render(<ProfileWizard step={1} profile={null} />)
+    await userEvent.type(screen.getByLabelText(/display name/i), 'James')
+    await userEvent.click(screen.getByRole('button', { name: /next/i }))
+    expect(
+      await screen.findByText(/please add a profile photo to continue/i)
+    ).toBeInTheDocument()
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('step 1: calls POST /api/profiles/me once display name + photo + country are set', async () => {
+    render(<ProfileWizard step={1} profile={{ user_id: 'u1', profile_photo_url: 'https://cdn/x.jpg', home_country: 'GB', status: 'draft' } as never} />)
     await userEvent.type(screen.getByLabelText(/display name/i), 'James')
     await userEvent.type(screen.getByLabelText(/date of birth/i), '1998-05-12')
     await userEvent.click(screen.getByRole('button', { name: /next/i }))
     await waitFor(() =>
-      expect(fetch).toHaveBeenCalledWith('/api/profiles/me', expect.objectContaining({ method: 'POST' }))
+      expect(fetch).toHaveBeenCalledWith('/api/profiles/me', expect.objectContaining({ method: 'PATCH' }))
     )
+    const mockFetch = fetch as unknown as { mock: { calls: [string, { body: string }][] } }
+    const body = JSON.parse(mockFetch.mock.calls[0]![1].body) as Record<string, unknown>
+    expect(body).toMatchObject({ home_country: 'GB', profile_photo_url: 'https://cdn/x.jpg' })
   })
 
   it('step 5: guardian step is skipped when is_under_18 is false', () => {

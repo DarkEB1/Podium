@@ -11,6 +11,9 @@ import { Input } from '@/components/ui/input'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { CountrySelect } from '@/components/ui/country-select'
+import { ImageUpload } from '@/components/ui/image-upload'
+import { RequiredKey } from '@/components/ui/required-key'
 import { cn } from '@/lib/utils'
 import GuardianForm, { type GuardianValues } from './guardian-form'
 import type { Database } from '@/types/database'
@@ -27,7 +30,10 @@ const step1Schema = z.object({
   date_of_birth: z.string().optional(),
   phone: z.string().optional(),
   home_city: z.string().optional(),
-  home_country: z.string().optional(),
+  // Mandatory — selected via CountrySelect (ISO-3166), blocks advance (§3A.1).
+  home_country: z.string().min(1, 'Please select your country to continue.'),
+  // Mandatory — circular avatar, blocks advance (§3A.2).
+  profile_photo_url: z.string().min(1, 'Please add a profile photo to continue.'),
 })
 
 const step2Schema = z.object({
@@ -130,7 +136,8 @@ function Step1({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
       date_of_birth: profile?.date_of_birth ?? '',
       phone: profile?.phone ?? '',
       home_city: profile?.home_city ?? '',
-      home_country: profile?.home_country ?? '',
+      home_country: profile?.home_country ?? 'GB',
+      profile_photo_url: profile?.profile_photo_url ?? '',
     },
   })
 
@@ -154,6 +161,25 @@ function Step1({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <RequiredKey />
+
+        {/* Mandatory circular avatar at the top of the step (§3A.2). */}
+        <FormField control={form.control} name="profile_photo_url" render={({ field }) => (
+          <FormItem>
+            <ImageUpload
+              value={field.value || null}
+              onUploaded={(url) => form.setValue('profile_photo_url', url, { shouldValidate: true })}
+              aspect={1}
+              shape="circle"
+              label="Profile photo"
+              subtext="Use a clear photo of your face — this is the first thing brands see."
+              required
+              showError={false}
+            />
+            <FormMessage />
+          </FormItem>
+        )} />
+
         <FormField control={form.control} name="display_name" render={({ field }) => (
           <FormItem>
             <FormLabel>Display name</FormLabel>
@@ -161,21 +187,23 @@ function Step1({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
             <FormMessage />
           </FormItem>
         )} />
-        <FormField control={form.control} name="full_legal_name" render={({ field }) => (
-          <FormItem>
-            <FormLabel>Full legal name <span className="text-muted-foreground text-xs">(private)</span></FormLabel>
-            <FormControl><Input placeholder="For contracts" {...field} /></FormControl>
-            <FormMessage />
-          </FormItem>
-        )} />
-        <FormField control={form.control} name="date_of_birth" render={({ field }) => (
-          <FormItem>
-            <FormLabel>Date of birth <span className="text-muted-foreground text-xs">(private)</span></FormLabel>
-            <FormControl><Input type="date" {...field} /></FormControl>
-            <FormMessage />
-          </FormItem>
-        )} />
-        <div className="grid grid-cols-2 gap-4">
+
+        {/* Two-column desktop layout for simple fields (§10.2.3). */}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField control={form.control} name="full_legal_name" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Full legal name <span className="text-muted-foreground text-xs">(private)</span></FormLabel>
+              <FormControl><Input placeholder="For contracts" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+          <FormField control={form.control} name="date_of_birth" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Date of birth <span className="text-muted-foreground text-xs">(private)</span></FormLabel>
+              <FormControl><Input type="date" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
           <FormField control={form.control} name="home_city" render={({ field }) => (
             <FormItem>
               <FormLabel>City</FormLabel>
@@ -186,11 +214,17 @@ function Step1({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
           <FormField control={form.control} name="home_country" render={({ field }) => (
             <FormItem>
               <FormLabel>Country</FormLabel>
-              <FormControl><Input placeholder="United Kingdom" {...field} /></FormControl>
+              <FormControl>
+                <CountrySelect
+                  value={field.value || null}
+                  onChange={(iso) => form.setValue('home_country', iso, { shouldValidate: true })}
+                />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )} />
         </div>
+
         <FormField control={form.control} name="phone" render={({ field }) => (
           <FormItem>
             <FormLabel>Phone <span className="text-muted-foreground text-xs">(private)</span></FormLabel>
