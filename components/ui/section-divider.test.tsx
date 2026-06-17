@@ -3,26 +3,33 @@ import { describe, it, expect } from "vitest"
 import { SectionDivider } from "./section-divider"
 
 describe("SectionDivider", () => {
-  it("renders the label in a solid chip", () => {
+  it("renders the optional soft label", () => {
     render(<SectionDivider label="Your shortlist" />)
     expect(screen.getByText("Your shortlist")).toBeInTheDocument()
   })
 
-  it("renders an ink rule alongside the label chip", () => {
+  it("renders a light hairline rule alongside the label", () => {
     const { container } = render(<SectionDivider label="Deals" />)
-    // a separator role represents the rule
     const rule = container.querySelector('[data-slot="divider-rule"]')
     expect(rule).not.toBeNull()
-    expect(rule?.getAttribute("class") ?? "").toContain("bg-border-ink")
+    const cls = rule?.getAttribute("class") ?? ""
+    expect(cls).toContain("h-px")
+    expect(cls).toContain("bg-border")
   })
 
-  it("the label chip carries an ink border and solid fill", () => {
+  it("the label is a soft, borderless muted eyebrow", () => {
     const { container } = render(<SectionDivider label="Stats" />)
     const chip = container.querySelector('[data-slot="divider-label"]') as HTMLElement
     const cls = chip.getAttribute("class") ?? ""
-    expect(cls).toContain("border-border-ink")
-    expect(cls).toContain("bg-foreground")
-    expect(cls).toContain("text-background")
+    expect(cls).not.toContain("border-border-ink")
+    expect(cls).not.toContain("bg-foreground")
+    expect(cls).toContain("text-muted-foreground")
+  })
+
+  it("renders just the hairline when no label is given", () => {
+    const { container } = render(<SectionDivider />)
+    expect(container.querySelector('[data-slot="divider-label"]')).toBeNull()
+    expect(container.querySelector('[data-slot="divider-rule"]')).not.toBeNull()
   })
 
   it("merges a custom className on the root", () => {

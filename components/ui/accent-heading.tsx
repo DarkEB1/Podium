@@ -3,11 +3,11 @@ import { cn } from "@/lib/utils"
 type HeadingLevel = "h1" | "h2" | "h3" | "h4"
 
 /**
- * AccentHeading — a section heading with a highlighter-style accent swipe
- * behind the text (design §7), to energise and fill section titles.
+ * AccentHeading — a clean section heading with a subtle accent dot before the
+ * text (clean Airbnb aesthetic), replacing the old highlighter swipe.
  *
- * Renders a real heading element (`as`, default h2) so document outline and
- * screen-reader navigation are preserved. The swipe is a static, decorative
+ * Renders a real heading element (as, default h2) so document outline and
+ * screen-reader navigation are preserved. The dot is a static, decorative
  * element (aria-hidden) — no motion, so prefers-reduced-motion needs no
  * special handling here.
  */
@@ -21,17 +21,17 @@ function AccentHeading({
     <Tag
       data-slot="accent-heading"
       className={cn(
-        "relative inline-block font-heading font-semibold tracking-tight",
+        "inline-flex items-center gap-2.5 font-heading font-semibold tracking-tight",
         className
       )}
       {...props}
     >
       <span
-        data-slot="accent-swipe"
+        data-slot="accent-dot"
         aria-hidden="true"
-        className="absolute inset-x-0 bottom-0.5 -z-10 h-[0.45em] -rotate-1 bg-accent"
+        className="size-1.5 shrink-0 rounded-full bg-accent"
       />
-      <span className="relative">{children}</span>
+      <span>{children}</span>
     </Tag>
   )
 }

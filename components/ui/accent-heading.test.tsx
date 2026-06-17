@@ -8,7 +8,7 @@ describe("AccentHeading", () => {
     expect(screen.getByText("Your dashboard")).toBeInTheDocument()
   })
 
-  it("renders an h2 by default and honours the `as` level", () => {
+  it("renders an h2 by default and honours the as-level prop", () => {
     const { rerender } = render(<AccentHeading>Title</AccentHeading>)
     expect(screen.getByRole("heading", { level: 2 })).toBeInTheDocument()
 
@@ -22,12 +22,13 @@ describe("AccentHeading", () => {
     expect(heading.getAttribute("class") ?? "").toContain("font-heading")
   })
 
-  it("renders a decorative accent swipe behind the text", () => {
+  it("renders a subtle decorative accent dot, not a highlighter swipe", () => {
     const { container } = render(<AccentHeading>Hi</AccentHeading>)
-    const swipe = container.querySelector('[data-slot="accent-swipe"]') as HTMLElement
-    expect(swipe).not.toBeNull()
-    expect(swipe.getAttribute("aria-hidden")).toBe("true")
-    expect(swipe.getAttribute("class") ?? "").toContain("bg-accent")
+    const dot = container.querySelector('[data-slot="accent-dot"]') as HTMLElement
+    expect(dot).not.toBeNull()
+    expect(dot.getAttribute("aria-hidden")).toBe("true")
+    expect(dot.getAttribute("class") ?? "").toContain("bg-accent")
+    expect(container.querySelector('[data-slot="accent-swipe"]')).toBeNull()
   })
 
   it("merges a custom className on the heading", () => {
