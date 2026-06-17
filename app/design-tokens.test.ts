@@ -4,14 +4,14 @@ import path from 'node:path'
 
 // C1 — clean Airbnb design token + typeface system contract.
 // Re-tokened away from neo-brutalism: soft grey borders, soft layered shadows,
-// 14px radius, flat warm off-white page (no paper-grain). Inter/DM Sans wiring kept.
+// 14px radius, flat near-white page (no paper-grain). Nord palette; Geist/DM Sans wiring.
 
 const css = readFileSync(path.resolve(__dirname, 'globals.css'), 'utf8')
 const layout = readFileSync(path.resolve(__dirname, 'layout.tsx'), 'utf8')
 
 describe('T1 design tokens (globals.css)', () => {
-  it('maps the heading typeface to Inter and body to DM Sans', () => {
-    expect(css).toMatch(/--font-heading:\s*var\(--font-inter\)/)
+  it('maps the heading typeface to Geist and body to DM Sans', () => {
+    expect(css).toMatch(/--font-heading:\s*var\(--font-geist\)/)
     expect(css).toMatch(/--font-sans:\s*var\(--font-dm-sans\)/)
   })
 
@@ -31,17 +31,18 @@ describe('T1 design tokens (globals.css)', () => {
     expect(css).toMatch(/--text-small:\s*var\(--text-small\)/)
   })
 
-  it('page background is a warm off-white distinct from the white card surface', () => {
-    expect(css).toMatch(/--background:\s*oklch\(0\.985 0\.004 95\)/)
-    expect(css).toMatch(/--card:\s*oklch\(1 0 0\)/)
+  it('page background is near-white distinct from the white card surface', () => {
+    expect(css).toMatch(/--background:\s*#FAFAFC/)
+    expect(css).toMatch(/--card:\s*#FFFFFF/)
   })
 
-  it('uses a light grey border token', () => {
-    expect(css).toMatch(/--border:\s*oklch\(0\.92 0 0\)/)
+  it('uses the Nord snow-storm hairline border token', () => {
+    expect(css).toMatch(/--border:\s*#E5E9F0/)
   })
 
-  it('uses a punchier amber accent for flat blocks', () => {
-    expect(css).toMatch(/--accent:\s*oklch\(0\.80 0\.13 85\)/)
+  it('uses a frost-blue primary and a light frost accent tint', () => {
+    expect(css).toMatch(/--primary:\s*#5E81AC/)
+    expect(css).toMatch(/--accent:\s*#E5E9F0/)
   })
 
   it('defines soft layered card shadows', () => {
@@ -95,9 +96,9 @@ describe('T1 design tokens (globals.css)', () => {
 })
 
 describe('T1 typefaces (layout.tsx)', () => {
-  it('wires Inter and DM Sans via next/font/google', () => {
+  it('wires Geist and DM Sans via next/font/google', () => {
     expect(layout).toMatch(/from ['"]next\/font\/google['"]/)
-    expect(layout).toMatch(/\bInter\b/)
+    expect(layout).toMatch(/\bGeist\b/)
     expect(layout).toMatch(/DM_Sans/)
   })
 
@@ -106,7 +107,7 @@ describe('T1 typefaces (layout.tsx)', () => {
   })
 
   it('binds the font CSS variables expected by the tokens', () => {
-    expect(layout).toMatch(/--font-inter/)
+    expect(layout).toMatch(/--font-geist/)
     expect(layout).toMatch(/--font-dm-sans/)
   })
 })

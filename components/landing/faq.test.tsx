@@ -51,7 +51,7 @@ describe('FAQ (C19 clean Airbnb restyle)', () => {
     expect(html).toMatch(/motion-reduce:/)
   })
 
-  it('keeps Lucide toggle icons (plus/minus) and the Inter heading font', () => {
+  it('keeps Lucide toggle icons (plus/minus) and the Geist heading font', () => {
     const { container } = render(<FAQ />)
     // toggle icons render as svg
     expect(container.querySelectorAll('svg').length).toBeGreaterThan(0)

@@ -16,15 +16,15 @@ describe('Button re-skin (clean Airbnb)', () => {
     expect(btn.className).toMatch(/hover:shadow-md/)
     // gentle hover lift, motion-safe only (respects prefers-reduced-motion)
     expect(btn.className).toMatch(/motion-safe:hover:-translate-y-0\.5/)
-    // rounded clean corners
-    expect(btn.className).toMatch(/rounded-xl/)
+    // lightly-rounded squircle corners (12px)
+    expect(btn.className).toMatch(/rounded-\[12px\]/)
     // no brutalist ink border, hard press shadow, or .pressable utility
     expect(btn.className).not.toMatch(/border-border-ink/)
     expect(btn.className).not.toMatch(/shadow-press/)
     expect(btn.className).not.toMatch(/\bpressable\b/)
   })
 
-  it('renders its label in the heading font weight', () => {
+  it('renders its label in the DM Sans body font at semibold weight', () => {
     render(<Button>Go</Button>)
     const btn = getButton(/go/i)
     // heading-style weight, not the old font-medium

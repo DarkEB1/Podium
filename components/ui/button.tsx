@@ -9,7 +9,7 @@ const buttonVariants = cva(
   // No heavy ink borders or hard offset/press shadows. Motion respects
   // prefers-reduced-motion (transform/lift suppressed when reduced motion is set).
   // Label keeps the heading font (font-heading + font-semibold).
-  "group/button inline-flex shrink-0 items-center justify-center rounded-xl bg-clip-padding font-heading text-sm font-semibold whitespace-nowrap shadow-sm transition-all duration-200 outline-none select-none hover:shadow-md active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 aria-invalid:ring-2 aria-invalid:ring-destructive/20 motion-safe:hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/button inline-flex shrink-0 items-center justify-center rounded-[12px] bg-clip-padding font-sans text-sm font-semibold whitespace-nowrap shadow-sm transition-all duration-200 outline-none select-none hover:shadow-md active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 aria-invalid:ring-2 aria-invalid:ring-destructive/20 motion-safe:hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
@@ -29,13 +29,13 @@ const buttonVariants = cva(
           "h-9 gap-1.5 px-4 has-data-[icon=inline-end]:pr-3 has-data-[icon=inline-start]:pl-3",
         xs: "h-7 gap-1 rounded-lg px-2.5 text-xs in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 [&_svg:not([class*='size-'])]:size-3",
         sm: "h-8 gap-1 rounded-lg px-3 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 [&_svg:not([class*='size-'])]:size-3.5",
-        lg: "h-11 gap-2 rounded-2xl px-6 text-base has-data-[icon=inline-end]:pr-5 has-data-[icon=inline-start]:pl-5",
+        lg: "h-11 gap-2 rounded-[14px] px-6 text-base has-data-[icon=inline-end]:pr-5 has-data-[icon=inline-start]:pl-5",
         icon: "size-9",
         "icon-xs":
           "size-7 rounded-lg in-data-[slot=button-group]:rounded-lg [&_svg:not([class*='size-'])]:size-3",
         "icon-sm":
           "size-8 rounded-lg in-data-[slot=button-group]:rounded-lg",
-        "icon-lg": "size-11 rounded-2xl",
+        "icon-lg": "size-11 rounded-[14px]",
       },
     },
     defaultVariants: {

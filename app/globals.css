@@ -6,9 +6,9 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
 
-  /* Two-typeface system: Inter (Helvetica-like) headings, DM Sans body */
+  /* Type system: Geist (Helvetica-adjacent) headings; DM Sans body & buttons */
   --font-sans: var(--font-dm-sans);
-  --font-heading: var(--font-inter);
+  --font-heading: var(--font-geist);
   --font-mono: var(--font-geist-mono);
 
   /* Three-size type scale — the only permitted sizes (spec §2.2) */
@@ -74,51 +74,51 @@
   --text-medium: 1rem; /* labels / subtext */
   --text-small: 0.8125rem; /* metadata / timestamps */
 
-  /* Colour — PLACEHOLDER palette, oklch, semantic (plan §1.1, spec §2.3, §10.1) */
-  --background: oklch(0.985 0.004 95); /* page: warm off-white */
-  --foreground: oklch(0.20 0 0); /* primary text (near-black) */
-  --card: oklch(1 0 0); /* surface: white, distinct from page */
-  --card-foreground: oklch(0.20 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.20 0 0);
-  --primary: oklch(0.55 0.18 255); /* single action colour (placeholder blue) */
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.20 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.52 0 0); /* secondary/metadata (WCAG AA on card) */
-  --accent: oklch(0.80 0.13 85); /* warm amber accent for emotional touches */
-  --accent-foreground: oklch(0.20 0 0);
-  --success: oklch(0.62 0.17 150);
-  --warning: oklch(0.78 0.16 80);
-  --destructive: oklch(0.58 0.22 27); /* error */
-  --border: oklch(0.92 0 0); /* clean light-grey hairline border (C1) */
-  /* Legacy alias: border-border-ink now maps onto the same soft grey border. */
+  /* Colour — Nord palette (classic charcoal Polar Night + frost blues), light only */
+  --background: #FAFAFC; /* page: near-white */
+  --foreground: #2E3440; /* charcoal (Nord polar night) */
+  --card: #FFFFFF; /* surface */
+  --card-foreground: #2E3440;
+  --popover: #FFFFFF;
+  --popover-foreground: #2E3440;
+  --primary: #5E81AC; /* frost blue — single action colour */
+  --primary-foreground: #FFFFFF;
+  --secondary: #ECEFF4; /* snow storm */
+  --secondary-foreground: #2E3440;
+  --muted: #ECEFF4;
+  --muted-foreground: #4C566A; /* slate — secondary/metadata (AA on white) */
+  --accent: #E5E9F0; /* light frost tint for subtle surfaces */
+  --accent-foreground: #2E3440;
+  --success: #3B7A57; /* readable green for status text/icons */
+  --warning: #B7791F; /* readable amber for status text/icons */
+  --destructive: #BF616A; /* Nord aurora red */
+  --border: #E5E9F0; /* snow-storm hairline border */
+  /* Legacy alias: border-border-ink maps onto the soft grey border. */
   --border-ink: var(--border);
   --border-ink-width: 1px;
-  --input: oklch(0.92 0 0);
-  --ring: oklch(0.55 0.18 255);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --input: #E5E9F0;
+  --ring: #5E81AC;
+  --chart-1: #5E81AC;
+  --chart-2: #81A1C1;
+  --chart-3: #88C0D0;
+  --chart-4: #8FBCBB;
+  --chart-5: #4C566A;
 
   /* Radius & soft layered shadows (C1 — clean Airbnb) */
   --radius: 0.875rem; /* 14px */
   --shadow-card: 0 1px 2px rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.08);
   --shadow-card-hover: 0 10px 28px rgba(0,0,0,0.12);
   /* Soft focus ring (replaces the hard offset focus shadow). */
-  --shadow-focus: 0 0 0 3px oklch(0.55 0.18 255 / 0.35);
+  --shadow-focus: 0 0 0 3px rgba(94, 129, 172, 0.35);
 
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.20 0 0);
-  --sidebar-primary: oklch(0.55 0.18 255);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.72 0.15 45);
-  --sidebar-accent-foreground: oklch(0.20 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.55 0.18 255);
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #2E3440;
+  --sidebar-primary: #5E81AC;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #E5E9F0;
+  --sidebar-accent-foreground: #2E3440;
+  --sidebar-border: #E5E9F0;
+  --sidebar-ring: #5E81AC;
 }
 
 @layer base {
