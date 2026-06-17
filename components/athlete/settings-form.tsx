@@ -13,7 +13,7 @@ import { ImageUpload } from '@/components/ui/image-upload'
 import { CharacterCounter } from '@/components/ui/character-counter'
 import SettingsShell from '@/components/layout/settings-shell'
 import { createClient } from '@/lib/supabase/client'
-import { updateSettings } from '@/lib/supabase/settings'
+import { updateSettings, requestDataExport } from '@/lib/supabase/settings'
 import type { Database } from '@/types/database'
 
 type AthleteRow = Database['public']['Tables']['athlete_profiles']['Row']
@@ -22,6 +22,8 @@ type AthleteLevel = Database['public']['Enums']['athlete_level']
 type AvailabilityStatus = Database['public']['Enums']['availability_status']
 type SeekingType = Database['public']['Enums']['seeking_type']
 type UiMode = Database['public']['Enums']['ui_mode']
+type EmailDigest = Database['public']['Enums']['email_digest']
+type LocationPrecision = Database['public']['Enums']['location_precision']
 
 // --- Display labels (component-specific UI data) --------------------------
 
@@ -58,7 +60,61 @@ const AVAILABILITY_LABELS: Record<AvailabilityStatus, string> = {
 const SECTIONS = [
   { id: 'profile', label: 'Profile' },
   { id: 'visibility', label: 'Visibility & Discovery' },
+  { id: 'notifications', label: 'Notifications' },
+  { id: 'privacy', label: 'Privacy & Data' },
 ]
+
+// --- Section 3: Notifications ---------------------------------------------
+
+type NotificationChannel = 'push' | 'in_app' | 'email'
+type NotificationMatrix = Record<string, Partial<Record<NotificationChannel, boolean>>>
+
+const NOTIFICATION_EVENTS: { value: string; label: string }[] = [
+  { value: 'new_match', label: 'New match' },
+  { value: 'new_message', label: 'New message' },
+  { value: 'connection_request', label: 'Connection request' },
+  { value: 'deal_offer', label: 'Deal offer' },
+  { value: 'deal_update', label: 'Deal update' },
+  { value: 'payment_received', label: 'Payment received' },
+  { value: 'profile_view', label: 'Profile view' },
+  { value: 'verification_update', label: 'Verification update' },
+  { value: 'platform_news', label: 'Platform news' },
+]
+
+const NOTIFICATION_CHANNELS: { value: NotificationChannel; label: string }[] = [
+  { value: 'push', label: 'Push' },
+  { value: 'in_app', label: 'In-App' },
+  { value: 'email', label: 'Email' },
+]
+
+const EMAIL_DIGEST_OPTIONS: { value: EmailDigest; label: string }[] = [
+  { value: 'daily', label: 'Daily' },
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'off', label: 'Off' },
+]
+
+// --- Section 4: Privacy & Data --------------------------------------------
+
+type SectionVisibility = Record<string, boolean>
+
+const VISIBILITY_SECTIONS: { value: string; label: string }[] = [
+  { value: 'performance_stats', label: 'Performance stats' },
+  { value: 'achievements', label: 'Notable achievements' },
+  { value: 'social_accounts', label: 'Social accounts' },
+  { value: 'highlight_videos', label: 'Highlight videos' },
+  { value: 'location', label: 'Location' },
+]
+
+const LOCATION_PRECISION_OPTIONS: { value: LocationPrecision; label: string }[] = [
+  { value: 'city', label: 'City' },
+  { value: 'region', label: 'Region' },
+  { value: 'country', label: 'Country only' },
+]
+
+interface BlockedUser {
+  id: string
+  name: string
+}
 
 // --- Profile completeness -------------------------------------------------
 
@@ -98,11 +154,23 @@ interface Props {
    * defaults until the page is wired to pass the row.
    */
   settings?: SettingsRow | null
+  /**
+   * Block-list entries for the Privacy & Data section. Sourced server-side
+   * (the `blocks` table joined to display names) and passed in read-only;
+   * unblocking is handled by the optional callback.
+   */
+  blockedUsers?: BlockedUser[]
+  onUnblock?: (id: string) => void
 }
 
 const DEFAULT_VISIBILITY = { profile_visible: true, pause_matches: false }
 
-export default function SettingsForm({ profile, settings }: Props) {
+export default function SettingsForm({
+  profile,
+  settings,
+  blockedUsers = [],
+  onUnblock,
+}: Props) {
   const visibility = {
     profile_visible: settings?.profile_visible ?? DEFAULT_VISIBILITY.profile_visible,
     pause_matches: settings?.pause_matches ?? DEFAULT_VISIBILITY.pause_matches,
@@ -139,6 +207,97 @@ export default function SettingsForm({ profile, settings }: Props) {
   const [availableFrom, setAvailableFrom] = useState(profile.available_from_date ?? '')
   const [uiMode, setUiMode] = useState<UiMode>(profile.discovery_ui_mode)
   const [savingDiscovery, setSavingDiscovery] = useState(false)
+
+  // Section 3 — Notifications (all persist to profile_settings via updateSettings).
+  const [matrix, setMatrix] = useState<NotificationMatrix>(
+    (settings?.notification_matrix as NotificationMatrix) ?? {},
+  )
+  const [quietStart, setQuietStart] = useState(settings?.quiet_hours_start ?? '')
+  const [quietEnd, setQuietEnd] = useState(settings?.quiet_hours_end ?? '')
+  const [emailDigest, setEmailDigest] = useState<EmailDigest>(settings?.email_digest ?? 'weekly')
+  const [marketingOptIn, setMarketingOptIn] = useState(settings?.marketing_opt_in ?? false)
+  const [savingNotifications, setSavingNotifications] = useState(false)
+
+  // Section 4 — Privacy & Data.
+  const [discoverable, setDiscoverable] = useState(settings?.discoverable ?? true)
+  const [locationPrecision, setLocationPrecision] = useState<LocationPrecision>(
+    settings?.location_precision ?? 'city',
+  )
+  const [sectionVisibility, setSectionVisibility] = useState<SectionVisibility>(
+    (settings?.section_visibility as SectionVisibility) ?? {},
+  )
+  const [savingPrivacy, setSavingPrivacy] = useState(false)
+  const [exporting, setExporting] = useState(false)
+
+  function toggleChannel(event: string, channel: NotificationChannel) {
+    setMatrix((prev) => {
+      const row = prev[event] ?? {}
+      return { ...prev, [event]: { ...row, [channel]: !row[channel] } }
+    })
+  }
+
+  // section_visibility defaults to visible (true) when no explicit entry exists.
+  function isSectionVisible(key: string): boolean {
+    return sectionVisibility[key] ?? true
+  }
+
+  function toggleSectionVisibility(key: string) {
+    setSectionVisibility((prev) => ({ ...prev, [key]: !(prev[key] ?? true) }))
+  }
+
+  async function persistSettings(
+    patch: Database['public']['Tables']['profile_settings']['Update'],
+    setSaving: (v: boolean) => void,
+    successMsg: string,
+  ) {
+    setSaving(true)
+    try {
+      await updateSettings(createClient(), profile.user_id, patch)
+      toast.success(successMsg)
+    } catch {
+      toast.error('Failed to save setting')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function saveNotifications() {
+    await persistSettings(
+      {
+        notification_matrix: matrix,
+        quiet_hours_start: quietStart || null,
+        quiet_hours_end: quietEnd || null,
+        email_digest: emailDigest,
+        marketing_opt_in: marketingOptIn,
+      },
+      setSavingNotifications,
+      'Notification preferences saved',
+    )
+  }
+
+  async function savePrivacy() {
+    await persistSettings(
+      {
+        discoverable,
+        location_precision: locationPrecision,
+        section_visibility: sectionVisibility,
+      },
+      setSavingPrivacy,
+      'Privacy preferences saved',
+    )
+  }
+
+  async function downloadMyData() {
+    setExporting(true)
+    try {
+      await requestDataExport(createClient(), profile.user_id)
+      toast.success('Data export requested — we will email you a download link within 72 hours')
+    } catch {
+      toast.error('Failed to request data export')
+    } finally {
+      setExporting(false)
+    }
+  }
 
   const completeness = useMemo(
     () => buildCompleteness({ ...profile, profile_photo_url: photoUrl }),
@@ -595,6 +754,253 @@ export default function SettingsForm({ profile, settings }: Props) {
           <Button type="button" onClick={saveDiscovery} disabled={savingDiscovery}>
             {savingDiscovery ? 'Saving…' : 'Save discovery'}
           </Button>
+        </section>
+
+        {/* ---------------- Section 3: Notifications ---------------- */}
+        <section
+          id="notifications"
+          role="region"
+          aria-labelledby="notifications-heading"
+          className="space-y-6 border-t pt-8"
+        >
+          <h2 id="notifications-heading" className="text-large font-heading">
+            Notifications
+          </h2>
+
+          {/* Per-event Push / In-App / Email matrix */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-medium">
+              <caption className="sr-only">
+                Choose how you are notified for each event
+              </caption>
+              <thead>
+                <tr className="border-b text-small text-muted-foreground">
+                  <th scope="col" className="py-2 text-left font-medium">
+                    Event
+                  </th>
+                  {NOTIFICATION_CHANNELS.map((ch) => (
+                    <th key={ch.value} scope="col" className="px-3 py-2 text-center font-medium">
+                      {ch.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {NOTIFICATION_EVENTS.map((event) => (
+                  <tr key={event.value} className="border-b last:border-0">
+                    <th scope="row" className="py-3 text-left font-normal">
+                      {event.label}
+                    </th>
+                    {NOTIFICATION_CHANNELS.map((ch) => (
+                      <td key={ch.value} className="px-3 py-3 text-center">
+                        <div className="flex justify-center">
+                          <Switch
+                            aria-label={`${event.label} — ${ch.label}`}
+                            checked={Boolean(matrix[event.value]?.[ch.value])}
+                            onCheckedChange={() => toggleChannel(event.value, ch.value)}
+                          />
+                        </div>
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Quiet hours */}
+          <fieldset className="space-y-2">
+            <legend className="text-medium font-medium">Quiet hours</legend>
+            <p className="text-small text-muted-foreground">
+              Pause push notifications during these hours.
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="quiet_start" className="mb-1 block text-small text-muted-foreground">
+                  Quiet hours start
+                </label>
+                <Input
+                  id="quiet_start"
+                  type="time"
+                  value={quietStart}
+                  onChange={(e) => setQuietStart(e.target.value)}
+                />
+              </div>
+              <div>
+                <label htmlFor="quiet_end" className="mb-1 block text-small text-muted-foreground">
+                  Quiet hours end
+                </label>
+                <Input
+                  id="quiet_end"
+                  type="time"
+                  value={quietEnd}
+                  onChange={(e) => setQuietEnd(e.target.value)}
+                />
+              </div>
+            </div>
+          </fieldset>
+
+          {/* Email digest */}
+          <div>
+            <label htmlFor="email_digest" className="mb-1 block text-medium font-medium">
+              Email digest
+            </label>
+            <select
+              id="email_digest"
+              value={emailDigest}
+              onChange={(e) => setEmailDigest(e.target.value as EmailDigest)}
+              className="h-9 w-full rounded-[var(--radius)] border bg-card px-3 text-medium sm:w-64"
+            >
+              {EMAIL_DIGEST_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Marketing opt-in */}
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-medium font-medium" id="marketing-label">
+                Marketing emails
+              </p>
+              <p className="text-small text-muted-foreground">
+                Occasional product news, tips and offers from Podium.
+              </p>
+            </div>
+            <Switch
+              aria-labelledby="marketing-label"
+              aria-label="Marketing emails"
+              checked={marketingOptIn}
+              onCheckedChange={setMarketingOptIn}
+            />
+          </div>
+
+          <Button type="button" onClick={saveNotifications} disabled={savingNotifications}>
+            {savingNotifications ? 'Saving…' : 'Save notifications'}
+          </Button>
+        </section>
+
+        {/* ---------------- Section 4: Privacy & Data ---------------- */}
+        <section
+          id="privacy"
+          role="region"
+          aria-labelledby="privacy-heading"
+          className="space-y-6 border-t pt-8"
+        >
+          <h2 id="privacy-heading" className="text-large font-heading">
+            Privacy &amp; Data
+          </h2>
+
+          {/* Who can see me */}
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-medium font-medium" id="discoverable-label">
+                Who can see you
+              </p>
+              <p className="text-small text-muted-foreground">
+                When on, your profile can be discovered by brands. When off, only people you
+                connect with can see it.
+              </p>
+            </div>
+            <Switch
+              aria-labelledby="discoverable-label"
+              aria-label="Discoverable by brands"
+              checked={discoverable}
+              onCheckedChange={setDiscoverable}
+            />
+          </div>
+
+          {/* Per-section show / hide */}
+          <fieldset className="space-y-3">
+            <legend className="text-medium font-medium">Show or hide profile sections</legend>
+            {VISIBILITY_SECTIONS.map((s) => (
+              <div key={s.value} className="flex items-center justify-between gap-4">
+                <span className="text-medium" id={`vis-${s.value}-label`}>
+                  {s.label}
+                </span>
+                <Switch
+                  aria-labelledby={`vis-${s.value}-label`}
+                  aria-label={s.label}
+                  checked={isSectionVisible(s.value)}
+                  onCheckedChange={() => toggleSectionVisibility(s.value)}
+                />
+              </div>
+            ))}
+          </fieldset>
+
+          {/* Location precision */}
+          <div>
+            <label htmlFor="location_precision" className="mb-1 block text-medium font-medium">
+              Location precision
+            </label>
+            <select
+              id="location_precision"
+              value={locationPrecision}
+              onChange={(e) => setLocationPrecision(e.target.value as LocationPrecision)}
+              className="h-9 w-full rounded-[var(--radius)] border bg-card px-3 text-medium sm:w-64"
+            >
+              {LOCATION_PRECISION_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-small text-muted-foreground">
+              Controls how precisely your location is shown to others.
+            </p>
+          </div>
+
+          <Button type="button" onClick={savePrivacy} disabled={savingPrivacy}>
+            {savingPrivacy ? 'Saving…' : 'Save privacy'}
+          </Button>
+
+          {/* Block list */}
+          <div className="space-y-2 border-t pt-6">
+            <p className="text-medium font-medium">Blocked accounts</p>
+            {blockedUsers.length === 0 ? (
+              <p className="text-small text-muted-foreground">
+                You haven&apos;t blocked anyone.
+              </p>
+            ) : (
+              <ul className="space-y-1 text-small">
+                {blockedUsers.map((u) => (
+                  <li key={u.id} className="flex items-center justify-between gap-2">
+                    <span>{u.name}</span>
+                    <button
+                      type="button"
+                      className="text-primary hover:underline"
+                      onClick={() => onUnblock?.(u.id)}
+                    >
+                      Unblock
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* Data export + processing summary */}
+          <div className="space-y-3 border-t pt-6">
+            <p className="text-medium font-medium">Your data</p>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={downloadMyData}
+              disabled={exporting}
+            >
+              {exporting ? 'Requesting…' : 'Download my data'}
+            </Button>
+            <div className="rounded-[var(--radius)] border bg-card p-4 text-small text-muted-foreground shadow-card">
+              <p className="mb-1 font-medium text-foreground">How we use your data</p>
+              <p>
+                We store your profile to match you with brands, process payments via our payment
+                provider, and send the notifications you choose above. We never sell your personal
+                data. You can request a full export or deletion of your account at any time.
+              </p>
+            </div>
+          </div>
         </section>
       </div>
     </SettingsShell>

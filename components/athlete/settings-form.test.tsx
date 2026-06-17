@@ -21,8 +21,10 @@ type SettingsRow = Database['public']['Tables']['profile_settings']['Row']
 // updateSettings (B9) is the persistence path for the Visibility & Discovery
 // section. We assert the component calls it rather than hitting the DB.
 const updateSettingsMock = vi.fn()
+const requestDataExportMock = vi.fn()
 vi.mock('@/lib/supabase/settings', () => ({
   updateSettings: (...args: unknown[]) => updateSettingsMock(...args),
+  requestDataExport: (...args: unknown[]) => requestDataExportMock(...args),
 }))
 vi.mock('@/lib/supabase/client', () => ({
   createClient: () => ({ __browser: true }),
@@ -108,6 +110,8 @@ describe('SettingsForm', () => {
   beforeEach(() => {
     updateSettingsMock.mockReset()
     updateSettingsMock.mockResolvedValue(makeSettings())
+    requestDataExportMock.mockReset()
+    requestDataExportMock.mockResolvedValue({ id: 'ex1', status: 'pending' })
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue({ ok: true, json: async () => makeProfile() }),
@@ -214,5 +218,114 @@ describe('SettingsForm', () => {
     const availabilitySelect = within(region).getByLabelText(/availability/i)
     await userEvent.selectOptions(availabilitySelect, 'available_from')
     expect(screen.getByLabelText(/available from date/i)).toBeInTheDocument()
+  })
+
+  // --- Section 3: Notifications ---
+
+  it('renders a notifications section with a Push/In-App/Email matrix', () => {
+    render(<SettingsForm profile={makeProfile()} settings={makeSettings()} />)
+    const region = screen.getByRole('region', { name: /notifications/i })
+    expect(within(region).getByRole('columnheader', { name: /push/i })).toBeInTheDocument()
+    expect(within(region).getByRole('columnheader', { name: /in-app/i })).toBeInTheDocument()
+    expect(within(region).getByRole('columnheader', { name: /email/i })).toBeInTheDocument()
+    // a known event row
+    expect(within(region).getByText(/new match/i)).toBeInTheDocument()
+  })
+
+  it('writes the notification matrix as jsonb via updateSettings when a channel is toggled', async () => {
+    render(<SettingsForm profile={makeProfile()} settings={makeSettings()} />)
+    const region = screen.getByRole('region', { name: /notifications/i })
+    const toggle = within(region).getByRole('switch', {
+      name: /new match.*push/i,
+    })
+    fireEvent.click(toggle)
+    await userEvent.click(within(region).getByRole('button', { name: /save notifications/i }))
+    await waitFor(() =>
+      expect(updateSettingsMock).toHaveBeenCalledWith(
+        expect.anything(),
+        'u1',
+        expect.objectContaining({
+          notification_matrix: expect.objectContaining({
+            new_match: expect.objectContaining({ push: true }),
+          }),
+        }),
+      ),
+    )
+  })
+
+  it('persists quiet hours, digest and marketing opt-in via updateSettings', async () => {
+    render(<SettingsForm profile={makeProfile()} settings={makeSettings()} />)
+    const region = screen.getByRole('region', { name: /notifications/i })
+    fireEvent.change(within(region).getByLabelText(/quiet hours start/i), {
+      target: { value: '22:00' },
+    })
+    await userEvent.selectOptions(within(region).getByLabelText(/email digest/i), 'daily')
+    fireEvent.click(within(region).getByRole('switch', { name: /marketing/i }))
+    await userEvent.click(within(region).getByRole('button', { name: /save notifications/i }))
+    await waitFor(() =>
+      expect(updateSettingsMock).toHaveBeenCalledWith(
+        expect.anything(),
+        'u1',
+        expect.objectContaining({
+          quiet_hours_start: '22:00',
+          email_digest: 'daily',
+          marketing_opt_in: true,
+        }),
+      ),
+    )
+  })
+
+  // --- Section 4: Privacy & Data ---
+
+  it('renders a privacy & data section with who-can-see and location precision', () => {
+    render(<SettingsForm profile={makeProfile()} settings={makeSettings()} />)
+    const region = screen.getByRole('region', { name: /privacy & data/i })
+    expect(within(region).getByLabelText(/location precision/i)).toBeInTheDocument()
+    expect(within(region).getByText(/who can see/i)).toBeInTheDocument()
+  })
+
+  it('persists section visibility and location precision via updateSettings', async () => {
+    render(<SettingsForm profile={makeProfile()} settings={makeSettings()} />)
+    const region = screen.getByRole('region', { name: /privacy & data/i })
+    await userEvent.selectOptions(
+      within(region).getByLabelText(/location precision/i),
+      'country',
+    )
+    fireEvent.click(within(region).getByRole('switch', { name: /performance stats/i }))
+    await userEvent.click(within(region).getByRole('button', { name: /save privacy/i }))
+    await waitFor(() =>
+      expect(updateSettingsMock).toHaveBeenCalledWith(
+        expect.anything(),
+        'u1',
+        expect.objectContaining({
+          location_precision: 'country',
+          section_visibility: expect.objectContaining({ performance_stats: false }),
+        }),
+      ),
+    )
+  })
+
+  it('creates a data-export request when Download My Data is clicked', async () => {
+    render(<SettingsForm profile={makeProfile()} settings={makeSettings()} />)
+    const region = screen.getByRole('region', { name: /privacy & data/i })
+    await userEvent.click(
+      within(region).getByRole('button', { name: /download my data/i }),
+    )
+    await waitFor(() =>
+      expect(requestDataExportMock).toHaveBeenCalledWith(expect.anything(), 'u1'),
+    )
+  })
+
+  it('lists blocked users from props and shows a data-processing summary', () => {
+    render(
+      <SettingsForm
+        profile={makeProfile()}
+        settings={makeSettings()}
+        blockedUsers={[{ id: 'b1', name: 'Spam Brand' }]}
+      />,
+    )
+    const region = screen.getByRole('region', { name: /privacy & data/i })
+    expect(within(region).getByText(/spam brand/i)).toBeInTheDocument()
+    expect(within(region).getByText(/how we use your data/i)).toBeInTheDocument()
   })
 })
