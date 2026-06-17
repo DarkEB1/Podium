@@ -6,20 +6,25 @@ function getButton(name: RegExp | string): HTMLElement {
   return screen.getByRole('button', { name })
 }
 
-describe('Button re-skin (neo-brutalist, plan §6/§8 + §1.1/§1.5)', () => {
-  it('carries the ink border, hard press shadow, and .pressable interaction class', () => {
+describe('Button re-skin (clean Airbnb)', () => {
+  it('carries a soft rest shadow, gentle hover lift, and no brutalist styling', () => {
     render(<Button>Make your move</Button>)
     const btn = getButton(/make your move/i)
     expect(btn).toBeInTheDocument()
-    // ink border (plan §1.1 --border-ink via border-border-ink)
-    expect(btn.className).toMatch(/border-border-ink/)
-    // hard-offset press shadow token (plan §1.1 --shadow-press)
-    expect(btn.className).toMatch(/shadow-press/)
-    // press micro-interaction utility (plan §1.5 .pressable)
-    expect(btn.className).toMatch(/\bpressable\b/)
+    // soft rest shadow (no hard offset shadow)
+    expect(btn.className).toMatch(/\bshadow-sm\b/)
+    expect(btn.className).toMatch(/hover:shadow-md/)
+    // gentle hover lift, motion-safe only (respects prefers-reduced-motion)
+    expect(btn.className).toMatch(/motion-safe:hover:-translate-y-0\.5/)
+    // rounded clean corners
+    expect(btn.className).toMatch(/rounded-xl/)
+    // no brutalist ink border, hard press shadow, or .pressable utility
+    expect(btn.className).not.toMatch(/border-border-ink/)
+    expect(btn.className).not.toMatch(/shadow-press/)
+    expect(btn.className).not.toMatch(/\bpressable\b/)
   })
 
-  it('renders its label in the heading font weight (plan §6)', () => {
+  it('renders its label in the heading font weight', () => {
     render(<Button>Go</Button>)
     const btn = getButton(/go/i)
     // heading-style weight, not the old font-medium
@@ -72,7 +77,7 @@ describe('Button re-skin (neo-brutalist, plan §6/§8 + §1.1/§1.5)', () => {
     expect(btn).toBeDisabled()
     expect(btn.className).toMatch(/my-custom-class/)
     // base contract still present after className merge
-    expect(btn.className).toMatch(/border-border-ink/)
+    expect(btn.className).toMatch(/\bshadow-sm\b/)
   })
 
   it('link variant keeps a visible text label for accessibility', () => {
