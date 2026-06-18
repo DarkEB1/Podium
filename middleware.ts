@@ -6,6 +6,7 @@ const PUBLIC_PATHS = [
   '/auth',
   '/auth/callback',
   '/auth/confirm',
+  '/403',
   '/api/auth/signup',
   '/api/auth/login',
   '/api/auth/callback',
@@ -45,8 +46,10 @@ export async function middleware(request: NextRequest) {
     p === '/' ? pathname === '/' : pathname === p || pathname.startsWith(p + '/')
   )
   const isAdmin = ADMIN_PATHS.some((p) => pathname.startsWith(p))
+  // API routes handle their own auth and return 401 — never redirect them to /auth
+  const isApi = pathname.startsWith('/api/')
 
-  if (!user && !isPublic) {
+  if (!user && !isPublic && !isApi) {
     const url = request.nextUrl.clone()
     url.pathname = '/auth'
     return NextResponse.redirect(url)

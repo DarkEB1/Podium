@@ -162,6 +162,7 @@ export async function getPublicProfile(
     .from(table)
     .select('*')
     .eq('user_id', targetUserId)
+    .eq('status', 'active')
     .single()
 
   if (error) {
