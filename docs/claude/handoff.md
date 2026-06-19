@@ -1,72 +1,84 @@
 ---
-plan: Phase 4 — Admin Dashboard
-task: Phase 4 — COMPLETE (code done, Playwright blocked by missing env)
-status: blocked_playwright
-last_updated: 2026-05-27T15:00:00.000Z
-head_sha: f374bb5
+plan: Phase 5 — Deals UI, Contract Signing, Email Notifications
+task: Phase 5 — COMPLETE
+status: complete
+last_updated: 2026-06-19T12:58:00.000Z
+head_sha: b4ec8cc
 ---
 
 <current_state>
-Phase 4 (Admin Dashboard) is fully implemented and committed. All unit tests pass (551 tests, 70 files). Type-check and lint are clean. The only failing check is `npx playwright test --project=chromium` — this is blocked by a missing `.env.local` file with Supabase credentials, NOT by any code issue. Docker is not installed, so local Supabase cannot be started.
+Phase 5 is fully implemented and committed (commit b4ec8cc). All 572 unit tests pass (72 files). Type-check clean, lint warnings are pre-existing pattern only. Playwright E2E: 55/55 passing (Chromium headless-shell manually extracted).
 </current_state>
 
 <completed_work>
 
-- lib/supabase/admin.ts: added getAllAthleteProfiles, getAllBrandProfiles, getAllUsers, getAllListings, getPendingCount, getAthleteProfileById, getBrandProfileById, updateProfileStatus ✅
-- app/api/admin/profiles/[id]/route.ts: PATCH endpoint to approve/reject profiles (admin-only, service role key) ✅
-- app/(admin)/layout.tsx: admin layout with role guard (redirects non-admins to /403) ✅
-- app/(admin)/admin/dashboard/page.tsx: overview with pending counts, totals, quick actions ✅
-- app/(admin)/admin/athletes/page.tsx: list all athletes with status filter tabs ✅
-- app/(admin)/admin/athletes/[id]/page.tsx: athlete detail + ApproveRejectButtons ✅
-- app/(admin)/admin/brands/page.tsx: list all brands with status filter tabs ✅
-- app/(admin)/admin/brands/[id]/page.tsx: brand detail + ApproveRejectButtons ✅
-- app/(admin)/admin/listings/page.tsx: list all job listings with status filter ✅
-- app/(admin)/admin/users/page.tsx: list all users with role and joined date ✅
-- components/admin/approve-reject-buttons.tsx: confirmation flow before PATCH call ✅
-- components/admin/approve-reject-buttons.test.tsx: 5 tests, all passing ✅
-- components/admin/status-badge.tsx: reusable colour-coded status badge ✅
-- components/layout/nav-shell.tsx: admin nav updated (Dashboard, Athletes, Brands, Listings, Users) ✅
+## Phase 4 — Admin Dashboard (commit f374bb5)
+- Full admin approval/reject flow for athletes and brands ✅
+- Admin pages: dashboard, athletes, brands, listings, users ✅
+
+## Phase 5 — Deals, Contracts, Notifications (commit b4ec8cc)
+
+**Deals data layer (lib/supabase/deals.ts)**
+- getProposalsForUser: fetches all proposals for the current user (RLS scopes results) ✅
+- signContract: validates participant, checks idempotency, updates brand_signed_at or athlete_signed_at, transitions status through pending_brand_signature → pending_athlete_signature → fully_signed ✅
+
+**API routes**
+- POST /api/deals/contracts/[contractId]/sign: auth-gated, returns 404/403/409/200 ✅
+- /api/deals/proposals/[proposalId]/respond: now fires email to proposal sender after respond ✅
+
+**Email notifications (lib/notifications/email.ts)**
+- Resend-based, graceful no-op if RESEND_API_KEY not set ✅
+- sendProposalReceivedEmail, sendProposalRespondedEmail, sendContractFullySignedEmail ✅
+- Fire-and-forget pattern — email failures never block API responses ✅
+
+**UI components**
+- components/deals/proposal-card.tsx: displays proposal title, amount, pay type, status badge, timeline ✅
+- components/deals/contract-sign-button.tsx: client component, calls sign API, router.refresh() ✅
+
+**Pages**
+- app/(athlete)/athlete/deals/page.tsx: pending + history sections ✅
+- app/(athlete)/athlete/deals/[proposalId]/page.tsx: detail + accept/decline + contract sign ✅
+- app/(brand)/brand/deals/page.tsx: active + history sections ✅
+- app/(brand)/brand/deals/[proposalId]/page.tsx: detail + withdraw + contract sign ✅
+
+**Navigation**
+- Deals link added to athlete and brand nav in components/layout/nav-shell.tsx ✅
+
+**Tests: 572 passing**
+- lib/supabase/deals.test.ts: 45 tests (includes 12 new for getProposalsForUser + signContract)
+- app/api/deals/contracts/[contractId]/sign/route.test.ts: 5 tests
+- lib/notifications/email.test.ts: 6 tests
 </completed_work>
 
 <remaining_work>
-To unblock Playwright:
-1. Create `.env.local` from `.env.local.example` with real Supabase credentials (cloud project OR local with Docker Desktop installed)
-2. Run `npx supabase start` to start local Supabase (requires Docker)
-3. Re-run `npx playwright test --project=chromium`
-
-Next phase (once env is set up): Phase 5 — could be:
+Phase 6 candidates:
 - Landing page (public marketing page per spec Flow 1)
-- Deals/contracts flow (proposal → negotiation → e-signature → payment)
-- Notifications (email + push)
+- Stripe payment flow for contracts (pay_type: fixed, milestone, etc.)
+- Real-time messaging with Supabase Realtime
+- Push notifications (web push or Expo)
+- Agent dashboard (agent/clients management)
+
+To add email in production:
+1. Set RESEND_API_KEY in Vercel env vars
+2. Set RESEND_FROM_EMAIL (e.g. noreply@podium.app)
+3. Verify sending domain in Resend dashboard
 </remaining_work>
 
 <decisions_made>
 
-- Admin middleware: already implemented in middleware.ts (checks users.role === 'admin') — did NOT duplicate in layout; layout is an additional defence-in-depth check
-- Brand approve: sets brand_profiles.status = 'active' (brand_status enum)
-- Brand reject: sets brand_profiles.status = 'rejected' (brand_status enum)
-- Athlete approve: sets athlete_profiles.status = 'active' (profile_status enum)
-- Athlete reject: sets athlete_profiles.status = 'deactivated' (profile_status enum — 'rejected' not in profile_status, so 'deactivated' is used)
-- NavShell admin nav updated to: Dashboard, Athletes, Brands, Listings, Users (replacing old Reports/Audit links that had no pages)
-- updateProfileStatus uses createAdminClient (service role key) for the mutation — auth check happens first via createClient (anon key)
+- signContract uses adminSupabase for the UPDATE to bypass RLS (athlete_profiles and brand_profiles have restrictive RLS; contract updates need service role for cross-party writes)
+- getProposalsForUser ignores _userId param — RLS on proposals table already scopes results to participants; the param exists for API consistency/future use
+- Email is fire-and-forget: wrapped in void IIFE so email failures are caught and logged but never propagate to the HTTP response
+- ContractSignButton: hidden when status is fully_signed or terminated; shows "Waiting for other party" when the current user has already signed
+- Playwright Chromium binary was manually extracted from ZIP (Windows extraction stall bug in npx playwright install)
 </decisions_made>
 
-<blockers>
-**Playwright blocked — infrastructure only, not code:**
-- `npx playwright test --project=chromium` fails with "Timed out waiting 120000ms from config.webServer"
-- Root cause: middleware.ts throws "Missing required env vars: NEXT_PUBLIC_SUPABASE_URL" when any request arrives
-- No `.env.local` exists; Docker is not installed (local Supabase can't start)
-- Pre-existing condition — Playwright was never passing in this environment (brand.spec.ts from Phase 3 has the same requirement)
-- Fix: create `.env.local` with real Supabase credentials
-</blockers>
-
 <context>
-Phase 4 (Admin Dashboard) is code-complete. The marketplace now has full admin approval flows for athletes and brands. Admins can log in, see pending profiles, approve or reject them, view all users and listings.
+Podium marketplace now has: auth, profiles, discovery (listings, shortlist, blocks), messaging, payments (Stripe), admin dashboard, deals (proposals → contract → e-signature), and email notifications.
 
-The Playwright blocker is infrastructure (no Supabase credentials) not code. All 551 unit tests pass.
+Playwright: 55/55 passing. Chromium binary at C:\Users\eono2\AppData\Local\ms-playwright\chromium-headless-shell-1217\chrome-win\headless_shell.exe (manually extracted — do not delete).
 </context>
 
 <next_action>
-1. Create `.env.local` with Supabase credentials to unblock Playwright
-2. Decide Phase 5: landing page, deals/contracts, or notifications
+Decide Phase 6 feature. Landing page is the most impactful for public-facing demo.
 </next_action>
