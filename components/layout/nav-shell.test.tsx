@@ -18,8 +18,8 @@ describe('NavShell', () => {
     )
     const primary = screen.getByRole('navigation', { name: /primary/i })
     expect(within(primary).getByRole('link', { name: 'Discover' })).toBeInTheDocument()
-    expect(within(primary).getByRole('link', { name: 'Listings' })).toBeInTheDocument()
     expect(within(primary).getByRole('link', { name: 'Messages' })).toBeInTheDocument()
+    expect(within(primary).getByRole('link', { name: 'Deals' })).toBeInTheDocument()
     expect(within(primary).getByRole('link', { name: 'Profile' })).toBeInTheDocument()
   })
 
@@ -50,7 +50,7 @@ describe('NavShell', () => {
     expect(active.className).toMatch(/text-primary/)
     expect(active.className).toMatch(/font-semibold/)
     expect(active.className).not.toMatch(/border-border-ink/)
-    const inactive = within(primary).getByRole('link', { name: 'Listings' })
+    const inactive = within(primary).getByRole('link', { name: 'Deals' })
     expect(inactive.className).not.toMatch(/bg-primary\/10/)
   })
 
