@@ -272,6 +272,81 @@ export async function withdrawProposal(
 // Contracts
 // ---------------------------------------------------------------------------
 
+export async function getProposalsForUser(
+  supabase: SupabaseClient<Database>,
+  _userId: string
+): Promise<ProposalRow[]> {
+  const { data, error } = await (supabase as SupabaseClient)
+    .from('proposals')
+    .select('*')
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    throw new DealsError('PROPOSALS_FETCH_FAILED', (error as { message: string }).message)
+  }
+
+  return (data ?? []) as ProposalRow[]
+}
+
+export async function signContract(
+  supabase: SupabaseClient<Database>,
+  adminSupabase: SupabaseClient<Database>,
+  contractId: string,
+  userId: string
+): Promise<ContractRow> {
+  const { data: existing, error: fetchError } = await (supabase as SupabaseClient)
+    .from('contracts')
+    .select('*')
+    .eq('id', contractId)
+    .single()
+
+  if (fetchError) {
+    if ((fetchError as { code?: string }).code === 'PGRST116') {
+      throw new DealsError('CONTRACT_NOT_FOUND', 'Contract not found or not accessible')
+    }
+    throw new DealsError('CONTRACT_FETCH_FAILED', (fetchError as { message: string }).message)
+  }
+
+  const contract = existing as ContractRow
+  const isBrand = contract.brand_id === userId
+  const isAthlete = contract.athlete_or_team_id === userId
+
+  if (!isBrand && !isAthlete) {
+    throw new DealsError('NOT_PARTICIPANT', 'User is not a participant in this contract')
+  }
+
+  if (isBrand && contract.brand_signed_at) {
+    throw new DealsError('ALREADY_SIGNED', 'You have already signed this contract')
+  }
+  if (isAthlete && contract.athlete_signed_at) {
+    throw new DealsError('ALREADY_SIGNED', 'You have already signed this contract')
+  }
+
+  const now = new Date().toISOString()
+  const updates: Record<string, string> = {}
+
+  if (isBrand) {
+    updates.brand_signed_at = now
+    updates.status = contract.athlete_signed_at ? 'fully_signed' : 'pending_athlete_signature'
+  } else {
+    updates.athlete_signed_at = now
+    updates.status = contract.brand_signed_at ? 'fully_signed' : 'pending_brand_signature'
+  }
+
+  const { data: updated, error: updateError } = await (adminSupabase as SupabaseClient)
+    .from('contracts')
+    .update(updates)
+    .eq('id', contractId)
+    .select()
+    .single()
+
+  if (updateError) {
+    throw new DealsError('CONTRACT_SIGN_FAILED', (updateError as { message: string }).message)
+  }
+
+  return updated as ContractRow
+}
+
 export async function getContract(
   supabase: SupabaseClient<Database>,
   proposalId: string

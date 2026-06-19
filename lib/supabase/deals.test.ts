@@ -2,10 +2,12 @@ import { describe, it, expect, vi } from 'vitest'
 import {
   sendProposal,
   getProposals,
+  getProposalsForUser,
   respondToProposal,
   counterProposal,
   withdrawProposal,
   getContract,
+  signContract,
   DealsError,
 } from './deals'
 import type { SupabaseClient } from '@supabase/supabase-js'
@@ -568,6 +570,130 @@ describe('getContract', () => {
 
     await expect(getContract(client, 'p1')).rejects.toMatchObject({
       code: 'CONTRACT_FETCH_FAILED',
+    })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// getProposalsForUser
+// ---------------------------------------------------------------------------
+
+describe('getProposalsForUser', () => {
+  it('returns all proposals visible to the user ordered by created_at descending', async () => {
+    const { client, chain, mockFrom, queueList } = makeMockClient()
+    queueList([fakeProposal])
+
+    const result = await getProposalsForUser(client, 'brand1')
+
+    expect(mockFrom).toHaveBeenCalledWith('proposals')
+    expect(chain.order).toHaveBeenCalledWith('created_at', { ascending: false })
+    expect(result).toEqual([fakeProposal])
+  })
+
+  it('returns empty array when user has no proposals', async () => {
+    const { client, queueList } = makeMockClient()
+    queueList(null)
+
+    const result = await getProposalsForUser(client, 'brand1')
+
+    expect(result).toEqual([])
+  })
+
+  it('throws PROPOSALS_FETCH_FAILED on DB error', async () => {
+    const { client, queueList } = makeMockClient()
+    queueList(null, { message: 'db error' })
+
+    await expect(getProposalsForUser(client, 'brand1')).rejects.toMatchObject({
+      code: 'PROPOSALS_FETCH_FAILED',
+    })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// signContract
+// ---------------------------------------------------------------------------
+
+describe('signContract', () => {
+  it('records brand_signed_at and sets status to pending_athlete_signature when brand signs first', async () => {
+    const auth = makeMockClient()
+    const admin = makeMockClient()
+    auth.queueSingle(fakeContract)                         // fetch contract
+    admin.queueSingle({ ...fakeContract, brand_signed_at: '2026-06-01T00:00:00Z', status: 'pending_athlete_signature' }) // update
+
+    const result = await signContract(auth.client, admin.client, 'c1', 'brand1')
+
+    expect(admin.chain.update).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'pending_athlete_signature' })
+    )
+    expect(result.brand_signed_at).toBeTruthy()
+  })
+
+  it('records athlete_signed_at and sets status to pending_brand_signature when athlete signs first', async () => {
+    const auth = makeMockClient()
+    const admin = makeMockClient()
+    auth.queueSingle(fakeContract)
+    admin.queueSingle({ ...fakeContract, athlete_signed_at: '2026-06-01T00:00:00Z', status: 'pending_brand_signature' })
+
+    const result = await signContract(auth.client, admin.client, 'c1', 'athlete1')
+
+    expect(admin.chain.update).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'pending_brand_signature' })
+    )
+    expect(result.athlete_signed_at).toBeTruthy()
+  })
+
+  it('sets status to fully_signed when athlete signs and brand already signed', async () => {
+    const auth = makeMockClient()
+    const admin = makeMockClient()
+    auth.queueSingle({ ...fakeContract, brand_signed_at: '2026-06-01T00:00:00Z' })
+    admin.queueSingle({ ...fakeContract, brand_signed_at: '2026-06-01T00:00:00Z', athlete_signed_at: '2026-06-02T00:00:00Z', status: 'fully_signed' })
+
+    const result = await signContract(auth.client, admin.client, 'c1', 'athlete1')
+
+    expect(admin.chain.update).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'fully_signed' })
+    )
+    expect(result.status).toBe('fully_signed')
+  })
+
+  it('throws CONTRACT_NOT_FOUND when contract does not exist', async () => {
+    const auth = makeMockClient()
+    const admin = makeMockClient()
+    auth.queueSingle(null, { code: 'PGRST116', message: 'no rows' })
+
+    await expect(signContract(auth.client, admin.client, 'c1', 'brand1')).rejects.toMatchObject({
+      code: 'CONTRACT_NOT_FOUND',
+    })
+  })
+
+  it('throws NOT_PARTICIPANT when user is neither brand nor athlete', async () => {
+    const auth = makeMockClient()
+    const admin = makeMockClient()
+    auth.queueSingle(fakeContract)
+
+    await expect(signContract(auth.client, admin.client, 'c1', 'stranger')).rejects.toMatchObject({
+      code: 'NOT_PARTICIPANT',
+    })
+  })
+
+  it('throws ALREADY_SIGNED when brand tries to sign twice', async () => {
+    const auth = makeMockClient()
+    const admin = makeMockClient()
+    auth.queueSingle({ ...fakeContract, brand_signed_at: '2026-06-01T00:00:00Z' })
+
+    await expect(signContract(auth.client, admin.client, 'c1', 'brand1')).rejects.toMatchObject({
+      code: 'ALREADY_SIGNED',
+    })
+  })
+
+  it('throws CONTRACT_SIGN_FAILED on DB error during update', async () => {
+    const auth = makeMockClient()
+    const admin = makeMockClient()
+    auth.queueSingle(fakeContract)
+    admin.queueSingle(null, { message: 'db error' })
+
+    await expect(signContract(auth.client, admin.client, 'c1', 'brand1')).rejects.toMatchObject({
+      code: 'CONTRACT_SIGN_FAILED',
     })
   })
 })

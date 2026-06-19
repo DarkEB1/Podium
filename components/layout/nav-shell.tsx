@@ -21,6 +21,7 @@ const NAV_LINKS: Record<NavShellProps['role'], NavLink[]> = {
     { label: 'Saved', href: '/athlete/saved' },
     { label: 'Requests', href: '/athlete/requests' },
     { label: 'Messages', href: '/athlete/messages' },
+    { label: 'Deals', href: '/athlete/deals' },
   ],
   team: [
     { label: 'Dashboard', href: '/team/dashboard' },
@@ -32,6 +33,7 @@ const NAV_LINKS: Record<NavShellProps['role'], NavLink[]> = {
     { label: 'Discover', href: '/brand/discover' },
     { label: 'Listings', href: '/brand/listings' },
     { label: 'Messages', href: '/brand/messages' },
+    { label: 'Deals', href: '/brand/deals' },
   ],
   agent: [
     { label: 'Dashboard', href: '/agent/dashboard' },

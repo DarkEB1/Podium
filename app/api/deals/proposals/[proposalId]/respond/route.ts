@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { respondToProposal, DealsError } from '@/lib/supabase/deals'
+import { sendProposalRespondedEmail } from '@/lib/notifications/email'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 const VALID_ACTIONS = new Set(['accepted', 'declined'])
 
@@ -46,6 +48,26 @@ export async function POST(
       user.id,
       body.action as 'accepted' | 'declined'
     )
+
+    // Fire-and-forget: notify proposal sender of the response
+    ;(async () => {
+      try {
+        const { data: sender } = await (adminSupabase as SupabaseClient)
+          .from('users')
+          .select('email')
+          .eq('id', proposal.sender_id)
+          .single()
+        if (sender?.email) {
+          await sendProposalRespondedEmail(
+            sender.email,
+            proposal.title,
+            body.action as 'accepted' | 'declined',
+            user.email
+          )
+        }
+      } catch { /* email failure must not affect response */ }
+    })()
+
     return NextResponse.json(proposal)
   } catch (err) {
     if (err instanceof DealsError) {
