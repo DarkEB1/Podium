@@ -6,6 +6,7 @@ import { buttonVariants } from '@/components/ui/button'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import ContractSignButton from '@/components/deals/contract-sign-button'
+import ProposalRespondButtons from '@/components/deals/proposal-respond-buttons'
 import type { Database } from '@/types/database'
 
 type ContractRow = Database['public']['Tables']['contracts']['Row']
@@ -85,16 +86,7 @@ export default async function AthleteProposalDetailPage({
         </dl>
 
         {!isSender && proposal.status === 'pending' && (
-          <div className="flex gap-3 pt-2 border-t">
-            <form action={`/api/deals/proposals/${proposalId}/respond`} method="POST">
-              <input type="hidden" name="action" value="accepted" />
-              <button type="submit" className={cn(buttonVariants())}>Accept</button>
-            </form>
-            <form action={`/api/deals/proposals/${proposalId}/respond`} method="POST">
-              <input type="hidden" name="action" value="declined" />
-              <button type="submit" className={cn(buttonVariants({ variant: 'outline' }))}>Decline</button>
-            </form>
-          </div>
+          <ProposalRespondButtons proposalId={proposalId} />
         )}
       </div>
 

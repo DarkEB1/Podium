@@ -6,6 +6,7 @@ import { getContract } from '@/lib/supabase/deals'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import ContractSignButton from '@/components/deals/contract-sign-button'
+import ProposalWithdrawButton from '@/components/deals/proposal-withdraw-button'
 import type { Database } from '@/types/database'
 
 type ContractRow = Database['public']['Tables']['contracts']['Row']
@@ -82,17 +83,7 @@ export default async function BrandProposalDetailPage({
         </dl>
 
         {proposal.status === 'pending' && proposal.sender_id === user.id && (
-          <div className="pt-2 border-t">
-            <form action={`/api/deals/proposals/${proposalId}`} method="POST">
-              <input type="hidden" name="_method" value="DELETE" />
-              <button
-                type="submit"
-                className={cn(buttonVariants({ variant: 'outline' }))}
-              >
-                Withdraw proposal
-              </button>
-            </form>
-          </div>
+          <ProposalWithdrawButton proposalId={proposalId} />
         )}
       </div>
 
