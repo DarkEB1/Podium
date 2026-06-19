@@ -41,7 +41,7 @@ const NAV_ITEMS: Record<Role, NavItem[]> = {
     { label: 'Discover', href: '/athlete/discover', icon: Compass },
     { label: 'Messages', href: '/athlete/messages', icon: MessageSquare },
     { label: 'Deals', href: '/athlete/deals', icon: Handshake },
-    { label: 'Profile', href: '/athlete/profile', icon: User },
+    { label: 'Profile', href: '/athlete/settings', icon: User },
   ],
   brand: [
     { label: 'Discover', href: '/brand/discover', icon: Compass },
@@ -51,13 +51,13 @@ const NAV_ITEMS: Record<Role, NavItem[]> = {
   ],
   team: [
     { label: 'Discover', href: '/team/discover', icon: Compass },
-    { label: 'Listings', href: '/team/listings', icon: LayoutList },
+    { label: 'Dashboard', href: '/team/dashboard', icon: LayoutList },
     { label: 'Messages', href: '/team/messages', icon: MessageSquare },
-    { label: 'Profile', href: '/team/profile', icon: User },
+    { label: 'Settings', href: '/team/settings', icon: User },
   ],
   agent: [
-    { label: 'Discover', href: '/agent/discover', icon: Compass },
-    { label: 'Clients', href: '/agent/clients', icon: Users },
+    { label: 'Dashboard', href: '/agent/dashboard', icon: Compass },
+    { label: 'Clients', href: '/agent/dashboard', icon: Users },
     { label: 'Messages', href: '/agent/messages', icon: MessageSquare },
     { label: 'Profile', href: '/agent/profile', icon: User },
   ],
@@ -66,10 +66,10 @@ const NAV_ITEMS: Record<Role, NavItem[]> = {
 // Persistent, role-appropriate primary action shown top-right (and last in
 // the mobile bottom nav slot is the CTA-equivalent destination).
 const ROLE_CTA: Record<Role, RoleCta> = {
-  athlete: { label: 'Edit Profile', href: '/athlete/profile/edit' },
+  athlete: { label: 'Edit Profile', href: '/athlete/settings' },
   brand: { label: 'Post a Listing', href: '/brand/listings/new' },
-  team: { label: 'Post a Listing', href: '/team/listings/new' },
-  agent: { label: 'Add Client', href: '/agent/clients/new' },
+  team: { label: 'Settings', href: '/team/settings' },
+  agent: { label: 'Profile', href: '/agent/profile' },
 }
 
 function isActiveHref(pathname: string, href: string): boolean {
