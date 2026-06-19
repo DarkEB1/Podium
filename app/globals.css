@@ -2,14 +2,36 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
-
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
+
+  /* Type system: Geist (Helvetica-adjacent) headings; DM Sans body & buttons */
+  --font-sans: var(--font-dm-sans);
+  --font-heading: var(--font-geist);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+
+  /* Three-size type scale — the only permitted sizes (spec §2.2) */
+  --text-large: var(--text-large);
+  --text-medium: var(--text-medium);
+  --text-small: var(--text-small);
+  /* Display tier (D1) — exposes the text-display utility alongside large/medium/small */
+  --text-display: var(--text-display);
+
+  /* Semantic colour utilities (spec §2.3) */
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+
+  /* Soft layered card shadow utilities (C1): shadow-card / -hover / -focus */
+  --shadow-card: var(--shadow-card);
+  --shadow-card-hover: var(--shadow-card-hover);
+  /* Legacy aliases kept so dependent components resolve until re-styled; both
+     map onto the soft tokens (no hard neo-brutalist offsets remain). */
+  --shadow-press: var(--shadow-card);
+  --shadow-focus: var(--shadow-focus);
+
+  /* Border colour utility (border-border-ink): now the soft grey border. */
+  --color-border-ink: var(--border-ink);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -49,72 +71,59 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-}
+  /* Type scale — exactly three sizes (plan §1.1, spec §2.2) */
+  --text-large: 1.5rem; /* headings / names */
+  --text-medium: 1rem; /* labels / subtext */
+  --text-small: 0.8125rem; /* metadata / timestamps */
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  /* Display tier (D1) — big page titles only; gl5-audit forbids raw text-2xl..7xl but allows text-display */
+  --text-display: clamp(2rem, 1.2rem + 3vw, 3rem);
+
+  /* Colour — Nord palette (classic charcoal Polar Night + frost blues), light only */
+  --background: #FAFAFC; /* page: near-white */
+  --foreground: #2E3440; /* charcoal (Nord polar night) */
+  --card: #FFFFFF; /* surface */
+  --card-foreground: #2E3440;
+  --popover: #FFFFFF;
+  --popover-foreground: #2E3440;
+  --primary: #5E81AC; /* frost blue — single action colour */
+  --primary-foreground: #FFFFFF;
+  --secondary: #ECEFF4; /* snow storm */
+  --secondary-foreground: #2E3440;
+  --muted: #ECEFF4;
+  --muted-foreground: #4C566A; /* slate — secondary/metadata (AA on white) */
+  --accent: #E5E9F0; /* light frost tint for subtle surfaces */
+  --accent-foreground: #2E3440;
+  --success: #3B7A57; /* readable green for status text/icons */
+  --warning: #B7791F; /* readable amber for status text/icons */
+  --destructive: #BF616A; /* Nord aurora red */
+  --border: #E5E9F0; /* snow-storm hairline border */
+  /* Legacy alias: border-border-ink maps onto the soft grey border. */
+  --border-ink: var(--border);
+  --border-ink-width: 1px;
+  --input: #E5E9F0;
+  --ring: #5E81AC;
+  --chart-1: #5E81AC;
+  --chart-2: #81A1C1;
+  --chart-3: #88C0D0;
+  --chart-4: #8FBCBB;
+  --chart-5: #4C566A;
+
+  /* Radius & soft layered shadows (C1 — clean Airbnb) */
+  --radius: 0.875rem; /* 14px */
+  --shadow-card: 0 1px 2px rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.08);
+  --shadow-card-hover: 0 10px 28px rgba(0,0,0,0.12);
+  /* Soft focus ring (replaces the hard offset focus shadow). */
+  --shadow-focus: 0 0 0 3px rgba(94, 129, 172, 0.35);
+
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #2E3440;
+  --sidebar-primary: #5E81AC;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #E5E9F0;
+  --sidebar-accent-foreground: #2E3440;
+  --sidebar-border: #E5E9F0;
+  --sidebar-ring: #5E81AC;
 }
 
 @layer base {
@@ -123,8 +132,43 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Clean flat warm off-white page (C1) — no paper grain, white cards on top. */
+    line-height: 1.55;
   }
   html {
     @apply font-sans;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    /* Heading rhythm + typeface (plan §1.1, §1.2) */
+    font-family: var(--font-heading);
+    line-height: 1.18;
+    letter-spacing: -0.01em;
+  }
+}
+
+/* Motion utilities (C1) — gentle Airbnb-style feedback; degrades under reduced motion. */
+.pressable {
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.pressable:active {
+  /* Subtle press: a small scale only, no hard offset translate. */
+  transform: scale(0.99);
+}
+.liftable {
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.liftable:hover {
+  /* Gentle lift on the Y axis + soft elevated shadow. */
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card-hover);
+}
+@media (prefers-reduced-motion: reduce) {
+  .pressable,
+  .liftable {
+    transition: box-shadow 0.12s ease;
+  }
+  .pressable:active,
+  .liftable:hover {
+    transform: none;
   }
 }

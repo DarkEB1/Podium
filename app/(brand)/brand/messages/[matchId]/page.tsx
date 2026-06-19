@@ -5,8 +5,7 @@ import { getUser } from '@/lib/supabase/auth'
 import { getMessages } from '@/lib/supabase/messaging'
 import { getProposals } from '@/lib/supabase/deals'
 import { buttonVariants } from '@/components/ui/button'
-import ChatWindow from '@/components/messaging/chat-window'
-import ProposalForm from '@/components/brand/proposal-form'
+import BrandChatEntry from '@/components/messaging/brand-chat-entry'
 import type { Database } from '@/types/database'
 
 type MessageRow = Database['public']['Tables']['messages']['Row']
@@ -35,21 +34,18 @@ export default async function BrandChatPage({
 
   return (
     <div className="mx-auto max-w-2xl h-screen flex flex-col">
-      <div className="flex items-center gap-3 border-b px-4 py-3">
+      <div className="flex items-center gap-3 border-b border-border px-6 py-4">
         <Link href="/brand/messages" className={buttonVariants({ variant: 'ghost', size: 'sm' })}>
           ←
         </Link>
-        <h1 className="font-semibold">Conversation</h1>
+        <h1 className="text-large">Conversation</h1>
       </div>
-      <ChatWindow
+      <BrandChatEntry
         matchId={matchId}
         initialMessages={messages}
         proposals={proposals}
         currentUserId={user.id}
       />
-      <div className="border-t p-4">
-        <ProposalForm matchId={matchId} onSent={() => {}} />
-      </div>
     </div>
   )
 }

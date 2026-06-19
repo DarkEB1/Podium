@@ -38,23 +38,75 @@ const makelisting = (overrides: Partial<JobListingRow>): JobListingRow => ({
 
 describe('ListingsGrid', () => {
   it('renders all listing titles', () => {
-    const listings = [makelisting({ id: 'l1', title: 'Football Deal' }), makelisting({ id: 'l2', title: 'Tennis Deal', sport_required: 'Tennis' })]
+    const listings = [
+      makelisting({ id: 'l1', title: 'Football Deal' }),
+      makelisting({ id: 'l2', title: 'Tennis Deal', sport_required: 'Tennis' }),
+    ]
     render(<ListingsGrid listings={listings} />)
     expect(screen.getByText('Football Deal')).toBeInTheDocument()
     expect(screen.getByText('Tennis Deal')).toBeInTheDocument()
   })
 
-  it('filters listings by sport search', async () => {
-    const listings = [makelisting({ id: 'l1', title: 'Football Deal', sport_required: 'Football' }), makelisting({ id: 'l2', title: 'Tennis Deal', sport_required: 'Tennis' })]
+  it('uses a responsive 3/2/1 column grid', () => {
+    render(<ListingsGrid listings={[makelisting({ id: 'l1' })]} />)
+    const grid = screen.getByTestId('listings-grid')
+    expect(grid.className).toMatch(/grid-cols-1/)
+    expect(grid.className).toMatch(/sm:grid-cols-2/)
+    expect(grid.className).toMatch(/lg:grid-cols-3/)
+  })
+
+  it('has a sticky search bar with a smart placeholder mentioning the count', () => {
+    render(<ListingsGrid listings={[makelisting({ id: 'l1' }), makelisting({ id: 'l2' })]} />)
+    const search = screen.getByRole('searchbox')
+    expect(search.getAttribute('placeholder')).toMatch(/2 campaigns/i)
+    // sticky container
+    expect(screen.getByTestId('discover-toolbar').className).toMatch(/sticky/)
+  })
+
+  it('shows a results count that updates with filtering', async () => {
+    const listings = [
+      makelisting({ id: 'l1', title: 'Football Deal', sport_required: 'Football' }),
+      makelisting({ id: 'l2', title: 'Tennis Deal', sport_required: 'Tennis' }),
+    ]
     render(<ListingsGrid listings={listings} />)
-    await userEvent.type(screen.getByPlaceholderText(/search/i), 'Tennis')
+    expect(screen.getByTestId('results-count')).toHaveTextContent(/2 results/i)
+    await userEvent.type(screen.getByRole('searchbox'), 'Tennis')
+    expect(screen.getByTestId('results-count')).toHaveTextContent(/1 result/i)
+  })
+
+  it('renders horizontal filter chips for each facet', () => {
+    render(<ListingsGrid listings={[makelisting({ id: 'l1' })]} />)
+    for (const label of ['Sport', 'Budget', 'Location', 'Industry', 'Verified']) {
+      expect(screen.getByRole('button', { name: new RegExp(label, 'i') })).toBeInTheDocument()
+    }
+  })
+
+  it('opens a Sport filter dropdown and filters by selection', async () => {
+    const listings = [
+      makelisting({ id: 'l1', title: 'Football Deal', sport_required: 'Football' }),
+      makelisting({ id: 'l2', title: 'Tennis Deal', sport_required: 'Tennis' }),
+    ]
+    render(<ListingsGrid listings={listings} />)
+    await userEvent.click(screen.getByRole('button', { name: /sport/i }))
+    await userEvent.click(await screen.findByRole('option', { name: 'Tennis' }))
     expect(screen.queryByText('Football Deal')).toBeNull()
     expect(screen.getByText('Tennis Deal')).toBeInTheDocument()
   })
 
-  it('shows empty state when no listings match', async () => {
+  it('offers sort options', () => {
+    render(<ListingsGrid listings={[makelisting({ id: 'l1' })]} />)
+    expect(screen.getByLabelText(/sort/i)).toBeInTheDocument()
+  })
+
+  it('renders skeleton loaders (not a spinner) while loading', () => {
+    render(<ListingsGrid listings={[]} loading />)
+    expect(screen.getAllByRole('status').length).toBeGreaterThan(0)
+    expect(screen.queryByTestId('listings-grid')).toBeNull()
+  })
+
+  it('shows a designed empty state when no listings match', async () => {
     render(<ListingsGrid listings={[makelisting({ id: 'l1', sport_required: 'Football' })]} />)
-    await userEvent.type(screen.getByPlaceholderText(/search/i), 'Archery')
-    expect(screen.getByText(/no listings/i)).toBeInTheDocument()
+    await userEvent.type(screen.getByRole('searchbox'), 'Archery')
+    expect(screen.getByText(/no campaigns/i)).toBeInTheDocument()
   })
 })

@@ -1,0 +1,60 @@
+import type { LucideIcon } from 'lucide-react'
+import { Icon } from '@/components/ui/icon'
+import { iconMap, type IconConcept } from '@/lib/copy/icon-map'
+import { cn } from '@/lib/utils'
+
+interface Stat {
+  label: string
+  value: string
+  /** Pass a Lucide icon component directly... */
+  icon?: LucideIcon
+  /** ...or reference one of the shared icon-map concepts. */
+  iconKey?: IconConcept
+}
+
+interface StatStripProps {
+  stats: Stat[]
+  className?: string
+}
+
+/**
+ * StatStrip — a row of metric tiles (e.g. dashboard headline numbers).
+ * Each tile is a clean, light card (single soft border + gentle shadow)
+ * showing a large value above a muted label, with an optional Lucide icon
+ * for the metric. Hovering lifts the tile slightly; motion is suppressed
+ * under prefers-reduced-motion. The icon is decorative (aria-hidden); the
+ * label remains the visible, accessible text. Renders as a semantic list.
+ */
+export default function StatStrip({ stats, className }: StatStripProps) {
+  return (
+    <ul
+      className={cn(
+        'grid grid-cols-2 gap-6 sm:grid-cols-4',
+        className,
+      )}
+    >
+      {stats.map((stat) => {
+        const StatIcon = stat.icon ?? (stat.iconKey ? iconMap[stat.iconKey] : undefined)
+        return (
+          <li
+            key={stat.label}
+            className={cn(
+              'rounded-2xl border border-border bg-card p-8',
+              'shadow-sm transition-[transform,box-shadow] duration-200 ease-out',
+              'hover:-translate-y-0.5 hover:shadow-card active:scale-[0.99]',
+              'motion-reduce:transform-none motion-reduce:transition-none',
+            )}
+          >
+            {StatIcon ? (
+              <Icon icon={StatIcon} className="mb-4 text-muted-foreground" />
+            ) : null}
+            <p className="font-heading text-display font-semibold leading-none tracking-tight text-foreground">
+              {stat.value}
+            </p>
+            <p className="mt-3 text-small text-muted-foreground">{stat.label}</p>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}

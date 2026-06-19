@@ -3,7 +3,6 @@ import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getOwnProfile } from '@/lib/supabase/profiles'
 import { getListing } from '@/lib/supabase/discovery'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import ListingForm from '@/components/brand/listing-form'
 import type { Database } from '@/types/database'
 
@@ -29,15 +28,11 @@ export default async function EditListingPage({
   if (!listing || listing.brand_id !== profile.id) redirect('/brand/listings')
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8">
-      <Card>
-        <CardHeader>
-          <CardTitle>Edit listing</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ListingForm listing={listing} />
-        </CardContent>
-      </Card>
+    <div className="mx-auto max-w-3xl space-y-10 px-6 py-12 md:px-16 md:py-16">
+      <h1 className="font-heading text-display font-extrabold tracking-tight text-foreground">
+        Edit listing
+      </h1>
+      <ListingForm listing={listing} />
     </div>
   )
 }

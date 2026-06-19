@@ -11,13 +11,20 @@ import { Input } from '@/components/ui/input'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { CountrySelect } from '@/components/ui/country-select'
+import { Combobox } from '@/components/ui/combobox'
+import { ImageUpload } from '@/components/ui/image-upload'
+import { CardSelectGroup } from '@/components/ui/card-select'
+import { RequiredKey } from '@/components/ui/required-key'
 import { cn } from '@/lib/utils'
+import { copy } from '@/lib/copy'
 import GuardianForm, { type GuardianValues } from './guardian-form'
 import type { Database } from '@/types/database'
 
 type AthleteRow = Database['public']['Tables']['athlete_profiles']['Row']
 type AthleteLevel = Database['public']['Enums']['athlete_level']
 type AvailabilityStatus = Database['public']['Enums']['availability_status']
+type SeekingType = Database['public']['Enums']['seeking_type']
 
 // ─── Schemas ─────────────────────────────────────────────────────────────────
 
@@ -27,17 +34,36 @@ const step1Schema = z.object({
   date_of_birth: z.string().optional(),
   phone: z.string().optional(),
   home_city: z.string().optional(),
-  home_country: z.string().optional(),
+  // Mandatory — selected via CountrySelect (ISO-3166), blocks advance (§3A.1).
+  home_country: z.string().min(1, 'Please select your country to continue.'),
+  // Mandatory — circular avatar, blocks advance (§3A.2).
+  profile_photo_url: z.string().min(1, 'Please add a profile photo to continue.'),
 })
 
 const step2Schema = z.object({
   primary_sport: z.string().min(1, 'Primary sport is required'),
   secondary_sport: z.string().optional(),
-  level: z.enum(['recreational', 'amateur', 'semi_professional', 'professional', 'international'] as const).optional(),
+  level: z
+    .enum([
+      'recreational',
+      'amateur',
+      'semi_professional',
+      'professional',
+      'international',
+      'university_bucs',
+      'academy',
+      'national',
+    ] as const)
+    .optional(),
   position: z.string().optional(),
   years_active: z.coerce.number().int().min(0).max(50).optional(),
   height_cm: z.coerce.number().int().min(100).max(250).optional(),
   weight_kg: z.coerce.number().min(30).max(200).optional(),
+  // Conditional secondary fields (§3A.3) — persisted to the B1 columns.
+  university_team: z.string().optional(),
+  highest_level: z.string().optional(),
+  academy_club: z.string().optional(),
+  national_programme: z.string().optional(),
 })
 
 const step3Schema = z.object({
@@ -69,6 +95,14 @@ interface Props {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+// §3A.4: clean, human-readable availability labels (never the raw enum values).
+// Mirrors the AvailabilityBadge wording in components/ui/status-badges.tsx (§1.2).
+const AVAILABILITY_OPTIONS: { value: AvailabilityStatus; label: string }[] = [
+  { value: 'available_now', label: 'Available Now' },
+  { value: 'available_from', label: 'Available From a Date' },
+  { value: 'not_available', label: 'Not Available' },
+]
+
 const SEEKING_OPTIONS = [
   { value: 'endorsement', label: 'Endorsement' },
   { value: 'sponsorship', label: 'Sponsorship' },
@@ -83,6 +117,56 @@ const LEVEL_OPTIONS: { value: AthleteLevel; label: string }[] = [
   { value: 'semi_professional', label: 'Semi-Professional' },
   { value: 'professional', label: 'Professional' },
   { value: 'international', label: 'International' },
+  { value: 'university_bucs', label: 'University / BUCS' },
+  { value: 'academy', label: 'Academy' },
+  { value: 'national', label: 'National' },
+]
+
+// UK university team options for the §3A.3 autocomplete. The Combobox runs in
+// allowCreate mode so athletes can type any team not listed here.
+const UNIVERSITY_TEAM_OPTIONS = [
+  { value: 'university-of-oxford', label: 'University of Oxford' },
+  { value: 'university-of-cambridge', label: 'University of Cambridge' },
+  { value: 'durham-university', label: 'Durham University' },
+  { value: 'loughborough-university', label: 'Loughborough University' },
+  { value: 'university-of-bath', label: 'University of Bath' },
+  { value: 'university-of-edinburgh', label: 'University of Edinburgh' },
+  { value: 'university-of-leeds', label: 'University of Leeds' },
+  { value: 'university-of-nottingham', label: 'University of Nottingham' },
+  { value: 'cardiff-university', label: 'Cardiff University' },
+  { value: 'university-of-birmingham', label: 'University of Birmingham' },
+]
+
+// Levels offered in the "highest level played outside university" picker (§3A.3) —
+// the five standard tiers, never the university/academy/national tiers themselves.
+const HIGHEST_LEVEL_OPTIONS = LEVEL_OPTIONS.filter(
+  (o) => !['university_bucs', 'academy', 'national'].includes(o.value)
+)
+
+// §3A.6: the 10 NIL Discovery Interests, persisted to seeking seeking_type[].
+// "University / NIL Collective Deals" (university_nil_collective) is gated to
+// University/BUCS athletes only — see DISCOVERY_OPTIONS filter in Step 6.
+const DISCOVERY_OPTIONS: {
+  value: SeekingType
+  label: string
+  description: string
+  universityOnly?: boolean
+}[] = [
+  { value: 'product_gifting', label: 'Product Gifting', description: 'Free products in exchange for posts' },
+  { value: 'paid_partnership', label: 'Paid Partnership', description: 'Paid campaigns and collaborations' },
+  { value: 'brand_ambassador', label: 'Brand Ambassador', description: 'Ongoing, longer-term representation' },
+  { value: 'social_content', label: 'Social Content', description: 'Sponsored posts, reels and stories' },
+  { value: 'event_appearance', label: 'Event Appearance', description: 'Show up, host or represent at events' },
+  { value: 'affiliate_code', label: 'Affiliate / Discount Code', description: 'Earn commission on referred sales' },
+  { value: 'equipment_sponsorship', label: 'Equipment Sponsorship', description: 'Kit and gear from sports brands' },
+  { value: 'nutrition_supplement', label: 'Nutrition & Supplements', description: 'Fuelling and supplement partnerships' },
+  { value: 'apparel_deal', label: 'Apparel Deal', description: 'Clothing and footwear partnerships' },
+  {
+    value: 'university_nil_collective',
+    label: 'University / NIL Collective Deals',
+    description: 'Collective deals through your university',
+    universityOnly: true,
+  },
 ]
 
 function nextStep(current: number, isUnder18: boolean): number {
@@ -119,7 +203,8 @@ function Step1({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
       date_of_birth: profile?.date_of_birth ?? '',
       phone: profile?.phone ?? '',
       home_city: profile?.home_city ?? '',
-      home_country: profile?.home_country ?? '',
+      home_country: profile?.home_country ?? 'GB',
+      profile_photo_url: profile?.profile_photo_url ?? '',
     },
   })
 
@@ -143,6 +228,25 @@ function Step1({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <RequiredKey />
+
+        {/* Mandatory circular avatar at the top of the step (§3A.2). */}
+        <FormField control={form.control} name="profile_photo_url" render={({ field }) => (
+          <FormItem>
+            <ImageUpload
+              value={field.value || null}
+              onUploaded={(url) => form.setValue('profile_photo_url', url, { shouldValidate: true })}
+              aspect={1}
+              shape="circle"
+              label="Profile photo"
+              subtext={copy.prompts.addPhoto}
+              required
+              showError={false}
+            />
+            <FormMessage />
+          </FormItem>
+        )} />
+
         <FormField control={form.control} name="display_name" render={({ field }) => (
           <FormItem>
             <FormLabel>Display name</FormLabel>
@@ -150,21 +254,23 @@ function Step1({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
             <FormMessage />
           </FormItem>
         )} />
-        <FormField control={form.control} name="full_legal_name" render={({ field }) => (
-          <FormItem>
-            <FormLabel>Full legal name <span className="text-muted-foreground text-xs">(private)</span></FormLabel>
-            <FormControl><Input placeholder="For contracts" {...field} /></FormControl>
-            <FormMessage />
-          </FormItem>
-        )} />
-        <FormField control={form.control} name="date_of_birth" render={({ field }) => (
-          <FormItem>
-            <FormLabel>Date of birth <span className="text-muted-foreground text-xs">(private)</span></FormLabel>
-            <FormControl><Input type="date" {...field} /></FormControl>
-            <FormMessage />
-          </FormItem>
-        )} />
-        <div className="grid grid-cols-2 gap-4">
+
+        {/* Two-column desktop layout for simple fields (§10.2.3). */}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField control={form.control} name="full_legal_name" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Full legal name <span className="text-small text-muted-foreground">(private)</span></FormLabel>
+              <FormControl><Input placeholder="For contracts" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+          <FormField control={form.control} name="date_of_birth" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Date of birth <span className="text-small text-muted-foreground">(private)</span></FormLabel>
+              <FormControl><Input type="date" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
           <FormField control={form.control} name="home_city" render={({ field }) => (
             <FormItem>
               <FormLabel>City</FormLabel>
@@ -175,14 +281,20 @@ function Step1({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
           <FormField control={form.control} name="home_country" render={({ field }) => (
             <FormItem>
               <FormLabel>Country</FormLabel>
-              <FormControl><Input placeholder="United Kingdom" {...field} /></FormControl>
+              <FormControl>
+                <CountrySelect
+                  value={field.value || null}
+                  onChange={(iso) => form.setValue('home_country', iso, { shouldValidate: true })}
+                />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )} />
         </div>
+
         <FormField control={form.control} name="phone" render={({ field }) => (
           <FormItem>
-            <FormLabel>Phone <span className="text-muted-foreground text-xs">(private)</span></FormLabel>
+            <FormLabel>Phone <span className="text-small text-muted-foreground">(private)</span></FormLabel>
             <FormControl><Input type="tel" placeholder="+44 7700 900000" {...field} /></FormControl>
             <FormMessage />
           </FormItem>
@@ -209,8 +321,14 @@ function Step2({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
       years_active: profile?.years_active ?? undefined,
       height_cm: profile?.height_cm ?? undefined,
       weight_kg: profile?.weight_kg ?? undefined,
+      university_team: profile?.university_team ?? '',
+      highest_level: profile?.highest_level ?? '',
+      academy_club: profile?.academy_club ?? '',
+      national_programme: profile?.national_programme ?? '',
     },
   })
+
+  const level = form.watch('level')
 
   async function onSubmit(values: Step2Values) {
     setLoading(true)
@@ -241,7 +359,7 @@ function Step2({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
           )} />
           <FormField control={form.control} name="secondary_sport" render={({ field }) => (
             <FormItem>
-              <FormLabel>Secondary sport <span className="text-muted-foreground text-xs">(optional)</span></FormLabel>
+              <FormLabel>Secondary sport <span className="text-small text-muted-foreground">(optional)</span></FormLabel>
               <FormControl><Input placeholder="Athletics" {...field} /></FormControl>
               <FormMessage />
             </FormItem>
@@ -263,6 +381,66 @@ function Step2({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
             <FormMessage />
           </FormItem>
         )} />
+
+        {/* Conditional secondary fields per level (§3A.3). */}
+        {level === 'university_bucs' && (
+          <div className="space-y-4">
+            <FormField control={form.control} name="university_team" render={({ field }) => (
+              <FormItem>
+                <FormLabel htmlFor="university_team">University team</FormLabel>
+                <FormControl>
+                  <Combobox
+                    id="university_team"
+                    aria-label="University team"
+                    options={UNIVERSITY_TEAM_OPTIONS}
+                    value={field.value || null}
+                    onChange={(v) => form.setValue('university_team', v, { shouldValidate: true })}
+                    placeholder="Search your university team"
+                    allowCreate
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <FormField control={form.control} name="highest_level" render={({ field }) => (
+              <FormItem>
+                <FormLabel htmlFor="highest_level">Highest level played outside university?</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger id="highest_level" aria-label="Highest level played outside university?">
+                      <SelectValue placeholder="Select level" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {HIGHEST_LEVEL_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )} />
+          </div>
+        )}
+        {level === 'academy' && (
+          <FormField control={form.control} name="academy_club" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Academy / club</FormLabel>
+              <FormControl><Input placeholder="e.g. Arsenal Academy" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+        )}
+        {level === 'national' && (
+          <FormField control={form.control} name="national_programme" render={({ field }) => (
+            <FormItem>
+              <FormLabel>National programme</FormLabel>
+              <FormControl><Input placeholder="e.g. British Athletics World Class Programme" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+        )}
+
         <FormField control={form.control} name="position" render={({ field }) => (
           <FormItem>
             <FormLabel>Position / discipline</FormLabel>
@@ -346,14 +524,24 @@ function Step3({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
         <FormField control={form.control} name="availability_status" render={({ field }) => (
           <FormItem>
             <FormLabel>Availability</FormLabel>
-            <Select onValueChange={field.onChange} defaultValue={field.value}>
+            <Select
+              onValueChange={(v) => {
+                field.onChange(v)
+                // §3A.4: the date only applies to "Available From"; clear any stale
+                // value when switching to a status that hides the picker.
+                if (v !== 'available_from') {
+                  form.setValue('available_from_date', '', { shouldValidate: true })
+                }
+              }}
+              defaultValue={field.value}
+            >
               <FormControl>
                 <SelectTrigger><SelectValue placeholder="Select availability" /></SelectTrigger>
               </FormControl>
               <SelectContent>
-                <SelectItem value="available_now">Available now</SelectItem>
-                <SelectItem value="available_from">Available from a date</SelectItem>
-                <SelectItem value="not_available">Not available</SelectItem>
+                {AVAILABILITY_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <FormMessage />
@@ -362,8 +550,8 @@ function Step3({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
         {availStatus === 'available_from' && (
           <FormField control={form.control} name="available_from_date" render={({ field }) => (
             <FormItem>
-              <FormLabel>Available from</FormLabel>
-              <FormControl><Input type="date" {...field} /></FormControl>
+              <FormLabel htmlFor="available_from_date">Available from</FormLabel>
+              <FormControl><Input id="available_from_date" type="date" {...field} /></FormControl>
               <FormMessage />
             </FormItem>
           )} />
@@ -376,7 +564,7 @@ function Step3({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
           </FormItem>
         )} />
         <div>
-          <p className="mb-2 text-sm font-medium">I am seeking</p>
+          <p className="mb-2 text-medium font-medium">I am seeking</p>
           <div className="flex flex-wrap gap-2">
             {SEEKING_OPTIONS.map((o) => (
               <button
@@ -384,9 +572,9 @@ function Step3({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
                 type="button"
                 onClick={() => toggleSeeking(o.value)}
                 className={cn(
-                  'rounded-full border px-3 py-1 text-sm transition-colors',
+                  'rounded-full border px-3 py-1 text-small transition-colors',
                   seeking.includes(o.value)
-                    ? 'border-foreground bg-foreground text-background'
+                    ? 'border-primary bg-primary/10 text-foreground'
                     : 'border-border hover:border-foreground/50'
                 )}
               >
@@ -484,7 +672,7 @@ function Step5({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
   if (!profile?.is_under_18) {
     return (
       <div className="space-y-4">
-        <p className="text-sm text-muted-foreground">This step is not required for athletes 18 and over.</p>
+        <p className="text-medium text-muted-foreground">This step is not required for athletes 18 and over.</p>
         <Button type="button" className="w-full" onClick={() => onSaved(profile!)}>
           Next →
         </Button>
@@ -524,9 +712,36 @@ function Step5({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
 
 // ─── Step 6 (Review & Publish) ───────────────────────────────────────────────
 
-function Step6({ profile }: { profile: AthleteRow | null }) {
+function Step6({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: AthleteRow) => void }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [savingInterests, setSavingInterests] = useState(false)
+  const [seeking, setSeeking] = useState<SeekingType[]>(
+    (profile?.seeking as SeekingType[] | null) ?? []
+  )
+
+  // §3A.6: the University/NIL Collective option is only relevant to
+  // University/BUCS athletes — gate it on the athlete's level.
+  const discoveryOptions = DISCOVERY_OPTIONS.filter(
+    (o) => !o.universityOnly || profile?.level === 'university_bucs'
+  )
+
+  async function handleSaveInterests() {
+    setSavingInterests(true)
+    try {
+      const res = await fetch('/api/profiles/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ seeking }),
+      })
+      const data = await res.json()
+      if (!res.ok) { toast.error(data.error?.message ?? 'Failed to save'); return }
+      toast.success('Discovery interests saved')
+      onSaved(data as AthleteRow)
+    } finally {
+      setSavingInterests(false)
+    }
+  }
 
   async function handlePublish() {
     setLoading(true)
@@ -534,7 +749,7 @@ function Step6({ profile }: { profile: AthleteRow | null }) {
       const res = await fetch('/api/profiles/me/publish', { method: 'POST' })
       const data = await res.json()
       if (!res.ok) { toast.error(data.error?.message ?? 'Failed to publish'); return }
-      toast.success('Profile published!')
+      toast.success(copy.toasts.profileLive)
       router.push('/athlete/dashboard')
     } finally {
       setLoading(false)
@@ -542,17 +757,42 @@ function Step6({ profile }: { profile: AthleteRow | null }) {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-xl border bg-muted/30 p-4 space-y-2">
-        <p className="text-sm font-semibold">Profile summary</p>
-        <dl className="space-y-1 text-sm">
-          <div className="flex gap-2"><dt className="text-muted-foreground w-32">Display name</dt><dd>{profile?.display_name ?? '—'}</dd></div>
-          <div className="flex gap-2"><dt className="text-muted-foreground w-32">Sport</dt><dd>{profile?.primary_sport ?? '—'}</dd></div>
-          <div className="flex gap-2"><dt className="text-muted-foreground w-32">Level</dt><dd>{profile?.level ?? '—'}</dd></div>
-          <div className="flex gap-2"><dt className="text-muted-foreground w-32">Location</dt><dd>{[profile?.home_city, profile?.home_country].filter(Boolean).join(', ') || '—'}</dd></div>
+    <div className="space-y-8">
+      {/* §3A.6: Discovery Interests — what the athlete wants to be found for. */}
+      <div className="space-y-4">
+        <div className="space-y-1">
+          <h2 className="text-large text-foreground">Discovery interests</h2>
+          <p className="text-small text-muted-foreground">
+            Pick the kinds of opportunities you want brands to find you for.
+          </p>
+        </div>
+        <CardSelectGroup
+          multiple
+          options={discoveryOptions}
+          value={seeking}
+          onChange={(v) => setSeeking(v as SeekingType[])}
+        />
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full"
+          disabled={savingInterests}
+          onClick={handleSaveInterests}
+        >
+          {savingInterests ? 'Saving…' : 'Save interests'}
+        </Button>
+      </div>
+
+      <div className="space-y-3 rounded-2xl border border-border bg-muted p-6">
+        <h2 className="text-large text-foreground">Profile summary</h2>
+        <dl className="space-y-1 text-medium">
+          <div className="flex gap-2"><dt className="w-32 text-muted-foreground">Display name</dt><dd>{profile?.display_name ?? '—'}</dd></div>
+          <div className="flex gap-2"><dt className="w-32 text-muted-foreground">Sport</dt><dd>{profile?.primary_sport ?? '—'}</dd></div>
+          <div className="flex gap-2"><dt className="w-32 text-muted-foreground">Level</dt><dd>{profile?.level ?? '—'}</dd></div>
+          <div className="flex gap-2"><dt className="w-32 text-muted-foreground">Location</dt><dd>{[profile?.home_city, profile?.home_country].filter(Boolean).join(', ') || '—'}</dd></div>
         </dl>
       </div>
-      <p className="text-xs text-muted-foreground">
+      <p className="text-small text-muted-foreground">
         Publishing makes your profile visible to brands and agents. You can edit it at any time from Settings.
       </p>
       <Button className="w-full" disabled={loading || !profile} onClick={handlePublish}>
@@ -583,20 +823,26 @@ export default function ProfileWizard({ step, profile: initialProfile }: Props) 
     router.push(`/athlete/onboarding/step/${prev}`)
   }
 
-  const TOTAL_STEPS = isUnder18 ? 6 : 5
+  // Adults skip the guardian step (5), so their route indices are 1,2,3,4,6.
+  // Display position must count sequence position, not the raw route index,
+  // otherwise an adult on step 6 reads "Step 6 of 5 / 120%" (spec §3A.5).
+  const stepSequence = isUnder18 ? [1, 2, 3, 4, 5, 6] : [1, 2, 3, 4, 6]
+  const TOTAL_STEPS = stepSequence.length
+  const displayPosition = Math.max(1, stepSequence.indexOf(step) + 1)
+  const progressPct = Math.min(100, Math.round((displayPosition / TOTAL_STEPS) * 100))
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Progress header */}
       <div>
-        <div className="flex justify-between text-xs text-muted-foreground mb-1">
-          <span>Step {step} of {TOTAL_STEPS} — {stepLabel(step)}</span>
-          <span>{Math.round((step / TOTAL_STEPS) * 100)}%</span>
+        <div className="mb-2 flex justify-between text-small text-muted-foreground">
+          <span>Step {displayPosition} of {TOTAL_STEPS} — {stepLabel(step)}</span>
+          <span>{progressPct}%</span>
         </div>
-        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+        <div className="h-1.5 overflow-hidden rounded-full bg-muted">
           <div
             className="h-full bg-foreground transition-all"
-            style={{ width: `${(step / TOTAL_STEPS) * 100}%` }}
+            style={{ width: `${progressPct}%` }}
           />
         </div>
       </div>
@@ -606,7 +852,7 @@ export default function ProfileWizard({ step, profile: initialProfile }: Props) 
       {step === 3 && <Step3 profile={profile} onSaved={handleSaved} />}
       {step === 4 && <Step4 profile={profile} onSaved={handleSaved} />}
       {step === 5 && <Step5 profile={profile} onSaved={handleSaved} />}
-      {step === 6 && <Step6 profile={profile} />}
+      {step === 6 && <Step6 profile={profile} onSaved={setProfile} />}
 
       {step > 1 && (
         <Button variant="ghost" size="sm" className="w-full" onClick={handleBack}>

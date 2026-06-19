@@ -4,9 +4,10 @@ import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getOwnProfile } from '@/lib/supabase/profiles'
 import { getMatches } from '@/lib/supabase/messaging'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import StatStrip from '@/components/layout/stat-strip'
+import { AccentHeading } from '@/components/ui/accent-heading'
+import { SectionDivider } from '@/components/ui/section-divider'
 import { buttonVariants } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
 import type { Database } from '@/types/database'
 
 type AthleteRow = Database['public']['Tables']['athlete_profiles']['Row']
@@ -28,47 +29,30 @@ export default async function AthleteDashboardPage() {
   const activeMatches = matches.filter((m) => m.status === 'active')
 
   return (
-    <div className="mx-auto max-w-5xl space-y-8 px-4 py-8">
+    <div className="mx-auto max-w-5xl space-y-12 px-6 py-12 md:px-16 md:py-16">
       <div>
-        <h1 className="text-2xl font-bold">Welcome back, {profile.display_name}</h1>
-        <p className="text-muted-foreground">
+        <AccentHeading as="h1" className="text-display">
+          Welcome back, {profile.display_name}
+        </AccentHeading>
+        <p className="mt-3 max-w-[46ch] text-medium leading-relaxed text-muted-foreground">
           {profile.status === 'pending_review'
             ? 'Your profile is under review. We will notify you when it goes live.'
             : 'Your profile is live.'}
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Active conversations</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">{activeMatches.length}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Sport</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-lg font-semibold">{profile.primary_sport ?? '—'}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Profile status</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <span className={cn(
-              'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
-              profile.status === 'active' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
-            )}>
-              {profile.status.replace('_', ' ')}
-            </span>
-          </CardContent>
-        </Card>
-      </div>
+      <SectionDivider label="Your numbers" />
+
+      <StatStrip
+        className="sm:grid-cols-3"
+        stats={[
+          { label: 'Active conversations', value: String(activeMatches.length), iconKey: 'partners' },
+          { label: 'Sport', value: profile.primary_sport ?? '—', iconKey: 'trophy' },
+          { label: 'Profile status', value: profile.status.replace('_', ' '), iconKey: 'verified' },
+        ]}
+      />
+
+      <SectionDivider label="Get going" />
 
       <div className="flex flex-wrap gap-3">
         <Link href="/athlete/discover" className={buttonVariants()}>Browse brands</Link>

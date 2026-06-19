@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { copy } from '@/lib/copy'
 import type { Database } from '@/types/database'
 
 type PayType = Database['public']['Enums']['pay_type']
@@ -53,7 +54,7 @@ export default function ProposalForm({ matchId, onSent }: Props) {
       })
       const data = await res.json()
       if (!res.ok) { toast.error(data.error?.message ?? 'Failed to send proposal'); return }
-      toast.success('Proposal sent!')
+      toast.success(copy.toasts.proposalSent)
       form.reset()
       onSent(data as ProposalRow)
     } catch {
@@ -64,8 +65,8 @@ export default function ProposalForm({ matchId, onSent }: Props) {
   }
 
   return (
-    <div className="border-t pt-4">
-      <p className="text-sm font-semibold mb-3">Send a proposal</p>
+    <div className="border-t border-border pt-6">
+      <p className="text-large mb-4">Send a proposal</p>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
           <FormField control={form.control} name="title" render={({ field }) => (

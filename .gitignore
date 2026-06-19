@@ -45,3 +45,6 @@ next-env.d.ts
 /playwright-report/
 /test-results/
 .env.local
+
+# Superpowers brainstorming mockups
+.superpowers/

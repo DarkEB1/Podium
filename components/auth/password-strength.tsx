@@ -12,10 +12,10 @@ function getStrength(pw: string): { score: number; label: string; color: string;
   if (/[0-9]/.test(pw)) score++
   if (/[^A-Za-z0-9]/.test(pw)) score++
 
-  if (score <= 1) return { score, label: 'Weak', color: 'bg-red-500', textColor: 'text-red-500' }
-  if (score === 2) return { score, label: 'Fair', color: 'bg-yellow-500', textColor: 'text-yellow-600' }
-  if (score === 3) return { score, label: 'Good', color: 'bg-blue-500', textColor: 'text-blue-600' }
-  return { score, label: 'Strong', color: 'bg-green-500', textColor: 'text-green-600' }
+  if (score <= 1) return { score, label: 'Weak', color: 'bg-destructive', textColor: 'text-destructive' }
+  if (score === 2) return { score, label: 'Fair', color: 'bg-warning', textColor: 'text-warning' }
+  if (score === 3) return { score, label: 'Good', color: 'bg-primary', textColor: 'text-primary' }
+  return { score, label: 'Strong', color: 'bg-success', textColor: 'text-success' }
 }
 
 export default function PasswordStrength({ password }: Props) {
@@ -32,7 +32,7 @@ export default function PasswordStrength({ password }: Props) {
           />
         ))}
       </div>
-      <p className={`text-xs font-medium ${textColor}`}>
+      <p className={`text-small font-medium ${textColor}`}>
         {label}
       </p>
     </div>

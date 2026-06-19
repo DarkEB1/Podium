@@ -34,11 +34,53 @@ export type Database = {
   }
   public: {
     Tables: {
+      active_sessions: {
+        Row: {
+          created_at: string
+          device_label: string | null
+          id: string
+          ip_address: string | null
+          last_active_at: string
+          session_token: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          device_label?: string | null
+          id?: string
+          ip_address?: string | null
+          last_active_at?: string
+          session_token: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          device_label?: string | null
+          id?: string
+          ip_address?: string | null
+          last_active_at?: string
+          session_token?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "active_sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_profiles: {
         Row: {
           agency_name: string | null
           agent_full_name: string | null
           bio: string | null
+          commission_rate: number | null
           commission_rate_display: string | null
           created_at: string
           discovery_ui_mode: Database["public"]["Enums"]["ui_mode"]
@@ -54,6 +96,7 @@ export type Database = {
           status: Database["public"]["Enums"]["profile_status"]
           updated_at: string
           user_id: string
+          verification_status: Database["public"]["Enums"]["agent_verification_status"]
           verified_at: string | null
           website_url: string | null
           years_in_industry: number | null
@@ -62,6 +105,7 @@ export type Database = {
           agency_name?: string | null
           agent_full_name?: string | null
           bio?: string | null
+          commission_rate?: number | null
           commission_rate_display?: string | null
           created_at?: string
           discovery_ui_mode?: Database["public"]["Enums"]["ui_mode"]
@@ -77,6 +121,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["profile_status"]
           updated_at?: string
           user_id: string
+          verification_status?: Database["public"]["Enums"]["agent_verification_status"]
           verified_at?: string | null
           website_url?: string | null
           years_in_industry?: number | null
@@ -85,6 +130,7 @@ export type Database = {
           agency_name?: string | null
           agent_full_name?: string | null
           bio?: string | null
+          commission_rate?: number | null
           commission_rate_display?: string | null
           created_at?: string
           discovery_ui_mode?: Database["public"]["Enums"]["ui_mode"]
@@ -100,6 +146,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["profile_status"]
           updated_at?: string
           user_id?: string
+          verification_status?: Database["public"]["Enums"]["agent_verification_status"]
           verified_at?: string | null
           website_url?: string | null
           years_in_industry?: number | null
@@ -116,6 +163,8 @@ export type Database = {
       }
       athlete_profiles: {
         Row: {
+          academy_club: string | null
+          action_photos: string[]
           availability_status:
             | Database["public"]["Enums"]["availability_status"]
             | null
@@ -134,30 +183,47 @@ export type Database = {
           guardian_relationship: string | null
           has_agent: boolean
           height_cm: number | null
+          highest_level: Database["public"]["Enums"]["athlete_level"] | null
+          highlight_videos: string[]
           home_city: string | null
           home_country: string | null
           id: string
           is_under_18: boolean
           last_active_at: string | null
           level: Database["public"]["Enums"]["athlete_level"] | null
+          national_programme: string | null
           notable_achievements: string | null
           notification_prefs: Json
+          payout_account_holder: string | null
+          payout_account_last4: string | null
+          payout_bank_name: string | null
+          payout_country: string | null
+          payout_method: Database["public"]["Enums"]["payout_method"] | null
+          payout_sort_code_last4: string | null
           performance_stats: Json
           phone: string | null
           position: string | null
           primary_sport: string | null
           profile_photo_url: string | null
           secondary_sport: string | null
-          seeking: string[]
+          seeking: Database["public"]["Enums"]["seeking_type"][]
           social_accounts: Json
           status: Database["public"]["Enums"]["profile_status"]
+          stripe_connect_account_id: string | null
+          stripe_connect_onboarded_at: string | null
+          stripe_connect_status:
+            | Database["public"]["Enums"]["stripe_connect_status"]
+            | null
           travel_radius_km: number | null
+          university_team: string | null
           updated_at: string
           user_id: string
           weight_kg: number | null
           years_active: number | null
         }
         Insert: {
+          academy_club?: string | null
+          action_photos?: string[]
           availability_status?:
             | Database["public"]["Enums"]["availability_status"]
             | null
@@ -176,30 +242,47 @@ export type Database = {
           guardian_relationship?: string | null
           has_agent?: boolean
           height_cm?: number | null
+          highest_level?: Database["public"]["Enums"]["athlete_level"] | null
+          highlight_videos?: string[]
           home_city?: string | null
           home_country?: string | null
           id?: string
           is_under_18?: boolean
           last_active_at?: string | null
           level?: Database["public"]["Enums"]["athlete_level"] | null
+          national_programme?: string | null
           notable_achievements?: string | null
           notification_prefs?: Json
+          payout_account_holder?: string | null
+          payout_account_last4?: string | null
+          payout_bank_name?: string | null
+          payout_country?: string | null
+          payout_method?: Database["public"]["Enums"]["payout_method"] | null
+          payout_sort_code_last4?: string | null
           performance_stats?: Json
           phone?: string | null
           position?: string | null
           primary_sport?: string | null
           profile_photo_url?: string | null
           secondary_sport?: string | null
-          seeking?: string[]
+          seeking?: Database["public"]["Enums"]["seeking_type"][]
           social_accounts?: Json
           status?: Database["public"]["Enums"]["profile_status"]
+          stripe_connect_account_id?: string | null
+          stripe_connect_onboarded_at?: string | null
+          stripe_connect_status?:
+            | Database["public"]["Enums"]["stripe_connect_status"]
+            | null
           travel_radius_km?: number | null
+          university_team?: string | null
           updated_at?: string
           user_id: string
           weight_kg?: number | null
           years_active?: number | null
         }
         Update: {
+          academy_club?: string | null
+          action_photos?: string[]
           availability_status?:
             | Database["public"]["Enums"]["availability_status"]
             | null
@@ -218,24 +301,39 @@ export type Database = {
           guardian_relationship?: string | null
           has_agent?: boolean
           height_cm?: number | null
+          highest_level?: Database["public"]["Enums"]["athlete_level"] | null
+          highlight_videos?: string[]
           home_city?: string | null
           home_country?: string | null
           id?: string
           is_under_18?: boolean
           last_active_at?: string | null
           level?: Database["public"]["Enums"]["athlete_level"] | null
+          national_programme?: string | null
           notable_achievements?: string | null
           notification_prefs?: Json
+          payout_account_holder?: string | null
+          payout_account_last4?: string | null
+          payout_bank_name?: string | null
+          payout_country?: string | null
+          payout_method?: Database["public"]["Enums"]["payout_method"] | null
+          payout_sort_code_last4?: string | null
           performance_stats?: Json
           phone?: string | null
           position?: string | null
           primary_sport?: string | null
           profile_photo_url?: string | null
           secondary_sport?: string | null
-          seeking?: string[]
+          seeking?: Database["public"]["Enums"]["seeking_type"][]
           social_accounts?: Json
           status?: Database["public"]["Enums"]["profile_status"]
+          stripe_connect_account_id?: string | null
+          stripe_connect_onboarded_at?: string | null
+          stripe_connect_status?:
+            | Database["public"]["Enums"]["stripe_connect_status"]
+            | null
           travel_radius_km?: number | null
+          university_team?: string | null
           updated_at?: string
           user_id?: string
           weight_kg?: number | null
@@ -287,6 +385,44 @@ export type Database = {
             foreignKeyName: "audit_logs_actor_id_fkey"
             columns: ["actor_id"]
             isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      auth_2fa: {
+        Row: {
+          confirmed_at: string | null
+          created_at: string
+          enabled: boolean
+          recovery_codes: string[]
+          secret: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          confirmed_at?: string | null
+          created_at?: string
+          enabled?: boolean
+          recovery_codes?: string[]
+          secret: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          confirmed_at?: string | null
+          created_at?: string
+          enabled?: boolean
+          recovery_codes?: string[]
+          secret?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auth_2fa_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -604,6 +740,50 @@ export type Database = {
           },
         ]
       }
+      data_export_requests: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          download_url: string | null
+          expires_at: string | null
+          id: string
+          requested_at: string
+          status: Database["public"]["Enums"]["data_export_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          download_url?: string | null
+          expires_at?: string | null
+          id?: string
+          requested_at?: string
+          status?: Database["public"]["Enums"]["data_export_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          download_url?: string | null
+          expires_at?: string | null
+          id?: string
+          requested_at?: string
+          status?: Database["public"]["Enums"]["data_export_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "data_export_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_listings: {
         Row: {
           application_deadline: string | null
@@ -695,6 +875,44 @@ export type Database = {
             columns: ["brand_id"]
             isOneToOne: false
             referencedRelation: "brand_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      login_history: {
+        Row: {
+          created_at: string
+          id: string
+          ip_address: string | null
+          location: string | null
+          success: boolean
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          location?: string | null
+          success: boolean
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          location?: string | null
+          success?: boolean
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "login_history_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -870,6 +1088,56 @@ export type Database = {
           },
         ]
       }
+      payment_methods: {
+        Row: {
+          brand: string | null
+          created_at: string
+          exp_month: number | null
+          exp_year: number | null
+          id: string
+          is_default: boolean
+          last4: string | null
+          stripe_customer_id: string
+          stripe_payment_method_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          brand?: string | null
+          created_at?: string
+          exp_month?: number | null
+          exp_year?: number | null
+          id?: string
+          is_default?: boolean
+          last4?: string | null
+          stripe_customer_id: string
+          stripe_payment_method_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          brand?: string | null
+          created_at?: string
+          exp_month?: number | null
+          exp_year?: number | null
+          id?: string
+          is_default?: boolean
+          last4?: string | null
+          stripe_customer_id?: string
+          stripe_payment_method_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_methods_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           amount: number
@@ -944,6 +1212,68 @@ export type Database = {
             foreignKeyName: "payments_payer_id_fkey"
             columns: ["payer_id"]
             isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profile_settings: {
+        Row: {
+          created_at: string
+          discoverable: boolean
+          display_currency: Database["public"]["Enums"]["display_currency"]
+          email_digest: Database["public"]["Enums"]["email_digest"]
+          id: string
+          location_precision: Database["public"]["Enums"]["location_precision"]
+          marketing_opt_in: boolean
+          notification_matrix: Json
+          pause_matches: boolean
+          profile_visible: boolean
+          quiet_hours_end: string | null
+          quiet_hours_start: string | null
+          section_visibility: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          discoverable?: boolean
+          display_currency?: Database["public"]["Enums"]["display_currency"]
+          email_digest?: Database["public"]["Enums"]["email_digest"]
+          id?: string
+          location_precision?: Database["public"]["Enums"]["location_precision"]
+          marketing_opt_in?: boolean
+          notification_matrix?: Json
+          pause_matches?: boolean
+          profile_visible?: boolean
+          quiet_hours_end?: string | null
+          quiet_hours_start?: string | null
+          section_visibility?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          discoverable?: boolean
+          display_currency?: Database["public"]["Enums"]["display_currency"]
+          email_digest?: Database["public"]["Enums"]["email_digest"]
+          id?: string
+          location_precision?: Database["public"]["Enums"]["location_precision"]
+          marketing_opt_in?: boolean
+          notification_matrix?: Json
+          pause_matches?: boolean
+          profile_visible?: boolean
+          quiet_hours_end?: string | null
+          quiet_hours_start?: string | null
+          section_visibility?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_settings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -1222,6 +1552,8 @@ export type Database = {
           current_period_end: string
           current_period_start: string
           id: string
+          seats_total: number
+          seats_used: number
           status: Database["public"]["Enums"]["subscription_status"]
           stripe_customer_id: string
           stripe_subscription_id: string
@@ -1237,6 +1569,8 @@ export type Database = {
           current_period_end: string
           current_period_start: string
           id?: string
+          seats_total?: number
+          seats_used?: number
           status: Database["public"]["Enums"]["subscription_status"]
           stripe_customer_id: string
           stripe_subscription_id: string
@@ -1252,6 +1586,8 @@ export type Database = {
           current_period_end?: string
           current_period_start?: string
           id?: string
+          seats_total?: number
+          seats_used?: number
           status?: Database["public"]["Enums"]["subscription_status"]
           stripe_customer_id?: string
           stripe_subscription_id?: string
@@ -1269,8 +1605,76 @@ export type Database = {
           },
         ]
       }
+      team_admins: {
+        Row: {
+          accepted_at: string | null
+          created_at: string
+          full_name: string | null
+          id: string
+          invite_status: Database["public"]["Enums"]["team_admin_invite_status"]
+          invited_at: string
+          invited_by: string | null
+          invited_email: string
+          role: Database["public"]["Enums"]["team_admin_role"]
+          team_id: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          invite_status?: Database["public"]["Enums"]["team_admin_invite_status"]
+          invited_at?: string
+          invited_by?: string | null
+          invited_email: string
+          role?: Database["public"]["Enums"]["team_admin_role"]
+          team_id: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          invite_status?: Database["public"]["Enums"]["team_admin_invite_status"]
+          invited_at?: string
+          invited_by?: string | null
+          invited_email?: string
+          role?: Database["public"]["Enums"]["team_admin_role"]
+          team_id?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_admins_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_admins_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "team_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_admins_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       team_profiles: {
         Row: {
+          annual_sponsorship_target: number | null
           bio: string | null
           commercial_manager_email: string | null
           commercial_manager_name: string | null
@@ -1287,6 +1691,7 @@ export type Database = {
           id: string
           logo_url: string | null
           match_day_attendance: number | null
+          media_pack_url: string | null
           nickname: string | null
           notification_prefs: Json
           offers_to_sponsors: Json
@@ -1308,6 +1713,7 @@ export type Database = {
           year_founded: number | null
         }
         Insert: {
+          annual_sponsorship_target?: number | null
           bio?: string | null
           commercial_manager_email?: string | null
           commercial_manager_name?: string | null
@@ -1324,6 +1730,7 @@ export type Database = {
           id?: string
           logo_url?: string | null
           match_day_attendance?: number | null
+          media_pack_url?: string | null
           nickname?: string | null
           notification_prefs?: Json
           offers_to_sponsors?: Json
@@ -1345,6 +1752,7 @@ export type Database = {
           year_founded?: number | null
         }
         Update: {
+          annual_sponsorship_target?: number | null
           bio?: string | null
           commercial_manager_email?: string | null
           commercial_manager_name?: string | null
@@ -1361,6 +1769,7 @@ export type Database = {
           id?: string
           logo_url?: string | null
           match_day_attendance?: number | null
+          media_pack_url?: string | null
           nickname?: string | null
           notification_prefs?: Json
           offers_to_sponsors?: Json
@@ -1393,6 +1802,7 @@ export type Database = {
       }
       users: {
         Row: {
+          cookie_prefs: Json | null
           created_at: string
           data_export_requested_at: string | null
           deactivated_at: string | null
@@ -1410,6 +1820,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          cookie_prefs?: Json | null
           created_at?: string
           data_export_requested_at?: string | null
           deactivated_at?: string | null
@@ -1427,6 +1838,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          cookie_prefs?: Json | null
           created_at?: string
           data_export_requested_at?: string | null
           deactivated_at?: string | null
@@ -1452,14 +1864,19 @@ export type Database = {
     Functions: {
       is_admin: { Args: never; Returns: boolean }
       is_match_participant: { Args: { p_match_id: string }; Returns: boolean }
+      is_team_owner: { Args: { p_team_id: string }; Returns: boolean }
     }
     Enums: {
+      agent_verification_status: "unverified" | "pending" | "verified"
       athlete_level:
         | "recreational"
         | "amateur"
         | "semi_professional"
         | "professional"
         | "international"
+        | "university_bucs"
+        | "academy"
+        | "national"
       availability_status: "available_now" | "available_from" | "not_available"
       brand_industry:
         | "sport"
@@ -1479,11 +1896,20 @@ export type Database = {
         | "pending_athlete_signature"
         | "fully_signed"
         | "terminated"
+      data_export_status:
+        | "pending"
+        | "processing"
+        | "ready"
+        | "failed"
+        | "expired"
+      display_currency: "gbp" | "usd" | "eur"
       display_theme: "light" | "dark"
+      email_digest: "daily" | "weekly" | "off"
       fan_reach: "local" | "regional" | "national" | "international"
       link_status: "pending" | "active" | "terminated"
       listing_status: "draft" | "active" | "paused" | "expired" | "filled"
       listing_type: "athlete_endorsement" | "team_sponsorship"
+      location_precision: "city" | "region" | "country"
       match_status: "active" | "archived" | "blocked"
       message_type:
         | "text"
@@ -1501,6 +1927,7 @@ export type Database = {
         | "succeeded"
         | "failed"
         | "refunded"
+      payout_method: "bank_transfer" | "stripe_connect"
       profile_status: "draft" | "pending_review" | "active" | "deactivated"
       proposal_status:
         | "pending"
@@ -1516,12 +1943,26 @@ export type Database = {
         | "underage_concern"
         | "other"
       report_status: "pending" | "under_review" | "resolved" | "dismissed"
+      seeking_type:
+        | "product_gifting"
+        | "paid_partnership"
+        | "brand_ambassador"
+        | "social_content"
+        | "event_appearance"
+        | "affiliate_code"
+        | "equipment_sponsorship"
+        | "nutrition_supplement"
+        | "apparel_deal"
+        | "university_nil_collective"
+      stripe_connect_status: "not_started" | "pending" | "restricted" | "active"
       subscription_status:
         | "trialing"
         | "active"
         | "past_due"
         | "canceled"
         | "paused"
+      team_admin_invite_status: "invited" | "accepted" | "revoked"
+      team_admin_role: "primary" | "standard" | "view_only"
       team_level:
         | "grassroots"
         | "college"
@@ -1660,12 +2101,16 @@ export const Constants = {
   },
   public: {
     Enums: {
+      agent_verification_status: ["unverified", "pending", "verified"],
       athlete_level: [
         "recreational",
         "amateur",
         "semi_professional",
         "professional",
         "international",
+        "university_bucs",
+        "academy",
+        "national",
       ],
       availability_status: ["available_now", "available_from", "not_available"],
       brand_industry: [
@@ -1688,11 +2133,21 @@ export const Constants = {
         "fully_signed",
         "terminated",
       ],
+      data_export_status: [
+        "pending",
+        "processing",
+        "ready",
+        "failed",
+        "expired",
+      ],
+      display_currency: ["gbp", "usd", "eur"],
       display_theme: ["light", "dark"],
+      email_digest: ["daily", "weekly", "off"],
       fan_reach: ["local", "regional", "national", "international"],
       link_status: ["pending", "active", "terminated"],
       listing_status: ["draft", "active", "paused", "expired", "filled"],
       listing_type: ["athlete_endorsement", "team_sponsorship"],
+      location_precision: ["city", "region", "country"],
       match_status: ["active", "archived", "blocked"],
       message_type: [
         "text",
@@ -1712,6 +2167,7 @@ export const Constants = {
         "failed",
         "refunded",
       ],
+      payout_method: ["bank_transfer", "stripe_connect"],
       profile_status: ["draft", "pending_review", "active", "deactivated"],
       proposal_status: [
         "pending",
@@ -1729,6 +2185,19 @@ export const Constants = {
         "other",
       ],
       report_status: ["pending", "under_review", "resolved", "dismissed"],
+      seeking_type: [
+        "product_gifting",
+        "paid_partnership",
+        "brand_ambassador",
+        "social_content",
+        "event_appearance",
+        "affiliate_code",
+        "equipment_sponsorship",
+        "nutrition_supplement",
+        "apparel_deal",
+        "university_nil_collective",
+      ],
+      stripe_connect_status: ["not_started", "pending", "restricted", "active"],
       subscription_status: [
         "trialing",
         "active",
@@ -1736,6 +2205,8 @@ export const Constants = {
         "canceled",
         "paused",
       ],
+      team_admin_invite_status: ["invited", "accepted", "revoked"],
+      team_admin_role: ["primary", "standard", "view_only"],
       team_level: [
         "grassroots",
         "college",

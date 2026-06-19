@@ -1,25 +1,28 @@
 import Link from 'next/link'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import SignUpForm from '@/components/auth/sign-up-form'
 
 export default function SignUpPage() {
   return (
-    <main className="flex min-h-screen items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle>Create your account</CardTitle>
-          <CardDescription>Join Podium — free for athletes, teams &amp; agents</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <SignUpForm />
-          <p className="text-center text-sm text-muted-foreground">
-            Already have an account?{' '}
-            <Link href="/auth" className="font-medium text-foreground hover:underline">
-              Sign in
-            </Link>
+    <main className="flex min-h-screen items-center justify-center bg-background px-6 py-16">
+      <div className="mx-auto w-full max-w-md">
+        <div className="mb-8 text-center">
+          <h1 className="font-heading text-display font-extrabold tracking-tight text-foreground">
+            Create your account
+          </h1>
+          <p className="mt-3 text-medium text-muted-foreground">
+            Join Podium — free for athletes, teams &amp; agents
           </p>
-        </CardContent>
-      </Card>
+        </div>
+        <div className="rounded-2xl border border-border bg-card p-8 shadow-card">
+          <SignUpForm />
+        </div>
+        <p className="mt-6 text-center text-medium text-muted-foreground">
+          Already have an account?{' '}
+          <Link href="/auth" className="font-medium text-primary hover:underline">
+            Sign in
+          </Link>
+        </p>
+      </div>
     </main>
   )
 }

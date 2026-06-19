@@ -78,7 +78,7 @@ export default function LoginForm() {
             <FormItem>
               <div className="flex items-center justify-between">
                 <FormLabel>Password</FormLabel>
-                <Link href="/auth/forgot-password" className="text-xs text-muted-foreground hover:underline">
+                <Link href="/auth/forgot-password" className="text-small text-muted-foreground hover:underline">
                   Forgot password?
                 </Link>
               </div>

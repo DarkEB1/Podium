@@ -1,25 +1,25 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
-import { getMatches } from '@/lib/supabase/messaging'
+import { getConversations } from '@/lib/supabase/messaging'
 import MatchList from '@/components/messaging/match-list'
-import type { Database } from '@/types/database'
-
-type MatchRow = Database['public']['Tables']['matches']['Row']
 
 export default async function BrandMessagesPage() {
   const supabase = await createClient()
   const user = await getUser(supabase)
   if (!user) redirect('/auth')
 
-  // getMatches returns MatchRow array for this user
-  const matches = (await getMatches(supabase, user.id)) as MatchRow[]
-  const active = matches.filter((m) => m.status === 'active')
+  const conversations = await getConversations(supabase, user.id)
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8 space-y-6">
-      <h1 className="text-2xl font-bold">Messages</h1>
-      <MatchList matches={active} currentUserId={user.id} basePath="/brand/messages" />
+    <div className="mx-auto max-w-2xl px-6 py-12 space-y-10 md:px-16 md:py-16">
+      <header className="space-y-3">
+        <h1 className="text-display">Messages</h1>
+        <p className="text-medium text-muted-foreground">
+          Your conversations with athletes and teams.
+        </p>
+      </header>
+      <MatchList conversations={conversations} basePath="/brand/messages" />
     </div>
   )
 }

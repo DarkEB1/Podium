@@ -33,15 +33,15 @@ export default function ConnectionRequestCard({ request, onResponded }: Props) {
   }
 
   return (
-    <div className="rounded-xl border bg-card p-5 space-y-3">
+    <div className="space-y-4 rounded-2xl border border-border bg-card p-8 shadow-sm">
       <div>
-        <p className="text-xs text-muted-foreground">Connection request from brand</p>
-        <p className="text-sm font-mono text-muted-foreground">{request.sender_id}</p>
+        <p className="text-small text-muted-foreground">Connection request from brand</p>
+        <p className="font-mono text-small text-muted-foreground">{request.sender_id}</p>
       </div>
-      <blockquote className="border-l-2 pl-3 text-sm text-muted-foreground italic">
+      <blockquote className="border-l-2 border-border pl-4 text-medium italic text-muted-foreground">
         {request.message}
       </blockquote>
-      <p className="text-xs text-muted-foreground">
+      <p className="text-small text-muted-foreground">
         Received {new Date(request.sent_at).toLocaleDateString()}
       </p>
       <div className="flex gap-2">

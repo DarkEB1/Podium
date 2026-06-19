@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getActiveAthleteProfiles } from '@/lib/supabase/profiles'
+import { getShortlist } from '@/lib/supabase/discovery'
+import { getSubscriptionForUser } from '@/lib/supabase/payments'
 import AthletesGrid from '@/components/brand/athletes-grid'
 
 export default async function BrandDiscoverPage() {
@@ -9,15 +11,29 @@ export default async function BrandDiscoverPage() {
   const user = await getUser(supabase)
   if (!user) redirect('/auth')
 
-  const athletes = await getActiveAthleteProfiles(supabase)
+  const [athletes, shortlist, subscription] = await Promise.all([
+    getActiveAthleteProfiles(supabase),
+    getShortlist(supabase, user.id),
+    getSubscriptionForUser(supabase, user.id),
+  ])
+
+  const savedUserIds = shortlist.map((s) => s.target_user_id)
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 space-y-6">
+    <div className="mx-auto max-w-6xl space-y-12 px-6 py-12 md:px-16 md:py-16">
       <div>
-        <h1 className="text-2xl font-bold">Discover athletes</h1>
-        <p className="text-muted-foreground">{athletes.length} active athletes on Podium</p>
+        <h1 className="font-heading text-display font-extrabold tracking-tight text-foreground">
+          Discover athletes
+        </h1>
+        <p className="mt-3 text-medium text-muted-foreground">
+          {athletes.length} active athletes on Podium
+        </p>
       </div>
-      <AthletesGrid athletes={athletes} />
+      <AthletesGrid
+        athletes={athletes}
+        savedUserIds={savedUserIds}
+        {...(subscription ? { tier: subscription.tier } : {})}
+      />
     </div>
   )
 }

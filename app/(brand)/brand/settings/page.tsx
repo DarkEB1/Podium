@@ -29,22 +29,32 @@ export default async function BrandSettingsPage() {
     !subscription.cancellation_scheduled_at
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8 space-y-10">
-      <h1 className="text-2xl font-bold">Settings</h1>
+    <div className="mx-auto max-w-2xl px-6 py-12 space-y-16 md:px-16 md:py-16">
+      <header className="space-y-3">
+        <h1 className="text-display">Settings</h1>
+        <p className="text-medium text-muted-foreground">
+          Manage your company profile and subscription.
+        </p>
+      </header>
 
-      <section className="space-y-4">
-        <h2 className="text-lg font-semibold">Company details</h2>
+      <section className="space-y-6">
+        <h2 className="text-large">Company details</h2>
         <BrandSettingsForm profile={brandProfile} />
       </section>
 
       {hasActiveSubscription && (
-        <section className="space-y-4">
-          <h2 className="text-lg font-semibold">Subscription</h2>
-          <p className="text-sm text-muted-foreground">
-            You are on Tier {subscription!.tier}. Your subscription renews on{' '}
-            {new Date(subscription!.current_period_end).toLocaleDateString()}.
-          </p>
-          <CancelSubscription />
+        <section className="space-y-6">
+          <h2 className="text-large">Subscription</h2>
+          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
+            <p className="text-medium text-muted-foreground">
+              You are on Tier {subscription!.tier}. Your subscription renews on{' '}
+              <span className="text-foreground font-medium">
+                {new Date(subscription!.current_period_end).toLocaleDateString()}
+              </span>
+              .
+            </p>
+            <CancelSubscription />
+          </div>
         </section>
       )}
     </div>

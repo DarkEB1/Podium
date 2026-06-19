@@ -5,6 +5,15 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { createClient } from '@/lib/supabase/client'
+import {
+  typingChannel,
+  onTyping,
+  onReadReceipt,
+  sendTyping,
+  sendReadReceipt,
+  closeChannel,
+} from '@/lib/realtime'
+import { cn } from '@/lib/utils'
 import MessageBubble from './message-bubble'
 import ProposalCardMessage from './proposal-card-message'
 import type { Database } from '@/types/database'
@@ -19,14 +28,42 @@ interface Props {
   currentUserId: string
 }
 
+/** Subscribe defensively: a channel may be mocked without a `.subscribe` in tests. */
+function safeSubscribe(channel: { subscribe?: () => unknown }): void {
+  if (typeof channel.subscribe === 'function') channel.subscribe()
+}
+
+/** Animated three-dot typing indicator (spec §7.2); honours prefers-reduced-motion. */
+function TypingIndicator() {
+  return (
+    <div className="flex justify-start" data-testid="typing-indicator" aria-live="polite">
+      <span className="sr-only">Typing…</span>
+      <div className="flex items-center gap-1 rounded-2xl rounded-bl-sm bg-muted px-4 py-3">
+        {[0, 1, 2].map((i) => (
+          <span
+            key={i}
+            aria-hidden="true"
+            className="size-2 animate-bounce rounded-full bg-muted-foreground motion-reduce:animate-none"
+            style={{ animationDelay: `${i * 0.15}s` }}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function ChatWindow({ matchId, initialMessages, proposals, currentUserId }: Props) {
   const [messages, setMessages] = useState<MessageRow[]>(initialMessages)
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
+  const [otherTyping, setOtherTyping] = useState(false)
+  // Id of the last message the other participant has read (drives read ticks).
+  const [lastReadByOther, setLastReadByOther] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const proposalMap = new Map(proposals.map((p) => [p.id, p]))
 
+  // Postgres INSERT stream for new messages.
   useEffect(() => {
     const supabase = createClient()
     const channel = supabase
@@ -43,12 +80,59 @@ export default function ChatWindow({ matchId, initialMessages, proposals, curren
         }
       )
       .subscribe()
-    return () => { supabase.removeChannel(channel) }
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [matchId])
+
+  // Ephemeral typing + read-receipt signals via the shared realtime helpers (B10).
+  useEffect(() => {
+    const supabase = createClient()
+    const channel = typingChannel(supabase, matchId)
+    onTyping(channel, ({ userId, isTyping }) => {
+      if (userId === currentUserId) return
+      setOtherTyping(isTyping)
+    })
+    onReadReceipt(channel, ({ userId, lastReadMessageId }) => {
+      if (userId === currentUserId) return
+      setLastReadByOther(lastReadMessageId)
+    })
+    safeSubscribe(channel)
+    return () => {
+      void closeChannel(supabase, channel)
+    }
+  }, [matchId, currentUserId])
+
+  // Tell the other side we've read up to the latest message we received.
+  useEffect(() => {
+    const lastIncoming = [...messages].reverse().find((m) => m.sender_id !== currentUserId)
+    if (!lastIncoming) return
+    const supabase = createClient()
+    const channel = typingChannel(supabase, matchId)
+    safeSubscribe(channel)
+    void sendReadReceipt(channel, currentUserId, lastIncoming.id, new Date().toISOString())
+    return () => {
+      void closeChannel(supabase, channel)
+    }
+  }, [messages, matchId, currentUserId])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+  }, [messages, otherTyping])
+
+  // Index of the last of MY messages — only it shows a receipt tick.
+  const lastMineIndex = messages.reduce(
+    (acc, m, i) => (m.sender_id === currentUserId ? i : acc),
+    -1
+  )
+
+  function handleTextChange(value: string) {
+    setText(value)
+    const supabase = createClient()
+    const channel = typingChannel(supabase, matchId)
+    safeSubscribe(channel)
+    void sendTyping(channel, currentUserId, value.length > 0)
+  }
 
   async function sendText(e: React.FormEvent) {
     e.preventDefault()
@@ -61,52 +145,72 @@ export default function ChatWindow({ matchId, initialMessages, proposals, curren
         body: JSON.stringify({ content_type: 'text', text_content: text.trim() }),
       })
       const data = await res.json()
-      if (!res.ok) { toast.error(data.error?.message ?? 'Failed to send'); return }
+      if (!res.ok) {
+        toast.error(data.error?.message ?? 'Failed to send')
+        return
+      }
       setText('')
+      const supabase = createClient()
+      const channel = typingChannel(supabase, matchId)
+      safeSubscribe(channel)
+      void sendTyping(channel, currentUserId, false)
     } finally {
       setSending(false)
     }
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-8rem)]">
-      <div className="flex-1 overflow-y-auto space-y-3 p-4">
-        {messages.map((msg) => {
-          if (msg.content_type === 'proposal_card') {
-            const proposalId = (msg.metadata as { proposal_id?: string })?.proposal_id
+    <div className="flex h-[calc(100vh-8rem)] flex-col">
+      <div className="flex-1 space-y-4 overflow-y-auto px-6 py-8">
+        {messages.map((msg, i) => {
+          if (msg.content_type === 'proposal_card' || msg.content_type === 'payment_confirmation') {
+            const meta = msg.metadata as { proposal_id?: string } | null
+            const proposalId = meta?.proposal_id
             const proposal = proposalId ? proposalMap.get(proposalId) : undefined
-            if (proposal) {
-              return (
-                <div key={msg.id} className={`flex ${msg.sender_id === currentUserId ? 'justify-end' : 'justify-start'}`}>
-                  <ProposalCardMessage
-                    proposal={proposal}
-                    isMine={msg.sender_id === currentUserId}
-                    onResponded={() => {}}
-                  />
-                </div>
-              )
-            }
-            return null
+            if (!proposal) return null
+            const isPayment = msg.content_type === 'payment_confirmation'
+            return (
+              <div
+                key={msg.id}
+                className={cn('flex', msg.sender_id === currentUserId ? 'justify-end' : 'justify-start')}
+              >
+                <ProposalCardMessage
+                  proposal={proposal}
+                  isMine={msg.sender_id === currentUserId}
+                  onResponded={() => {}}
+                  paymentConfirmation={
+                    isPayment
+                      ? { amount: proposal.pay_amount, currency: proposal.pay_currency }
+                      : undefined
+                  }
+                />
+              </div>
+            )
           }
+          const isMine = msg.sender_id === currentUserId
           return (
             <MessageBubble
               key={msg.id}
               message={msg}
-              isMine={msg.sender_id === currentUserId}
+              isMine={isMine}
+              readByOther={isMine && i === lastMineIndex && lastReadByOther === msg.id}
             />
           )
         })}
+        {otherTyping && <TypingIndicator />}
         <div ref={bottomRef} />
       </div>
-      <form onSubmit={sendText} className="border-t p-3 flex gap-2">
+      <form onSubmit={sendText} className="flex gap-3 border-t border-border px-6 py-4">
         <Input
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => handleTextChange(e.target.value)}
           placeholder="Type a message…"
           disabled={sending}
           className="flex-1"
         />
-        <Button type="submit" disabled={sending || !text.trim()}>Send</Button>
+        <Button type="submit" disabled={sending || !text.trim()}>
+          Send
+        </Button>
       </form>
     </div>
   )

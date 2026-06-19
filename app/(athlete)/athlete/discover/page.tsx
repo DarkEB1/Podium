@@ -13,10 +13,12 @@ export default async function AthleteDiscoverPage() {
   const active = listings.filter((l) => l.status === 'active')
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 space-y-6">
+    <div className="mx-auto max-w-6xl space-y-10 px-6 py-12 md:px-16 md:py-16">
       <div>
-        <h1 className="text-2xl font-bold">Discover opportunities</h1>
-        <p className="text-muted-foreground">{active.length} brand campaigns available</p>
+        <h1 className="font-heading text-display tracking-tight text-foreground">Discover opportunities</h1>
+        <p className="mt-3 max-w-[52ch] text-medium leading-relaxed text-muted-foreground">
+          Browse brand campaigns and send a personalised connection request.
+        </p>
       </div>
       <ListingsGrid listings={active} />
     </div>

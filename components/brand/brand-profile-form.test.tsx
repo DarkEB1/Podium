@@ -25,7 +25,9 @@ describe('BrandProfileForm', () => {
   })
 
   it('step 1 calls POST /api/profiles/me on first submission', async () => {
-    render(<BrandProfileForm step={1} profile={null} />)
+    // A cover image is mandatory; a brand picks one before creating the row.
+    const draft = { company_name: '', cover_image_url: 'https://cdn/cover.jpg' } as never
+    render(<BrandProfileForm step={1} profile={draft} />)
     await userEvent.type(screen.getByLabelText(/company name/i), 'Acme Corp')
     await userEvent.click(screen.getByRole('button', { name: /next/i }))
     await waitFor(() =>
@@ -34,7 +36,7 @@ describe('BrandProfileForm', () => {
   })
 
   it('step 1 calls PATCH when profile already exists', async () => {
-    const profile = { id: '1', company_name: 'Acme', status: 'pending_approval' } as never
+    const profile = { id: '1', company_name: 'Acme', cover_image_url: 'https://cdn/cover.jpg', status: 'pending_approval' } as never
     render(<BrandProfileForm step={1} profile={profile} />)
     await userEvent.clear(screen.getByLabelText(/company name/i))
     await userEvent.type(screen.getByLabelText(/company name/i), 'Acme Updated')
@@ -48,5 +50,58 @@ describe('BrandProfileForm', () => {
     const profile = { id: '1', company_name: 'Acme', status: 'pending_approval' } as never
     render(<BrandProfileForm step={4} profile={profile} />)
     expect(screen.getByRole('button', { name: /submit for review/i })).toBeInTheDocument()
+  })
+
+  // --- BR1: brand onboarding visuals (§4A.1) ---
+
+  it('step 1 renders a prominent logo upload with discovery-card preview', () => {
+    render(<BrandProfileForm step={1} profile={null} />)
+    expect(screen.getByRole('group', { name: /logo/i })).toBeInTheDocument()
+    // The discovery-card preview shows how the brand appears in the marketplace.
+    expect(screen.getByText(/how you'll appear/i)).toBeInTheDocument()
+    expect(screen.getByTestId('marketplace-card')).toBeInTheDocument()
+  })
+
+  it('step 1 enforces a mandatory cover image before advancing', async () => {
+    render(<BrandProfileForm step={1} profile={null} />)
+    expect(screen.getByRole('group', { name: /cover image/i })).toBeInTheDocument()
+    await userEvent.type(screen.getByLabelText(/company name/i), 'Acme Corp')
+    await userEvent.click(screen.getByRole('button', { name: /next/i }))
+    expect(await screen.findByText(/cover image is required/i)).toBeInTheDocument()
+  })
+
+  it('step 2 reveals a free-text industry field when Other is the selected industry', () => {
+    const profile = { id: '1', company_name: 'Acme', industry: 'other', seeking: [], target_sports: [] } as never
+    render(<BrandProfileForm step={2} profile={profile} />)
+    expect(screen.getByLabelText(/please specify your industry/i)).toBeInTheDocument()
+  })
+
+  it('step 2 hides the free-text industry field for a non-Other industry', () => {
+    const profile = { id: '1', company_name: 'Acme', industry: 'sport', seeking: [], target_sports: [] } as never
+    render(<BrandProfileForm step={2} profile={profile} />)
+    expect(screen.queryByLabelText(/please specify your industry/i)).not.toBeInTheDocument()
+  })
+
+  it('step 2 renders "what brand is looking for" as selectable tiles', () => {
+    render(<BrandProfileForm step={2} profile={null} />)
+    expect(screen.getByText(/looking for/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /endorsement/i })).toHaveAttribute('aria-pressed')
+  })
+
+  it('step 2 limits target sports to 5 and errors on the 6th', async () => {
+    render(<BrandProfileForm step={2} profile={null} />)
+    const sports = ['Football', 'Athletics', 'Tennis', 'Basketball', 'Rugby', 'Cricket']
+    for (const s of sports) {
+      await userEvent.click(screen.getByRole('button', { name: new RegExp(`^${s}$`, 'i') }))
+    }
+    expect(await screen.findByRole('alert')).toHaveTextContent(/maximum of 5 sports/i)
+  })
+
+  it('step 3 shows a live character counter and formatting hint for the description', async () => {
+    render(<BrandProfileForm step={3} profile={null} />)
+    expect(screen.getByText(/0\/2000 characters/i)).toBeInTheDocument()
+    expect(screen.getByText(/keep it concise/i)).toBeInTheDocument()
+    await userEvent.type(screen.getByLabelText(/about your brand/i), 'Hello')
+    expect(screen.getByText(/5\/2000 characters/i)).toBeInTheDocument()
   })
 })

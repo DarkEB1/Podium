@@ -5,7 +5,8 @@ import { getUser } from '@/lib/supabase/auth'
 import { getOwnProfile } from '@/lib/supabase/profiles'
 import { getListings } from '@/lib/supabase/discovery'
 import { buttonVariants } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
+import { EmptyState } from '@/components/ui/empty-state'
+import ListingsManager from './listings-manager'
 import type { Database } from '@/types/database'
 
 type BrandRow = Database['public']['Tables']['brand_profiles']['Row']
@@ -24,43 +25,30 @@ export default async function BrandListingsPage() {
   const myListings = allListings.filter((l) => l.brand_id === profile.id)
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">My listings</h1>
+    <div className="mx-auto max-w-4xl space-y-12 px-6 py-12 md:px-16 md:py-16">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <h1 className="font-heading text-display font-extrabold tracking-tight text-foreground">
+          My listings
+        </h1>
         <Link href="/brand/listings/new" className={buttonVariants()}>+ New listing</Link>
       </div>
 
       {myListings.length === 0 ? (
-        <div className="rounded-xl border border-dashed p-12 text-center">
-          <p className="text-muted-foreground">No listings yet.</p>
-          <Link href="/brand/listings/new" className={cn(buttonVariants({ variant: 'outline' }), 'mt-4')}>
-            Create your first listing
-          </Link>
-        </div>
+        <EmptyState
+          title="No listings yet"
+          description="Create a listing to start matching with athletes and teams."
+          action={{ label: 'Create your first listing', href: '/brand/listings/new' }}
+        />
       ) : (
-        <ul className="divide-y rounded-xl border">
-          {myListings.map((l) => (
-            <li key={l.id}>
-              <Link
-                href={`/brand/listings/${l.id}`}
-                className="flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors"
-              >
-                <div>
-                  <p className="font-medium">{l.title}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {l.type.replace('_', ' ')} · {l.sport_required ?? 'Any sport'} · {l.status}
-                  </p>
-                </div>
-                <span className={cn(
-                  'text-xs rounded-full px-2 py-0.5 font-medium',
-                  l.status === 'active' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-muted text-muted-foreground'
-                )}>
-                  {l.status}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <ListingsManager
+          listings={myListings.map((l) => ({
+            id: l.id,
+            title: l.title,
+            type: l.type,
+            status: l.status,
+            sport_required: l.sport_required,
+          }))}
+        />
       )}
     </div>
   )

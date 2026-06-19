@@ -1,95 +1,141 @@
 'use client'
 
 import { useState } from 'react'
+import { Zap } from 'lucide-react'
 import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
+import { MarketplaceCard } from '@/components/ui/marketplace-card'
+import {
+  AvailabilityBadge,
+  VerifiedBadge,
+  LevelChip,
+} from '@/components/ui/status-badges'
+import { copy } from '@/lib/copy'
 import type { Database } from '@/types/database'
 
 type AthleteRow = Database['public']['Tables']['athlete_profiles']['Row']
 
-interface Props { athlete: AthleteRow }
+interface Props {
+  athlete: AthleteRow
+  /** Whether this athlete has a verified profile (from Track B verification status). */
+  verified?: boolean
+  /** Initial shortlist state — supplied by the grid from the persisted shortlist. */
+  initialSaved?: boolean
+}
 
-export default function AthleteCard({ athlete }: Props) {
-  const [open, setOpen] = useState(false)
-  const [message, setMessage] = useState('')
-  const [loading, setLoading] = useState(false)
+const RESPONDS_QUICKLY_WINDOW_MS = 24 * 60 * 60 * 1000
 
-  async function handleConnect() {
-    if (!message.trim()) { toast.error('Please write a message'); return }
-    setLoading(true)
+function respondsQuickly(lastActiveAt: string | null): boolean {
+  if (!lastActiveAt) return false
+  const last = new Date(lastActiveAt).getTime()
+  if (Number.isNaN(last)) return false
+  return Date.now() - last < RESPONDS_QUICKLY_WINDOW_MS
+}
+
+function formatCount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, '')}K`
+  return String(n)
+}
+
+/** Pull a single headline follower count from the social_accounts JSON, if present. */
+function followerStat(athlete: AthleteRow): { label: string; value: string } | undefined {
+  const social = athlete.social_accounts as Record<string, unknown> | null
+  if (!social) return undefined
+  const candidates = [
+    'instagram_followers',
+    'tiktok_followers',
+    'youtube_subscribers',
+    'twitter_followers',
+  ]
+  for (const key of candidates) {
+    const raw = social[key]
+    const n = typeof raw === 'number' ? raw : Number(raw)
+    if (Number.isFinite(n) && n > 0) {
+      return { label: 'followers', value: formatCount(n) }
+    }
+  }
+  return undefined
+}
+
+export default function AthleteCard({ athlete, verified = false, initialSaved = false }: Props) {
+  const [saved, setSaved] = useState(initialSaved)
+  const [pending, setPending] = useState(false)
+
+  async function toggleSave() {
+    if (pending) return
+    const next = !saved
+    setPending(true)
+    // optimistic flip so the bookmark responds instantly
+    setSaved(next)
     try {
-      const res = await fetch('/api/discovery/connections', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recipient_id: athlete.user_id, message }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        toast.error(data.error?.message ?? 'Failed to send request')
-        return
+      const res = next
+        ? await fetch('/api/discovery/shortlist', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ target_user_id: athlete.user_id }),
+          })
+        : await fetch(`/api/discovery/shortlist/${athlete.user_id}`, { method: 'DELETE' })
+
+      // 409 ALREADY_SHORTLISTED is a benign no-op when adding
+      if (!res.ok && !(next && res.status === 409)) {
+        throw new Error('request failed')
       }
-      toast.success('Connection request sent!')
-      setOpen(false)
-      setMessage('')
+      if (next) toast.success(copy.toasts.saved)
     } catch {
-      toast.error('Something went wrong. Please try again.')
+      setSaved(!next)
+      toast.error('Could not update your shortlist. Please try again.')
     } finally {
-      setLoading(false)
+      setPending(false)
     }
   }
 
+  const sportLevel = [athlete.primary_sport, athlete.level?.replace(/_/g, ' ')]
+    .filter(Boolean)
+    .join(' · ')
+
+  const location = [athlete.home_city, athlete.home_country].filter(Boolean).join(', ')
+  const subtitle = [sportLevel, location].filter(Boolean).join(' — ')
+  const stat = followerStat(athlete)
+
+  const overlayBadges = (
+    <>
+      {verified ? <VerifiedBadge verified /> : null}
+      {athlete.availability_status ? (
+        <AvailabilityBadge
+          status={athlete.availability_status}
+          {...(athlete.available_from_date ? { date: athlete.available_from_date } : {})}
+        />
+      ) : null}
+    </>
+  )
+
+  const tags = (
+    <>
+      {athlete.level ? <LevelChip level={athlete.level.replace(/_/g, ' ')} /> : null}
+      {respondsQuickly(athlete.last_active_at) ? (
+        <span
+          className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-small font-medium text-success"
+          data-testid="responds-quickly"
+        >
+          <Zap className="size-3" aria-hidden="true" />
+          Responds quickly
+        </span>
+      ) : null}
+    </>
+  )
+
   return (
-    <div className="rounded-xl border bg-card p-5 shadow-sm space-y-3 hover:shadow-md transition-shadow">
-      <div className="flex items-start gap-3">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-bold">
-          {(athlete.display_name ?? '?')[0]?.toUpperCase()}
-        </div>
-        <div className="min-w-0">
-          <p className="font-semibold truncate">{athlete.display_name ?? 'Unknown'}</p>
-          <p className="text-xs text-muted-foreground">
-            {[athlete.primary_sport, athlete.level?.replace('_', ' ')].filter(Boolean).join(' · ')}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {[athlete.home_city, athlete.home_country].filter(Boolean).join(', ')}
-          </p>
-        </div>
-      </div>
-
-      {athlete.seeking.length > 0 && (
-        <div className="flex flex-wrap gap-1">
-          {athlete.seeking.slice(0, 3).map((s) => (
-            <span key={s} className="rounded-full bg-muted px-2 py-0.5 text-xs">
-              {s.replace('_', ' ')}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {!open ? (
-        <Button size="sm" className="w-full" onClick={() => setOpen(true)}>
-          Connect
-        </Button>
-      ) : (
-        <div className="space-y-2">
-          <Textarea
-            placeholder="Introduce your brand and what you're looking for…"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            rows={3}
-            className="resize-none text-sm"
-            maxLength={500}
-          />
-          <div className="flex gap-2">
-            <Button size="sm" className="flex-1" onClick={handleConnect} disabled={loading}>
-              {loading ? 'Sending…' : 'Send request'}
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => { setOpen(false); setMessage('') }}>
-              Cancel
-            </Button>
-          </div>
-        </div>
-      )}
-    </div>
+    <MarketplaceCard
+      image={athlete.profile_photo_url ?? '/placeholder-athlete.svg'}
+      imageAlt={athlete.display_name ?? 'Athlete profile photo'}
+      title={athlete.display_name ?? 'Unknown athlete'}
+      overlayBadges={overlayBadges}
+      tags={tags}
+      cta={{ label: 'View profile', href: `/brand/discover/${athlete.user_id}` }}
+      saved={saved}
+      onToggleSave={toggleSave}
+      {...(subtitle ? { subtitle } : {})}
+      {...(stat ? { stat } : {})}
+    />
   )
 }

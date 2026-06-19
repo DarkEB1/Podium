@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test'
 test.describe('Auth flows', () => {
   test('landing page renders hero CTAs', async ({ page }) => {
     await page.goto('/')
-    await expect(page.getByRole('heading', { name: /sports sponsorship marketplace/i })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /where athletes meet/i })).toBeVisible()
     await expect(page.getByRole('link', { name: /list your profile/i })).toBeVisible()
     await expect(page.getByRole('link', { name: /find talent/i })).toBeVisible()
   })

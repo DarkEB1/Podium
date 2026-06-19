@@ -9,6 +9,9 @@ import {
   createPaymentRecord,
   updatePaymentRecord,
   getContractForPayment,
+  getBillingHistory,
+  listSeats,
+  removeSeat,
   PaymentsError,
 } from './payments'
 import type { SupabaseClient } from '@supabase/supabase-js'
@@ -470,5 +473,100 @@ describe('updatePaymentRecord', () => {
     await expect(
       updatePaymentRecord(mock.client, 'pi_abc', { status: 'failed' })
     ).rejects.toMatchObject({ code: 'PAYMENT_UPDATE_FAILED' })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// getBillingHistory (B9)
+// ---------------------------------------------------------------------------
+
+describe('getBillingHistory', () => {
+  it('returns brand invoices newest-first with receipt url', async () => {
+    const mock = makeMockClient()
+    mock.setChainResult([
+      {
+        id: 'pay-1',
+        amount: 50000,
+        currency: 'GBP',
+        status: 'succeeded',
+        created_at: '2026-04-01T00:00:00Z',
+        receipt_url: 'https://stripe/receipt/1',
+      },
+    ])
+
+    const result = await getBillingHistory(mock.client, 'brand-1')
+
+    expect(result).toHaveLength(1)
+    expect(result[0]?.receipt_url).toBe('https://stripe/receipt/1')
+    expect(mock.mockFrom).toHaveBeenCalledWith('payments')
+    expect(mock.chain.eq).toHaveBeenCalledWith('payer_id', 'brand-1')
+  })
+
+  it('throws PaymentsError on DB error', async () => {
+    const mock = makeMockClient()
+    mock.setChainResult(null, { code: '500', message: 'DB error' })
+
+    await expect(getBillingHistory(mock.client, 'brand-1')).rejects.toMatchObject({
+      code: 'BILLING_HISTORY_FETCH_FAILED',
+    })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// listSeats / removeSeat (B9)
+// ---------------------------------------------------------------------------
+
+const SEATED_SUBSCRIPTION = { ...SUBSCRIPTION, seats_total: 5, seats_used: 3 }
+
+describe('listSeats', () => {
+  it('returns the subscription seat allocation', async () => {
+    const mock = makeMockClient()
+    mock.setSingle(SEATED_SUBSCRIPTION)
+
+    const result = await listSeats(mock.client, 'brand-1')
+
+    expect(result).toEqual({ seats_total: 5, seats_used: 3, members: [] })
+  })
+
+  it('throws when no subscription exists', async () => {
+    const mock = makeMockClient()
+    mock.setSingle(null, { code: 'PGRST116', message: 'not found' })
+
+    await expect(listSeats(mock.client, 'brand-1')).rejects.toMatchObject({
+      code: 'SUBSCRIPTION_NOT_FOUND',
+    })
+  })
+})
+
+describe('removeSeat', () => {
+  it('decrements seats_used and returns the updated subscription', async () => {
+    const mock = makeMockClient()
+    // First single() resolves getSubscription, second resolves the update.
+    mock.queueSingle(SEATED_SUBSCRIPTION)
+    mock.queueSingle({ ...SEATED_SUBSCRIPTION, seats_used: 2 })
+
+    const result = await removeSeat(mock.client, 'brand-1')
+
+    expect(result.seats_used).toBe(2)
+    expect(mock.chain.update).toHaveBeenCalledWith({ seats_used: 2 })
+  })
+
+  it('never goes below zero seats', async () => {
+    const mock = makeMockClient()
+    mock.queueSingle({ ...SEATED_SUBSCRIPTION, seats_used: 0 })
+    mock.queueSingle({ ...SEATED_SUBSCRIPTION, seats_used: 0 })
+
+    await removeSeat(mock.client, 'brand-1')
+
+    expect(mock.chain.update).toHaveBeenCalledWith({ seats_used: 0 })
+  })
+
+  it('throws when no subscription exists', async () => {
+    const mock = makeMockClient()
+    mock.setSingle(null, { code: 'PGRST116', message: 'not found' })
+
+    await expect(removeSeat(mock.client, 'brand-1')).rejects.toMatchObject({
+      code: 'SUBSCRIPTION_NOT_FOUND',
+    })
   })
 })
