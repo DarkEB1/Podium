@@ -15,7 +15,7 @@ export default function Hero() {
       <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6 md:px-10">
         <span className="font-heading text-xl font-extrabold tracking-tight text-foreground">Podium</span>
         <div className="flex items-center gap-7 text-sm font-medium text-muted-foreground">
-          <Link href="/auth/login" className="hidden transition-colors hover:text-foreground sm:inline">How it works</Link>
+          <Link href="#how" className="hidden transition-colors hover:text-foreground sm:inline">How it works</Link>
           <Link href="/brand/subscription" className="hidden transition-colors hover:text-foreground sm:inline">Pricing</Link>
           <Link href="/auth/signup" className={buttonVariants({ size: 'sm' })}>List your profile</Link>
         </div>
