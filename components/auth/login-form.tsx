@@ -9,15 +9,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import Link from 'next/link'
+import { ROUTES, ROLE_DASHBOARD as ROLE_HOME } from '@/lib/routes'
 import type { Database } from '@/types/database'
 
 type UserRole = Database['public']['Enums']['user_role']
 
 const ROLE_DASHBOARD: Partial<Record<UserRole, string>> = {
-  athlete: '/athlete/dashboard',
-  brand: '/brand/dashboard',
-  team: '/team/dashboard',
-  agent: '/agent/dashboard',
+  ...ROLE_HOME,
   admin: '/admin/dashboard',
 }
 
@@ -33,7 +31,7 @@ export default function LoginForm() {
   const { formState: { isSubmitting } } = form
 
   async function onSubmit(values: FormValues) {
-    const res = await fetch('/api/auth/login', {
+    const res = await fetch(ROUTES.api.auth.login, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(values),
@@ -49,9 +47,9 @@ export default function LoginForm() {
       return
     }
     if (!user.role || !user.role_locked_at) {
-      router.push('/role-select')
+      router.push(ROUTES.auth.roleSelect)
     } else {
-      router.push(ROLE_DASHBOARD[user.role as UserRole] ?? '/')
+      router.push(ROLE_DASHBOARD[user.role as UserRole] ?? ROUTES.home)
     }
   }
 
@@ -78,7 +76,7 @@ export default function LoginForm() {
             <FormItem>
               <div className="flex items-center justify-between">
                 <FormLabel>Password</FormLabel>
-                <Link href="/auth/forgot-password" className="text-small text-muted-foreground hover:underline">
+                <Link href={ROUTES.auth.forgotPassword} className="text-small text-muted-foreground hover:underline">
                   Forgot password?
                 </Link>
               </div>

@@ -1,13 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import type { Database } from '@/types/database'
-
-type SelectableRole = Exclude<Database['public']['Enums']['user_role'], 'admin'>
+import { ROUTES, ROLE_ONBOARDING as ROLE_ONBOARDING_ROUTES } from '@/lib/routes'
+import { clearIntendedRole, readIntendedRole, type SelectableRole } from './intended-role'
+import { track } from '@/lib/analytics'
 
 const ROLES: { id: SelectableRole; title: string; description: string; badge: string }[] = [
   {
@@ -36,23 +36,31 @@ const ROLES: { id: SelectableRole; title: string; description: string; badge: st
   },
 ]
 
-const ROLE_ONBOARDING: Record<SelectableRole, string> = {
-  athlete: '/athlete/onboarding',
-  team: '/team/onboarding',
-  brand: '/brand/onboarding',
-  agent: '/agent/onboarding',
+const ROLE_ONBOARDING: Record<SelectableRole, string> = ROLE_ONBOARDING_ROUTES
+
+interface Props {
+  /** Role chosen on the landing page (`/auth/signup?role=…`), pre-selected here. */
+  initialRole?: SelectableRole | undefined
 }
 
-export default function RoleSelectForm() {
+export default function RoleSelectForm({ initialRole }: Props = {}) {
   const router = useRouter()
-  const [selected, setSelected] = useState<SelectableRole | null>(null)
+  const [selected, setSelected] = useState<SelectableRole | null>(initialRole ?? null)
   const [loading, setLoading] = useState(false)
+
+  // M-3/PR-10: the landing-page choice is stashed before the email round trip,
+  // so recover it here when the URL no longer carries it.
+  useEffect(() => {
+    if (initialRole) return
+    const remembered = readIntendedRole()
+    if (remembered) setSelected(remembered)
+  }, [initialRole])
 
   async function handleConfirm() {
     if (!selected) return
     setLoading(true)
     try {
-      const res = await fetch('/api/auth/role', {
+      const res = await fetch(ROUTES.api.auth.role, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role: selected }),
@@ -62,6 +70,10 @@ export default function RoleSelectForm() {
         toast.error(data.error?.message ?? 'Failed to set role')
         return
       }
+      // M-6 `role_selected` — after the API persisted the role, not on the
+      // card click, so an abandoned or rejected choice is never counted.
+      track('role_selected', { role: selected })
+      clearIntendedRole()
       router.push(ROLE_ONBOARDING[selected])
     } finally {
       setLoading(false)

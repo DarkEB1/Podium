@@ -46,8 +46,12 @@ describe('T1 design tokens (globals.css)', () => {
     expect(css).toMatch(/--border:\s*#E5E9F0/)
   })
 
-  it('uses a frost-blue primary and a light frost accent tint', () => {
-    expect(css).toMatch(/--primary:\s*#5E81AC/)
+  // A-3: the original #5E81AC frost blue rendered white button labels at
+  // 4.03:1, below the WCAG AA 4.5:1 threshold. Darkened to #456489 (6.11:1).
+  // The authoritative check is components/ui/contrast.test.ts, which recomputes
+  // every token pair — this assertion only pins the chosen hue.
+  it('uses an accessible frost-blue primary and a light frost accent tint', () => {
+    expect(css).toMatch(/--primary:\s*#456489/)
     expect(css).toMatch(/--accent:\s*#E5E9F0/)
   })
 
@@ -96,8 +100,12 @@ describe('T1 design tokens (globals.css)', () => {
     expect(css).not.toMatch(/fractalNoise/)
   })
 
-  it('is light-mode only: no dark-mode token block', () => {
-    expect(css).not.toMatch(/\.dark\s*\{/)
+  // NX-2/A-1/PR-7: dark mode is now a shipped feature, so the previous
+  // "light-mode only" assertion is inverted. The toggle was dead precisely
+  // because no `.dark` token block existed for next-themes' class to select.
+  it('ships a dark-mode token block for the theme toggle to select', () => {
+    expect(css).toMatch(/\.dark\s*\{/)
+    expect(css).toMatch(/@custom-variant dark/)
   })
 })
 

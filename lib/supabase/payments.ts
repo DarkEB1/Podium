@@ -64,6 +64,74 @@ export async function getSubscriptionForUser(
   return (row.subscriptions ?? [])[0] ?? null
 }
 
+// Resolves brand_profiles.id (what subscriptions.brand_id references) from an
+// auth user id. Returns null when the user has no brand profile.
+export async function getBrandProfileIdForUser(
+  supabase: SupabaseClient<Database>,
+  userId: string
+): Promise<string | null> {
+  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
+  const { data, error } = await (supabase as SupabaseClient)
+    .from('brand_profiles')
+    .select('id')
+    .eq('user_id', userId)
+    .single()
+
+  if (error) {
+    if ((error as { code?: string }).code === 'PGRST116') return null
+    throw new PaymentsError('BRAND_PROFILE_FETCH_FAILED', (error as { message: string }).message)
+  }
+
+  return (data as { id: string }).id
+}
+
+// Webhook fallback: recover the brand from an existing subscription row that
+// already carries the Stripe customer id.
+//
+// Deliberately tolerant of zero OR many matches. `stripe_customer_id` carries no
+// uniqueness guarantee, and `.single()` turns "more than one row" into a generic
+// error that is indistinguishable from a real database failure — which used to
+// classify as transient and produce an endless 500 retry loop on every webhook.
+// Ordering by created_at makes the choice deterministic (oldest link wins: it is
+// the row that first bound this Stripe customer to a brand).
+//
+// REVIEWED after the reconciliation job landed (ST-3/ST-4/ST-6): oldest-wins is
+// still correct here, and the job does not change that.
+//   * This resolver only ever answers "which BRAND does this Stripe customer
+//     belong to?" — it is a fallback for a subscription whose metadata is
+//     missing. Every row sharing a stripe_customer_id necessarily shares the
+//     brand, so which row wins does not affect the answer. Newest-wins would
+//     churn the choice for no gain.
+//   * Determinism is the property that matters: an unstable answer makes the
+//     webhook and the reconciliation job resolve the same customer differently
+//     and fight over the row.
+//   * The job never uses this path to decide a subscription's STATE — state
+//     always comes from Stripe, keyed on stripe_subscription_id, which is exact.
+export async function getSubscriptionByStripeCustomerId(
+  supabase: SupabaseClient<Database>,
+  stripeCustomerId: string
+): Promise<SubscriptionRow | null> {
+  // A blank id can only match placeholder rows; never look it up.
+  if (!stripeCustomerId.trim()) return null
+
+  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
+  const { data, error } = await (supabase as SupabaseClient)
+    .from('subscriptions')
+    .select('*')
+    .eq('stripe_customer_id', stripeCustomerId)
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+
+  if (error) {
+    // PGRST116 = no rows — treat as "not linked yet"
+    if ((error as { code?: string }).code === 'PGRST116') return null
+    throw new PaymentsError('SUBSCRIPTION_FETCH_FAILED', (error as { message: string }).message)
+  }
+
+  return (data as SubscriptionRow | null) ?? null
+}
+
 export async function upsertSubscription(
   supabase: SupabaseClient<Database>,
   data: SubscriptionInsert
@@ -106,6 +174,72 @@ export async function updateSubscription(
 }
 
 // ---------------------------------------------------------------------------
+// Reconciliation support (ST-3 / ST-4 / ST-6)
+// ---------------------------------------------------------------------------
+
+/** Statuses that still grant a brand access, i.e. worth re-checking in Stripe. */
+export const ACTIVE_SUBSCRIPTION_STATUSES = [
+  'trialing',
+  'active',
+  'past_due',
+  'paused',
+] as const
+
+/** Exact lookup by Stripe subscription id. Returns null when unlinked. */
+export async function getSubscriptionByStripeSubscriptionId(
+  supabase: SupabaseClient<Database>,
+  stripeSubscriptionId: string
+): Promise<SubscriptionRow | null> {
+  if (!stripeSubscriptionId.trim()) return null
+
+  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
+  const { data, error } = await (supabase as SupabaseClient)
+    .from('subscriptions')
+    .select('*')
+    .eq('stripe_subscription_id', stripeSubscriptionId)
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+
+  if (error) {
+    if ((error as { code?: string }).code === 'PGRST116') return null
+    throw new PaymentsError('SUBSCRIPTION_FETCH_FAILED', (error as { message: string }).message)
+  }
+
+  return (data as SubscriptionRow | null) ?? null
+}
+
+/**
+ * Local rows that still grant access but whose billing period already ended.
+ *
+ * These are the candidates for the local-first half of reconciliation: if a
+ * renewal had happened, `current_period_end` would have moved forward, so a row
+ * still sitting behind `now()` means the local copy stopped being updated —
+ * either the subscription was cancelled while the webhook was down, or the
+ * renewal webhook was missed. Bounded and ordered so repeated invocations make
+ * progress from the most stale row outwards.
+ */
+export async function listStaleSubscriptions(
+  supabase: SupabaseClient<Database>,
+  options: { before: string; limit: number }
+): Promise<SubscriptionRow[]> {
+  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
+  const { data, error } = await (supabase as SupabaseClient)
+    .from('subscriptions')
+    .select('*')
+    .in('status', [...ACTIVE_SUBSCRIPTION_STATUSES])
+    .lt('current_period_end', options.before)
+    .order('current_period_end', { ascending: true })
+    .limit(options.limit)
+
+  if (error) {
+    throw new PaymentsError('SUBSCRIPTION_FETCH_FAILED', (error as { message: string }).message)
+  }
+
+  return (data ?? []) as SubscriptionRow[]
+}
+
+// ---------------------------------------------------------------------------
 // Payments
 // ---------------------------------------------------------------------------
 
@@ -118,6 +252,27 @@ export async function getPayment(
     .from('payments')
     .select('*')
     .eq('contract_id', contractId)
+    .single()
+
+  if (error) {
+    if ((error as { code?: string }).code === 'PGRST116') return null
+    throw new PaymentsError('PAYMENT_FETCH_FAILED', (error as { message: string }).message)
+  }
+
+  return data as PaymentRow
+}
+
+// The intents route inserts the payment row synchronously; the
+// payment_intent.created webhook must not insert a duplicate.
+export async function getPaymentByIntentId(
+  supabase: SupabaseClient<Database>,
+  stripePaymentIntentId: string
+): Promise<PaymentRow | null> {
+  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
+  const { data, error } = await (supabase as SupabaseClient)
+    .from('payments')
+    .select('*')
+    .eq('stripe_payment_intent_id', stripePaymentIntentId)
     .single()
 
   if (error) {
@@ -298,6 +453,125 @@ export async function removeSeat(
   }
 
   return data as SubscriptionRow
+}
+
+// ---------------------------------------------------------------------------
+// Stripe webhook event log (idempotency + poison-event guard)
+//
+// Table added in supabase/migrations/20260720002000_stripe_webhook_events.sql.
+// It is service-role only, so it is intentionally absent from the RLS-facing
+// generated `Database` type; the row shape is declared here instead.
+// ---------------------------------------------------------------------------
+
+export type WebhookEventStatus = 'received' | 'processed' | 'failed' | 'unprocessable'
+
+export type StripeWebhookEventRow = {
+  id: string
+  type: string
+  received_at: string
+  processed_at: string | null
+  status: WebhookEventStatus
+  error: string | null
+  payload: unknown
+}
+
+export async function getWebhookEvent(
+  supabase: SupabaseClient<Database>,
+  eventId: string
+): Promise<StripeWebhookEventRow | null> {
+  // as SupabaseClient: strips the Database generic; table is service-role only
+  // and therefore not present in the generated Database type
+  const { data, error } = await (supabase as SupabaseClient)
+    .from('stripe_webhook_events')
+    .select('*')
+    .eq('id', eventId)
+    .single()
+
+  if (error) {
+    if ((error as { code?: string }).code === 'PGRST116') return null
+    throw new PaymentsError('WEBHOOK_EVENT_FETCH_FAILED', (error as { message: string }).message)
+  }
+
+  return data as StripeWebhookEventRow
+}
+
+export type WebhookEventClaim = {
+  /** True only for the caller that won the right to run the handlers. */
+  claimed: boolean
+  /** How many times this event has been claimed, including this claim. */
+  attempts: number
+  /** Current row status; null only if the row vanished between statements. */
+  status: WebhookEventStatus | null
+}
+
+/**
+ * Atomically claims one delivery of a Stripe event.
+ *
+ * Replaces the previous read-then-upsert pair, which was not atomic: two
+ * concurrent deliveries of the same event id could both see "not processed yet"
+ * and both run the handlers. `claim_stripe_webhook_event`
+ * (20260720006000_stripe_webhook_claim_and_customer_guard.sql) does the insert,
+ * the terminal-status check and the attempt increment in one locked statement,
+ * so exactly one caller gets `claimed: true`.
+ *
+ * `claimed: false` means either the event already reached a terminal status
+ * (processed / unprocessable) or another worker currently holds it — in both
+ * cases this delivery must not run the handlers.
+ */
+export async function claimWebhookEvent(
+  supabase: SupabaseClient<Database>,
+  event: { id: string; type: string; payload: unknown }
+): Promise<WebhookEventClaim> {
+  // as SupabaseClient: strips the Database generic; the RPC and the underlying
+  // service-role-only table are absent from the generated Database types.
+  const { data, error } = await (supabase as SupabaseClient).rpc('claim_stripe_webhook_event', {
+    p_id: event.id,
+    p_type: event.type,
+    p_payload: event.payload,
+  })
+
+  if (error) {
+    throw new PaymentsError('WEBHOOK_EVENT_CLAIM_FAILED', (error as { message: string }).message)
+  }
+
+  // A `returns table` function comes back as a one-row array over PostgREST.
+  const rows = Array.isArray(data) ? data : [data]
+  const row = (rows[0] ?? null) as {
+    did_claim?: boolean
+    attempt_count?: number
+    event_status?: WebhookEventStatus
+  } | null
+
+  if (!row) {
+    throw new PaymentsError('WEBHOOK_EVENT_CLAIM_FAILED', 'claim returned no row')
+  }
+
+  return {
+    claimed: row.did_claim === true,
+    attempts: row.attempt_count ?? 0,
+    status: row.event_status ?? null,
+  }
+}
+
+export async function markWebhookEvent(
+  supabase: SupabaseClient<Database>,
+  eventId: string,
+  status: WebhookEventStatus,
+  errorMessage?: string | null
+): Promise<void> {
+  // as SupabaseClient: strips the Database generic; table is service-role only
+  const { error } = await (supabase as SupabaseClient)
+    .from('stripe_webhook_events')
+    .update({
+      status,
+      error: errorMessage ?? null,
+      processed_at: new Date().toISOString(),
+    })
+    .eq('id', eventId)
+
+  if (error) {
+    throw new PaymentsError('WEBHOOK_EVENT_UPDATE_FAILED', (error as { message: string }).message)
+  }
 }
 
 export async function updatePaymentRecord(

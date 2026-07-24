@@ -1,6 +1,7 @@
 'use client'
 
 import { useId, useMemo, useRef, useState } from 'react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import {
@@ -22,6 +23,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Combobox } from '@/components/ui/combobox'
 import { ImageUpload } from '@/components/ui/image-upload'
+import { isRemoteImageSrc } from '@/components/ui/image-src'
 import { CardSelectGroup } from '@/components/ui/card-select'
 import { CharacterCounter } from '@/components/ui/character-counter'
 import { RequiredKey } from '@/components/ui/required-key'
@@ -137,7 +139,7 @@ async function uploadPdfDefault(file: File): Promise<string> {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) throw new Error('You must be signed in to upload a file.')
-  const { uploadUrl, publicUrl } = await createUploadUrl(supabase, {
+  const { uploadUrl, path } = await createUploadUrl(supabase, {
     bucket: 'docs',
     userId: user.id,
     ext: 'pdf',
@@ -148,7 +150,10 @@ async function uploadPdfDefault(file: File): Promise<string> {
     headers: { 'content-type': file.type || 'application/pdf' },
   })
   if (!res.ok) throw new Error('Upload failed. Please try again.')
-  return publicUrl
+  // The `docs` bucket is private (migration 20260720005002), so there is no
+  // public URL to store. Persist the object PATH and mint a short-lived link at
+  // read time with createSignedDownloadUrl() — a stored URL cannot be re-signed.
+  return path
 }
 
 interface PdfUploadProps {
@@ -349,7 +354,8 @@ export default function TeamProfileForm({
     try {
       await onCreate(data)
       toast.success('Team profile created.')
-      router.push('/team/onboarding/step/2')
+      // B-4: no step-2 route exists; land on the dashboard once the profile saves.
+      router.push('/team/dashboard')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to create profile')
     } finally {
@@ -411,11 +417,16 @@ export default function TeamProfileForm({
           >
             <div className="relative aspect-[16/9] w-full bg-muted">
               {coverUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+                // A-2: `fill` inherits the wrapper's 16:9 box, which already
+                // reserves the footprint — the preview cannot shift the form.
+                // `onUploaded` only ever yields a stored URL, never a blob.
+                <Image
                   src={coverUrl}
                   alt={`${teamName || 'Your team'} cover`}
-                  className="size-full object-cover"
+                  fill
+                  sizes="(min-width: 768px) 32rem, 100vw"
+                  unoptimized={isRemoteImageSrc(coverUrl)}
+                  className="object-cover"
                 />
               ) : (
                 <div className="flex size-full items-center justify-center text-small text-muted-foreground">
@@ -424,10 +435,13 @@ export default function TeamProfileForm({
               )}
               <div className="absolute -bottom-6 left-4 size-16 overflow-hidden rounded-full border-4 border-card bg-muted">
                 {logoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
+                  // A-2: explicit 64×64 intrinsic size (the size-16 badge).
+                  <Image
                     src={logoUrl}
                     alt={`${teamName || 'Your team'} logo`}
+                    width={64}
+                    height={64}
+                    unoptimized={isRemoteImageSrc(logoUrl)}
                     className="size-full object-cover"
                   />
                 ) : null}
@@ -509,7 +523,7 @@ export default function TeamProfileForm({
             onChange={(e) => setLevel(e.target.value)}
             className={cn(
               'h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-medium shadow-xs',
-              'focus-visible:ring-3 focus-visible:ring-ring/50 outline-none'
+              'focus-visible:ring-2 focus-visible:ring-ring outline-none'
             )}
           >
             <option value="">Select a level</option>
@@ -550,7 +564,7 @@ export default function TeamProfileForm({
             aria-label="About the bio"
             title="A concise summary of your team shown on your public header and discovery card."
             aria-describedby={bioHelpId}
-            className="text-muted-foreground hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 rounded-full outline-none"
+            className="text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring rounded-full outline-none"
           >
             <HelpCircle aria-hidden="true" className="size-4" />
           </button>

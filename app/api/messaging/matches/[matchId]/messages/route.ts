@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getMessages, sendMessage, MessagingError } from '@/lib/supabase/messaging'
+import { RATE_LIMITS, consume, tooManyRequests, userKey } from '@/lib/rate-limit'
 import type { Database } from '@/types/database'
 
 type MessageType = Database['public']['Enums']['message_type']
@@ -54,6 +55,14 @@ export async function POST(
       { status: 401 }
     )
   }
+
+  // DH-2: chat is the highest-frequency write in the product, so it gets its
+  // OWN key namespace rather than sharing one budget with proposals — 60 sends
+  // per minute is roughly one per second, far above any human typing cadence
+  // but low enough to stop a scripted flood, and a chatty conversation can no
+  // longer lock the user out of sending a proposal.
+  const limited = await consume(userKey('message_send', user.id), RATE_LIMITS.writeByUser)
+  if (!limited.allowed) return tooManyRequests(limited.retryAfter)
 
   const body = (await request.json()) as {
     content_type?: string

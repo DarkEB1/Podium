@@ -21,6 +21,8 @@ interface Props {
   currentUserId: string
   initialMessages: MessageRow[]
   proposals: ProposalRow[]
+  /** M-6 — role of the signed-in viewer, forwarded to proposal analytics. */
+  viewerRole?: string | undefined
 }
 
 /**
@@ -34,6 +36,7 @@ export default function BrandChatEntry({
   currentUserId,
   initialMessages,
   proposals,
+  viewerRole,
 }: Props) {
   const [sentProposals, setSentProposals] = useState<ProposalRow[]>(proposals)
   const [open, setOpen] = useState(false)
@@ -47,6 +50,7 @@ export default function BrandChatEntry({
         initialMessages={initialMessages}
         proposals={sentProposals}
         currentUserId={currentUserId}
+        viewerRole={viewerRole}
       />
     )
   }

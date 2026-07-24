@@ -2,10 +2,11 @@
 
 import * as React from 'react'
 import Link from 'next/link'
-import { Archive } from 'lucide-react'
+import { Archive, MessageSquare, SearchX } from 'lucide-react'
 
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { UserAvatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import { EmptyState } from '@/components/ui/empty-state'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
@@ -39,15 +40,6 @@ interface Props {
    * archive affordance entirely.
    */
   onArchive?: (id: string) => void | Promise<void>
-}
-
-function initials(name: string): string {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? '')
-    .join('')
 }
 
 function formatTimestamp(iso: string): string {
@@ -142,14 +134,19 @@ export default function MatchList({ conversations, basePath, onArchive }: Props)
         </div>
       </div>
 
+      {/* UX-1 — designed empty states, not a bare sentence on a blank pane. */}
       {!hasConversations ? (
-        <p className="py-16 text-center text-medium text-muted-foreground">
-          No conversations yet. Accept a connection request to start chatting.
-        </p>
+        <EmptyState
+          variant="emptyInbox"
+          iconComponent={MessageSquare}
+          description="Accept a connection request and the conversation shows up here."
+        />
       ) : visible.length === 0 ? (
-        <p className="py-16 text-center text-medium text-muted-foreground">
-          No conversations match your search.
-        </p>
+        <EmptyState
+          iconComponent={SearchX}
+          title="No conversations match your search"
+          description="Try a different name, or clear the search to see everything again."
+        />
       ) : (
         <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
           {visible.map((c) => {
@@ -181,12 +178,8 @@ export default function MatchList({ conversations, basePath, onArchive }: Props)
                       unread ? 'border-l-primary bg-primary/5' : 'border-l-transparent'
                     )}
                   >
-                    <Avatar size="lg">
-                      {c.avatarUrl ? (
-                        <AvatarImage src={c.avatarUrl} alt={`${c.name} avatar`} />
-                      ) : null}
-                      <AvatarFallback>{initials(c.name)}</AvatarFallback>
-                    </Avatar>
+                    {/* B-5 — photo → initials → silhouette; never a broken image. */}
+                    <UserAvatar size="lg" src={c.avatarUrl} name={c.name} />
 
                     <div className="min-w-0 flex-1">
                       <div className="flex items-baseline justify-between gap-2">

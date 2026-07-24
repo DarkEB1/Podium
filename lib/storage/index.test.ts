@@ -69,6 +69,30 @@ describe('createUploadUrl', () => {
     expect(mock.getPublicUrl).toHaveBeenCalledWith(path)
   })
 
+  // PR-16: the storage.objects policies added in migration 20260720001005
+  // require `(storage.foldername(name))[1] = auth.uid()::text`, so the owner id
+  // must be the WHOLE first path segment.
+  it('uses exactly one path segment for the owner folder', async () => {
+    await createUploadUrl(mock.client, { bucket: 'avatars', userId: 'user-123', ext: 'jpg' })
+
+    const path = mock.createSignedUploadUrl.mock.calls[0]![0] as string
+    expect(path.split('/')[0]).toBe('user-123')
+    expect(path.split('/')).toHaveLength(2)
+  })
+
+  it('trims the userId so the folder still matches auth.uid() exactly', async () => {
+    await createUploadUrl(mock.client, { bucket: 'avatars', userId: '  user-123  ', ext: 'jpg' })
+
+    const path = mock.createSignedUploadUrl.mock.calls[0]![0] as string
+    expect(path.split('/')[0]).toBe('user-123')
+  })
+
+  it('rejects a userId containing a path separator', async () => {
+    await expect(
+      createUploadUrl(mock.client, { bucket: 'avatars', userId: 'user-123/evil', ext: 'jpg' })
+    ).rejects.toBeInstanceOf(StorageError)
+  })
+
   it('normalizes the extension (strips leading dot, lowercases)', async () => {
     await createUploadUrl(mock.client, {
       bucket: 'logos',

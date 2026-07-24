@@ -1,31 +1,60 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { markEmailVerified } from '@/lib/supabase/auth'
+import { ROUTES } from '@/lib/routes'
+import { AUTH_ERROR_CODES, classifyAuthError } from '@/components/auth/auth-errors'
+
+/**
+ * B-3 / NX-1 — auth callback.
+ *
+ * Failures redirect to the real sign-in route (`ROUTES.auth.signIn` = `/auth`)
+ * carrying an `?error=` code that the sign-in page renders as human-readable
+ * copy. It previously redirected to `/login`, which does not exist, so every
+ * failure 404'd and the reason was never shown.
+ */
+function failure(origin: string, code: string): NextResponse {
+  const url = new URL(ROUTES.auth.signIn, origin)
+  url.searchParams.set('error', code)
+  return NextResponse.redirect(url)
+}
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
+
+  // Supabase appends these itself when the confirmation fails before reaching
+  // us (expired / already-consumed link). Honour them first.
+  const providerError = searchParams.get('error')
+  if (providerError) {
+    return failure(
+      origin,
+      classifyAuthError(
+        searchParams.get('error_code') ?? providerError,
+        searchParams.get('error_description'),
+      ),
+    )
+  }
+
   const code = searchParams.get('code')
   const type = searchParams.get('type')
 
   if (!code) {
-    return NextResponse.redirect(`${origin}/login?error=auth_callback_missing_code`)
+    return failure(origin, AUTH_ERROR_CODES.missingCode)
   }
 
   const supabase = await createClient()
   const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
   if (error || !data.session) {
-    return NextResponse.redirect(`${origin}/login?error=auth_callback_failed`)
+    return failure(origin, classifyAuthError(null, error?.message ?? null))
   }
 
-  // Mark email as verified in public.users
-  await supabase
-    .from('users')
-    .update({ email_verified: true })
-    .eq('id', data.session.user.id)
+  // SB-10/FA-1: this was the last inline Supabase query outside lib/supabase/
+  // in the whole tree, and the only genuine violation the new lint rule found.
+  await markEmailVerified(supabase, data.session.user.id)
 
   if (type === 'recovery') {
-    return NextResponse.redirect(`${origin}/update-password`)
+    return NextResponse.redirect(new URL(ROUTES.auth.updatePassword, origin))
   }
 
-  return NextResponse.redirect(`${origin}/role-select`)
+  return NextResponse.redirect(new URL(ROUTES.auth.roleSelect, origin))
 }

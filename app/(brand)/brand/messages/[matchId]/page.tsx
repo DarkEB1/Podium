@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
@@ -7,6 +8,24 @@ import { getProposals } from '@/lib/supabase/deals'
 import { buttonVariants } from '@/components/ui/button'
 import BrandChatEntry from '@/components/messaging/brand-chat-entry'
 import type { Database } from '@/types/database'
+
+/**
+ * M-1 — deliberately GENERIC and identical for every record.
+ *
+ * A page title is written to browser history, sent in the document title to
+ * analytics, and is visible on a shared screen or a screencast. Interpolating
+ * the subject's name here ("Sarah Okoro — Athlete") would leak a real person's
+ * identity into all three, so the title says only what kind of page this is.
+ * `robots: { index: false }` keeps it out of search results as well.
+ */
+export function generateMetadata(): Metadata {
+  return {
+    title: 'Conversation · Podium',
+    description: 'A conversation on Podium.',
+    robots: { index: false },
+  }
+}
+
 
 type MessageRow = Database['public']['Tables']['messages']['Row']
 type ProposalRow = Database['public']['Tables']['proposals']['Row']
@@ -45,6 +64,7 @@ export default async function BrandChatPage({
         initialMessages={messages}
         proposals={proposals}
         currentUserId={user.id}
+        viewerRole="brand"
       />
     </div>
   )

@@ -1,32 +1,123 @@
 import Link from 'next/link'
+import CookieBanner from '@/components/legal/cookie-banner'
+import CookiePreferencesButton from '@/components/legal/cookie-preferences-button'
+import { CONTROLLER } from '@/lib/legal/versions'
 
-const links = [
+/**
+ * Every href below has been verified to resolve to a real route or to an
+ * anchor that exists on the landing page (`id="about" | "how" | "who" | "faq"`
+ * in components/landing/*). The previous `/#trust` link pointed at a section
+ * that does not exist and has been removed. Do not add a link here before
+ * confirming its target renders.
+ */
+const PRODUCT_LINKS = [
+  { label: 'How it works', href: '/#how' },
+  { label: 'Who it’s for', href: '/#who' },
   { label: 'About', href: '/#about' },
-  { label: 'Trust & Safety', href: '/#trust' },
   { label: 'FAQ', href: '/#faq' },
-  { label: 'Contact', href: 'mailto:hello@podium.com' },
+]
+
+const ACCOUNT_LINKS = [
+  { label: 'Sign in', href: '/auth' },
+  { label: 'Create an account', href: '/auth/signup' },
+]
+
+const LEGAL_LINKS = [
   { label: 'Terms of Service', href: '/terms' },
   { label: 'Privacy Policy', href: '/privacy' },
+  { label: 'Cookie Policy', href: '/cookies' },
 ]
+
+const linkClass = 'transition-colors hover:text-foreground'
 
 export default function Footer() {
   return (
-    <footer className="border-t bg-background py-10">
-      <div className="mx-auto max-w-6xl px-6">
-        <div className="flex flex-col items-center gap-6">
-          <span className="text-xl font-bold tracking-tight">Podium</span>
-          <nav className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
-            {links.map((l) => (
-              <Link key={l.href} href={l.href} className="hover:text-foreground transition-colors">
-                {l.label}
-              </Link>
-            ))}
-          </nav>
-          <p className="text-xs text-muted-foreground">
-            © 2026 Podium. All rights reserved. Confidential &amp; Proprietary.
+    <>
+      <footer className="border-t border-border bg-background py-14">
+        <div className="mx-auto max-w-6xl px-6 md:px-10">
+          <div className="grid gap-10 sm:grid-cols-2 md:grid-cols-4">
+            <div>
+              <span className="font-heading text-xl font-extrabold tracking-tight text-foreground">
+                Podium
+              </span>
+              <p className="mt-3 max-w-[28ch] text-sm leading-relaxed text-muted-foreground">
+                The UK marketplace where athletes, teams and brands find each
+                other directly.
+              </p>
+            </div>
+
+            <nav aria-label="Product" className="text-sm text-muted-foreground">
+              <p className="font-heading text-sm font-bold text-foreground">
+                Product
+              </p>
+              <ul className="mt-3 space-y-2">
+                {PRODUCT_LINKS.map((l) => (
+                  <li key={l.href}>
+                    <Link href={l.href} className={linkClass}>
+                      {l.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+
+            <nav aria-label="Account" className="text-sm text-muted-foreground">
+              <p className="font-heading text-sm font-bold text-foreground">
+                Account
+              </p>
+              <ul className="mt-3 space-y-2">
+                {ACCOUNT_LINKS.map((l) => (
+                  <li key={l.href}>
+                    <Link href={l.href} className={linkClass}>
+                      {l.label}
+                    </Link>
+                  </li>
+                ))}
+                <li>
+                  <a
+                    href={`mailto:${CONTROLLER.supportEmail}`}
+                    className={linkClass}
+                  >
+                    Contact us
+                  </a>
+                </li>
+              </ul>
+            </nav>
+
+            <nav aria-label="Legal" className="text-sm text-muted-foreground">
+              <p className="font-heading text-sm font-bold text-foreground">
+                Legal
+              </p>
+              <ul className="mt-3 space-y-2">
+                {LEGAL_LINKS.map((l) => (
+                  <li key={l.href}>
+                    <Link href={l.href} className={linkClass}>
+                      {l.label}
+                    </Link>
+                  </li>
+                ))}
+                <li>
+                  {/* Consent must be as easy to withdraw as it was to give. */}
+                  <CookiePreferencesButton className={linkClass} />
+                </li>
+              </ul>
+            </nav>
+          </div>
+
+          <p className="mt-12 border-t border-border pt-6 text-xs text-muted-foreground">
+            © 2026 Podium. All rights reserved. Podium is an introduction
+            platform and is not a party to agreements made between brands and
+            athletes or teams.
           </p>
         </div>
-      </div>
-    </footer>
+      </footer>
+
+      {/*
+        Mounted here so consent is reachable from every page that renders the
+        footer. For site-wide coverage the banner should also be mounted once in
+        app/layout.tsx — see the handover note in the task report.
+      */}
+      <CookieBanner />
+    </>
   )
 }

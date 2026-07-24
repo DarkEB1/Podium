@@ -106,16 +106,19 @@ function FormLabel({
 function FormControl({ ...props }: React.ComponentProps<typeof Slot>) {
   const { error, formItemId, formDescriptionId, formMessageId } = useFormField()
 
+  // A-7 — the error node is only in the DOM when there IS an error, so pointing
+  // aria-describedby at its id unconditionally leaves a dangling IDREF. Build
+  // the list from the ids that actually resolve.
+  const describedBy = [formDescriptionId, error ? formMessageId : null]
+    .filter(Boolean)
+    .join(" ")
+
   return (
     <Slot
       data-slot="form-control"
       id={formItemId}
-      aria-describedby={
-        !error
-          ? `${formDescriptionId}`
-          : `${formDescriptionId} ${formMessageId}`
-      }
-      aria-invalid={!!error}
+      aria-describedby={describedBy || undefined}
+      aria-invalid={error ? true : undefined}
       {...props}
     />
   )
@@ -153,6 +156,11 @@ function FormMessage({
     <p
       data-slot="form-message"
       id={formMessageId}
+      // A-7 — announce validation failures the moment they appear. `role="alert"`
+      // (an assertive live region) is what makes a screen reader read the message
+      // without the user having to move focus back to the field.
+      role={error ? "alert" : undefined}
+      aria-live={error ? "assertive" : undefined}
       className={cn("text-destructive text-sm", className)}
       {...props}
     >

@@ -15,16 +15,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import type { Database } from '@/types/database'
-
-type JobListingRow = Database['public']['Tables']['job_listings']['Row']
+import { ROUTES } from '@/lib/routes'
+import { CONNECTION_MESSAGE_MIN, CONNECTION_MESSAGE_MAX } from '@/lib/limits'
+import type { ListingSummary } from '@/lib/supabase/discovery'
+import { track } from '@/lib/analytics'
 
 interface Props {
-  listing: JobListingRow
+  /** `JobListingWithBrand` is a superset of `ListingSummary`, so both fit. */
+  listing: ListingSummary
 }
-
-/** A personalised connection request must be at least this long (spec §3D.1). */
-const MIN_MESSAGE_LENGTH = 300
 
 const PAY_TYPE_LABEL: Record<string, string> = {
   flat_fee: 'Flat fee',
@@ -75,24 +74,41 @@ export default function ListingCard({ listing }: Props) {
     </>
   )
 
-  const tooShort = message.trim().length < MIN_MESSAGE_LENGTH
+  const trimmedLength = message.trim().length
+  const tooShort = trimmedLength < CONNECTION_MESSAGE_MIN
+  const tooLong = trimmedLength > CONNECTION_MESSAGE_MAX
+  // PR-19: a listing whose brand profile could not be resolved has nobody to
+  // send to. Disable rather than let the request fail its FK server-side.
+  const canSend = !tooShort && !tooLong && listing.brand_user_id !== null
 
   async function sendRequest() {
+    if (!listing.brand_user_id) return
     setSending(true)
     try {
-      const res = await fetch('/api/discovery/connections', {
+      // PR-19: must be the brand's *user* id. `listing.brand_id` is a
+      // brand_profiles.id and violates the recipient FK — see JobListingWithBrand.
+      const res = await fetch(ROUTES.api.discovery.connections, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recipient_id: listing.brand_id, message: message.trim() }),
+        body: JSON.stringify({ recipient_id: listing.brand_user_id, message: message.trim() }),
       })
-      const data = (await res.json()) as { error?: { message?: string } }
+      // PR-19: a non-JSON body (a 500 HTML page, a network drop) used to throw
+      // out of this handler, leaving the dialog open with no feedback at all.
+      // Every failure now surfaces to the user.
+      const data = (await res.json().catch(() => ({}))) as { error?: { message?: string } }
       if (!res.ok) {
-        toast.error(data.error?.message ?? 'Could not send your request')
+        toast.error(data.error?.message ?? 'Could not send your request. Please try again.')
         return
       }
+      // M-6 `connection_request_sent` — fired only after a 2xx. The recipient
+      // is always a brand on this surface; the message body and the recipient
+      // id are deliberately NOT sent.
+      track('connection_request_sent', { recipient_role: 'brand', surface: 'listing_card' })
       toast.success('Connection request sent')
       setOpen(false)
       setMessage('')
+    } catch {
+      toast.error('Could not send your request. Please check your connection and try again.')
     } finally {
       setSending(false)
     }
@@ -154,28 +170,36 @@ export default function ListingCard({ listing }: Props) {
                 Personalised message
               </label>
               <p className="text-small text-muted-foreground">
-                Tell this brand why you are a great fit. Send a personalised message of at least{' '}
-                {MIN_MESSAGE_LENGTH} characters.
+                Tell this brand why you are a great fit — between {CONNECTION_MESSAGE_MIN} and{' '}
+                {CONNECTION_MESSAGE_MAX} characters.
               </p>
               <Textarea
                 id="connection-message"
                 rows={6}
+                maxLength={CONNECTION_MESSAGE_MAX}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                aria-invalid={tooShort}
+                aria-invalid={tooShort || tooLong}
+                aria-describedby="connection-message-status"
                 placeholder="Introduce yourself, your audience and why this campaign suits you…"
               />
               <div className="flex items-center justify-between">
                 <span
+                  id="connection-message-status"
+                  role={tooLong ? 'alert' : undefined}
                   className={
-                    tooShort ? 'text-small font-medium text-destructive' : 'text-small text-success'
+                    tooShort || tooLong
+                      ? 'text-small font-medium text-destructive'
+                      : 'text-small text-success'
                   }
                 >
-                  {tooShort
-                    ? `Write at least ${MIN_MESSAGE_LENGTH} characters`
-                    : 'Ready to send'}
+                  {tooLong
+                    ? `Keep it to ${CONNECTION_MESSAGE_MAX} characters or fewer`
+                    : tooShort
+                      ? `Write at least ${CONNECTION_MESSAGE_MIN} characters`
+                      : 'Ready to send'}
                 </span>
-                <CharacterCounter value={message} max={MIN_MESSAGE_LENGTH} />
+                <CharacterCounter value={message} max={CONNECTION_MESSAGE_MAX} />
               </div>
             </div>
           </div>
@@ -184,7 +208,7 @@ export default function ListingCard({ listing }: Props) {
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="button" onClick={sendRequest} disabled={tooShort || sending}>
+            <Button type="button" onClick={sendRequest} disabled={!canSend || sending}>
               {sending ? 'Sending…' : 'Send request'}
             </Button>
           </DialogFooter>

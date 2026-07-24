@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Geist, DM_Sans, Geist_Mono } from 'next/font/google'
-import { ThemeProvider } from 'next-themes'
+import { ThemeProvider } from '@/components/ui/theme-provider'
+import CookieBanner from '@/components/legal/cookie-banner'
 import { Toaster } from '@/components/ui/sonner'
 import './globals.css'
 import type { ReactNode } from 'react'
@@ -19,8 +20,17 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${geist.variable} ${dmSans.variable} ${geistMono.variable} antialiased`}>
-        <ThemeProvider attribute="class" defaultTheme="light" forcedTheme="light" enableSystem={false}>
+        {/*
+          NX-2/A-1/PR-7: this previously passed `forcedTheme="light"`, which makes
+          next-themes ignore every setTheme() call — the reason the ThemeToggle
+          appeared to do nothing. The wrapper sets attribute="class" so the
+          `.dark` token block in globals.css actually applies.
+        */}
+        <ThemeProvider>
           {children}
+          {/* CL-2/M-7: site-wide so consent is captured before any non-essential
+              cookie is set, not only on pages that happen to render the footer. */}
+          <CookieBanner />
           <Toaster richColors position="top-right" />
         </ThemeProvider>
       </body>

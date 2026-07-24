@@ -7,10 +7,12 @@ import { Label } from '@/components/ui/label'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { EmptyState } from '@/components/ui/empty-state'
+import { ROUTES } from '@/lib/routes'
 import AthleteCard from './athlete-card'
+import type { AthleteSummary } from '@/lib/supabase/profiles'
 import type { Database } from '@/types/database'
 
-type AthleteRow = Database['public']['Tables']['athlete_profiles']['Row']
+type AthleteRow = AthleteSummary
 type AvailabilityStatus = Database['public']['Enums']['availability_status']
 type AthleteLevel = Database['public']['Enums']['athlete_level']
 
@@ -22,6 +24,8 @@ interface Props {
   savedUserIds?: string[]
   /** user_ids of verified athletes (Track B verification status). */
   verifiedUserIds?: string[]
+  /** Rendered under the grid — the "Load more" affordance for the paginated feed (FA-5). */
+  footer?: React.ReactNode
 }
 
 const MAX_TIER = 3
@@ -63,6 +67,7 @@ export default function AthletesGrid({
   tier,
   savedUserIds = [],
   verifiedUserIds = [],
+  footer,
 }: Props) {
   const [search, setSearch] = useState('')
   const [sport, setSport] = useState('')
@@ -70,7 +75,6 @@ export default function AthletesGrid({
   const [availability, setAvailability] = useState('')
   const [radiusKm, setRadiusKm] = useState('')
   const [minFollowing, setMinFollowing] = useState('')
-  const [verifiedOnly, setVerifiedOnly] = useState(false)
   const [panelOpen, setPanelOpen] = useState(false)
 
   const savedSet = useMemo(() => new Set(savedUserIds), [savedUserIds])
@@ -89,8 +93,7 @@ export default function AthletesGrid({
     (level ? 1 : 0) +
     (availability ? 1 : 0) +
     (radiusKm ? 1 : 0) +
-    (minFollowing ? 1 : 0) +
-    (verifiedOnly ? 1 : 0)
+    (minFollowing ? 1 : 0)
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -110,10 +113,9 @@ export default function AthletesGrid({
       if (availability && a.availability_status !== availability) return false
       if (radius != null && (a.travel_radius_km ?? 0) < radius) return false
       if (minFollowingN != null && followerCount(a) < minFollowingN) return false
-      if (verifiedOnly && !verifiedSet.has(a.user_id)) return false
       return true
     })
-  }, [athletes, search, sport, level, availability, radiusKm, minFollowing, verifiedOnly, verifiedSet])
+  }, [athletes, search, sport, level, availability, radiusKm, minFollowing])
 
   const showUpgrade = typeof tier === 'number' && tier < MAX_TIER
 
@@ -232,17 +234,13 @@ export default function AthletesGrid({
             />
           </div>
 
-          <div className="flex items-end">
-            <label className="inline-flex items-center gap-2 text-medium">
-              <input
-                type="checkbox"
-                checked={verifiedOnly}
-                onChange={(e) => setVerifiedOnly(e.target.checked)}
-                className="size-4 rounded border-input"
-              />
-              Verified athletes only
-            </label>
-          </div>
+          {/*
+            A "Verified athletes only" checkbox used to live here. There is no
+            verification column on `athlete_profiles` — the grid was matching
+            against a `verifiedUserIds` prop no page ever passed, so ticking it
+            always returned zero athletes. A filter that can only ever empty the
+            page is worse than no filter; it comes back with the column.
+          */}
         </div>
       </div>
 
@@ -265,6 +263,8 @@ export default function AthletesGrid({
         </div>
       )}
 
+      {footer}
+
       {showUpgrade ? (
         <aside
           role="complementary"
@@ -283,7 +283,7 @@ export default function AthletesGrid({
             </div>
           </div>
           <a
-            href="/brand/subscription"
+            href={ROUTES.brand.subscription}
             className={cn(buttonVariants({ variant: 'default', size: 'sm' }))}
           >
             See plans

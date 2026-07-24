@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { createReport, getOwnReports, AdminError } from '@/lib/supabase/admin'
+import { RATE_LIMITS, consume, tooManyRequests, userKey } from '@/lib/rate-limit'
 
 export async function GET(_request: NextRequest) {
   const supabase = await createClient()
@@ -38,6 +39,11 @@ export async function POST(request: NextRequest) {
       { status: 401 }
     )
   }
+
+  // DH-2: report spam floods the moderation queue — limited per user in its
+  // own key namespace.
+  const limited = await consume(userKey('report_create', user.id), RATE_LIMITS.writeByUser)
+  if (!limited.allowed) return tooManyRequests(limited.retryAfter)
 
   const body = await request.json()
   const { reported_user_id, reported_message_id, reason, detail } = body

@@ -16,6 +16,14 @@ import type { Database } from '@/types/database'
 
 type BrandRow = Database['public']['Tables']['brand_profiles']['Row']
 
+// M-1: per-route metadata. Authenticated surface: `robots.index = false`
+// mirrors app/robots.ts so a signed-in page can never be indexed.
+export const metadata = {
+  title: 'Brand dashboard · Podium',
+  description: 'Your campaigns, listings, connection requests and deal pipeline in one view.',
+  robots: { index: false, follow: false },
+}
+
 export default async function BrandDashboardPage() {
   const supabase = await createClient()
   const user = await getUser(supabase)

@@ -2,13 +2,15 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import ListingCard from './listing-card'
-import type { Database } from '@/types/database'
+import type { JobListingWithBrand } from '@/lib/supabase/discovery'
+import { CONNECTION_MESSAGE_MIN, CONNECTION_MESSAGE_MAX } from '@/lib/limits'
 
-type JobListingRow = Database['public']['Tables']['job_listings']['Row']
 
-const makeListing = (overrides: Partial<JobListingRow> = {}): JobListingRow => ({
+const makeListing = (overrides: Partial<JobListingWithBrand> = {}): JobListingWithBrand => ({
   id: 'l1',
   brand_id: 'b1',
+  brand_user_id: 'brand-user-1',
+  brand_name: 'Acme',
   title: 'Football Endorsement',
   type: 'athlete_endorsement',
   description: 'Looking for a footballer to represent our energy brand across social.',
@@ -53,7 +55,7 @@ describe('ListingCard', () => {
     expect(screen.getByText(/Looking for a footballer/)).toBeInTheDocument()
   })
 
-  describe('connection request 300-char minimum gate', () => {
+  describe('connection request length bounds (PR-8)', () => {
     beforeEach(() => {
       vi.stubGlobal(
         'fetch',
@@ -64,7 +66,15 @@ describe('ListingCard', () => {
       vi.unstubAllGlobals()
     })
 
-    it('disables Send until the message reaches 300 characters', async () => {
+    // Regression guard: this composer used to demand a message of at least 300
+    // characters while the server rejected anything over 300, so the only
+    // sendable message was exactly 300 characters long. The bound is a MAXIMUM.
+    it('treats 300 as the maximum, not the minimum', () => {
+      expect(CONNECTION_MESSAGE_MAX).toBe(300)
+      expect(CONNECTION_MESSAGE_MIN).toBeLessThan(CONNECTION_MESSAGE_MAX)
+    })
+
+    it('disables Send below the minimum and enables it well before the maximum', async () => {
       render(<ListingCard listing={makeListing()} />)
       await userEvent.click(screen.getByRole('button', { name: /view/i }))
       await screen.findByRole('dialog')
@@ -73,22 +83,29 @@ describe('ListingCard', () => {
       expect(send).toBeDisabled()
 
       const textarea = screen.getByLabelText(/personalised message/i)
-      fireEvent.change(textarea, { target: { value: 'a'.repeat(299) } })
+      fireEvent.change(textarea, { target: { value: 'a'.repeat(CONNECTION_MESSAGE_MIN - 1) } })
       expect(send).toBeDisabled()
-      // counter communicates the minimum requirement, not via colour alone
-      expect(screen.getByText(/write at least 300 characters/i)).toBeInTheDocument()
+      expect(
+        screen.getByText(new RegExp(`write at least ${CONNECTION_MESSAGE_MIN} characters`, 'i'))
+      ).toBeInTheDocument()
 
-      fireEvent.change(textarea, { target: { value: 'a'.repeat(300) } })
+      fireEvent.change(textarea, { target: { value: 'a'.repeat(CONNECTION_MESSAGE_MIN) } })
+      expect(send).toBeEnabled()
+
+      // and a mid-range message — previously impossible to send — is fine
+      fireEvent.change(textarea, { target: { value: 'a'.repeat(150) } })
       expect(send).toBeEnabled()
     })
 
-    it('posts the connection request once the minimum is met', async () => {
-      render(<ListingCard listing={makeListing({ brand_id: 'brand-99' })} />)
+    it('posts the brand user id, not the brand profile id (PR-19)', async () => {
+      render(
+        <ListingCard listing={makeListing({ brand_id: 'bp-99', brand_user_id: 'user-99' })} />
+      )
       await userEvent.click(screen.getByRole('button', { name: /view/i }))
       await screen.findByRole('dialog')
 
       const textarea = screen.getByLabelText(/personalised message/i)
-      fireEvent.change(textarea, { target: { value: 'x'.repeat(300) } })
+      fireEvent.change(textarea, { target: { value: 'x'.repeat(120) } })
       await userEvent.click(screen.getByRole('button', { name: /send request/i }))
 
       await waitFor(() => {
@@ -100,8 +117,21 @@ describe('ListingCard', () => {
       const mockFetch = fetch as unknown as ReturnType<typeof vi.fn>
       const init = mockFetch.mock.calls[0]?.[1] as RequestInit | undefined
       const body = JSON.parse(String(init?.body)) as { recipient_id: string; message: string }
-      expect(body.recipient_id).toBe('brand-99')
-      expect(body.message).toHaveLength(300)
+      // brand_id would violate connection_requests.recipient_id -> users.id
+      expect(body.recipient_id).toBe('user-99')
+      expect(body.message).toHaveLength(120)
+    })
+
+    it('cannot send when the listing has no resolvable brand user', async () => {
+      render(<ListingCard listing={makeListing({ brand_user_id: null })} />)
+      await userEvent.click(screen.getByRole('button', { name: /view/i }))
+      await screen.findByRole('dialog')
+
+      const textarea = screen.getByLabelText(/personalised message/i)
+      fireEvent.change(textarea, { target: { value: 'x'.repeat(120) } })
+
+      expect(screen.getByRole('button', { name: /send request/i })).toBeDisabled()
+      expect(fetch).not.toHaveBeenCalled()
     })
   })
 })

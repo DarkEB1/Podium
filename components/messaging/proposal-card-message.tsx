@@ -5,6 +5,7 @@ import { Check } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { track } from '@/lib/analytics'
 import type { Database } from '@/types/database'
 
 type ProposalRow = Database['public']['Tables']['proposals']['Row']
@@ -22,6 +23,11 @@ interface Props {
   paymentConfirmation?: PaymentConfirmation | undefined
   /** Open the counter-offer flow (free-text/proposal composer) in the parent. */
   onCounter?: (() => void) | undefined
+  /**
+   * M-6 — role of the person acting on this card, used as the `role` property
+   * of `proposal_accepted`. Optional; falls back to `unknown`.
+   */
+  viewerRole?: string | undefined
 }
 
 const PAY_TYPE_LABEL: Record<string, string> = {
@@ -43,6 +49,7 @@ export default function ProposalCardMessage({
   onResponded,
   paymentConfirmation,
   onCounter,
+  viewerRole,
 }: Props) {
   const [loading, setLoading] = useState<'accepted' | 'declined' | null>(null)
 
@@ -58,6 +65,12 @@ export default function ProposalCardMessage({
       if (!res.ok) {
         toast.error(data.error?.message ?? 'Failed')
         return
+      }
+      // M-6 `proposal_accepted` — the deal-is-on step, fired only after the
+      // respond endpoint returned 2xx and only for an acceptance. There is no
+      // `proposal_declined` in the catalogue, so a decline records nothing.
+      if (action === 'accepted') {
+        track('proposal_accepted', { role: viewerRole ?? 'unknown' })
       }
       toast.success(action === 'accepted' ? 'Proposal accepted!' : 'Proposal declined')
       onResponded()

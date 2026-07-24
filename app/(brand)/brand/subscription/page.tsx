@@ -3,6 +3,14 @@ import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getSubscriptionForUser } from '@/lib/supabase/payments'
 import SubscriptionTiers from '@/components/brand/subscription-tiers'
+// M-1: per-route metadata. Authenticated surface: `robots.index = false`
+// mirrors app/robots.ts so a signed-in page can never be indexed.
+export const metadata = {
+  title: 'Subscription · Podium',
+  description: 'Manage your Podium plan and billing.',
+  robots: { index: false, follow: false },
+}
+
 export default async function BrandSubscriptionPage() {
   const supabase = await createClient()
   const user = await getUser(supabase)

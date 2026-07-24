@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { respondToProposal, DealsError } from '@/lib/supabase/deals'
+import { RATE_LIMITS, consume, tooManyRequests, userKey } from '@/lib/rate-limit'
+import { sendTransactionalEmail } from '@/lib/email'
+import { absoluteUrl, nameOf, resolveDisplayNames } from '@/lib/email/notify'
+import { ROUTES } from '@/lib/routes'
 
 const VALID_ACTIONS = new Set(['accepted', 'declined'])
 
@@ -18,6 +22,11 @@ export async function POST(
       { status: 401 }
     )
   }
+
+  // DH-2: accepting a proposal creates a contract, so this is a state change
+  // worth limiting per user in its own key namespace.
+  const limited = await consume(userKey('proposal_respond', user.id), RATE_LIMITS.writeByUser)
+  if (!limited.allowed) return tooManyRequests(limited.retryAfter)
 
   const body = (await request.json()) as { action?: string }
 
@@ -46,6 +55,24 @@ export async function POST(
       user.id,
       body.action as 'accepted' | 'declined'
     )
+
+    // On a successful ACCEPT (the accept RPC also created the contract), email
+    // the proposal's ORIGINAL SENDER that their proposal was accepted. The
+    // accepted row carries sender_id and title directly, so no extra read is
+    // needed. Side effect only — the email layer never throws.
+    if (body.action === 'accepted') {
+      const names = await resolveDisplayNames(adminSupabase, [proposal.sender_id])
+      await sendTransactionalEmail(adminSupabase, {
+        event: 'proposal_accepted',
+        userId: proposal.sender_id,
+        data: {
+          recipientName: nameOf(names, proposal.sender_id),
+          proposalTitle: proposal.title,
+          url: absoluteUrl(ROUTES.dashboard),
+        },
+      })
+    }
+
     return NextResponse.json(proposal)
   } catch (err) {
     if (err instanceof DealsError) {

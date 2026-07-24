@@ -5,8 +5,18 @@ vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn(),
 }))
 
+const mockAcceptTerms = vi.fn()
+vi.mock('@/lib/supabase/auth', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/supabase/auth')>()),
+  acceptTerms: (...args: unknown[]) => mockAcceptTerms(...args),
+}))
+
 import { createClient } from '@/lib/supabase/server'
+import { TERMS_VERSION, PRIVACY_VERSION } from '@/lib/legal/versions'
 import { POST } from './route'
+
+/** CL-5: a valid signup must now carry the policy versions the user was shown. */
+const CONSENT = { termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION }
 
 function makeRequest(body: Record<string, unknown>) {
   return new NextRequest(new URL('/api/auth/signup', 'http://localhost'), {
@@ -23,7 +33,11 @@ describe('POST /api/auth/signup', () => {
     vi.mocked(createClient).mockResolvedValue({
       auth: { signUp: mockSignUp },
     } as unknown as Awaited<ReturnType<typeof createClient>>)
-    mockSignUp.mockResolvedValue({ error: null })
+    // Call history must not leak between tests — the consent gate asserts that
+    // signUp was NOT reached.
+    mockSignUp.mockClear()
+    mockAcceptTerms.mockClear()
+    mockSignUp.mockResolvedValue({ data: { user: null }, error: null })
   })
 
   it('returns 400 when email is missing', async () => {
@@ -48,17 +62,52 @@ describe('POST /api/auth/signup', () => {
   })
 
   it('returns 200 with success message on valid signup (enumeration protection)', async () => {
-    const res = await POST(makeRequest({ email: 'new@example.com', password: 'ValidPass1!' }))
+    const res = await POST(makeRequest({ email: 'new@example.com', password: 'ValidPass1!', ...CONSENT }))
     expect(res.status).toBe(200)
     const json = await res.json()
     expect(json.message).toMatch(/email/i)
   })
 
   it('still returns 200 when Supabase reports email already registered (enumeration protection)', async () => {
-    mockSignUp.mockResolvedValue({ error: { message: 'User already registered' } })
-    const res = await POST(makeRequest({ email: 'existing@example.com', password: 'ValidPass1!' }))
+    mockSignUp.mockResolvedValue({ data: { user: null }, error: { message: 'User already registered' } })
+    const res = await POST(makeRequest({ email: 'existing@example.com', password: 'ValidPass1!', ...CONSENT }))
     expect(res.status).toBe(200)
     const json = await res.json()
     expect(json.message).toMatch(/email/i)
+  })
+
+  it('rejects a signup that does not accept the current policies (CL-5)', async () => {
+    const res = await POST(makeRequest({ email: 'new@example.com', password: 'ValidPass1!' }))
+    expect(res.status).toBe(400)
+    const json = await res.json()
+    expect(json.error.code).toBe('POLICY_NOT_ACCEPTED')
+    expect(mockSignUp).not.toHaveBeenCalled()
+  })
+
+  it('rejects a signup carrying a superseded policy version (CL-5)', async () => {
+    const res = await POST(
+      makeRequest({
+        email: 'new@example.com',
+        password: 'ValidPass1!',
+        termsVersion: '1970-01-01',
+        privacyVersion: PRIVACY_VERSION,
+      })
+    )
+    expect(res.status).toBe(400)
+    expect((await res.json()).error.code).toBe('POLICY_NOT_ACCEPTED')
+  })
+
+  it('records policy acceptance against the new account (CL-5)', async () => {
+    mockSignUp.mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null })
+    const res = await POST(
+      makeRequest({ email: 'new@example.com', password: 'ValidPass1!', ...CONSENT })
+    )
+    expect(res.status).toBe(200)
+    expect(mockAcceptTerms).toHaveBeenCalledWith(
+      expect.anything(),
+      'user-1',
+      TERMS_VERSION,
+      PRIVACY_VERSION
+    )
   })
 })

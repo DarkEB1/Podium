@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { deleteMessage, MessagingError } from '@/lib/supabase/messaging'
+import { RATE_LIMITS, consume, tooManyRequests, userKey } from '@/lib/rate-limit'
 
 export async function DELETE(
   _request: NextRequest,
@@ -16,6 +17,10 @@ export async function DELETE(
       { status: 401 }
     )
   }
+
+  // DH-2: deletion is state-changing too — shares the messaging namespace.
+  const limited = await consume(userKey('message_delete', user.id), RATE_LIMITS.writeByUser)
+  if (!limited.allowed) return tooManyRequests(limited.retryAfter)
 
   const { messageId } = await params
 

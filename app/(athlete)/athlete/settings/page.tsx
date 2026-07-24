@@ -1,9 +1,21 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getOwnProfile } from '@/lib/supabase/profiles'
 import SettingsForm from '@/components/athlete/settings-form'
 import type { Database } from '@/types/database'
+
+/**
+ * M-1 — an authenticated route. `robots.ts` already disallows it, but a crawler
+ * that follows a shared link never reads robots.txt, so say it here too.
+ */
+export const metadata: Metadata = {
+  title: 'Settings · Podium',
+  description: 'Manage your Podium account, notifications and privacy.',
+  robots: { index: false },
+}
+
 
 type AthleteRow = Database['public']['Tables']['athlete_profiles']['Row']
 

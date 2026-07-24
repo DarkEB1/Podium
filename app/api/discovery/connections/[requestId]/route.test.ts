@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NextRequest } from 'next/server'
 
-vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }))
+vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn(), createAdminClient: vi.fn() }))
 vi.mock('@/lib/supabase/auth', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/supabase/auth')>()
   return { ...actual, getUser: vi.fn() }
@@ -10,10 +10,22 @@ vi.mock('@/lib/supabase/discovery', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/supabase/discovery')>()
   return { ...actual, respondConnectionRequest: vi.fn(), withdrawConnectionRequest: vi.fn() }
 })
+vi.mock('@/lib/supabase/connections', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/supabase/connections')>()
+  return { ...actual, getIncomingConnectionRequests: vi.fn() }
+})
+vi.mock('@/lib/email', () => ({ sendTransactionalEmail: vi.fn() }))
+vi.mock('@/lib/email/notify', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/email/notify')>()
+  return { ...actual, resolveDisplayNames: vi.fn() }
+})
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { respondConnectionRequest, withdrawConnectionRequest, DiscoveryError } from '@/lib/supabase/discovery'
+import { getIncomingConnectionRequests } from '@/lib/supabase/connections'
+import { sendTransactionalEmail } from '@/lib/email'
+import { resolveDisplayNames } from '@/lib/email/notify'
 import { PATCH } from './route'
 
 const fakeUser = {
@@ -35,9 +47,18 @@ const params = Promise.resolve({ requestId: 'cr1' })
 
 describe('PATCH /api/discovery/connections/[requestId]', () => {
   beforeEach(() => {
+    vi.clearAllMocks()
     vi.mocked(createClient).mockResolvedValue(
       {} as unknown as Awaited<ReturnType<typeof createClient>>
     )
+    vi.mocked(createAdminClient).mockReturnValue({} as unknown as ReturnType<typeof createAdminClient>)
+    vi.mocked(getIncomingConnectionRequests).mockResolvedValue([])
+    vi.mocked(resolveDisplayNames).mockResolvedValue({ 'sender-9': 'Jordan Athlete', 'user-1': 'Acme Co' })
+    vi.mocked(sendTransactionalEmail).mockResolvedValue({
+      status: 'sent',
+      deliveryId: 'd1',
+      providerId: 'p1',
+    })
   })
 
   it('returns 401 when not authenticated', async () => {
@@ -97,5 +118,43 @@ describe('PATCH /api/discovery/connections/[requestId]', () => {
     expect(res.status).toBe(404)
     const json = await res.json()
     expect(json.error.code).toBe('REQUEST_NOT_FOUND')
+  })
+
+  it('emails the ORIGINAL SENDER a connection_request_accepted on accept success', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(getIncomingConnectionRequests).mockResolvedValue([
+      { id: 'cr1', sender_id: 'sender-9', recipient_id: 'user-1', message: 'Hi' } as never,
+    ])
+    vi.mocked(respondConnectionRequest).mockResolvedValue(undefined)
+    const res = await PATCH(makeRequest({ action: 'accept' }), { params })
+    expect(res.status).toBe(200)
+    expect(sendTransactionalEmail).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        event: 'connection_request_accepted',
+        userId: 'sender-9',
+        data: expect.objectContaining({ recipientName: 'Jordan Athlete', otherName: 'Acme Co' }),
+      })
+    )
+  })
+
+  it('does NOT email on decline', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(respondConnectionRequest).mockResolvedValue(undefined)
+    await PATCH(makeRequest({ action: 'decline' }), { params })
+    expect(sendTransactionalEmail).not.toHaveBeenCalled()
+  })
+
+  it('does NOT email when the accept itself fails', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(getIncomingConnectionRequests).mockResolvedValue([
+      { id: 'cr1', sender_id: 'sender-9', recipient_id: 'user-1', message: 'Hi' } as never,
+    ])
+    vi.mocked(respondConnectionRequest).mockRejectedValue(
+      new DiscoveryError('REQUEST_NOT_FOUND', 'Not found')
+    )
+    const res = await PATCH(makeRequest({ action: 'accept' }), { params })
+    expect(res.status).toBe(404)
+    expect(sendTransactionalEmail).not.toHaveBeenCalled()
   })
 })

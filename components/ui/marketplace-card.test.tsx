@@ -13,7 +13,10 @@ describe('MarketplaceCard', () => {
     render(<MarketplaceCard {...baseProps} cta={{ label: 'View', href: '/a/1' }} />)
     const img = screen.getByAltText('Jane Doe sprinting')
     expect(img).toBeInTheDocument()
-    expect(img.getAttribute('src')).toBe('/athlete.jpg')
+    // A-2: routed through next/image (lazy + intrinsic sizing), so the src is
+    // the optimizer URL carrying the original asset.
+    expect(img.getAttribute('src')).toContain('athlete.jpg')
+    expect(img.getAttribute('loading')).toBe('lazy')
   })
 
   it('renders title and subtitle', () => {
@@ -162,5 +165,71 @@ describe('MarketplaceCard', () => {
     const card = screen.getByTestId('marketplace-card')
     const cta = within(card).getByRole('link', { name: 'View' })
     expect(cta).toHaveAttribute('href', '/a/1/view')
+  })
+})
+
+
+describe('MarketplaceCard image (A-2)', () => {
+  it('renders a next/image, never a raw <img> with an unoptimised src', () => {
+    render(<MarketplaceCard {...baseProps} cta={{ label: 'View', href: '/a/1' }} />)
+    const img = screen.getByAltText('Jane Doe sprinting') as HTMLImageElement
+    // next/image always emits a srcset + a sizes hint; a raw <img> would not.
+    expect(img.getAttribute('srcset')).toBeTruthy()
+    expect(img.getAttribute('sizes')).toBeTruthy()
+  })
+
+  it('reserves the image footprint before load so nothing shifts (CLS)', () => {
+    render(<MarketplaceCard {...baseProps} cta={{ label: 'View', href: '/a/1' }} />)
+    const figure = screen.getByAltText('Jane Doe sprinting').parentElement as HTMLElement
+    expect(figure.style.aspectRatio).toBe('0.6')
+  })
+
+  it('falls back to the on-brand placeholder when no image is supplied (B-5)', () => {
+    render(<MarketplaceCard {...baseProps} image="" cta={{ label: 'View', href: '/a/1' }} />)
+    const img = screen.getByAltText('Jane Doe sprinting')
+    expect(img.getAttribute('src')).toContain('placeholder-athlete.svg')
+  })
+})
+
+describe('MarketplaceCard layout (PR-5 / UX-3)', () => {
+  it('orders photo, then name, then seeking, then availability', () => {
+    render(
+      <MarketplaceCard
+        {...baseProps}
+        seeking="Kit + travel sponsorship"
+        availability="Available from March 2026"
+        cta={{ label: 'View', href: '/a/1' }}
+      />
+    )
+    const card = screen.getByTestId('marketplace-card')
+    const html = card.innerHTML
+    const iImage = html.indexOf('Jane Doe sprinting')
+    const iName = html.indexOf('>Jane Doe<')
+    const iSeeking = html.indexOf('Kit + travel sponsorship')
+    const iAvail = html.indexOf('Available from March 2026')
+    expect(iImage).toBeGreaterThan(-1)
+    expect(iName).toBeGreaterThan(iImage)
+    expect(iSeeking).toBeGreaterThan(iName)
+    expect(iAvail).toBeGreaterThan(iSeeking)
+  })
+
+  it('labels the seeking and availability rows for screen readers', () => {
+    render(
+      <MarketplaceCard
+        {...baseProps}
+        seeking="Kit sponsorship"
+        availability="Open now"
+        cta={{ label: 'View', href: '/a/1' }}
+      />
+    )
+    expect(screen.getByText('Seeking:')).toBeInTheDocument()
+    expect(screen.getByText('Availability:')).toBeInTheDocument()
+  })
+
+  it('stays backwards compatible: omits the new rows when the props are absent', () => {
+    render(<MarketplaceCard {...baseProps} cta={{ label: 'View', href: '/a/1' }} />)
+    const card = screen.getByTestId('marketplace-card')
+    expect(card.querySelector('[data-slot="marketplace-card-seeking"]')).toBeNull()
+    expect(card.querySelector('[data-slot="marketplace-card-availability"]')).toBeNull()
   })
 })

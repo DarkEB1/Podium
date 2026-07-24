@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NextRequest } from 'next/server'
 
-vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }))
+vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn(), createAdminClient: vi.fn() }))
 vi.mock('@/lib/supabase/auth', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/supabase/auth')>()
   return { ...actual, getUser: vi.fn() }
@@ -10,10 +10,17 @@ vi.mock('@/lib/supabase/discovery', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/supabase/discovery')>()
   return { ...actual, sendConnectionRequest: vi.fn() }
 })
+vi.mock('@/lib/email', () => ({ sendTransactionalEmail: vi.fn() }))
+vi.mock('@/lib/email/notify', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/email/notify')>()
+  return { ...actual, resolveDisplayNames: vi.fn() }
+})
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { sendConnectionRequest, DiscoveryError } from '@/lib/supabase/discovery'
+import { sendTransactionalEmail } from '@/lib/email'
+import { resolveDisplayNames } from '@/lib/email/notify'
 import { POST } from './route'
 
 const fakeUser = {
@@ -33,9 +40,17 @@ function makeRequest(body?: Record<string, unknown>) {
 
 describe('POST /api/discovery/connections', () => {
   beforeEach(() => {
+    vi.clearAllMocks()
     vi.mocked(createClient).mockResolvedValue(
       {} as unknown as Awaited<ReturnType<typeof createClient>>
     )
+    vi.mocked(createAdminClient).mockReturnValue({} as unknown as ReturnType<typeof createAdminClient>)
+    vi.mocked(resolveDisplayNames).mockResolvedValue({ u2: 'Acme Co', 'user-1': 'Jordan Athlete' })
+    vi.mocked(sendTransactionalEmail).mockResolvedValue({
+      status: 'sent',
+      deliveryId: 'd1',
+      providerId: 'p1',
+    })
   })
 
   it('returns 401 when not authenticated', async () => {
@@ -84,5 +99,35 @@ describe('POST /api/discovery/connections', () => {
     expect(res.status).toBe(201)
     const json = await res.json()
     expect(json).toEqual(fakeRequest)
+  })
+
+  it('emails the recipient a connection_request_received on success', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(sendConnectionRequest).mockResolvedValue(
+      { id: 'cr1', sender_id: 'user-1', recipient_id: 'u2', message: 'Hello' } as never
+    )
+    await POST(makeRequest({ recipient_id: 'u2', message: 'Hello' }))
+    expect(sendTransactionalEmail).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        event: 'connection_request_received',
+        userId: 'u2',
+        data: expect.objectContaining({
+          recipientName: 'Acme Co',
+          senderName: 'Jordan Athlete',
+          message: 'Hello',
+        }),
+      })
+    )
+  })
+
+  it('does NOT email when sendConnectionRequest fails', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(sendConnectionRequest).mockRejectedValue(
+      new DiscoveryError('DUPLICATE_REQUEST', 'Already exists')
+    )
+    const res = await POST(makeRequest({ recipient_id: 'u2', message: 'Hello' }))
+    expect(res.status).toBe(409)
+    expect(sendTransactionalEmail).not.toHaveBeenCalled()
   })
 })

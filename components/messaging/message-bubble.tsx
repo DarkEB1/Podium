@@ -1,8 +1,11 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { Download, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { isRemoteImageSrc } from '@/components/ui/image-src'
+import { solidBlurDataURL } from '@/lib/perf/blur-placeholder'
 import type { Database } from '@/types/database'
 
 type MessageRow = Database['public']['Tables']['messages']['Row']
@@ -81,9 +84,22 @@ function AttachmentTile({ message, isMine }: { message: MessageRow; isMine: bool
         className="block overflow-hidden rounded-lg focus-visible:outline-2 focus-visible:outline-primary"
         aria-label={`Download ${name}`}
       >
-        {/* Preview tile — alt text required for a11y (spec §9.4). */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={message.attachment_url} alt={name} className="max-h-48 w-full object-cover" />
+        {/*
+          Preview tile — alt text required for a11y (spec §9.4). A-2: next/image
+          with an explicit intrinsic size so the bubble reserves its footprint
+          before the bytes land (no CLS) and the tile lazy-loads off-screen.
+        */}
+        <Image
+          src={message.attachment_url}
+          alt={name}
+          width={512}
+          height={384}
+          loading="lazy"
+          placeholder="blur"
+          blurDataURL={solidBlurDataURL()}
+          unoptimized={isRemoteImageSrc(message.attachment_url)}
+          className="max-h-48 w-full object-cover"
+        />
       </a>
     )
   }
@@ -131,14 +147,20 @@ export default function MessageBubble({ message, isMine, readByOther = false }: 
     message.content_type === 'document'
 
   return (
-    <div className={cn('flex', isMine ? 'justify-end' : 'justify-start')}>
+    <div className={cn('flex min-w-0', isMine ? 'justify-end' : 'justify-start')}>
       <button
         type="button"
         onClick={() => setShowTime((v) => !v)}
         aria-expanded={showTime}
         aria-label={showTime ? 'Hide timestamp' : 'Show timestamp'}
         className={cn(
-          'max-w-xs rounded-2xl px-4 py-2 text-medium text-left focus-visible:outline-2 focus-visible:outline-primary',
+          // PR-18: cap the bubble relative to the column (max-w-[75%]) and hard-cap
+          // it in absolute terms, then force wrapping. `[overflow-wrap:anywhere]`
+          // is what breaks a single 400-character token that `break-words` alone
+          // will happily overflow with.
+          'min-w-0 max-w-[75%] sm:max-w-md rounded-2xl px-4 py-2 text-medium text-left',
+          'break-words [overflow-wrap:anywhere] hyphens-auto',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
           isMine
             ? 'bg-primary text-primary-foreground rounded-br-sm'
             : 'bg-muted text-foreground rounded-bl-sm'
@@ -147,7 +169,9 @@ export default function MessageBubble({ message, isMine, readByOther = false }: 
         {hasAttachment ? (
           <AttachmentTile message={message} isMine={isMine} />
         ) : (
-          <span className="whitespace-pre-wrap break-words">{message.text_content}</span>
+          <span className="block min-w-0 whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+            {message.text_content}
+          </span>
         )}
 
         {showTime && (

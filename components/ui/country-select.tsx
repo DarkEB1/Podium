@@ -66,7 +66,7 @@ export function CountrySelect({
           className={cn(
             "flex h-9 w-full items-center rounded-lg border border-input bg-transparent py-2 pr-9 text-medium transition-colors outline-none",
             "placeholder:text-muted-foreground",
-            "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
+            "focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring",
             "disabled:cursor-not-allowed disabled:opacity-50",
             selected ? "pl-9" : "pl-3"
           )}

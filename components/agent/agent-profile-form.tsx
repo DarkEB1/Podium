@@ -63,7 +63,7 @@ function InfoTooltip({ label, children }: { label: string; children: React.React
         onKeyDown={(e) => {
           if (e.key === 'Escape') setOpen(false)
         }}
-        className="inline-flex size-5 items-center justify-center rounded-full text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+        className="inline-flex size-5 items-center justify-center rounded-full text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
       >
         <Info aria-hidden="true" className="size-4" />
       </button>

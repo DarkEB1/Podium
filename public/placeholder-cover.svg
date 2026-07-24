@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400" width="1200" height="400" role="img" aria-label="Cover image placeholder" preserveAspectRatio="xMidYMid slice">
+  <title>Cover image placeholder</title>
+  <!-- Tokens mirrored from app/globals.css: --muted #ECEFF4, --accent #E5E9F0, --primary #456489 -->
+  <defs>
+    <linearGradient id="pc-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ECEFF4" />
+      <stop offset="100%" stop-color="#E5E9F0" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="400" fill="url(#pc-bg)" />
+  <g fill="#456489" opacity="0.14">
+    <circle cx="180" cy="330" r="220" />
+    <circle cx="1020" cy="70" r="180" />
+  </g>
+</svg>

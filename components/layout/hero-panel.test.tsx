@@ -11,7 +11,10 @@ describe('HeroPanel', () => {
     )
     const img = screen.getByRole('img', { name: 'Stadium at sunset' })
     expect(img).toBeInTheDocument()
-    expect(img).toHaveAttribute('src', '/cover.jpg')
+    // A-2: next/image rewrites src through the optimizer
+    // (/_next/image?url=<encoded>&w=…), so assert the ORIGINAL source is
+    // still what gets requested rather than pinning the exact rewritten URL.
+    expect(img.getAttribute('src') ?? '').toContain(encodeURIComponent('/cover.jpg'))
   })
 
   it('renders floating panel children', () => {

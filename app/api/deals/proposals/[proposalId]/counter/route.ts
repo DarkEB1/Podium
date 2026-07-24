@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { counterProposal, DealsError } from '@/lib/supabase/deals'
+import { RATE_LIMITS, consume, tooManyRequests, userKey } from '@/lib/rate-limit'
 import type { Database, Json } from '@/types/database'
 
 type PayType = Database['public']['Enums']['pay_type']
@@ -21,6 +22,11 @@ export async function POST(
       { status: 401 }
     )
   }
+
+  // DH-2: a counter both inserts a proposal and supersedes another — limited
+  // per user in its own key namespace.
+  const limited = await consume(userKey('proposal_counter', user.id), RATE_LIMITS.writeByUser)
+  if (!limited.allowed) return tooManyRequests(limited.retryAfter)
 
   const body = (await request.json()) as {
     title?: string

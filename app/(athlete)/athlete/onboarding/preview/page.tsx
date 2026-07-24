@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
@@ -6,6 +7,17 @@ import { getOwnProfile } from '@/lib/supabase/profiles'
 import { buttonVariants } from '@/components/ui/button'
 import ProfilePreview from '@/components/athlete/profile-preview'
 import type { Database } from '@/types/database'
+
+/**
+ * M-1 — an authenticated route. `robots.ts` already disallows it, but a crawler
+ * that follows a shared link never reads robots.txt, so say it here too.
+ */
+export const metadata: Metadata = {
+  title: 'Preview your profile · Podium',
+  description: 'See exactly how your profile will look before you publish it.',
+  robots: { index: false },
+}
+
 
 type AthleteRow = Database['public']['Tables']['athlete_profiles']['Row']
 

@@ -12,6 +12,15 @@ import {
   getBillingHistory,
   listSeats,
   removeSeat,
+  getBrandProfileIdForUser,
+  getSubscriptionByStripeCustomerId,
+  getSubscriptionByStripeSubscriptionId,
+  listStaleSubscriptions,
+  ACTIVE_SUBSCRIPTION_STATUSES,
+  getPaymentByIntentId,
+  getWebhookEvent,
+  claimWebhookEvent,
+  markWebhookEvent,
   PaymentsError,
 } from './payments'
 import type { SupabaseClient } from '@supabase/supabase-js'
@@ -24,9 +33,15 @@ import type { Database } from '@/types/database'
 function makeMockClient() {
   const singleQueue: Array<{ data: unknown; error: unknown }> = []
   const listQueue: Array<{ data: unknown; error: unknown }> = []
+  const rpcQueue: Array<{ data: unknown; error: unknown }> = []
 
   const mockSingle = vi.fn().mockImplementation(() => {
     const r = singleQueue.shift() ?? { data: null, error: null }
+    return Promise.resolve(r)
+  })
+
+  const mockRpc = vi.fn().mockImplementation(() => {
+    const r = rpcQueue.shift() ?? { data: null, error: null }
     return Promise.resolve(r)
   })
 
@@ -39,8 +54,12 @@ function makeMockClient() {
     eq: vi.fn(),
     neq: vi.fn(),
     or: vi.fn(),
+    in: vi.fn(),
+    lt: vi.fn(),
     order: vi.fn(),
+    limit: vi.fn(),
     single: mockSingle,
+    maybeSingle: mockSingle,
     then(
       resolve: (v: unknown) => void,
       reject?: ((reason: unknown) => void) | null
@@ -58,15 +77,22 @@ function makeMockClient() {
   chain.eq.mockReturnValue(chain)
   chain.neq.mockReturnValue(chain)
   chain.or.mockReturnValue(chain)
+  chain.in.mockReturnValue(chain)
+  chain.lt.mockReturnValue(chain)
   chain.order.mockReturnValue(chain)
+  chain.limit.mockReturnValue(chain)
 
   const mockFrom = vi.fn().mockReturnValue(chain)
 
   return {
-    client: { from: mockFrom } as unknown as SupabaseClient<Database>,
+    client: { from: mockFrom, rpc: mockRpc } as unknown as SupabaseClient<Database>,
     chain,
     mockFrom,
     mockSingle,
+    mockRpc,
+    queueRpc(data: unknown, error: unknown = null) {
+      rpcQueue.push({ data, error })
+    },
     queueSingle(data: unknown, error: unknown = null) {
       singleQueue.push({ data, error })
     },
@@ -568,5 +594,276 @@ describe('removeSeat', () => {
     await expect(removeSeat(mock.client, 'brand-1')).rejects.toMatchObject({
       code: 'SUBSCRIPTION_NOT_FOUND',
     })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// getBrandProfileIdForUser (B-2)
+// ---------------------------------------------------------------------------
+
+describe('getBrandProfileIdForUser', () => {
+  it('returns brand_profiles.id for the auth user', async () => {
+    const mock = makeMockClient()
+    mock.setSingle({ id: 'brand-1' })
+
+    const result = await getBrandProfileIdForUser(mock.client, 'user-brand')
+
+    expect(result).toBe('brand-1')
+    expect(mock.mockFrom).toHaveBeenCalledWith('brand_profiles')
+    expect(mock.chain.eq).toHaveBeenCalledWith('user_id', 'user-brand')
+  })
+
+  it('returns null when the user has no brand profile', async () => {
+    const mock = makeMockClient()
+    mock.setSingle(null, { code: 'PGRST116', message: 'not found' })
+
+    await expect(getBrandProfileIdForUser(mock.client, 'user-x')).resolves.toBeNull()
+  })
+
+  it('throws on an unexpected error', async () => {
+    const mock = makeMockClient()
+    mock.setSingle(null, { code: '500', message: 'boom' })
+
+    await expect(getBrandProfileIdForUser(mock.client, 'user-x')).rejects.toMatchObject({
+      code: 'BRAND_PROFILE_FETCH_FAILED',
+    })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// getSubscriptionByStripeCustomerId
+// ---------------------------------------------------------------------------
+
+describe('getSubscriptionByStripeCustomerId', () => {
+  it('returns the subscription linked to a Stripe customer', async () => {
+    const mock = makeMockClient()
+    mock.setSingle(SUBSCRIPTION)
+
+    const result = await getSubscriptionByStripeCustomerId(mock.client, 'cus_abc')
+
+    expect(result?.brand_id).toBe('brand-1')
+    expect(mock.chain.eq).toHaveBeenCalledWith('stripe_customer_id', 'cus_abc')
+  })
+
+  it('returns null when the customer is not linked yet', async () => {
+    const mock = makeMockClient()
+    mock.setSingle(null, { code: 'PGRST116', message: 'not found' })
+
+    await expect(getSubscriptionByStripeCustomerId(mock.client, 'cus_new')).resolves.toBeNull()
+  })
+
+  // Regression (D2): two rows sharing a customer id used to make `.single()`
+  // raise a non-PGRST116 error, which classified as transient and produced an
+  // endless 500 retry loop on every subsequent webhook.
+  it('resolves deterministically instead of erroring when several rows match', async () => {
+    const mock = makeMockClient()
+    mock.setSingle(SUBSCRIPTION)
+
+    const result = await getSubscriptionByStripeCustomerId(mock.client, 'cus_abc')
+
+    expect(result?.brand_id).toBe('brand-1')
+    expect(mock.chain.order).toHaveBeenCalledWith('created_at', { ascending: true })
+    expect(mock.chain.limit).toHaveBeenCalledWith(1)
+  })
+
+  it('returns null without querying for a blank customer id', async () => {
+    const mock = makeMockClient()
+
+    await expect(getSubscriptionByStripeCustomerId(mock.client, '  ')).resolves.toBeNull()
+    expect(mock.mockFrom).not.toHaveBeenCalled()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// getPaymentByIntentId
+// ---------------------------------------------------------------------------
+
+describe('getPaymentByIntentId', () => {
+  it('returns the payment row for a payment intent', async () => {
+    const mock = makeMockClient()
+    mock.setSingle(PAYMENT)
+
+    const result = await getPaymentByIntentId(mock.client, 'pi_abc')
+
+    expect(result?.id).toBe('pay-1')
+    expect(mock.chain.eq).toHaveBeenCalledWith('stripe_payment_intent_id', 'pi_abc')
+  })
+
+  it('returns null when no row exists', async () => {
+    const mock = makeMockClient()
+    mock.setSingle(null, { code: 'PGRST116', message: 'not found' })
+
+    await expect(getPaymentByIntentId(mock.client, 'pi_missing')).resolves.toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Stripe webhook event log
+// ---------------------------------------------------------------------------
+
+describe('stripe webhook event log', () => {
+  const EVENT_ROW = {
+    id: 'evt_1',
+    type: 'customer.subscription.created',
+    received_at: '2026-07-20T00:00:00Z',
+    processed_at: null,
+    status: 'received' as const,
+    error: null,
+    payload: {},
+  }
+
+  it('getWebhookEvent returns the row', async () => {
+    const mock = makeMockClient()
+    mock.setSingle(EVENT_ROW)
+
+    const result = await getWebhookEvent(mock.client, 'evt_1')
+
+    expect(result?.status).toBe('received')
+    expect(mock.mockFrom).toHaveBeenCalledWith('stripe_webhook_events')
+  })
+
+  it('getWebhookEvent returns null for an unseen event', async () => {
+    const mock = makeMockClient()
+    mock.setSingle(null, { code: 'PGRST116', message: 'not found' })
+
+    await expect(getWebhookEvent(mock.client, 'evt_new')).resolves.toBeNull()
+  })
+
+  // D3(a): claiming is one atomic RPC, not a read followed by an upsert.
+  it('claimWebhookEvent claims through the atomic RPC', async () => {
+    const mock = makeMockClient()
+    mock.queueRpc([{ did_claim: true, attempt_count: 1, event_status: 'received' }])
+
+    const claim = await claimWebhookEvent(mock.client, {
+      id: 'evt_1',
+      type: 'charge.succeeded',
+      payload: { a: 1 },
+    })
+
+    expect(mock.mockRpc).toHaveBeenCalledWith('claim_stripe_webhook_event', {
+      p_id: 'evt_1',
+      p_type: 'charge.succeeded',
+      p_payload: { a: 1 },
+    })
+    expect(claim).toEqual({ claimed: true, attempts: 1, status: 'received' })
+  })
+
+  it('claimWebhookEvent reports a lost claim without throwing', async () => {
+    const mock = makeMockClient()
+    mock.queueRpc([{ did_claim: false, attempt_count: 3, event_status: 'processed' }])
+
+    const claim = await claimWebhookEvent(mock.client, { id: 'evt_1', type: 'x', payload: {} })
+
+    expect(claim.claimed).toBe(false)
+    expect(claim.attempts).toBe(3)
+    expect(claim.status).toBe('processed')
+  })
+
+  it('claimWebhookEvent throws on a database failure so the caller can return 500', async () => {
+    const mock = makeMockClient()
+    mock.queueRpc(null, { code: '500', message: 'connection refused' })
+
+    await expect(
+      claimWebhookEvent(mock.client, { id: 'evt_1', type: 'x', payload: {} })
+    ).rejects.toMatchObject({ code: 'WEBHOOK_EVENT_CLAIM_FAILED' })
+  })
+
+  it('markWebhookEvent records status, error and processed_at', async () => {
+    const mock = makeMockClient()
+    mock.setChainResult(null)
+
+    await markWebhookEvent(mock.client, 'evt_1', 'unprocessable', 'missing brand id')
+
+    expect(mock.chain.update).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'unprocessable', error: 'missing brand id' })
+    )
+    expect(mock.chain.eq).toHaveBeenCalledWith('id', 'evt_1')
+  })
+
+  it('markWebhookEvent nulls the error when none is given', async () => {
+    const mock = makeMockClient()
+    mock.setChainResult(null)
+
+    await markWebhookEvent(mock.client, 'evt_1', 'processed')
+
+    expect(mock.chain.update).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'processed', error: null })
+    )
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Reconciliation support (ST-3 / ST-4 / ST-6)
+// ---------------------------------------------------------------------------
+
+describe('getSubscriptionByStripeSubscriptionId', () => {
+  it('looks the row up by stripe_subscription_id', async () => {
+    const mock = makeMockClient()
+    mock.setSingle(SUBSCRIPTION)
+
+    const row = await getSubscriptionByStripeSubscriptionId(mock.client, 'sub_abc')
+
+    expect(mock.mockFrom).toHaveBeenCalledWith('subscriptions')
+    expect(mock.chain.eq).toHaveBeenCalledWith('stripe_subscription_id', 'sub_abc')
+    expect(row).toEqual(SUBSCRIPTION)
+  })
+
+  it('returns null without querying for a blank id', async () => {
+    const mock = makeMockClient()
+    const row = await getSubscriptionByStripeSubscriptionId(mock.client, '   ')
+    expect(row).toBeNull()
+    expect(mock.mockFrom).not.toHaveBeenCalled()
+  })
+
+  it('returns null when no row is linked', async () => {
+    const mock = makeMockClient()
+    mock.setSingle(null)
+    expect(await getSubscriptionByStripeSubscriptionId(mock.client, 'sub_zzz')).toBeNull()
+  })
+
+  it('throws a PaymentsError on a real database failure', async () => {
+    const mock = makeMockClient()
+    mock.setSingle(null, { code: '08006', message: 'connection failure' })
+    await expect(
+      getSubscriptionByStripeSubscriptionId(mock.client, 'sub_abc')
+    ).rejects.toBeInstanceOf(PaymentsError)
+  })
+})
+
+describe('listStaleSubscriptions', () => {
+  it('filters to access-granting statuses whose period already ended, oldest first', async () => {
+    const mock = makeMockClient()
+    mock.setChainResult([SUBSCRIPTION])
+
+    const rows = await listStaleSubscriptions(mock.client, {
+      before: '2026-07-20T00:00:00.000Z',
+      limit: 25,
+    })
+
+    expect(mock.chain.in).toHaveBeenCalledWith('status', [...ACTIVE_SUBSCRIPTION_STATUSES])
+    expect(mock.chain.lt).toHaveBeenCalledWith('current_period_end', '2026-07-20T00:00:00.000Z')
+    expect(mock.chain.order).toHaveBeenCalledWith('current_period_end', { ascending: true })
+    expect(mock.chain.limit).toHaveBeenCalledWith(25)
+    expect(rows).toEqual([SUBSCRIPTION])
+  })
+
+  it('never includes canceled subscriptions', () => {
+    expect(ACTIVE_SUBSCRIPTION_STATUSES).not.toContain('canceled')
+  })
+
+  it('returns an empty array when nothing is stale', async () => {
+    const mock = makeMockClient()
+    mock.setChainResult(null)
+    expect(
+      await listStaleSubscriptions(mock.client, { before: 'x', limit: 1 })
+    ).toEqual([])
+  })
+
+  it('throws a PaymentsError when the query fails', async () => {
+    const mock = makeMockClient()
+    mock.setChainResult(null, { message: 'boom' })
+    await expect(
+      listStaleSubscriptions(mock.client, { before: 'x', limit: 1 })
+    ).rejects.toBeInstanceOf(PaymentsError)
   })
 })

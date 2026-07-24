@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database'
+import { db } from '@/lib/supabase/typed-client'
 
 type MessageRow = Database['public']['Tables']['messages']['Row']
 type MatchRow = Database['public']['Tables']['matches']['Row']
@@ -30,8 +31,7 @@ export async function getMatches(
   supabase: SupabaseClient<Database>,
   userId: string
 ): Promise<MatchRow[]> {
-  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
-  const { data, error } = await (supabase as SupabaseClient)
+  const { data, error } = await db(supabase)
     .from('matches')
     .select('*')
     .or(`user_a_id.eq.${userId},user_b_id.eq.${userId}`)
@@ -58,106 +58,101 @@ export interface Conversation {
 }
 
 /**
- * Resolve the display name + avatar for a user by probing the role-specific
- * profile tables (there is no single `profiles` table). Returns a best-effort
- * label; falls back to "Conversation" when no profile row is found.
+ * One row of `public.get_conversations()`
+ * (supabase/migrations/20260720001004_inbox_and_message_reads.sql).
  */
-async function resolveParticipant(
-  supabase: SupabaseClient,
-  userId: string
-): Promise<{ name: string; avatarUrl: string | null }> {
-  const athlete = await supabase
-    .from('athlete_profiles')
-    .select('display_name, profile_photo_url')
-    .eq('user_id', userId)
-    .maybeSingle()
-  if (athlete.data) {
-    const r = athlete.data as { display_name: string | null; profile_photo_url: string | null }
-    return { name: r.display_name ?? 'Athlete', avatarUrl: r.profile_photo_url }
-  }
+interface InboxRow {
+  match_id: string
+  other_user_id: string
+  display_name: string | null
+  avatar_url: string | null
+  last_message_text: string | null
+  last_message_type: string | null
+  last_message_at: string | null
+  matched_at: string
+  unread_count: number
+  /** 'active' | 'archived'. Added by SEC-9; absent on a pre-SEC-9 database. */
+  match_status?: string | null
+}
 
-  const brand = await supabase
-    .from('brand_profiles')
-    .select('company_name, trading_name, logo_url')
-    .eq('user_id', userId)
-    .maybeSingle()
-  if (brand.data) {
-    const r = brand.data as { company_name: string; trading_name: string | null; logo_url: string | null }
-    return { name: r.trading_name ?? r.company_name, avatarUrl: r.logo_url }
-  }
+export interface GetConversationsOptions {
+  /**
+   * Include archived matches. Archiving is documented as reversible (DI-3) but
+   * the inbox RPC used to hard-filter status = 'active', which made an archived
+   * conversation impossible to find and therefore impossible to un-archive.
+   */
+  includeArchived?: boolean
+}
 
-  const team = await supabase
-    .from('team_profiles')
-    .select('team_name, logo_url')
-    .eq('user_id', userId)
-    .maybeSingle()
-  if (team.data) {
-    const r = team.data as { team_name: string | null; logo_url: string | null }
-    return { name: r.team_name ?? 'Team', avatarUrl: r.logo_url }
-  }
-
-  const agent = await supabase
-    .from('agent_profiles')
-    .select('agency_name, agent_full_name, logo_url')
-    .eq('user_id', userId)
-    .maybeSingle()
-  if (agent.data) {
-    const r = agent.data as { agency_name: string | null; agent_full_name: string | null; logo_url: string | null }
-    return { name: r.agency_name ?? r.agent_full_name ?? 'Agent', avatarUrl: r.logo_url }
-  }
-
-  return { name: 'Conversation', avatarUrl: null }
+/** Human preview line for the inbox, derived from the last message. */
+function previewFor(row: InboxRow): string {
+  if (!row.last_message_type) return 'No messages yet'
+  if (row.last_message_type === 'proposal_card') return 'Sent a proposal'
+  if (row.last_message_type === 'payment_confirmation') return 'Payment confirmed'
+  return row.last_message_text ?? 'Attachment'
 }
 
 /**
- * Build the inbox `Conversation[]` view-model for a user (spec §7.1): resolves
- * the other participant, the latest message preview/timestamp, and an unread
- * count. Used by the role messages pages to feed the MS1 `MatchList`.
+ * Build the inbox `Conversation[]` view-model for a user (spec §7.1).
+ *
+ * SB-3/L-3: this used to run ~5 queries PER conversation (four profile-table
+ * probes to resolve the counterparty, plus a last-message lookup) and hardcoded
+ * `unreadCount` to 0. It is now a SINGLE `get_conversations()` RPC that resolves
+ * names/avatars, the last non-deleted message and the real unread count (based
+ * on the `message_reads` watermark) server-side.
+ *
+ * `_userId` is no longer needed for scoping — the RPC scopes to `auth.uid()` —
+ * but the parameter is kept so existing call sites keep compiling.
  */
 export async function getConversations(
   supabase: SupabaseClient<Database>,
-  userId: string
+  _userId: string,
+  options: GetConversationsOptions = {}
 ): Promise<Conversation[]> {
-  const matches = await getMatches(supabase, userId)
-  const client = supabase as SupabaseClient
+  // Deliberately unused: scoping is done server-side from auth.uid().
+  void _userId
 
-  const conversations = await Promise.all(
-    matches.map(async (match) => {
-      const otherId = match.user_a_id === userId ? match.user_b_id : match.user_a_id
-      const participant = await resolveParticipant(client, otherId)
+  // the generated Functions map, which would otherwise reject the rpc name.
+  const { data, error } = await db(supabase).rpc('get_conversations', {
+    p_include_archived: options.includeArchived ?? false,
+  })
 
-      const { data: lastRows } = await client
-        .from('messages')
-        .select('text_content, sent_at, content_type, sender_id')
-        .eq('match_id', match.id)
-        .eq('is_deleted', false)
-        .order('sent_at', { ascending: false })
-        .limit(1)
+  if (error) {
+    throw new MessagingError(
+      'CONVERSATIONS_FETCH_FAILED',
+      (error as { message: string }).message
+    )
+  }
 
-      const last = (lastRows ?? [])[0] as
-        | { text_content: string | null; sent_at: string; content_type: string; sender_id: string }
-        | undefined
+  // as InboxRow[]: the RPC's SETOF return type is not in the generated types
+  const rows = (data ?? []) as InboxRow[]
 
-      const preview = last
-        ? last.content_type === 'proposal_card'
-          ? 'Sent a proposal'
-          : last.content_type === 'payment_confirmation'
-            ? 'Payment confirmed'
-            : (last.text_content ?? 'Attachment')
-        : 'No messages yet'
+  return rows.map((row) => ({
+    id: row.match_id,
+    name: row.display_name ?? 'Conversation',
+    avatarUrl: row.avatar_url,
+    preview: previewFor(row),
+    timestamp: row.last_message_at ?? row.matched_at,
+    unreadCount: row.unread_count ?? 0,
+  }))
+}
 
-      return {
-        id: match.id,
-        name: participant.name,
-        avatarUrl: participant.avatarUrl,
-        preview,
-        timestamp: last?.sent_at ?? match.matched_at ?? match.created_at,
-        unreadCount: 0,
-      } satisfies Conversation
-    })
-  )
+/**
+ * Move the caller's read watermark on a match to now, zeroing its unread count
+ * on the next `getConversations()` call (L-3).
+ */
+export async function markMatchRead(
+  supabase: SupabaseClient<Database>,
+  matchId: string
+): Promise<void> {
+  // the generated Functions map, which would otherwise reject the rpc name.
+  const { error } = await db(supabase).rpc('mark_match_read', {
+    p_match_id: matchId,
+  })
 
-  return conversations
+  if (error) {
+    throw new MessagingError('MARK_READ_FAILED', (error as { message: string }).message)
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -171,8 +166,7 @@ export async function sendMessage(
   contentType: Database['public']['Enums']['message_type'],
   payload: MessagePayload
 ): Promise<MessageRow> {
-  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
-  const { data: match, error: matchError } = await (supabase as SupabaseClient)
+  const { data: match, error: matchError } = await db(supabase)
     .from('matches')
     .select('*')
     .eq('id', matchId)
@@ -191,8 +185,7 @@ export async function sendMessage(
     )
   }
 
-  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
-  const { data: message, error: insertError } = await (supabase as SupabaseClient)
+  const { data: message, error: insertError } = await db(supabase)
     .from('messages')
     .insert({ match_id: matchId, sender_id: senderId, content_type: contentType, ...payload })
     .select()
@@ -203,8 +196,7 @@ export async function sendMessage(
   }
 
   if (contentType === 'proposal_card' && matchRow.proposal_required && !matchRow.proposal_sent) {
-    // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
-    const { error: flipError } = await (supabase as SupabaseClient)
+    const { error: flipError } = await db(supabase)
       .from('matches')
       .update({ proposal_sent: true })
       .eq('id', matchId)
@@ -225,8 +217,7 @@ export async function getMessages(
   matchId: string
 ): Promise<MessageRow[]> {
   // Verify match exists and caller is a participant (RLS on matches enforces this)
-  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
-  const { error: matchError } = await (supabase as SupabaseClient)
+  const { error: matchError } = await db(supabase)
     .from('matches')
     .select('id')
     .eq('id', matchId)
@@ -236,8 +227,7 @@ export async function getMessages(
     throw new MessagingError('MATCH_NOT_FOUND', 'Match not found or not accessible')
   }
 
-  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
-  const { data, error } = await (supabase as SupabaseClient)
+  const { data, error } = await db(supabase)
     .from('messages')
     .select('*')
     .eq('match_id', matchId)
@@ -258,8 +248,7 @@ export async function deleteMessage(
 ): Promise<void> {
   const now = new Date().toISOString()
 
-  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
-  const { error } = await (supabase as SupabaseClient)
+  const { error } = await db(supabase)
     .from('messages')
     .update({ is_deleted: true, deleted_at: now })
     .eq('id', messageId)

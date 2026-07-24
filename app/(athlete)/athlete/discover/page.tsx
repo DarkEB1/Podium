@@ -1,16 +1,43 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
-import { getListings } from '@/lib/supabase/discovery'
-import ListingsGrid from '@/components/discovery/listings-grid'
+import { getActiveListingsPage, LISTING_PAGE_SIZE } from '@/lib/supabase/discovery'
+import { getDiscoveryUiMode } from '@/lib/supabase/profiles'
+import ListingsBrowser from '@/components/discovery/listings-browser'
+import LoadMore from '@/components/discovery/load-more'
+import { parseShowParam } from '@/lib/pagination'
+import { ROUTES } from '@/lib/routes'
 
-export default async function AthleteDiscoverPage() {
+/**
+ * M-1 — an authenticated route. `robots.ts` already disallows it, but a crawler
+ * that follows a shared link never reads robots.txt, so say it here too.
+ */
+export const metadata: Metadata = {
+  title: 'Discover opportunities · Podium',
+  description: 'Browse sponsorship listings from brands looking for athletes like you.',
+  robots: { index: false },
+}
+
+
+export default async function AthleteDiscoverPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>
+}) {
   const supabase = await createClient()
   const user = await getUser(supabase)
-  if (!user) redirect('/auth')
+  if (!user) redirect(ROUTES.auth.signIn)
 
-  const listings = await getListings(supabase)
-  const active = listings.filter((l) => l.status === 'active')
+  // FA-5: bounded page + a "load more" link, instead of every listing in the
+  // table filtered down to `status === 'active'` in JavaScript.
+  const params = (await searchParams) ?? {}
+  const shown = parseShowParam(params.show, LISTING_PAGE_SIZE)
+
+  const [{ listings, hasMore }, mode] = await Promise.all([
+    getActiveListingsPage(supabase, { limit: shown }),
+    getDiscoveryUiMode(supabase, user.id, 'athlete'),
+  ])
 
   return (
     <div className="mx-auto max-w-6xl space-y-10 px-6 py-12 md:px-16 md:py-16">
@@ -20,7 +47,22 @@ export default async function AthleteDiscoverPage() {
           Browse brand campaigns and send a personalised connection request.
         </p>
       </div>
-      <ListingsGrid listings={active} />
+      {/* PR-23: both browse modes ship, so the page renders the toggle. */}
+      <ListingsBrowser
+        listings={listings}
+        initialMode={mode}
+        {...(hasMore
+          ? {
+              footer: (
+                <LoadMore
+                  href={`${ROUTES.athlete.discover}?show=${shown + LISTING_PAGE_SIZE}`}
+                  shown={listings.length}
+                  label="Load more campaigns"
+                />
+              ),
+            }
+          : {})}
+      />
     </div>
   )
 }

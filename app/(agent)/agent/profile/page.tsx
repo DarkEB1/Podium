@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
@@ -5,6 +6,17 @@ import { getOwnProfile } from '@/lib/supabase/profiles'
 import AgentProfileForm from '@/components/agent/agent-profile-form'
 import type { Database } from '@/types/database'
 import { applyForVerificationAction } from './actions'
+
+/**
+ * M-1 — an authenticated route. `robots.ts` already disallows it, but a crawler
+ * that follows a shared link never reads robots.txt, so say it here too.
+ */
+export const metadata: Metadata = {
+  title: 'Your agency profile · Podium',
+  description: 'How your agency appears to athletes, teams and brands on Podium.',
+  robots: { index: false },
+}
+
 
 type AgentRow = Database['public']['Tables']['agent_profiles']['Row']
 

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    {
+      "path": "/api/cron/gdpr-deletion",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/maintenance",
+      "schedule": "30 4 * * *"
+    },
+    {
+      "path": "/api/cron/reconcile-subscriptions",
+      "schedule": "15 */6 * * *"
+    }
+  ]
+}

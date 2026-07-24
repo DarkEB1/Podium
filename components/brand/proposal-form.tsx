@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { copy } from '@/lib/copy'
+import { track } from '@/lib/analytics'
 import type { Database } from '@/types/database'
 
 type PayType = Database['public']['Enums']['pay_type']
@@ -54,6 +55,10 @@ export default function ProposalForm({ matchId, onSent }: Props) {
       })
       const data = await res.json()
       if (!res.ok) { toast.error(data.error?.message ?? 'Failed to send proposal'); return }
+      // M-6 `proposal_sent` — after the 201, never on submit. The role is
+      // fixed: this composer is mounted only by the brand-side chat entry, so
+      // the sender is always a brand. No title, amount or match id is sent.
+      track('proposal_sent', { role: 'brand' })
       toast.success(copy.toasts.proposalSent)
       form.reset()
       onSent(data as ProposalRow)

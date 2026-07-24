@@ -102,6 +102,7 @@ describe('MatchList', () => {
 
   it('shows an empty state when there are no conversations', () => {
     render(<MatchList conversations={[]} basePath="/athlete/messages" />)
-    expect(screen.getByText(/no conversations yet/i)).toBeInTheDocument()
+    expect(screen.getByText(/your inbox is quiet/i)).toBeInTheDocument()
+    expect(screen.getByText(/accept a connection request/i)).toBeInTheDocument()
   })
 })

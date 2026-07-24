@@ -1,9 +1,14 @@
 import * as React from "react"
+import Image from "next/image"
 import Link from "next/link"
-import { Bookmark } from "lucide-react"
+import { Bookmark, CalendarClock, Target } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
+import { solidBlurDataURL } from "@/lib/perf/blur-placeholder"
+
+/** Neutral on-brand silhouette used whenever no usable image is supplied (B-5). */
+export const MARKETPLACE_CARD_PLACEHOLDER = "/placeholder-athlete.svg"
 
 export interface MarketplaceCardProps {
   image: string
@@ -12,6 +17,13 @@ export interface MarketplaceCardProps {
   imageRatio?: number
   title: string
   subtitle?: string
+  /**
+   * PR-5 — what this person/brand is looking for. Rendered directly under the
+   * name, above availability. String or arbitrary node.
+   */
+  seeking?: React.ReactNode
+  /** PR-5 — availability line (e.g. "Available from March"). Rendered last. */
+  availability?: React.ReactNode
   stat?: { label: string; value: string }
   tags?: React.ReactNode
   overlayBadges?: React.ReactNode
@@ -22,6 +34,19 @@ export interface MarketplaceCardProps {
   href?: string
   /** Highlight this card with a folded-corner accent tab (plan §6/§7). */
   featured?: boolean
+  /** Tiny LQIP data URL. Defaults to the neutral surface tint. */
+  blurDataURL?: string
+  /** Responsive `sizes` hint for the optimizer. Defaults to a 1/2/3-up grid. */
+  imageSizes?: string
+  /** Skip lazy-loading for above-the-fold cards. */
+  priority?: boolean
+}
+
+/** Remote hosts are not declared in next.config.ts `images.remotePatterns`;
+ *  routing them through the optimizer would throw at runtime, so pass them
+ *  straight through. Lazy-loading + intrinsic sizing (the CLS fix) still apply. */
+function isRemote(src: string): boolean {
+  return /^https?:\/\//i.test(src)
 }
 
 export function MarketplaceCard({
@@ -30,6 +55,8 @@ export function MarketplaceCard({
   imageRatio = 0.6,
   title,
   subtitle,
+  seeking,
+  availability,
   stat,
   tags,
   overlayBadges,
@@ -38,7 +65,12 @@ export function MarketplaceCard({
   onToggleSave,
   href,
   featured = false,
+  blurDataURL,
+  imageSizes = "(min-width: 1280px) 22rem, (min-width: 768px) 33vw, 100vw",
+  priority = false,
 }: MarketplaceCardProps) {
+  const src = image && image.trim() !== "" ? image : MARKETPLACE_CARD_PLACEHOLDER
+
   return (
     <div
       data-slot="marketplace-card"
@@ -47,7 +79,7 @@ export function MarketplaceCard({
       className={cn(
         // Clean Airbnb surface: white card, generous rounding, a single light border and
         // a soft layered shadow (--shadow-card, now soft — globals.css §1).
-        "group/marketplace-card relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-card",
+        "group/marketplace-card relative flex min-w-0 flex-col overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-card",
         // Gentle hover lift: translateY(-2px) → soft elevated shadow over ~180ms, degrades
         // to shadow-only under prefers-reduced-motion. Centralised in globals.css §1.5.
         "liftable",
@@ -64,17 +96,25 @@ export function MarketplaceCard({
         </span>
       ) : null}
 
-      {/* Image — fills the top 60-70% of the card. aspect-ratio = width fraction interpreted as ratio token. */}
+      {/*
+        PR-5 — the action shot leads the card. The figure owns the aspect ratio so
+        the grid reserves the exact footprint before the bytes land (no CLS), and
+        A-2's next/image `fill` inherits it instead of shipping a raw <img>.
+      */}
       <figure
         className="relative w-full overflow-hidden bg-muted"
         style={{ aspectRatio: String(imageRatio) }}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element -- A8 BlurImage not required by this primitive's API; src is a presigned/public URL */}
-        <img
-          src={image}
+        <Image
+          src={src}
           alt={imageAlt}
-          className="h-full w-full object-cover"
-          loading="lazy"
+          fill
+          sizes={imageSizes}
+          placeholder="blur"
+          blurDataURL={blurDataURL ?? solidBlurDataURL()}
+          unoptimized={isRemote(src)}
+          {...(priority ? { priority: true } : { loading: "lazy" as const })}
+          className="object-cover"
         />
 
         {overlayBadges ? (
@@ -91,7 +131,7 @@ export function MarketplaceCard({
             onClick={onToggleSave}
             className={cn(
               "absolute right-2 top-2 z-20 inline-flex size-8 items-center justify-center rounded-full bg-card/90 text-foreground ring-1 ring-foreground/10 backdrop-blur transition-colors",
-              "hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+              "hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
               saved && "text-primary"
             )}
           >
@@ -104,16 +144,46 @@ export function MarketplaceCard({
         ) : null}
       </figure>
 
-      {/* Body */}
-      <div className="flex flex-1 flex-col gap-2 p-4">
-        <div className="flex flex-col gap-0.5">
-          <h3 className="font-heading text-medium leading-snug font-medium text-foreground">
+      {/*
+        Body — PR-5 / UX-3 reading order: name → what they're seeking →
+        availability. Roomier padding + explicit vertical rhythm so the card no
+        longer reads as squished; `min-w-0` + wrapping keep long names contained.
+      */}
+      <div className="flex min-w-0 flex-1 flex-col gap-3 p-5">
+        <div className="flex min-w-0 flex-col gap-1">
+          <h3 className="font-heading text-medium leading-snug font-medium text-foreground break-words [overflow-wrap:anywhere]">
             {title}
           </h3>
           {subtitle ? (
-            <p className="text-small text-muted-foreground">{subtitle}</p>
+            <p className="text-small text-muted-foreground break-words">{subtitle}</p>
           ) : null}
         </div>
+
+        {seeking ? (
+          <div
+            data-slot="marketplace-card-seeking"
+            className="flex min-w-0 items-start gap-2 text-small text-foreground"
+          >
+            <Target aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+            <span className="min-w-0 break-words">
+              <span className="sr-only">Seeking: </span>
+              {seeking}
+            </span>
+          </div>
+        ) : null}
+
+        {availability ? (
+          <div
+            data-slot="marketplace-card-availability"
+            className="flex min-w-0 items-start gap-2 text-small text-muted-foreground"
+          >
+            <CalendarClock aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+            <span className="min-w-0 break-words">
+              <span className="sr-only">Availability: </span>
+              {availability}
+            </span>
+          </div>
+        ) : null}
 
         {stat ? (
           <div className="flex items-baseline gap-1">
@@ -151,7 +221,7 @@ export function MarketplaceCard({
         <Link
           href={href}
           aria-label={title}
-          className="absolute inset-0 z-10 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className="absolute inset-0 z-10 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         />
       ) : null}
     </div>

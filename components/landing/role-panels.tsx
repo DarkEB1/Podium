@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { Trophy, Shield, Building2, Users, ArrowRight, Check, type LucideIcon } from 'lucide-react'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { ROUTES } from '@/lib/routes'
 
 type Panel = {
   role: string
@@ -20,7 +21,7 @@ const panels: Panel[] = [
     tagline: 'Get discovered. Close deals. Keep every penny.',
     points: ['Rich profile with stats, media & socials', 'Browse brand campaigns and pitch direct', 'E-sign contracts and get paid'],
     cta: 'Create Athlete Profile',
-    href: '/auth/signup',
+    href: ROUTES.auth.signUpAs('athlete'),
     free: true,
   },
   {
@@ -29,7 +30,7 @@ const panels: Panel[] = [
     tagline: 'Turn your fanbase into your next sponsor.',
     points: ['Showcase your reach and your roster', 'Match with sponsors that fit your club', 'Negotiate and sign deals in-app'],
     cta: 'List Your Team',
-    href: '/auth/signup',
+    href: ROUTES.auth.signUpAs('team'),
     free: true,
   },
   {
@@ -38,7 +39,7 @@ const panels: Panel[] = [
     tagline: 'Reach elite talent at scale — no agency markup.',
     points: ['Powerful search across verified talent', 'Run campaigns, proposals & contracts', '7-day free trial, then simple tiers'],
     cta: 'Start Finding Talent',
-    href: '/auth/signup',
+    href: ROUTES.auth.signUpAs('brand'),
   },
   {
     role: 'Agents',
@@ -46,7 +47,7 @@ const panels: Panel[] = [
     tagline: 'Manage your whole roster from one dashboard.',
     points: ['Represent multiple athletes & teams', 'Track deals and deadlines in one view', 'Close more, chase less'],
     cta: 'Manage Your Roster',
-    href: '/auth/signup',
+    href: ROUTES.auth.signUpAs('agent'),
   },
 ]
 

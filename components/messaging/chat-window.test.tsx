@@ -1,4 +1,4 @@
-import { render, screen, act } from '@testing-library/react'
+import { render, screen, act, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeAll } from 'vitest'
 import type { Database } from '@/types/database'
 import ChatWindow from './chat-window'
@@ -83,5 +83,53 @@ describe('ChatWindow', () => {
       typingCb?.({ userId: 'me', isTyping: true })
     })
     expect(screen.queryByTestId('typing-indicator')).toBeNull()
+  })
+})
+
+describe('ChatWindow composer (PR-18)', () => {
+  it('renders the composer as a width-constrained, wrapping textarea', () => {
+    render(<ChatWindow {...props} />)
+    const composer = screen.getByTestId('chat-composer')
+    expect(composer.tagName).toBe('TEXTAREA')
+    // A flex child needs min-w-0 or it refuses to shrink and overflows the row.
+    expect(composer.className).toContain('min-w-0')
+    expect(composer.className).toContain('w-full')
+    // Wrapping, not horizontal growth.
+    expect(composer.className).toMatch(/break-words/)
+    expect(composer.className).toMatch(/overflow-wrap:anywhere/)
+    // Auto-grow caps out and then scrolls rather than growing forever.
+    expect(composer.className).toContain('overflow-y-auto')
+    expect((composer as HTMLTextAreaElement).style.maxHeight).toBe('160px')
+    // Soft wrap is the browser default and must not be turned off.
+    expect(composer.getAttribute('wrap')).not.toBe('off')
+  })
+
+  it('keeps the composer row itself from overflowing', () => {
+    render(<ChatWindow {...props} />)
+    const form = screen.getByTestId('chat-composer').closest('form') as HTMLElement
+    expect(form.className).toContain('min-w-0')
+    expect(form.className).toContain('w-full')
+  })
+
+  it('grows with typed content up to the max height, then stops', () => {
+    render(<ChatWindow {...props} />)
+    const composer = screen.getByTestId('chat-composer') as HTMLTextAreaElement
+    // jsdom reports scrollHeight 0, so drive it directly to assert the cap logic.
+    Object.defineProperty(composer, 'scrollHeight', { value: 400, configurable: true })
+    fireEvent.change(composer, { target: { value: 'x'.repeat(2000) } })
+    expect(composer.style.height).toBe('160px')
+    expect(composer.style.overflowY).toBe('auto')
+  })
+
+  it('gives the icon-only send button an accessible name (A-5)', () => {
+    render(<ChatWindow {...props} />)
+    expect(screen.getByRole('button', { name: 'Send message' })).toBeInTheDocument()
+  })
+})
+
+describe('ChatWindow empty state (UX-1)', () => {
+  it('shows an empty state instead of a blank pane when there are no messages', () => {
+    render(<ChatWindow {...props} initialMessages={[]} />)
+    expect(screen.getByText('No messages yet')).toBeInTheDocument()
   })
 })

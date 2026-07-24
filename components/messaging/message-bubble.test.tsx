@@ -85,3 +85,30 @@ describe('MessageBubble', () => {
     expect(link).toHaveAttribute('href', 'https://cdn.example.com/brief.pdf')
   })
 })
+
+describe('MessageBubble long-text wrapping (PR-18)', () => {
+  const long = 'a'.repeat(400)
+
+  it('wraps a single unbroken token instead of blowing out the row', () => {
+    render(<MessageBubble message={{ ...base, text_content: long }} isMine={false} />)
+    const text = screen.getByText(long)
+    expect(text.className).toMatch(/break-words/)
+    expect(text.className).toMatch(/overflow-wrap:anywhere/)
+    expect(text.className).toMatch(/whitespace-pre-wrap/)
+  })
+
+  it('caps the bubble width relative to the conversation column', () => {
+    render(<MessageBubble message={{ ...base, text_content: long }} isMine={false} />)
+    const bubble = screen.getByRole('button', { name: /show timestamp/i })
+    expect(bubble.className).toMatch(/max-w-\[75%\]/)
+    expect(bubble.className).toContain('min-w-0')
+    expect(bubble.className).toMatch(/overflow-wrap:anywhere/)
+  })
+
+  it('gives the bubble a visible focus ring, not an outline-only cue (A-4)', () => {
+    render(<MessageBubble message={{ ...base, text_content: 'hi' }} isMine={false} />)
+    const bubble = screen.getByRole('button', { name: /show timestamp/i })
+    expect(bubble.className).toContain('focus-visible:ring-2')
+    expect(bubble.className).toContain('focus-visible:ring-ring')
+  })
+})

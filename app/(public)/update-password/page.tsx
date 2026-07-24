@@ -1,5 +1,13 @@
 import UpdatePasswordForm from '@/components/auth/update-password-form'
 
+// M-1: per-route metadata. Authenticated surface: `robots.index = false`
+// mirrors app/robots.ts so a signed-in page can never be indexed.
+export const metadata = {
+  title: 'Set a new password · Podium',
+  description: 'Choose a new password for your Podium account.',
+  robots: { index: false, follow: false },
+}
+
 export default function UpdatePasswordPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-6 py-16">
