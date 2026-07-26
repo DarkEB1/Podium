@@ -7,6 +7,11 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
+  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -428,6 +433,27 @@ export type Database = {
           },
         ]
       }
+      auth_rate_limits: {
+        Row: {
+          attempts: number
+          key: string
+          updated_at: string
+          window_started: string
+        }
+        Insert: {
+          attempts?: number
+          key: string
+          updated_at?: string
+          window_started?: string
+        }
+        Update: {
+          attempts?: number
+          key?: string
+          updated_at?: string
+          window_started?: string
+        }
+        Relationships: []
+      }
       blocks: {
         Row: {
           blocked_id: string
@@ -648,6 +674,7 @@ export type Database = {
           status: Database["public"]["Enums"]["contract_status"]
           terminated_at: string | null
           termination_reason: string | null
+          terms_snapshot: Json | null
           updated_at: string
         }
         Insert: {
@@ -674,6 +701,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["contract_status"]
           terminated_at?: string | null
           termination_reason?: string | null
+          terms_snapshot?: Json | null
           updated_at?: string
         }
         Update: {
@@ -700,6 +728,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["contract_status"]
           terminated_at?: string | null
           termination_reason?: string | null
+          terms_snapshot?: Json | null
           updated_at?: string
         }
         Relationships: [
@@ -777,6 +806,91 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "data_export_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_deliveries: {
+        Row: {
+          attempts: number
+          created_at: string
+          error: string | null
+          event_type: string
+          id: string
+          idempotency_key: string | null
+          provider_id: string | null
+          status: Database["public"]["Enums"]["email_delivery_status"]
+          subject: string
+          to_email: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          error?: string | null
+          event_type: string
+          id?: string
+          idempotency_key?: string | null
+          provider_id?: string | null
+          status?: Database["public"]["Enums"]["email_delivery_status"]
+          subject: string
+          to_email: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          error?: string | null
+          event_type?: string
+          id?: string
+          idempotency_key?: string | null
+          provider_id?: string | null
+          status?: Database["public"]["Enums"]["email_delivery_status"]
+          subject?: string
+          to_email?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_deliveries_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_suppressions: {
+        Row: {
+          created_at: string
+          detail: string | null
+          email: string
+          reason: Database["public"]["Enums"]["email_suppression_reason"]
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          detail?: string | null
+          email: string
+          reason: Database["public"]["Enums"]["email_suppression_reason"]
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          detail?: string | null
+          email?: string
+          reason?: Database["public"]["Enums"]["email_suppression_reason"]
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_suppressions_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
@@ -972,6 +1086,45 @@ export type Database = {
           {
             foreignKeyName: "matches_user_b_id_fkey"
             columns: ["user_b_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      message_reads: {
+        Row: {
+          created_at: string
+          last_read_at: string
+          match_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          last_read_at?: string
+          match_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          last_read_at?: string
+          match_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_reads_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_reads_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
@@ -1543,6 +1696,42 @@ export type Database = {
           },
         ]
       }
+      stripe_webhook_events: {
+        Row: {
+          attempts: number
+          claimed_at: string | null
+          error: string | null
+          id: string
+          payload: Json | null
+          processed_at: string | null
+          received_at: string
+          status: Database["public"]["Enums"]["stripe_webhook_event_status"]
+          type: string
+        }
+        Insert: {
+          attempts?: number
+          claimed_at?: string | null
+          error?: string | null
+          id: string
+          payload?: Json | null
+          processed_at?: string | null
+          received_at?: string
+          status?: Database["public"]["Enums"]["stripe_webhook_event_status"]
+          type: string
+        }
+        Update: {
+          attempts?: number
+          claimed_at?: string | null
+          error?: string | null
+          id?: string
+          payload?: Json | null
+          processed_at?: string | null
+          received_at?: string
+          status?: Database["public"]["Enums"]["stripe_webhook_event_status"]
+          type?: string
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           brand_id: string
@@ -1859,12 +2048,136 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      participant_display: {
+        Row: {
+          avatar_url: string | null
+          display_name: string | null
+          source_priority: number | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      accept_proposal: {
+        Args: { p_proposal_id: string }
+        Returns: {
+          additional_terms: string | null
+          created_at: string
+          deliverables: Json
+          id: string
+          match_id: string
+          parent_proposal_id: string | null
+          pay_amount: number
+          pay_currency: string
+          pay_type: Database["public"]["Enums"]["pay_type"]
+          responded_at: string | null
+          sender_id: string
+          status: Database["public"]["Enums"]["proposal_status"]
+          timeline_end: string | null
+          timeline_start: string | null
+          title: string
+          updated_at: string
+          usage_rights: Json | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "proposals"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      can_read_user_folder: { Args: { p_folder: string }; Returns: boolean }
+      check_rate_limit: {
+        Args: { p_key: string; p_limit: number; p_window_seconds: number }
+        Returns: {
+          allowed: boolean
+          attempts: number
+          retry_after: number
+        }[]
+      }
+      claim_stripe_webhook_event: {
+        Args: {
+          p_id: string
+          p_payload: Json
+          p_stale_after_seconds?: number
+          p_type: string
+        }
+        Returns: {
+          attempt_count: number
+          did_claim: boolean
+          event_status: Database["public"]["Enums"]["stripe_webhook_event_status"]
+        }[]
+      }
+      counter_proposal: {
+        Args: {
+          p_additional_terms?: string
+          p_deliverables?: Json
+          p_parent_proposal_id: string
+          p_pay_amount: number
+          p_pay_currency?: string
+          p_pay_type: Database["public"]["Enums"]["pay_type"]
+          p_timeline_end?: string
+          p_timeline_start?: string
+          p_title: string
+          p_usage_rights?: Json
+        }
+        Returns: {
+          additional_terms: string | null
+          created_at: string
+          deliverables: Json
+          id: string
+          match_id: string
+          parent_proposal_id: string | null
+          pay_amount: number
+          pay_currency: string
+          pay_type: Database["public"]["Enums"]["pay_type"]
+          responded_at: string | null
+          sender_id: string
+          status: Database["public"]["Enums"]["proposal_status"]
+          timeline_end: string | null
+          timeline_start: string | null
+          title: string
+          updated_at: string
+          usage_rights: Json | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "proposals"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      erase_user_data: { Args: { p_user_id: string }; Returns: Json }
+      expire_listings_past_deadline: {
+        Args: { p_limit?: number }
+        Returns: number
+      }
+      get_conversations: {
+        Args: { p_include_archived?: boolean }
+        Returns: {
+          avatar_url: string
+          display_name: string
+          last_message_at: string
+          last_message_text: string
+          last_message_type: string
+          match_id: string
+          match_status: string
+          matched_at: string
+          other_user_id: string
+          unread_count: number
+        }[]
+      }
       is_admin: { Args: never; Returns: boolean }
       is_match_participant: { Args: { p_match_id: string }; Returns: boolean }
       is_team_owner: { Args: { p_team_id: string }; Returns: boolean }
+      mark_match_read: { Args: { p_match_id: string }; Returns: string }
+      process_scheduled_deletions: { Args: { p_limit?: number }; Returns: Json }
+      purge_expired_rate_limits: {
+        Args: { p_older_than_seconds?: number }
+        Returns: number
+      }
+      reset_rate_limit: { Args: { p_key: string }; Returns: undefined }
     }
     Enums: {
       agent_verification_status: "unverified" | "pending" | "verified"
@@ -1904,7 +2217,21 @@ export type Database = {
         | "expired"
       display_currency: "gbp" | "usd" | "eur"
       display_theme: "light" | "dark"
+      email_delivery_status:
+        | "queued"
+        | "sent"
+        | "delivered"
+        | "bounced"
+        | "complained"
+        | "failed"
+        | "suppressed"
+        | "skipped"
       email_digest: "daily" | "weekly" | "off"
+      email_suppression_reason:
+        | "hard_bounce"
+        | "complaint"
+        | "unsubscribe"
+        | "manual"
       fan_reach: "local" | "regional" | "national" | "international"
       link_status: "pending" | "active" | "terminated"
       listing_status: "draft" | "active" | "paused" | "expired" | "filled"
@@ -1955,6 +2282,11 @@ export type Database = {
         | "apparel_deal"
         | "university_nil_collective"
       stripe_connect_status: "not_started" | "pending" | "restricted" | "active"
+      stripe_webhook_event_status:
+        | "received"
+        | "processed"
+        | "failed"
+        | "unprocessable"
       subscription_status:
         | "trialing"
         | "active"
@@ -2142,7 +2474,23 @@ export const Constants = {
       ],
       display_currency: ["gbp", "usd", "eur"],
       display_theme: ["light", "dark"],
+      email_delivery_status: [
+        "queued",
+        "sent",
+        "delivered",
+        "bounced",
+        "complained",
+        "failed",
+        "suppressed",
+        "skipped",
+      ],
       email_digest: ["daily", "weekly", "off"],
+      email_suppression_reason: [
+        "hard_bounce",
+        "complaint",
+        "unsubscribe",
+        "manual",
+      ],
       fan_reach: ["local", "regional", "national", "international"],
       link_status: ["pending", "active", "terminated"],
       listing_status: ["draft", "active", "paused", "expired", "filled"],
@@ -2198,6 +2546,12 @@ export const Constants = {
         "university_nil_collective",
       ],
       stripe_connect_status: ["not_started", "pending", "restricted", "active"],
+      stripe_webhook_event_status: [
+        "received",
+        "processed",
+        "failed",
+        "unprocessable",
+      ],
       subscription_status: [
         "trialing",
         "active",
@@ -2219,4 +2573,3 @@ export const Constants = {
     },
   },
 } as const
-
