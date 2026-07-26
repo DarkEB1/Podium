@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { Receipt } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
@@ -7,6 +8,17 @@ import PaymentForm from '@/components/brand/payment-form'
 import { EmptyState } from '@/components/ui/empty-state'
 import { cn } from '@/lib/utils'
 import type { Database } from '@/types/database'
+
+/**
+ * M-1 — an authenticated route. `robots.ts` already disallows it, but a crawler
+ * that follows a shared link never reads robots.txt, so say it here too.
+ */
+export const metadata: Metadata = {
+  title: 'Payments · Podium',
+  description: 'Your Podium invoices, payouts and payment history.',
+  robots: { index: false },
+}
+
 
 type PaymentRow = Database['public']['Tables']['payments']['Row']
 

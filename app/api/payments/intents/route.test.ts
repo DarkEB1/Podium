@@ -105,4 +105,39 @@ describe('POST /api/payments/intents', () => {
     expect(json.paymentIntentId).toBe('pi_abc')
     expect(json.paymentId).toBe('pay-1')
   })
+
+  // ST-5: the webhook reads payerId/payeeId from intent metadata, so this
+  // caller must resolve and pass them.
+  it('passes payerId and payeeId to createPaymentIntent', async () => {
+    vi.mocked(getUser).mockResolvedValue(brandUser as never)
+    vi.mocked(getContractForPayment).mockResolvedValue(fakeContract)
+    vi.mocked(getSubscriptionForUser).mockResolvedValue(fakeSub as never)
+    vi.mocked(createPaymentIntent).mockResolvedValue({ clientSecret: 'pi_secret', paymentIntentId: 'pi_abc' })
+    vi.mocked(createPaymentRecord).mockResolvedValue(fakePayment as never)
+
+    await POST(makeRequest({ contractId: 'contract-1' }))
+
+    expect(vi.mocked(createPaymentIntent)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contractId: 'contract-1',
+        payerId: 'user-brand',
+        payeeId: 'user-athlete',
+      })
+    )
+  })
+
+  it('writes the same payer/payee onto the payments row as onto the intent metadata', async () => {
+    vi.mocked(getUser).mockResolvedValue(brandUser as never)
+    vi.mocked(getContractForPayment).mockResolvedValue(fakeContract)
+    vi.mocked(getSubscriptionForUser).mockResolvedValue(fakeSub as never)
+    vi.mocked(createPaymentIntent).mockResolvedValue({ clientSecret: 'pi_secret', paymentIntentId: 'pi_abc' })
+    vi.mocked(createPaymentRecord).mockResolvedValue(fakePayment as never)
+
+    await POST(makeRequest({ contractId: 'contract-1' }))
+
+    const intentArgs = vi.mocked(createPaymentIntent).mock.calls.at(-1)?.[0]
+    const recordArgs = vi.mocked(createPaymentRecord).mock.calls.at(-1)?.[1]
+    expect(recordArgs?.payer_id).toBe(intentArgs?.payerId)
+    expect(recordArgs?.payee_id).toBe(intentArgs?.payeeId)
+  })
 })

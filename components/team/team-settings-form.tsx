@@ -161,7 +161,7 @@ export default function TeamSettingsForm({
 
   const selectClass = cn(
     'h-9 rounded-md border border-input bg-transparent px-3 py-1 text-medium shadow-xs',
-    'focus-visible:ring-3 focus-visible:ring-ring/50 outline-none',
+    'focus-visible:ring-2 focus-visible:ring-ring outline-none',
   )
 
   return (

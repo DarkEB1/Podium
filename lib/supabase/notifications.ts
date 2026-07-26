@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database'
+import { db } from '@/lib/supabase/typed-client'
 
 type NotificationLogRow = Database['public']['Tables']['notification_logs']['Row']
 type NotificationLogInsert = Database['public']['Tables']['notification_logs']['Insert']
@@ -18,8 +19,7 @@ export async function getNotifications(
   supabase: SupabaseClient<Database>,
   userId: string
 ): Promise<NotificationLogRow[]> {
-  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
-  const { data, error } = await (supabase as SupabaseClient)
+  const { data, error } = await db(supabase)
     .from('notification_logs')
     .select('*')
     .eq('user_id', userId)
@@ -43,8 +43,7 @@ export async function markRead(
 ): Promise<NotificationLogRow> {
   const now = new Date().toISOString()
 
-  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
-  const { data, error } = await (adminSupabase as SupabaseClient)
+  const { data, error } = await db(adminSupabase)
     .from('notification_logs')
     .update({ read_at: now })
     .eq('id', notificationId)
@@ -70,8 +69,7 @@ export async function createNotification(
   payload: Omit<NotificationLogInsert, 'id' | 'created_at' | 'sent_at'>
 ): Promise<NotificationLogRow> {
   // createNotification requires service-role client — RLS blocks user client inserts
-  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
-  const { data, error } = await (adminSupabase as SupabaseClient)
+  const { data, error } = await db(adminSupabase)
     .from('notification_logs')
     .insert(payload)
     .select()

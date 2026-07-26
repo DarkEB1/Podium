@@ -8,6 +8,11 @@ import {
   createRepresentationLink,
   respondRepresentationLink,
   getRepresentationLinks,
+  getActiveAthleteProfiles,
+  getActiveAthleteProfilesPage,
+  getDiscoveryUiMode,
+  updateDiscoveryUiMode,
+  ATHLETE_PAGE_SIZE,
   ProfileError,
 } from './profiles'
 import type { SupabaseClient } from '@supabase/supabase-js'
@@ -457,5 +462,116 @@ describe('ProfileError', () => {
     expect(err.code).toBe('TEST_CODE')
     expect(err.message).toBe('test message')
     expect(err.name).toBe('ProfileError')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Discovery feed pagination + browse mode (FA-5 / SB-9 / PR-23)
+// ---------------------------------------------------------------------------
+
+function makePagingClient(rows: unknown[]) {
+  const chain: Record<string, unknown> = {}
+  const calls: { select?: string; range?: [number, number]; order?: unknown; eq?: unknown[] } = {}
+  const self = () => chain
+
+  chain['select'] = vi.fn((cols: string) => {
+    calls.select = cols
+    return self()
+  })
+  chain['eq'] = vi.fn((...args: unknown[]) => {
+    calls.eq = args
+    return self()
+  })
+  chain['order'] = vi.fn((...args: unknown[]) => {
+    calls.order = args
+    return self()
+  })
+  chain['range'] = vi.fn((from: number, to: number) => {
+    calls.range = [from, to]
+    return Promise.resolve({ data: rows, error: null })
+  })
+  chain['then'] = (resolve: (v: unknown) => void) =>
+    Promise.resolve({ data: rows, error: null }).then(resolve)
+
+  return {
+    client: { from: vi.fn(() => chain) } as unknown as SupabaseClient<Database>,
+    calls,
+  }
+}
+
+const athleteRow = (id: string) => ({ id, user_id: `u-${id}`, display_name: id })
+
+describe('getActiveAthleteProfilesPage', () => {
+  it('requests limit + 1 rows and reports hasMore without returning the extra row', async () => {
+    const rows = Array.from({ length: 4 }, (_, i) => athleteRow(`a${i}`))
+    const { client, calls } = makePagingClient(rows)
+
+    const page = await getActiveAthleteProfilesPage(client, { limit: 3, offset: 0 })
+
+    expect(calls.range).toEqual([0, 3])
+    expect(page.athletes).toHaveLength(3)
+    expect(page.hasMore).toBe(true)
+  })
+
+  it('reports hasMore false when the page is not full', async () => {
+    const { client } = makePagingClient([athleteRow('a0')])
+    const page = await getActiveAthleteProfilesPage(client, { limit: 3 })
+    expect(page.hasMore).toBe(false)
+    expect(page.athletes).toHaveLength(1)
+  })
+
+  it('offsets subsequent pages', async () => {
+    const { client, calls } = makePagingClient([])
+    await getActiveAthleteProfilesPage(client, { limit: 10, offset: 20 })
+    expect(calls.range).toEqual([20, 30])
+  })
+
+  it('defaults to a bounded page rather than the whole table', async () => {
+    const { client, calls } = makePagingClient([])
+    await getActiveAthleteProfilesPage(client)
+    expect(calls.range).toEqual([0, ATHLETE_PAGE_SIZE])
+  })
+
+  // SB-9/FA-4: a public browse feed must not ship guardian contact details,
+  // payout fragments or Stripe ids just because select('*') was easier.
+  it('projects columns instead of selecting everything', async () => {
+    const { client, calls } = makePagingClient([])
+    await getActiveAthleteProfilesPage(client)
+
+    expect(calls.select).not.toBe('*')
+    expect(calls.select).toMatch(/display_name/)
+    expect(calls.select).not.toMatch(/guardian_email|payout_|stripe_connect/)
+  })
+})
+
+describe('getActiveAthleteProfiles', () => {
+  it('no longer selects every column', async () => {
+    const { client, calls } = makePagingClient([athleteRow('a0')])
+    await getActiveAthleteProfiles(client)
+    expect(calls.select).not.toBe('*')
+    expect(calls.select).not.toMatch(/guardian_email|payout_|stripe_connect/)
+  })
+})
+
+describe('discovery ui mode', () => {
+  it('reads the persisted mode from the role table', async () => {
+    const mock = makeMockClient()
+    mock.setSingle({ discovery_ui_mode: 'swipe' })
+    const mode = await getDiscoveryUiMode(mock.client, 'user-1', 'athlete')
+    expect(mock.mockFrom).toHaveBeenCalledWith('athlete_profiles')
+    expect(mode).toBe('swipe')
+  })
+
+  it('falls back to marketplace when there is no profile row', async () => {
+    const mock = makeMockClient()
+    mock.setSingle(null, { code: 'PGRST116' })
+    await expect(getDiscoveryUiMode(mock.client, 'user-1', 'brand')).resolves.toBe('marketplace')
+  })
+
+  it('writes the mode through the profile update path', async () => {
+    const mock = makeMockClient()
+    mock.setSingle({ id: 'p1', discovery_ui_mode: 'swipe' })
+    await updateDiscoveryUiMode(mock.client, 'user-1', 'team', 'swipe')
+    expect(mock.chain.update).toHaveBeenCalledWith({ discovery_ui_mode: 'swipe' })
   })
 })

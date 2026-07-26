@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Sticker } from '@/components/ui/sticker'
 import { cn } from '@/lib/utils'
+import { track } from '@/lib/analytics'
 import type { Database } from '@/types/database'
 
 type SubscriptionRow = Database['public']['Tables']['subscriptions']['Row']
@@ -115,6 +116,11 @@ export default function SubscriptionTiers({ subscription }: Props) {
         toast.error(data.error?.message ?? 'Failed to start checkout')
         return
       }
+      // M-6 `subscription_checkout_started` — after Stripe returned a session
+      // URL (2xx), before the redirect leaves the page. A click that failed to
+      // create a session is not a started checkout. Tier number only: no
+      // customer, session or price identifier.
+      track('subscription_checkout_started', { tier })
       window.location.href = data.url
     } catch {
       toast.error('Something went wrong. Please try again.')

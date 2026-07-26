@@ -13,6 +13,14 @@ import type { Database } from '@/types/database'
 type AthleteRow = Database['public']['Tables']['athlete_profiles']['Row']
 type MatchRow = Database['public']['Tables']['matches']['Row']
 
+// M-1: per-route metadata. Authenticated surface: `robots.index = false`
+// mirrors app/robots.ts so a signed-in page can never be indexed.
+export const metadata = {
+  title: 'Athlete dashboard · Podium',
+  description: 'Your sponsorship activity at a glance: connections, conversations and deals.',
+  robots: { index: false, follow: false },
+}
+
 export default async function AthleteDashboardPage() {
   const supabase = await createClient()
   const user = await getUser(supabase)

@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { Plus, Minus, ArrowRight } from 'lucide-react'
 import { buttonVariants } from '@/components/ui/button'
+import { ROUTES } from '@/lib/routes'
 import {
   Accordion,
   AccordionContent,
@@ -10,30 +11,38 @@ import {
 } from '@/components/ui/accordion'
 import { Accordion as AccordionPrimitive } from '@base-ui/react/accordion'
 
+/**
+ * M-2 — answers audited for unevidenced claims. Removed: a guaranteed "within
+ * 48 hours" verification turnaround we cannot yet meet, "verified profiles win
+ * more deals" (a performance claim with no data behind it), "there is a brand
+ * on Podium for you" (an outcome promise), and "free forever" (an unqualified
+ * commitment about future pricing). Keep answers factual and checkable — under
+ * the CAP Code an objective claim on a marketing page must be substantiated.
+ */
 const faqs = [
   {
     q: 'Is it really free for athletes and teams?',
-    a: 'One hundred percent free, forever. Athletes, teams, and agents never pay a penny — list your profile, message brands, sign contracts, and get paid with zero fees. Brands cover the cost, you keep the spotlight.',
+    a: 'Yes. Athletes, teams and agents pay nothing to list a profile, message brands, agree a deal or get paid — there are no Podium fees on your side. Brand subscriptions fund the platform. If that ever changes we will tell you in advance, and you will never be charged without agreeing first.',
   },
   {
     q: 'How do brands find me?',
-    a: 'Brands search Podium by sport, location, audience size, and budget — your profile is your shop window. Keep it sharp with stats, highlights, and your availability, and the right sponsors come knocking. The stronger your profile, the higher you rank.',
+    a: 'Brands search by sport, level, location, audience size and budget, so your profile is your shop window. A complete profile — stats, highlights, availability and what you are looking for — gives the search more to match on than a sparse one.',
   },
   {
     q: 'How do payments work?',
-    a: 'Deals pay out directly from brand to athlete through Stripe — fast, secure, and traceable. Podium never sits between you and your money, so there are no payout fees on your side. You handle your own tax, we handle the plumbing.',
+    a: 'Deal payments run from the brand to you through Stripe, so they are traceable and you get a receipt. Podium does not take a cut of your deal. You are responsible for your own tax and National Insurance — we do not withhold anything on your behalf, and we cannot give tax advice.',
   },
   {
     q: 'Do I need an agent?',
-    a: 'Nope — Podium cuts out the gatekeepers entirely. You deal with brands directly, on your terms, at your pace. Already have an agent? They can run your account for free too.',
+    a: 'No. You can deal with brands directly, on your own terms. If you already have an agent, they can hold their own Podium account and manage your profile and deals with the permissions you grant them, at no cost to you.',
   },
   {
     q: 'What sports are supported?',
-    a: 'All of them. Football, athletics, rugby, netball, cycling, boxing, swimming, hockey, tennis, rowing — and plenty more. If you compete and have an audience, there is a brand on Podium for you.',
+    a: 'Podium is sport-agnostic — football, athletics, rugby, netball, cycling, boxing, swimming, hockey, tennis, rowing and more. You choose your sport, position and level when you build your profile, from recreational through to international.',
   },
   {
     q: 'How do I get verified?',
-    a: 'Upload proof of your identity and competitive status, and our team reviews it within 48 hours. Once verified you get the blue badge that tells brands you are the real deal. Verified profiles win more deals, full stop.',
+    a: 'Upload proof of your identity and your competitive status and our team reviews it manually. We aim to turn reviews around quickly, and we will tell you if we need anything else. Verification shows brands we have checked those documents — it is not a guarantee of results.',
   },
 ]
 
@@ -65,7 +74,15 @@ export default function FAQ() {
                 <AccordionPrimitive.Header className="flex">
                   <AccordionPrimitive.Trigger
                     data-slot="accordion-trigger"
-                    className="group/faq flex flex-1 items-center justify-between gap-4 px-8 py-6 text-left font-heading text-lg font-bold leading-snug text-foreground outline-none transition-colors hover:text-primary focus-visible:text-primary"
+                    // A-4: this trigger had `outline-none` plus a colour-only
+                    // focus change, so keyboard focus was invisible to anyone
+                    // who cannot rely on hue — the exact finding the styled
+                    // Accordion wrapper fixed, bypassed here by rendering the
+                    // primitive directly. Same remedy as
+                    // components/ui/accordion.tsx: a full-opacity 2px --ring
+                    // (5.86:1 on --background, over the 3:1 non-text minimum)
+                    // with a 2px offset so it reads on the card and the page.
+                    className="group/faq flex flex-1 items-center justify-between gap-4 rounded-2xl px-8 py-6 text-left font-heading text-lg font-bold leading-snug text-foreground outline-none transition-colors hover:text-primary focus-visible:text-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                   >
                     {f.q}
                     <span className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground transition-colors group-aria-expanded/faq:bg-primary group-aria-expanded/faq:text-primary-foreground">
@@ -84,7 +101,7 @@ export default function FAQ() {
 
         <div className="mt-14 flex flex-col items-center gap-4 text-center">
           <p className="font-heading text-lg font-bold text-foreground">Still curious? The best way to learn is to dive in.</p>
-          <Link href="/auth/signup" className={buttonVariants({ size: 'lg' })}>
+          <Link href={ROUTES.auth.signUp} className={buttonVariants({ size: 'lg' })}>
             Get started free <ArrowRight className="ml-1 h-4 w-4" strokeWidth={2.5} />
           </Link>
         </div>

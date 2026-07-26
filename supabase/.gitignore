@@ -2,6 +2,10 @@
 .branches
 .temp
 
+# DX-2: individual files in migrations/ are the source of truth — never commit
+# a concatenated dump, it silently diverges from the real migration history.
+migrations/_combined.sql
+
 # dotenvx
 .env.keys
 .env.local

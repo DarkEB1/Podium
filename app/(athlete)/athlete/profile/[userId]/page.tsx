@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 
 import { createClient } from '@/lib/supabase/server'
@@ -11,6 +12,24 @@ import ProfileSocialStrip, {
   type SocialAccounts,
 } from '@/components/athlete/profile-social-strip'
 import ProfileSeeking from '@/components/athlete/profile-seeking'
+
+/**
+ * M-1 — deliberately GENERIC and identical for every record.
+ *
+ * A page title is written to browser history, sent in the document title to
+ * analytics, and is visible on a shared screen or a screencast. Interpolating
+ * the subject's name here ("Sarah Okoro — Athlete") would leak a real person's
+ * identity into all three, so the title says only what kind of page this is.
+ * `robots: { index: false }` keeps it out of search results as well.
+ */
+export function generateMetadata(): Metadata {
+  return {
+    title: 'Athlete profile · Podium',
+    description: 'An athlete profile on Podium.',
+    robots: { index: false },
+  }
+}
+
 
 type AthleteRow = Database['public']['Tables']['athlete_profiles']['Row']
 

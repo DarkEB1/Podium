@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
@@ -6,6 +7,17 @@ import { getListing } from '@/lib/supabase/discovery'
 import ListingForm from '@/components/brand/listing-form'
 import DuplicateListingForm from '../duplicate-listing-form'
 import type { Database } from '@/types/database'
+
+/**
+ * M-1 — an authenticated route. `robots.ts` already disallows it, but a crawler
+ * that follows a shared link never reads robots.txt, so say it here too.
+ */
+export const metadata: Metadata = {
+  title: 'Create a listing · Podium',
+  description: 'Post a sponsorship opportunity for athletes and teams to respond to.',
+  robots: { index: false },
+}
+
 
 type BrandRow = Database['public']['Tables']['brand_profiles']['Row']
 type JobListingRow = Database['public']['Tables']['job_listings']['Row']

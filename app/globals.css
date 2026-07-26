@@ -2,6 +2,11 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* NX-2 — Tailwind 4 ships `dark:` as a prefers-color-scheme media query. next-themes
+   drives the theme with `attribute="class"`, so the variant has to be re-bound to the
+   `.dark` class on <html> or every `dark:` utility in the tree is dead. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -86,44 +91,102 @@
   --card-foreground: #2E3440;
   --popover: #FFFFFF;
   --popover-foreground: #2E3440;
-  --primary: #5E81AC; /* frost blue — single action colour */
+  /* A-3 — every foreground token below is measured against #FAFAFC (page),
+     #FFFFFF (card), #ECEFF4 (muted/secondary) and #E5E9F0 (accent). Worst-case
+     ratio noted per token; all normal-size text clears WCAG AA 4.5:1, all
+     non-text UI clears 3:1. Ratios recomputed in components/ui/contrast.test.ts. */
+  --primary: #456489; /* frost blue, darkened: 5.02:1 worst bg; white-on-primary 6.11:1 */
   --primary-foreground: #FFFFFF;
   --secondary: #ECEFF4; /* snow storm */
   --secondary-foreground: #2E3440;
   --muted: #ECEFF4;
-  --muted-foreground: #4C566A; /* slate — secondary/metadata (AA on white) */
+  --muted-foreground: #434C5E; /* slate — secondary/metadata; 7.09:1 worst bg */
   --accent: #E5E9F0; /* light frost tint for subtle surfaces */
   --accent-foreground: #2E3440;
-  --success: #3B7A57; /* readable green for status text/icons */
-  --warning: #B7791F; /* readable amber for status text/icons */
-  --destructive: #BF616A; /* Nord aurora red */
-  --border: #E5E9F0; /* snow-storm hairline border */
+  --success: #2F6446; /* readable green for status text/icons; 5.69:1 worst bg */
+  --warning: #835A10; /* readable amber for status text/icons; 5.02:1 worst bg */
+  --destructive: #963B43; /* Nord aurora red, darkened; 5.74:1 worst bg */
+  --border: #E5E9F0; /* snow-storm hairline border — decorative separators only */
   /* Legacy alias: border-border-ink maps onto the soft grey border. */
   --border-ink: var(--border);
   --border-ink-width: 1px;
-  --input: #E5E9F0;
-  --ring: #5E81AC;
-  --chart-1: #5E81AC;
+  /* Form-control boundary (WCAG 1.4.11 non-text contrast): 3.47:1 on the page,
+     3.62:1 on a card. `--border` (1.17:1) is not sufficient for a control edge. */
+  --input: #7E8798;
+  --ring: #456489; /* focus ring: 5.86:1 on page — clears the 3:1 non-text bar */
+  --chart-1: #456489;
   --chart-2: #81A1C1;
   --chart-3: #88C0D0;
   --chart-4: #8FBCBB;
-  --chart-5: #4C566A;
+  --chart-5: #434C5E;
 
   /* Radius & soft layered shadows (C1 — clean Airbnb) */
   --radius: 0.875rem; /* 14px */
   --shadow-card: 0 1px 2px rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.08);
   --shadow-card-hover: 0 10px 28px rgba(0,0,0,0.12);
   /* Soft focus ring (replaces the hard offset focus shadow). */
-  --shadow-focus: 0 0 0 3px rgba(94, 129, 172, 0.35);
+  --shadow-focus: 0 0 0 3px rgba(69, 100, 137, 0.40);
 
   --sidebar: #FFFFFF;
   --sidebar-foreground: #2E3440;
-  --sidebar-primary: #5E81AC;
+  --sidebar-primary: #456489;
   --sidebar-primary-foreground: #FFFFFF;
   --sidebar-accent: #E5E9F0;
   --sidebar-accent-foreground: #2E3440;
   --sidebar-border: #E5E9F0;
-  --sidebar-ring: #5E81AC;
+  --sidebar-ring: #456489;
+
+  color-scheme: light;
+}
+
+/* NX-2 / A-1 / A-3 — dark theme. Every semantic token in :root has a dark
+   counterpart here; ratios are measured (components/ui/contrast.test.ts) against
+   --background #1C212B, --card #252B36, --muted #2F3644 and --accent #343C4B.
+   Applied by next-themes via `class` on <html>, matched by the @custom-variant
+   at the top of this file. */
+.dark {
+  --background: #1C212B; /* deep polar night page */
+  --foreground: #ECEFF4; /* snow storm; 14.00:1 on page */
+  --card: #252B36;
+  --card-foreground: #ECEFF4;
+  --popover: #252B36;
+  --popover-foreground: #ECEFF4;
+  --primary: #9CBBE0; /* lifted frost blue; 4.95:1 worst bg */
+  --primary-foreground: #141821; /* dark ink on the lifted blue; 8.96:1 */
+  --secondary: #2F3644;
+  --secondary-foreground: #ECEFF4;
+  --muted: #2F3644;
+  --muted-foreground: #C3CBD8; /* 6.00:1 worst bg */
+  --accent: #343C4B;
+  --accent-foreground: #ECEFF4;
+  --success: #8FD3A8; /* 5.63:1 worst bg */
+  --warning: #F0C05A; /* 5.79:1 worst bg */
+  --destructive: #F2A2A9; /* 4.91:1 worst bg */
+  --border: #3A4251;
+  --border-ink: var(--border);
+  --input: #707C90; /* control edge: 3.05:1 on card — clears 3:1 */
+  --ring: #9CBBE0; /* focus ring: 8.14:1 on page */
+  --chart-1: #9CBBE0;
+  --chart-2: #81A1C1;
+  --chart-3: #88C0D0;
+  --chart-4: #8FBCBB;
+  --chart-5: #C3CBD8;
+
+  /* Shadows read as flat mush on dark surfaces — deepen them and lean on borders. */
+  --shadow-card: 0 1px 2px rgba(0,0,0,0.40), 0 6px 16px rgba(0,0,0,0.45);
+  --shadow-card-hover: 0 10px 28px rgba(0,0,0,0.55);
+  --shadow-focus: 0 0 0 3px rgba(156, 187, 224, 0.45);
+
+  --sidebar: #252B36;
+  --sidebar-foreground: #ECEFF4;
+  --sidebar-primary: #9CBBE0;
+  --sidebar-primary-foreground: #141821;
+  --sidebar-accent: #343C4B;
+  --sidebar-accent-foreground: #ECEFF4;
+  --sidebar-border: #3A4251;
+  --sidebar-ring: #9CBBE0;
+
+  color-scheme: dark;
 }
 
 @layer base {

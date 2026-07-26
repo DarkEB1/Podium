@@ -19,7 +19,12 @@ describe('ProfileHero', () => {
         availability={{ status: 'available_now' }}
       />,
     )
-    expect(screen.getByRole('img', { name: /Jane Doe cover/i })).toHaveAttribute('src', '/cover.jpg')
+    // A-2: next/image rewrites src through the optimizer
+    // (/_next/image?url=<encoded>&w=…), so assert the ORIGINAL source is
+    // still what gets requested rather than pinning the exact rewritten URL.
+    expect(
+      screen.getByRole('img', { name: /Jane Doe cover/i }).getAttribute('src') ?? ''
+    ).toContain(encodeURIComponent('/cover.jpg'))
     expect(screen.getByRole('heading', { name: 'Jane Doe' })).toBeInTheDocument()
     expect(screen.getByText('Sprinter · National')).toBeInTheDocument()
     expect(screen.getByText('London, GB')).toBeInTheDocument()

@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
@@ -6,6 +7,17 @@ import { createTeamProfile } from '@/lib/supabase/teams'
 import { Card, CardContent } from '@/components/ui/card'
 import TeamProfileForm from '@/components/team/team-profile-form'
 import type { Database } from '@/types/database'
+
+/**
+ * M-1 — an authenticated route. `robots.ts` already disallows it, but a crawler
+ * that follows a shared link never reads robots.txt, so say it here too.
+ */
+export const metadata: Metadata = {
+  title: 'Set up your team · Podium',
+  description: 'Build the team profile sponsors will discover you by.',
+  robots: { index: false },
+}
+
 
 type TeamRow = Database['public']['Tables']['team_profiles']['Row']
 // The wizard never supplies user_id — createTeamProfile attaches it.
@@ -21,7 +33,10 @@ export default async function TeamOnboardingPage() {
 
   // getOwnProfile returns the row for the role table; cast narrows to TeamRow.
   const profile = (await getOwnProfile(supabase, user.id, 'team')) as TeamRow | null
-  if (profile?.id) redirect('/team/onboarding/step/2')
+  // B-4: there is no /team/onboarding/step/[step] route — teams complete their
+  // profile in the single form below, so a team that already has a profile
+  // belongs in settings, not at a 404.
+  if (profile?.id) redirect('/team/settings')
 
   // Server action: persists via createTeamProfile (B9), keeping Supabase out of
   // the client wizard per architecture rules.

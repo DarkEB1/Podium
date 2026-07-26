@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { respondConnectionRequest, withdrawConnectionRequest, DiscoveryError } from '@/lib/supabase/discovery'
+import { getIncomingConnectionRequests, type ConnectionRequestRow } from '@/lib/supabase/connections'
+import { sendTransactionalEmail } from '@/lib/email'
+import { absoluteUrl, nameOf, resolveDisplayNames, FALLBACK_OTHER_NAME } from '@/lib/email/notify'
+import { ROUTES } from '@/lib/routes'
 
 const VALID_ACTIONS = new Set(['accept', 'decline', 'withdraw'])
 
@@ -40,7 +44,38 @@ export async function PATCH(
 
   try {
     if (action === 'accept') {
+      // Capture the request row BEFORE accepting so we know who the original
+      // sender is (respondConnectionRequest returns void, and the row is no
+      // longer 'pending' afterwards). Best-effort: a read failure here must not
+      // stop the accept, so it is guarded — the accept below is the source of
+      // truth for success. See report: a getConnectionRequestById accessor (or
+      // respondConnectionRequest returning the row) would remove this pre-read.
+      const admin = createAdminClient()
+      let target: ConnectionRequestRow | undefined
+      try {
+        const pending = await getIncomingConnectionRequests(admin, user.id, { status: 'pending' })
+        target = pending.find((r) => r.id === requestId)
+      } catch {
+        target = undefined
+      }
+
       await respondConnectionRequest(supabase, requestId, user.id, true)
+
+      // Fire only after the accept has durably succeeded. Recipient of the email
+      // is the ORIGINAL SENDER — they are the one waiting to hear back; the
+      // accepter (current user) is the "other" party.
+      if (target) {
+        const names = await resolveDisplayNames(admin, [target.sender_id, user.id])
+        await sendTransactionalEmail(admin, {
+          event: 'connection_request_accepted',
+          userId: target.sender_id,
+          data: {
+            recipientName: nameOf(names, target.sender_id),
+            otherName: nameOf(names, user.id, FALLBACK_OTHER_NAME),
+            url: absoluteUrl(ROUTES.dashboard),
+          },
+        })
+      }
     } else if (action === 'decline') {
       await respondConnectionRequest(supabase, requestId, user.id, false)
     } else {

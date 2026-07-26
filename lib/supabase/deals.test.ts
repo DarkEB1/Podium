@@ -20,6 +20,12 @@ import type { Database } from '@/types/database'
 function makeMockClient() {
   const singleQueue: Array<{ data: unknown; error: unknown }> = []
   const listQueue: Array<{ data: unknown; error: unknown }> = []
+  const rpcQueue: Array<{ data: unknown; error: unknown }> = []
+
+  const mockRpc = vi.fn().mockImplementation(() => {
+    const r = rpcQueue.shift() ?? { data: null, error: null }
+    return Promise.resolve(r)
+  })
 
   const mockSingle = vi.fn().mockImplementation(() => {
     const r = singleQueue.shift() ?? { data: null, error: null }
@@ -57,10 +63,14 @@ function makeMockClient() {
   const mockFrom = vi.fn().mockReturnValue(chain)
 
   return {
-    client: { from: mockFrom } as unknown as SupabaseClient<Database>,
+    client: { from: mockFrom, rpc: mockRpc } as unknown as SupabaseClient<Database>,
     chain,
     mockFrom,
     mockSingle,
+    mockRpc,
+    queueRpc(data: unknown, error: unknown = null) {
+      rpcQueue.push({ data, error })
+    },
     queueSingle(data: unknown, error: unknown = null) {
       singleQueue.push({ data, error })
     },
@@ -98,19 +108,6 @@ const fakeProposal = {
   usage_rights: null,
   additional_terms: null,
   responded_at: null,
-  created_at: '2026-04-19T00:00:00Z',
-  updated_at: '2026-04-19T00:00:00Z',
-}
-
-const fakeMatch = {
-  id: 'm1',
-  user_a_id: 'brand1',
-  user_b_id: 'athlete1',
-  status: 'active',
-  proposal_required: true,
-  proposal_sent: true,
-  matched_at: '2026-04-19T00:00:00Z',
-  connection_request_id: null,
   created_at: '2026-04-19T00:00:00Z',
   updated_at: '2026-04-19T00:00:00Z',
 }
@@ -328,52 +325,107 @@ describe('respondToProposal (decline)', () => {
 // respondToProposal — accept
 // ---------------------------------------------------------------------------
 
+// SB-8/DI-2: accepting is now a single `accept_proposal` RPC — the proposal
+// update AND the contract insert (with the terms snapshot) happen in ONE
+// transaction inside Postgres, so there is nothing left for the admin client
+// to do on this path.
 describe('respondToProposal (accept)', () => {
-  it('sets status to accepted and records responded_at', async () => {
+  const acceptedRow = {
+    ...fakeProposal,
+    status: 'accepted',
+    responded_at: '2026-04-19T01:00:00Z',
+  }
+
+  it('calls the accept_proposal RPC with the proposal id', async () => {
     const auth = makeMockClient()
     const admin = makeMockClient()
-    auth.queueSingle(fakeProposal)                                      // fetch proposal
-    auth.queueSingle({ ...fakeProposal, status: 'accepted', responded_at: '2026-04-19T01:00:00Z' }) // update proposal
-    auth.queueSingle(fakeMatch)                                         // fetch match for contract
-    admin.queueSingle(fakeContract)                                     // insert contract
+    auth.queueRpc(acceptedRow)
+
+    await respondToProposal(auth.client, admin.client, 'p1', 'athlete1', 'accepted')
+
+    expect(auth.mockRpc).toHaveBeenCalledWith('accept_proposal', { p_proposal_id: 'p1' })
+  })
+
+  it('returns the accepted proposal row', async () => {
+    const auth = makeMockClient()
+    const admin = makeMockClient()
+    auth.queueRpc(acceptedRow)
 
     const result = await respondToProposal(auth.client, admin.client, 'p1', 'athlete1', 'accepted')
 
     expect(result.status).toBe('accepted')
+    expect(result.responded_at).toBe('2026-04-19T01:00:00Z')
   })
 
-  it('creates a contract using the admin client when accepting', async () => {
+  it('never touches the admin client (the RPC does not need service role)', async () => {
     const auth = makeMockClient()
     const admin = makeMockClient()
-    auth.queueSingle(fakeProposal)
-    auth.queueSingle({ ...fakeProposal, status: 'accepted', responded_at: '2026-04-19T01:00:00Z' })
-    auth.queueSingle(fakeMatch)
-    admin.queueSingle(fakeContract)
+    auth.queueRpc(acceptedRow)
 
     await respondToProposal(auth.client, admin.client, 'p1', 'athlete1', 'accepted')
 
-    expect(admin.mockFrom).toHaveBeenCalledWith('contracts')
-    expect(admin.chain.insert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        proposal_id: 'p1',
-        match_id: 'm1',
-        brand_id: 'brand1',
-        athlete_or_team_id: 'athlete1',
-      })
-    )
+    expect(admin.mockFrom).not.toHaveBeenCalled()
+    expect(admin.mockRpc).not.toHaveBeenCalled()
   })
 
-  it('throws CONTRACT_CREATE_FAILED when contract insert fails', async () => {
+  it('does not issue a separate contract insert', async () => {
     const auth = makeMockClient()
     const admin = makeMockClient()
-    auth.queueSingle(fakeProposal)
-    auth.queueSingle({ ...fakeProposal, status: 'accepted' })
-    auth.queueSingle(fakeMatch)
-    admin.queueSingle(null, { message: 'contract insert failed' })
+    auth.queueRpc(acceptedRow)
+
+    await respondToProposal(auth.client, admin.client, 'p1', 'athlete1', 'accepted')
+
+    expect(auth.mockFrom).not.toHaveBeenCalledWith('contracts')
+  })
+
+  it('maps PD004 to NOT_RECIPIENT (sender accepting their own proposal)', async () => {
+    const auth = makeMockClient()
+    const admin = makeMockClient()
+    auth.queueRpc(null, { code: 'PD004', message: 'Sender cannot respond to their own proposal' })
+
+    await expect(
+      respondToProposal(auth.client, admin.client, 'p1', 'brand1', 'accepted')
+    ).rejects.toMatchObject({ code: 'NOT_RECIPIENT' })
+  })
+
+  it('maps PD003 to PROPOSAL_NOT_PENDING', async () => {
+    const auth = makeMockClient()
+    const admin = makeMockClient()
+    auth.queueRpc(null, { code: 'PD003', message: 'Proposal is not in pending status' })
 
     await expect(
       respondToProposal(auth.client, admin.client, 'p1', 'athlete1', 'accepted')
-    ).rejects.toMatchObject({ code: 'CONTRACT_CREATE_FAILED' })
+    ).rejects.toMatchObject({ code: 'PROPOSAL_NOT_PENDING' })
+  })
+
+  it('maps PD002 to PROPOSAL_NOT_FOUND', async () => {
+    const auth = makeMockClient()
+    const admin = makeMockClient()
+    auth.queueRpc(null, { code: 'PD002', message: 'Proposal not found' })
+
+    await expect(
+      respondToProposal(auth.client, admin.client, 'p1', 'athlete1', 'accepted')
+    ).rejects.toMatchObject({ code: 'PROPOSAL_NOT_FOUND' })
+  })
+
+  it('maps PD005 to NOT_PARTICIPANT', async () => {
+    const auth = makeMockClient()
+    const admin = makeMockClient()
+    auth.queueRpc(null, { code: 'PD005', message: 'Not a participant in this match' })
+
+    await expect(
+      respondToProposal(auth.client, admin.client, 'p1', 'stranger', 'accepted')
+    ).rejects.toMatchObject({ code: 'NOT_PARTICIPANT' })
+  })
+
+  it('falls back to PROPOSAL_ACCEPT_FAILED for unmapped DB errors', async () => {
+    const auth = makeMockClient()
+    const admin = makeMockClient()
+    auth.queueRpc(null, { code: '42501', message: 'permission denied' })
+
+    await expect(
+      respondToProposal(auth.client, admin.client, 'p1', 'athlete1', 'accepted')
+    ).rejects.toMatchObject({ code: 'PROPOSAL_ACCEPT_FAILED' })
   })
 
   it('does not insert a contract when declining', async () => {
@@ -385,6 +437,7 @@ describe('respondToProposal (accept)', () => {
     await respondToProposal(auth.client, admin.client, 'p1', 'athlete1', 'declined')
 
     expect(admin.mockFrom).not.toHaveBeenCalled()
+    expect(auth.mockRpc).not.toHaveBeenCalled()
   })
 })
 
@@ -392,104 +445,104 @@ describe('respondToProposal (accept)', () => {
 // counterProposal
 // ---------------------------------------------------------------------------
 
+// SB-7: countering is now a single `counter_proposal` RPC so the parent can
+// never be left 'countered' without its child.
 describe('counterProposal', () => {
-  it('marks the parent proposal as countered', async () => {
-    const { client, chain, queueSingle } = makeMockClient()
-    queueSingle(fakeProposal)                            // fetch parent proposal
-    queueSingle({ ...fakeProposal, status: 'countered' }) // update parent
-    queueSingle({ ...fakeProposal, id: 'p2', parent_proposal_id: 'p1', sender_id: 'athlete1' }) // insert counter
+  const counterRow = {
+    ...fakeProposal,
+    id: 'p2',
+    parent_proposal_id: 'p1',
+    sender_id: 'athlete1',
+  }
+
+  it('calls the counter_proposal RPC with the parent id and full payload', async () => {
+    const { client, mockRpc, queueRpc } = makeMockClient()
+    queueRpc(counterRow)
 
     await counterProposal(client, 'p1', 'athlete1', fakeProposalInput)
 
-    expect(chain.update).toHaveBeenCalledWith(
-      expect.objectContaining({ status: 'countered' })
-    )
+    expect(mockRpc).toHaveBeenCalledWith('counter_proposal', {
+      p_parent_proposal_id: 'p1',
+      p_title: fakeProposalInput.title,
+      p_pay_amount: fakeProposalInput.pay_amount,
+      p_pay_type: fakeProposalInput.pay_type,
+      p_deliverables: fakeProposalInput.deliverables,
+      p_pay_currency: fakeProposalInput.pay_currency,
+      p_timeline_start: fakeProposalInput.timeline_start,
+      p_timeline_end: fakeProposalInput.timeline_end,
+      p_usage_rights: null,
+      p_additional_terms: null,
+    })
   })
 
-  it('inserts a new proposal with parent_proposal_id set', async () => {
-    const { client, chain, queueSingle } = makeMockClient()
-    queueSingle(fakeProposal)
-    queueSingle({ ...fakeProposal, status: 'countered' })
-    queueSingle({ ...fakeProposal, id: 'p2', parent_proposal_id: 'p1', sender_id: 'athlete1' })
+  it('never issues a separate parent update / counter insert', async () => {
+    const { client, mockFrom, queueRpc } = makeMockClient()
+    queueRpc(counterRow)
 
     await counterProposal(client, 'p1', 'athlete1', fakeProposalInput)
 
-    expect(chain.insert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        parent_proposal_id: 'p1',
-        sender_id: 'athlete1',
-        match_id: 'm1',
-      })
+    expect(mockFrom).not.toHaveBeenCalled()
+  })
+
+  it('defaults an omitted currency and deliverables', async () => {
+    const { client, mockRpc, queueRpc } = makeMockClient()
+    queueRpc(counterRow)
+
+    await counterProposal(client, 'p1', 'athlete1', {
+      title: 'Bare minimum',
+      pay_amount: 100,
+      pay_type: 'flat_fee' as Database['public']['Enums']['pay_type'],
+    })
+
+    expect(mockRpc).toHaveBeenCalledWith(
+      'counter_proposal',
+      expect.objectContaining({ p_pay_currency: 'GBP', p_deliverables: {} })
     )
   })
 
   it('returns the new counter-proposal row', async () => {
-    const { client, queueSingle } = makeMockClient()
-    const counterRow = { ...fakeProposal, id: 'p2', parent_proposal_id: 'p1', sender_id: 'athlete1' }
-    queueSingle(fakeProposal)
-    queueSingle({ ...fakeProposal, status: 'countered' })
-    queueSingle(counterRow)
+    const { client, queueRpc } = makeMockClient()
+    queueRpc(counterRow)
 
     const result = await counterProposal(client, 'p1', 'athlete1', fakeProposalInput)
 
     expect(result).toEqual(counterRow)
   })
 
-  it('throws PROPOSAL_NOT_FOUND when proposal does not exist', async () => {
-    const { client, queueSingle } = makeMockClient()
-    queueSingle(null, { code: 'PGRST116', message: 'no rows' })
+  it('maps PD002 to PROPOSAL_NOT_FOUND', async () => {
+    const { client, queueRpc } = makeMockClient()
+    queueRpc(null, { code: 'PD002', message: 'Proposal not found' })
 
     await expect(
       counterProposal(client, 'p1', 'athlete1', fakeProposalInput)
     ).rejects.toMatchObject({ code: 'PROPOSAL_NOT_FOUND' })
   })
 
-  it('throws PROPOSAL_NOT_PENDING when proposal is not pending', async () => {
-    const { client, queueSingle } = makeMockClient()
-    queueSingle({ ...fakeProposal, status: 'accepted' })
+  it('maps PD003 to PROPOSAL_NOT_PENDING', async () => {
+    const { client, queueRpc } = makeMockClient()
+    queueRpc(null, { code: 'PD003', message: 'Proposal is not in pending status' })
 
     await expect(
       counterProposal(client, 'p1', 'athlete1', fakeProposalInput)
     ).rejects.toMatchObject({ code: 'PROPOSAL_NOT_PENDING' })
   })
 
-  it('throws NOT_RECIPIENT when caller is the sender', async () => {
-    const { client, queueSingle } = makeMockClient()
-    queueSingle(fakeProposal)
+  it('maps PD004 to NOT_RECIPIENT when the caller is the parent sender', async () => {
+    const { client, queueRpc } = makeMockClient()
+    queueRpc(null, { code: 'PD004', message: 'Sender cannot counter their own proposal' })
 
     await expect(
       counterProposal(client, 'p1', 'brand1', fakeProposalInput)
     ).rejects.toMatchObject({ code: 'NOT_RECIPIENT' })
   })
 
-  it('throws COUNTER_INSERT_FAILED when counter proposal insert fails', async () => {
-    const { client, queueSingle } = makeMockClient()
-    queueSingle(fakeProposal)
-    queueSingle({ ...fakeProposal, status: 'countered' })
-    queueSingle(null, { message: 'insert failed' })
+  it('falls back to COUNTER_INSERT_FAILED for unmapped DB errors', async () => {
+    const { client, queueRpc } = makeMockClient()
+    queueRpc(null, { code: '42501', message: 'permission denied' })
 
     await expect(
       counterProposal(client, 'p1', 'athlete1', fakeProposalInput)
     ).rejects.toMatchObject({ code: 'COUNTER_INSERT_FAILED' })
-  })
-
-  it('throws PROPOSAL_UPDATE_FAILED when parent status update fails', async () => {
-    const { client, queueSingle } = makeMockClient()
-    queueSingle(fakeProposal)
-    queueSingle(null, { code: '42501', message: 'permission denied' })
-
-    await expect(
-      counterProposal(client, 'p1', 'athlete1', fakeProposalInput)
-    ).rejects.toMatchObject({ code: 'PROPOSAL_UPDATE_FAILED' })
-  })
-
-  it('throws PROPOSAL_FETCH_FAILED on non-PGRST116 fetch errors', async () => {
-    const { client, queueSingle } = makeMockClient()
-    queueSingle(null, { code: '42501', message: 'permission denied' })
-
-    await expect(
-      counterProposal(client, 'p1', 'athlete1', fakeProposalInput)
-    ).rejects.toMatchObject({ code: 'PROPOSAL_FETCH_FAILED' })
   })
 })
 

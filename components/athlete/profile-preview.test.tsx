@@ -87,7 +87,10 @@ describe('ProfilePreview', () => {
 
     // Large circular photo, >= 120px.
     const photo = screen.getByRole('img', { name: /Jane Doe profile photo/i })
-    expect(photo).toHaveAttribute('src', '/avatar.jpg')
+    // A-2: next/image rewrites src through the optimizer
+    // (/_next/image?url=<encoded>&w=…), so assert the ORIGINAL source is
+    // still what gets requested rather than pinning the exact rewritten URL.
+    expect(photo.getAttribute('src') ?? '').toContain(encodeURIComponent('/avatar.jpg'))
     expect(photo.className).toMatch(/rounded-full/)
     expect(photo.className).toMatch(/size-3\d|size-\[\d/)
 

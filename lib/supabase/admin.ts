@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database'
+import { db } from '@/lib/supabase/typed-client'
 
 type ReportRow = Database['public']['Tables']['reports']['Row']
 type ReportInsert = Database['public']['Tables']['reports']['Insert']
@@ -56,8 +57,7 @@ export async function getReports(
   adminSupabase: SupabaseClient<Database>,
   options: GetReportsOptions = {}
 ): Promise<ReportRow[]> {
-  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
-  let query = (adminSupabase as SupabaseClient)
+  let query = db(adminSupabase)
     .from('reports')
     .select('*')
 
@@ -78,8 +78,7 @@ export async function getOwnReports(
   supabase: SupabaseClient<Database>,
   reporterId: string
 ): Promise<ReportRow[]> {
-  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
-  const { data, error } = await (supabase as SupabaseClient)
+  const { data, error } = await db(supabase)
     .from('reports')
     .select('*')
     .eq('reporter_id', reporterId)
@@ -96,8 +95,7 @@ export async function getReport(
   adminSupabase: SupabaseClient<Database>,
   reportId: string
 ): Promise<ReportRow> {
-  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
-  const { data, error } = await (adminSupabase as SupabaseClient)
+  const { data, error } = await db(adminSupabase)
     .from('reports')
     .select('*')
     .eq('id', reportId)
@@ -126,8 +124,7 @@ export async function createReport(
     ...(payload.detail !== undefined ? { detail: payload.detail } : {}),
   }
 
-  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
-  const { data, error } = await (supabase as SupabaseClient)
+  const { data, error } = await db(supabase)
     .from('reports')
     .insert(insert)
     .select()
@@ -155,8 +152,7 @@ export async function resolveReport(
     ...(payload.admin_notes !== undefined ? { admin_notes: payload.admin_notes } : {}),
   }
 
-  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
-  const { data, error } = await (adminSupabase as SupabaseClient)
+  const { data, error } = await db(adminSupabase)
     .from('reports')
     .update(updatePayload)
     .eq('id', reportId)
@@ -184,8 +180,7 @@ export async function getAuditLogs(
   const limit = options.limit ?? 50
   const offset = options.offset ?? 0
 
-  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
-  const { data, error } = await (adminSupabase as SupabaseClient)
+  const { data, error } = await db(adminSupabase)
     .from('audit_logs')
     .select('*')
     .order('created_at', { ascending: false })
@@ -202,8 +197,7 @@ export async function createAuditLog(
   adminSupabase: SupabaseClient<Database>,
   payload: Omit<AuditLogInsert, 'id' | 'created_at'>
 ): Promise<AuditLogRow> {
-  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
-  const { data, error } = await (adminSupabase as SupabaseClient)
+  const { data, error } = await db(adminSupabase)
     .from('audit_logs')
     .insert(payload)
     .select()

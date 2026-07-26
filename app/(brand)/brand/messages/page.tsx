@@ -4,6 +4,14 @@ import { getUser } from '@/lib/supabase/auth'
 import { getConversations } from '@/lib/supabase/messaging'
 import MatchList from '@/components/messaging/match-list'
 
+// M-1: per-route metadata. Authenticated surface: `robots.index = false`
+// mirrors app/robots.ts so a signed-in page can never be indexed.
+export const metadata = {
+  title: 'Messages · Podium',
+  description: 'Your conversations with the athletes and teams you have connected with.',
+  robots: { index: false, follow: false },
+}
+
 export default async function BrandMessagesPage() {
   const supabase = await createClient()
   const user = await getUser(supabase)

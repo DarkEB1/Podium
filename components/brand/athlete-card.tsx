@@ -10,9 +10,11 @@ import {
   LevelChip,
 } from '@/components/ui/status-badges'
 import { copy } from '@/lib/copy'
-import type { Database } from '@/types/database'
+import { ROUTES } from '@/lib/routes'
+import type { AthleteSummary } from '@/lib/supabase/profiles'
 
-type AthleteRow = Database['public']['Tables']['athlete_profiles']['Row']
+/** The projected shape the discovery feed returns — see ATHLETE_SUMMARY_COLUMNS. */
+type AthleteRow = AthleteSummary
 
 interface Props {
   athlete: AthleteRow
@@ -69,12 +71,12 @@ export default function AthleteCard({ athlete, verified = false, initialSaved = 
     setSaved(next)
     try {
       const res = next
-        ? await fetch('/api/discovery/shortlist', {
+        ? await fetch(ROUTES.api.discovery.shortlist, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ target_user_id: athlete.user_id }),
           })
-        : await fetch(`/api/discovery/shortlist/${athlete.user_id}`, { method: 'DELETE' })
+        : await fetch(ROUTES.api.discovery.shortlistEntry(athlete.user_id), { method: 'DELETE' })
 
       // 409 ALREADY_SHORTLISTED is a benign no-op when adding
       if (!res.ok && !(next && res.status === 409)) {
@@ -96,6 +98,7 @@ export default function AthleteCard({ athlete, verified = false, initialSaved = 
   const location = [athlete.home_city, athlete.home_country].filter(Boolean).join(', ')
   const subtitle = [sportLevel, location].filter(Boolean).join(' — ')
   const stat = followerStat(athlete)
+  const profileHref = `${ROUTES.brand.discover}/${athlete.user_id}`
 
   const overlayBadges = (
     <>
@@ -131,7 +134,11 @@ export default function AthleteCard({ athlete, verified = false, initialSaved = 
       title={athlete.display_name ?? 'Unknown athlete'}
       overlayBadges={overlayBadges}
       tags={tags}
-      cta={{ label: 'View profile', href: `/brand/discover/${athlete.user_id}` }}
+      // B-4/PR-20: both the CTA and the card body open the athlete's detail
+      // page. `/brand/discover/[userId]` now exists — the athlete-owned
+      // `/athlete/profile/[userId]` is behind the athlete-only layout.
+      cta={{ label: 'View profile', href: profileHref }}
+      href={profileHref}
       saved={saved}
       onToggleSave={toggleSave}
       {...(subtitle ? { subtitle } : {})}

@@ -1,7 +1,10 @@
 'use client'
 
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { AtSign, Camera, MapPin, Music2, Navigation, Pencil, Video } from 'lucide-react'
+
+import { isRemoteImageSrc } from '@/components/ui/image-src'
 
 import { buttonVariants } from '@/components/ui/button'
 import {
@@ -147,10 +150,14 @@ export default function ProfilePreview({ profile, onEditStep }: Props) {
         />
         <div className="flex items-start gap-4">
           {profile.profile_photo_url ? (
-            // eslint-disable-next-line @next/next/no-img-element -- presigned/public storage URL; A8 BlurImage not part of this card's contract
-            <img
+            // A-2: explicit 128×128 intrinsic size reserves the avatar's
+            // footprint before the stored photo loads.
+            <Image
               src={profile.profile_photo_url}
               alt={`${name} profile photo`}
+              width={128}
+              height={128}
+              unoptimized={isRemoteImageSrc(profile.profile_photo_url)}
               className="size-32 shrink-0 rounded-full object-cover ring-1 ring-foreground/10"
             />
           ) : (
@@ -273,12 +280,15 @@ export default function ProfilePreview({ profile, onEditStep }: Props) {
           <ul className="flex flex-wrap gap-2">
             {profile.action_photos.map((src, i) => (
               <li key={src}>
-                {/* eslint-disable-next-line @next/next/no-img-element -- presigned/public storage URL */}
-                <img
+                {/* A-2: explicit 80×80 intrinsic size + lazy loading. */}
+                <Image
                   src={src}
                   alt={`${name} action photo ${i + 1}`}
-                  className="size-20 rounded-[var(--radius)] object-cover ring-1 ring-foreground/10"
+                  width={80}
+                  height={80}
                   loading="lazy"
+                  unoptimized={isRemoteImageSrc(src)}
+                  className="size-20 rounded-[var(--radius)] object-cover ring-1 ring-foreground/10"
                 />
               </li>
             ))}

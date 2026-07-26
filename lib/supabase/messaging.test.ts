@@ -4,6 +4,8 @@ import {
   getMessages,
   deleteMessage,
   getMatches,
+  getConversations,
+  markMatchRead,
   MessagingError,
 } from './messaging'
 import type { SupabaseClient } from '@supabase/supabase-js'
@@ -50,11 +52,21 @@ function makeMockClient() {
 
   const mockFrom = vi.fn().mockReturnValue(chain)
 
+  const rpcQueue: Array<{ data: unknown; error: unknown }> = []
+  const mockRpc = vi.fn().mockImplementation(() => {
+    const r = rpcQueue.shift() ?? { data: null, error: null }
+    return Promise.resolve(r)
+  })
+
   return {
-    client: { from: mockFrom } as unknown as SupabaseClient<Database>,
+    client: { from: mockFrom, rpc: mockRpc } as unknown as SupabaseClient<Database>,
     chain,
     mockFrom,
     mockSingle,
+    mockRpc,
+    queueRpc(data: unknown, error: unknown = null) {
+      rpcQueue.push({ data, error })
+    },
     queueSingle(data: unknown, error: unknown = null) {
       singleQueue.push({ data, error })
     },
@@ -373,6 +385,169 @@ describe('getMatches', () => {
 
     await expect(getMatches(client, 'u1')).rejects.toMatchObject({
       code: 'MATCHES_FETCH_FAILED',
+    })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// getConversations (SB-3 / L-3)
+// ---------------------------------------------------------------------------
+
+const fakeInboxRow = {
+  match_id: 'm1',
+  other_user_id: 'u2',
+  display_name: 'Northwind',
+  avatar_url: 'https://cdn.test/logo.png',
+  last_message_text: 'Hello!',
+  last_message_type: 'text',
+  last_message_at: '2026-04-20T10:00:00Z',
+  matched_at: '2026-04-19T00:00:00Z',
+  unread_count: 3,
+}
+
+describe('getConversations', () => {
+  it('resolves the whole inbox in a SINGLE query (no N+1)', async () => {
+    const { client, mockRpc, mockFrom, queueRpc } = makeMockClient()
+    queueRpc([fakeInboxRow])
+
+    await getConversations(client, 'u1')
+
+    expect(mockRpc).toHaveBeenCalledTimes(1)
+    // SEC-9: the RPC now takes p_include_archived (default false) so archived
+    // conversations are reachable and can therefore be un-archived.
+    expect(mockRpc).toHaveBeenCalledWith('get_conversations', { p_include_archived: false })
+    // No per-match profile probes or last-message lookups any more.
+    expect(mockFrom).not.toHaveBeenCalled()
+  })
+
+  it('asks the RPC for archived conversations when includeArchived is set', async () => {
+    const { client, mockRpc, queueRpc } = makeMockClient()
+    queueRpc([fakeInboxRow])
+
+    await getConversations(client, 'u1', { includeArchived: true })
+
+    expect(mockRpc).toHaveBeenCalledWith('get_conversations', { p_include_archived: true })
+  })
+
+  it('maps a row onto the Conversation view-model', async () => {
+    const { client, queueRpc } = makeMockClient()
+    queueRpc([fakeInboxRow])
+
+    const [conversation] = await getConversations(client, 'u1')
+
+    expect(conversation).toEqual({
+      id: 'm1',
+      name: 'Northwind',
+      avatarUrl: 'https://cdn.test/logo.png',
+      preview: 'Hello!',
+      timestamp: '2026-04-20T10:00:00Z',
+      unreadCount: 3,
+    })
+  })
+
+  it('reports the real unread count instead of a hardcoded 0', async () => {
+    const { client, queueRpc } = makeMockClient()
+    queueRpc([{ ...fakeInboxRow, unread_count: 7 }])
+
+    const [conversation] = await getConversations(client, 'u1')
+
+    expect(conversation?.unreadCount).toBe(7)
+  })
+
+  it('previews a proposal card', async () => {
+    const { client, queueRpc } = makeMockClient()
+    queueRpc([{ ...fakeInboxRow, last_message_type: 'proposal_card', last_message_text: null }])
+
+    const [conversation] = await getConversations(client, 'u1')
+
+    expect(conversation?.preview).toBe('Sent a proposal')
+  })
+
+  it('previews a payment confirmation', async () => {
+    const { client, queueRpc } = makeMockClient()
+    queueRpc([
+      { ...fakeInboxRow, last_message_type: 'payment_confirmation', last_message_text: null },
+    ])
+
+    const [conversation] = await getConversations(client, 'u1')
+
+    expect(conversation?.preview).toBe('Payment confirmed')
+  })
+
+  it('previews an attachment-only message', async () => {
+    const { client, queueRpc } = makeMockClient()
+    queueRpc([{ ...fakeInboxRow, last_message_type: 'image', last_message_text: null }])
+
+    const [conversation] = await getConversations(client, 'u1')
+
+    expect(conversation?.preview).toBe('Attachment')
+  })
+
+  it('falls back to the match timestamp when there are no messages', async () => {
+    const { client, queueRpc } = makeMockClient()
+    queueRpc([
+      {
+        ...fakeInboxRow,
+        last_message_type: null,
+        last_message_text: null,
+        last_message_at: null,
+        unread_count: 0,
+      },
+    ])
+
+    const [conversation] = await getConversations(client, 'u1')
+
+    expect(conversation?.preview).toBe('No messages yet')
+    expect(conversation?.timestamp).toBe('2026-04-19T00:00:00Z')
+  })
+
+  it('falls back to a generic name when no profile resolved', async () => {
+    const { client, queueRpc } = makeMockClient()
+    queueRpc([{ ...fakeInboxRow, display_name: null, avatar_url: null }])
+
+    const [conversation] = await getConversations(client, 'u1')
+
+    expect(conversation?.name).toBe('Conversation')
+    expect(conversation?.avatarUrl).toBeNull()
+  })
+
+  it('returns an empty array when the inbox is empty', async () => {
+    const { client, queueRpc } = makeMockClient()
+    queueRpc(null)
+
+    await expect(getConversations(client, 'u1')).resolves.toEqual([])
+  })
+
+  it('throws CONVERSATIONS_FETCH_FAILED on DB error', async () => {
+    const { client, queueRpc } = makeMockClient()
+    queueRpc(null, { message: 'boom' })
+
+    await expect(getConversations(client, 'u1')).rejects.toMatchObject({
+      code: 'CONVERSATIONS_FETCH_FAILED',
+    })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// markMatchRead (L-3)
+// ---------------------------------------------------------------------------
+
+describe('markMatchRead', () => {
+  it('calls the mark_match_read RPC for the match', async () => {
+    const { client, mockRpc, queueRpc } = makeMockClient()
+    queueRpc('2026-04-20T12:00:00Z')
+
+    await markMatchRead(client, 'm1')
+
+    expect(mockRpc).toHaveBeenCalledWith('mark_match_read', { p_match_id: 'm1' })
+  })
+
+  it('throws MARK_READ_FAILED on DB error', async () => {
+    const { client, queueRpc } = makeMockClient()
+    queueRpc(null, { message: 'nope' })
+
+    await expect(markMatchRead(client, 'm1')).rejects.toMatchObject({
+      code: 'MARK_READ_FAILED',
     })
   })
 })

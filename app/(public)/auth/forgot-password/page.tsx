@@ -1,6 +1,14 @@
 import Link from 'next/link'
 import ForgotPasswordForm from '@/components/auth/forgot-password-form'
 
+// M-1: per-route metadata. Authenticated surface: `robots.index = false`
+// mirrors app/robots.ts so a signed-in page can never be indexed.
+export const metadata = {
+  title: 'Reset your password · Podium',
+  description: 'Send yourself a password reset link for your Podium account.',
+  robots: { index: false, follow: false },
+}
+
 export default function ForgotPasswordPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-6 py-16">

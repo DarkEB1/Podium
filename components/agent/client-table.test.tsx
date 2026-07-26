@@ -42,12 +42,14 @@ describe('ClientTable', () => {
     expect(within(mayaRow).getByText('2')).toBeInTheDocument()
   })
 
-  it('exposes the four quick actions per client', () => {
+  // B-4: the "Message" action was removed — /agent/messages does not exist and
+  // the link 404'd. Restore it here when an agent messaging surface ships.
+  it('exposes the available quick actions per client', () => {
     render(<ClientTable clients={clients} onRevoke={vi.fn()} />)
     const mayaRow = screen.getByText('Maya Okoro').closest('tr')!
     const row = within(mayaRow)
     expect(row.getByRole('link', { name: /view profile/i })).toBeInTheDocument()
-    expect(row.getByRole('link', { name: /message/i })).toBeInTheDocument()
+    expect(row.queryByRole('link', { name: /^message$/i })).toBeNull()
     expect(row.getByRole('link', { name: /view deals/i })).toBeInTheDocument()
     expect(row.getByRole('button', { name: /revoke access/i })).toBeInTheDocument()
   })

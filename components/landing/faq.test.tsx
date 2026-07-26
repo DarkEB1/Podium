@@ -51,6 +51,26 @@ describe('FAQ (C19 clean Airbnb restyle)', () => {
     expect(html).toMatch(/motion-reduce:/)
   })
 
+  // A-4: the accordion primitive got a visible focus ring in
+  // components/ui/accordion.tsx, but this file rendered
+  // AccordionPrimitive.Trigger directly with `outline-none` and a colour-only
+  // focus change — so the fix never reached the FAQ. Assert on the shipped
+  // trigger, not the wrapper.
+  it('gives every FAQ trigger a visible focus ring, not a colour-only cue', () => {
+    const { container } = render(<FAQ />)
+    const triggers = container.querySelectorAll('[data-slot="accordion-trigger"]')
+
+    expect(triggers.length).toBe(6)
+    for (const trigger of triggers) {
+      const className = trigger.className
+      // A 2px full-opacity ring offset from the surface — non-text contrast,
+      // not a hue swap that a colour-blind or low-vision user cannot see.
+      expect(className).toMatch(/focus-visible:ring-2/)
+      expect(className).toMatch(/focus-visible:ring-ring\b/)
+      expect(className).toMatch(/focus-visible:ring-offset-2/)
+    }
+  })
+
   it('keeps Lucide toggle icons (plus/minus) and the Geist heading font', () => {
     const { container } = render(<FAQ />)
     // toggle icons render as svg

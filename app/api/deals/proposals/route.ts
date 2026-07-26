@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { sendProposal, getProposals, DealsError } from '@/lib/supabase/deals'
+import { getMatches } from '@/lib/supabase/messaging'
+import { RATE_LIMITS, consume, tooManyRequests, userKey } from '@/lib/rate-limit'
+import { sendTransactionalEmail } from '@/lib/email'
+import { absoluteUrl, nameOf, resolveDisplayNames, FALLBACK_OTHER_NAME } from '@/lib/email/notify'
+import { ROUTES } from '@/lib/routes'
 import type { Database, Json } from '@/types/database'
 
 type PayType = Database['public']['Enums']['pay_type']
@@ -53,6 +58,10 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // DH-2: per-user write limit, in its own key namespace (see connections).
+  const limited = await consume(userKey('proposal_send', user.id), RATE_LIMITS.writeByUser)
+  if (!limited.allowed) return tooManyRequests(limited.retryAfter)
+
   const body = (await request.json()) as {
     match_id?: string
     title?: string
@@ -101,6 +110,33 @@ export async function POST(request: NextRequest) {
       ...(body.usage_rights !== undefined && { usage_rights: body.usage_rights }),
       ...(body.additional_terms !== undefined && { additional_terms: body.additional_terms }),
     })
+    // Side effect after the proposal is durably stored: email the OTHER match
+    // participant (never the sender) that a proposal arrived. Resolve the
+    // recipient from the match; best-effort so the created proposal is still
+    // returned even if the match/name lookup comes up empty.
+    const admin = createAdminClient()
+    const matches = await getMatches(admin, user.id)
+    const match = matches.find((m) => m.id === proposal.match_id)
+    const recipientId = match
+      ? match.user_a_id === user.id
+        ? match.user_b_id
+        : match.user_a_id
+      : null
+
+    if (recipientId) {
+      const names = await resolveDisplayNames(admin, [recipientId, user.id])
+      await sendTransactionalEmail(admin, {
+        event: 'proposal_received',
+        userId: recipientId,
+        data: {
+          recipientName: nameOf(names, recipientId),
+          senderName: nameOf(names, user.id, FALLBACK_OTHER_NAME),
+          proposalTitle: proposal.title,
+          url: absoluteUrl(ROUTES.dashboard),
+        },
+      })
+    }
+
     return NextResponse.json(proposal, { status: 201 })
   } catch (err) {
     if (err instanceof DealsError && err.code === 'PROPOSAL_INSERT_FAILED') {

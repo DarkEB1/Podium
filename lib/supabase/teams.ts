@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database'
+import { db } from '@/lib/supabase/typed-client'
 
 type TeamProfileRow = Database['public']['Tables']['team_profiles']['Row']
 type TeamProfileInsert = Database['public']['Tables']['team_profiles']['Insert']
@@ -52,8 +53,7 @@ export async function createTeamProfile(
 ): Promise<TeamProfile> {
   const clean = sanitizeTeamData(data as Record<string, unknown>)
 
-  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
-  const { data: row, error } = await (supabase as SupabaseClient)
+  const { data: row, error } = await db(supabase)
     .from('team_profiles')
     .insert({ ...clean, user_id: userId })
     .select()
@@ -70,8 +70,7 @@ export async function getTeamProfile(
   supabase: SupabaseClient<Database>,
   teamId: string
 ): Promise<TeamProfile | null> {
-  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
-  const { data, error } = await (supabase as SupabaseClient)
+  const { data, error } = await db(supabase)
     .from('team_profiles')
     .select('*')
     .eq('id', teamId)
@@ -93,8 +92,7 @@ export async function listTeamAdmins(
   supabase: SupabaseClient<Database>,
   teamId: string
 ): Promise<TeamAdmin[]> {
-  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
-  const { data, error } = await (supabase as SupabaseClient)
+  const { data, error } = await db(supabase)
     .from('team_admins')
     .select('*')
     .eq('team_id', teamId)
@@ -114,8 +112,7 @@ export async function inviteTeamAdmin(
   invite: { email: string; role?: TeamAdminRole; fullName?: string }
 ): Promise<TeamAdmin> {
   // invite_status defaults to 'invited' at the DB level until the invitee accepts.
-  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
-  const { data, error } = await (supabase as SupabaseClient)
+  const { data, error } = await db(supabase)
     .from('team_admins')
     .insert({
       team_id: teamId,
@@ -139,8 +136,7 @@ export async function removeTeamAdmin(
   adminId: string
 ): Promise<void> {
   // RLS restricts this to the owning team's primary admin.
-  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
-  const { error } = await (supabase as SupabaseClient)
+  const { error } = await db(supabase)
     .from('team_admins')
     .delete()
     .eq('id', adminId)

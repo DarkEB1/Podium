@@ -1,9 +1,11 @@
 import { describe, it, expect, vi } from 'vitest'
+import { CONNECTION_MESSAGE_MIN, CONNECTION_MESSAGE_MAX } from '@/lib/limits'
 import {
   createListing,
   updateListing,
   publishListing,
   getListings,
+  getActiveListingsPage,
   getListing,
   sendConnectionRequest,
   respondConnectionRequest,
@@ -14,6 +16,8 @@ import {
   blockUser,
   unblockUser,
   getBlocks,
+  listingDeadlineCutoff,
+  isListingOpenForApplications,
   DiscoveryError,
 } from './discovery'
 import type { SupabaseClient } from '@supabase/supabase-js'
@@ -26,8 +30,13 @@ import type { Database } from '@/types/database'
 function makeMockClient() {
   let singleResult: { data: unknown; error: unknown } = { data: null, error: null }
   let chainResult: { data: unknown; error: unknown } = { data: null, error: null }
+  // Queued results take precedence, for the flows that make two .single() round
+  // trips (e.g. the listing guard, then the connection_requests insert).
+  const singleQueue: Array<{ data: unknown; error: unknown }> = []
 
-  const mockSingle = vi.fn().mockImplementation(() => Promise.resolve(singleResult))
+  const mockSingle = vi
+    .fn()
+    .mockImplementation(() => Promise.resolve(singleQueue.shift() ?? singleResult))
 
   const chain = {
     select: vi.fn(),
@@ -35,6 +44,9 @@ function makeMockClient() {
     update: vi.fn(),
     delete: vi.fn(),
     eq: vi.fn(),
+    or: vi.fn(),
+    range: vi.fn(),
+    order: vi.fn(),
     single: mockSingle,
     then(
       resolve: (v: unknown) => void,
@@ -49,6 +61,9 @@ function makeMockClient() {
   chain.update.mockReturnValue(chain)
   chain.delete.mockReturnValue(chain)
   chain.eq.mockReturnValue(chain)
+  chain.or.mockReturnValue(chain)
+  chain.order.mockReturnValue(chain)
+  chain.range.mockImplementation(() => Promise.resolve(chainResult))
 
   const mockFrom = vi.fn().mockReturnValue(chain)
 
@@ -58,7 +73,11 @@ function makeMockClient() {
     mockFrom,
     mockSingle,
     setSingle(data: unknown, error: unknown = null) {
+      singleQueue.length = 0
       singleResult = { data, error }
+    },
+    queueSingle(data: unknown, error: unknown = null) {
+      singleQueue.push({ data, error })
     },
     setChainResult(data: unknown, error: unknown = null) {
       chainResult = { data, error }
@@ -251,7 +270,48 @@ describe('getListings', () => {
 
     const result = await getListings(client)
 
-    expect(result).toEqual(fakeListings)
+    // PR-19: every listing is flattened to carry the owning brand's *user* id,
+    // which is what connection requests must address. Absent embed -> null.
+    expect(result).toEqual([
+      { id: 'l1', title: 'Listing 1', brand_user_id: null, brand_name: null },
+    ])
+  })
+
+  it('flattens the embedded brand profile to brand_user_id / brand_name', async () => {
+    const { client, setChainResult } = makeMockClient()
+    setChainResult([
+      {
+        id: 'l1',
+        title: 'Listing 1',
+        brand_id: 'bp1',
+        brand_profiles: { user_id: 'u-brand', company_name: 'Acme Ltd', trading_name: 'Acme' },
+      },
+    ])
+
+    const result = await getListings(client)
+
+    expect(result[0]).toMatchObject({
+      id: 'l1',
+      brand_id: 'bp1',
+      brand_user_id: 'u-brand',
+      brand_name: 'Acme',
+    })
+    // the raw embed must not leak through to consumers
+    expect(result[0]).not.toHaveProperty('brand_profiles')
+  })
+
+  it('falls back to company_name and tolerates an array-shaped embed', async () => {
+    const { client, setChainResult } = makeMockClient()
+    setChainResult([
+      {
+        id: 'l2',
+        brand_profiles: [{ user_id: 'u-brand-2', company_name: 'Beta Ltd', trading_name: null }],
+      },
+    ])
+
+    const result = await getListings(client)
+
+    expect(result[0]).toMatchObject({ brand_user_id: 'u-brand-2', brand_name: 'Beta Ltd' })
   })
 
   it('returns empty array when data is null', async () => {
@@ -321,15 +381,20 @@ describe('getListing', () => {
 // ---------------------------------------------------------------------------
 
 describe('sendConnectionRequest', () => {
+  // PR-8: the personalised message is bounded at BOTH ends. Fixtures must use a
+  // realistic message — 'Hello' is below CONNECTION_MESSAGE_MIN and would now be
+  // rejected before any DB call, masking the behaviour under test.
+  const VALID = 'a'.repeat(CONNECTION_MESSAGE_MIN)
+
   it('inserts into connection_requests with sender, recipient, and message', async () => {
     const { client, chain, mockFrom, setSingle } = makeMockClient()
-    setSingle({ id: 'cr1', sender_id: 'u1', recipient_id: 'u2', message: 'Hello' })
+    setSingle({ id: 'cr1', sender_id: 'u1', recipient_id: 'u2', message: VALID })
 
-    await sendConnectionRequest(client, 'u1', 'u2', 'Hello')
+    await sendConnectionRequest(client, 'u1', 'u2', VALID)
 
     expect(mockFrom).toHaveBeenCalledWith('connection_requests')
     expect(chain.insert).toHaveBeenCalledWith(
-      expect.objectContaining({ sender_id: 'u1', recipient_id: 'u2', message: 'Hello' })
+      expect.objectContaining({ sender_id: 'u1', recipient_id: 'u2', message: VALID })
     )
   })
 
@@ -338,33 +403,56 @@ describe('sendConnectionRequest', () => {
     const fakeRequest = { id: 'cr1', sender_id: 'u1', recipient_id: 'u2' }
     setSingle(fakeRequest)
 
-    const result = await sendConnectionRequest(client, 'u1', 'u2', 'Hello')
+    const result = await sendConnectionRequest(client, 'u1', 'u2', VALID)
 
     expect(result).toEqual(fakeRequest)
   })
 
-  it('throws MESSAGE_TOO_LONG when message exceeds 300 characters', async () => {
+  it('throws MESSAGE_TOO_LONG when message exceeds the maximum', async () => {
     const { client } = makeMockClient()
-    const longMessage = 'a'.repeat(301)
+    const longMessage = 'a'.repeat(CONNECTION_MESSAGE_MAX + 1)
 
     await expect(sendConnectionRequest(client, 'u1', 'u2', longMessage)).rejects.toMatchObject({
       code: 'MESSAGE_TOO_LONG',
     })
   })
 
-  it('allows message of exactly 300 characters', async () => {
+  it('allows a message of exactly the maximum length', async () => {
     const { client, setSingle } = makeMockClient()
-    const exactMessage = 'a'.repeat(300)
+    const exactMessage = 'a'.repeat(CONNECTION_MESSAGE_MAX)
     setSingle({ id: 'cr1', sender_id: 'u1', recipient_id: 'u2', message: exactMessage })
 
     await expect(sendConnectionRequest(client, 'u1', 'u2', exactMessage)).resolves.toBeDefined()
+  })
+
+  // PR-8 regression guard: the composer used to require >= 300 characters while
+  // this rejected > 300, so only an exactly-300-character message could be sent
+  // and the whole connection flow was unusable (PR-19). Min must stay < max.
+  it('has a minimum strictly below the maximum', () => {
+    expect(CONNECTION_MESSAGE_MIN).toBeLessThan(CONNECTION_MESSAGE_MAX)
+  })
+
+  it('throws MESSAGE_TOO_SHORT below the minimum', async () => {
+    const { client } = makeMockClient()
+
+    await expect(sendConnectionRequest(client, 'u1', 'u2', 'Hello')).rejects.toMatchObject({
+      code: 'MESSAGE_TOO_SHORT',
+    })
+  })
+
+  it('rejects a request addressed to the sender themselves', async () => {
+    const { client } = makeMockClient()
+
+    await expect(sendConnectionRequest(client, 'u1', 'u1', VALID)).rejects.toMatchObject({
+      code: 'SELF_CONNECT',
+    })
   })
 
   it('throws DUPLICATE_REQUEST on unique constraint violation (23505)', async () => {
     const { client, setSingle } = makeMockClient()
     setSingle(null, { code: '23505', message: 'duplicate key' })
 
-    await expect(sendConnectionRequest(client, 'u1', 'u2', 'Hello')).rejects.toMatchObject({
+    await expect(sendConnectionRequest(client, 'u1', 'u2', VALID)).rejects.toMatchObject({
       code: 'DUPLICATE_REQUEST',
     })
   })
@@ -373,7 +461,7 @@ describe('sendConnectionRequest', () => {
     const { client, setSingle } = makeMockClient()
     setSingle(null, { code: '42000', message: 'db error' })
 
-    await expect(sendConnectionRequest(client, 'u1', 'u2', 'Hello')).rejects.toMatchObject({
+    await expect(sendConnectionRequest(client, 'u1', 'u2', VALID)).rejects.toMatchObject({
       code: 'REQUEST_CREATE_FAILED',
     })
   })
@@ -724,5 +812,268 @@ describe('DiscoveryError', () => {
     expect(err.code).toBe('TEST_CODE')
     expect(err.message).toBe('test message')
     expect(err.name).toBe('DiscoveryError')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// getActiveListingsPage (FA-5 / SB-9)
+// ---------------------------------------------------------------------------
+
+function makeListingPagingClient(rows: unknown[]) {
+  const calls: {
+    select?: string
+    eq?: unknown[]
+    or?: string
+    order?: unknown[]
+    range?: [number, number]
+  } = {}
+  const chain: Record<string, unknown> = {}
+  const self = () => chain
+
+  chain['select'] = vi.fn((cols: string) => {
+    calls.select = cols
+    return self()
+  })
+  chain['eq'] = vi.fn((...args: unknown[]) => {
+    calls.eq = args
+    return self()
+  })
+  chain['or'] = vi.fn((predicate: string) => {
+    calls.or = predicate
+    return self()
+  })
+  chain['order'] = vi.fn((...args: unknown[]) => {
+    calls.order = args
+    return self()
+  })
+  chain['range'] = vi.fn((from: number, to: number) => {
+    calls.range = [from, to]
+    return Promise.resolve({ data: rows, error: null })
+  })
+
+  return {
+    client: { from: vi.fn(() => chain) } as unknown as SupabaseClient<Database>,
+    calls,
+  }
+}
+
+describe('getActiveListingsPage', () => {
+  it('filters to active listings in SQL, not in JavaScript', async () => {
+    const { client, calls } = makeListingPagingClient([])
+    await getActiveListingsPage(client)
+    expect(calls.eq).toEqual(['status', 'active'])
+    expect(calls.order?.[0]).toBe('created_at')
+  })
+
+  // -- L-6 / DI-3: application deadlines -----------------------------------
+
+  it('excludes expired listings in SQL, not in JavaScript', async () => {
+    const { client, calls } = makeListingPagingClient([])
+
+    await getActiveListingsPage(client, { now: new Date('2026-07-20T09:30:00.000Z') })
+
+    // Cutoff is the start of the current UTC day, so a listing whose deadline
+    // IS today is still included — see listingDeadlineCutoff.
+    expect(calls.or).toBe(
+      'application_deadline.is.null,application_deadline.gte.2026-07-20T00:00:00.000Z'
+    )
+  })
+
+  it('keeps listings with no deadline in the feed forever', async () => {
+    const { client, calls } = makeListingPagingClient([])
+    await getActiveListingsPage(client)
+    expect(calls.or).toMatch(/application_deadline\.is\.null/)
+  })
+
+  it('projects columns instead of selecting everything', async () => {
+    const { client, calls } = makeListingPagingClient([])
+    await getActiveListingsPage(client)
+    expect(calls.select).not.toMatch(/^\*/)
+    expect(calls.select).toMatch(/title/)
+    expect(calls.select).toMatch(/brand_profiles!inner/)
+  })
+
+  it('fetches limit + 1 rows and reports hasMore without returning the extra row', async () => {
+    const rows = Array.from({ length: 4 }, (_, i) => ({ id: `l${i}` }))
+    const { client, calls } = makeListingPagingClient(rows)
+
+    const page = await getActiveListingsPage(client, { limit: 3 })
+
+    expect(calls.range).toEqual([0, 3])
+    expect(page.listings).toHaveLength(3)
+    expect(page.hasMore).toBe(true)
+  })
+
+  it('reports hasMore false on a short page and offsets later pages', async () => {
+    const { client, calls } = makeListingPagingClient([{ id: 'l0' }])
+    const page = await getActiveListingsPage(client, { limit: 5, offset: 10 })
+    expect(calls.range).toEqual([10, 15])
+    expect(page.hasMore).toBe(false)
+  })
+
+  it('flattens the embedded brand profile to brand_user_id / brand_name', async () => {
+    const { client } = makeListingPagingClient([
+      {
+        id: 'l1',
+        title: 'Listing 1',
+        brand_profiles: { user_id: 'u-brand', company_name: 'Acme Ltd', trading_name: 'Acme' },
+      },
+    ])
+
+    const page = await getActiveListingsPage(client)
+
+    expect(page.listings[0]).toMatchObject({ brand_user_id: 'u-brand', brand_name: 'Acme' })
+    expect(page.listings[0]).not.toHaveProperty('brand_profiles')
+  })
+
+  it('throws LISTING_FETCH_FAILED on DB error', async () => {
+    const chain: Record<string, unknown> = {}
+    const self = () => chain
+    chain['select'] = vi.fn(self)
+    chain['eq'] = vi.fn(self)
+    chain['or'] = vi.fn(self)
+    chain['order'] = vi.fn(self)
+    chain['range'] = vi.fn(() => Promise.resolve({ data: null, error: { message: 'db error' } }))
+    const client = { from: vi.fn(() => chain) } as unknown as SupabaseClient<Database>
+
+    await expect(getActiveListingsPage(client)).rejects.toMatchObject({
+      code: 'LISTING_FETCH_FAILED',
+    })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Application deadline semantics (L-6 / DI-3)
+// ---------------------------------------------------------------------------
+
+describe('listingDeadlineCutoff', () => {
+  it('is the start of the current UTC day, so a deadline is inclusive of its own day', () => {
+    expect(listingDeadlineCutoff(new Date('2026-07-20T23:59:59.000Z'))).toBe(
+      '2026-07-20T00:00:00.000Z'
+    )
+  })
+
+  it('moves on at midnight UTC, closing the previous day', () => {
+    expect(listingDeadlineCutoff(new Date('2026-07-21T00:00:00.000Z'))).toBe(
+      '2026-07-21T00:00:00.000Z'
+    )
+  })
+})
+
+describe('isListingOpenForApplications', () => {
+  const now = new Date('2026-07-20T12:00:00.000Z')
+
+  it('accepts an active listing with no deadline', () => {
+    expect(
+      isListingOpenForApplications({ status: 'active', application_deadline: null }, now)
+    ).toBe(true)
+  })
+
+  it('accepts a listing on the deadline day itself', () => {
+    expect(
+      isListingOpenForApplications(
+        { status: 'active', application_deadline: '2026-07-20T00:00:00+00:00' },
+        now
+      )
+    ).toBe(true)
+  })
+
+  it('rejects a listing whose deadline day has passed', () => {
+    expect(
+      isListingOpenForApplications(
+        { status: 'active', application_deadline: '2026-07-19T00:00:00+00:00' },
+        now
+      )
+    ).toBe(false)
+  })
+
+  it('rejects a listing that is not active regardless of the deadline', () => {
+    expect(
+      isListingOpenForApplications({ status: 'draft', application_deadline: null }, now)
+    ).toBe(false)
+    expect(
+      isListingOpenForApplications({ status: 'expired', application_deadline: null }, now)
+    ).toBe(false)
+  })
+})
+
+describe('sendConnectionRequest listing guard (L-6)', () => {
+  const NOW = '2026-07-20T12:00:00.000Z'
+
+  function listingClient(listing: unknown) {
+    const mock = makeMockClient()
+    mock.setSingle(listing)
+    return mock
+  }
+
+  it('does not look a listing up when the caller does not supply one', async () => {
+    const mock = makeMockClient()
+    mock.setSingle({ id: 'cr-1' })
+
+    await sendConnectionRequest(mock.client, 'sender', 'recipient', 'x'.repeat(50))
+
+    expect(mock.mockFrom).toHaveBeenCalledWith('connection_requests')
+    expect(mock.mockFrom).not.toHaveBeenCalledWith('job_listings')
+  })
+
+  it('rejects an application to a listing whose deadline has passed', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(NOW))
+    const mock = listingClient({
+      id: 'listing-1',
+      status: 'active',
+      application_deadline: '2026-06-01T00:00:00+00:00',
+    })
+
+    await expect(
+      sendConnectionRequest(mock.client, 'sender', 'recipient', 'x'.repeat(50), 'listing-1')
+    ).rejects.toMatchObject({ name: 'DiscoveryError', code: 'LISTING_CLOSED' })
+
+    expect(mock.chain.insert).not.toHaveBeenCalled()
+    vi.useRealTimers()
+  })
+
+  it('rejects an application to a listing that is no longer active', async () => {
+    const mock = listingClient({
+      id: 'listing-1',
+      status: 'expired',
+      application_deadline: null,
+    })
+
+    await expect(
+      sendConnectionRequest(mock.client, 'sender', 'recipient', 'x'.repeat(50), 'listing-1')
+    ).rejects.toMatchObject({ code: 'LISTING_CLOSED' })
+  })
+
+  it('rejects an application to a listing that does not exist', async () => {
+    const mock = makeMockClient()
+    mock.setSingle(null, { code: 'PGRST116', message: 'not found' })
+
+    await expect(
+      sendConnectionRequest(mock.client, 'sender', 'recipient', 'x'.repeat(50), 'listing-1')
+    ).rejects.toMatchObject({ code: 'LISTING_NOT_FOUND' })
+  })
+
+  it('allows an application to an open listing', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(NOW))
+    const mock = makeMockClient()
+    mock.queueSingle({
+      id: 'listing-1',
+      status: 'active',
+      application_deadline: '2026-07-20T00:00:00+00:00',
+    })
+    mock.queueSingle({ id: 'cr-1' })
+
+    const row = await sendConnectionRequest(
+      mock.client,
+      'sender',
+      'recipient',
+      'x'.repeat(50),
+      'listing-1'
+    )
+
+    expect(row).toMatchObject({ id: 'cr-1' })
+    vi.useRealTimers()
   })
 })

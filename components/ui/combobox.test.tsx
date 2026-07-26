@@ -44,10 +44,10 @@ describe("Combobox", () => {
   it("input has a clean light border and a soft focus ring", () => {
     render(<Controlled />)
     const input = screen.getByPlaceholderText("Select a university")
-    expect(input.className).toContain("border-border")
+    expect(input.className).toContain("border-input")
     expect(input.className).not.toMatch(/border-border-ink/)
     expect(input.className).toContain("focus-visible:ring-2")
-    expect(input.className).toContain("focus-visible:ring-primary/40")
+    expect(input.className).toContain("focus-visible:ring-ring")
     expect(input.className).not.toMatch(/shadow-focus/)
   })
 

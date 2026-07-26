@@ -1,5 +1,10 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database'
+import { db } from '@/lib/supabase/typed-client'
+import {
+  type CookiePreferences,
+  parseCookiePreferences,
+} from '@/lib/legal/cookie-consent'
 
 type ProfileSettingsRow = Database['public']['Tables']['profile_settings']['Row']
 type ProfileSettingsUpdate = Database['public']['Tables']['profile_settings']['Update']
@@ -44,8 +49,7 @@ export async function getSettings(
   supabase: SupabaseClient<Database>,
   userId: string
 ): Promise<ProfileSettings> {
-  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
-  const { data, error } = await (supabase as SupabaseClient)
+  const { data, error } = await db(supabase)
     .from('profile_settings')
     .select('*')
     .eq('user_id', userId)
@@ -65,8 +69,7 @@ export async function updateSettings(
 ): Promise<ProfileSettings> {
   const clean = sanitizeSettingsPatch(patch as Record<string, unknown>)
 
-  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
-  const { data, error } = await (supabase as SupabaseClient)
+  const { data, error } = await db(supabase)
     .from('profile_settings')
     .update(clean)
     .eq('user_id', userId)
@@ -91,8 +94,7 @@ export async function getActiveSessions(
   supabase: SupabaseClient<Database>,
   userId: string
 ): Promise<ActiveSessionRow[]> {
-  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
-  const { data, error } = await (supabase as SupabaseClient)
+  const { data, error } = await db(supabase)
     .from('active_sessions')
     .select('*')
     .eq('user_id', userId)
@@ -110,8 +112,7 @@ export async function revokeSession(
   sessionId: string
 ): Promise<void> {
   // RLS restricts deletes to the owning user; we never pass user_id here.
-  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
-  const { error } = await (supabase as SupabaseClient)
+  const { error } = await db(supabase)
     .from('active_sessions')
     .delete()
     .eq('id', sessionId)
@@ -129,8 +130,7 @@ export async function getLoginHistory(
   supabase: SupabaseClient<Database>,
   userId: string
 ): Promise<LoginHistoryRow[]> {
-  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
-  const { data, error } = await (supabase as SupabaseClient)
+  const { data, error } = await db(supabase)
     .from('login_history')
     .select('*')
     .eq('user_id', userId)
@@ -144,6 +144,153 @@ export async function getLoginHistory(
 }
 
 // ---------------------------------------------------------------------------
+// Notification preferences (CL-4)
+// ---------------------------------------------------------------------------
+
+/**
+ * Per-event, per-channel notification matrix, e.g.
+ *   { "new_match": { "push": true, "in_app": true, "email": false } }
+ * Stored in `profile_settings.notification_matrix` (jsonb).
+ */
+export type NotificationMatrix = Record<
+  string,
+  Partial<Record<'push' | 'email' | 'in_app', boolean>>
+>
+
+/**
+ * Reads the user's notification matrix. This is the surface a
+ * "manage notification preferences" page (and any future email unsubscribe
+ * link) must read from — there is no separate email preference store.
+ */
+export async function getNotificationMatrix(
+  supabase: SupabaseClient<Database>,
+  userId: string
+): Promise<NotificationMatrix> {
+  const settings = await getSettings(supabase, userId)
+  const raw = settings.notification_matrix
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return {}
+  // as NotificationMatrix: the column is untyped `Json`; shape is app-validated.
+  return raw as NotificationMatrix
+}
+
+/**
+ * Merges a patch into the notification matrix (per-event, per-channel) and
+ * persists it. Merging rather than replacing means a single toggle cannot wipe
+ * the rest of the user's preferences.
+ */
+export async function updateNotificationMatrix(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  patch: NotificationMatrix
+): Promise<NotificationMatrix> {
+  const current = await getNotificationMatrix(supabase, userId)
+
+  const merged: NotificationMatrix = { ...current }
+  for (const [event, channels] of Object.entries(patch)) {
+    merged[event] = { ...(current[event] ?? {}), ...channels }
+  }
+
+  const updated = await updateSettings(supabase, userId, {
+    notification_matrix: merged,
+  })
+
+  const raw = updated.notification_matrix
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return {}
+  // as NotificationMatrix: the column is untyped `Json`; shape is app-validated.
+  return raw as NotificationMatrix
+}
+
+/**
+ * Turns off every email channel in one call — the operation an unsubscribe
+ * link must perform once an email provider is integrated. Also clears the
+ * marketing opt-in, because an unsubscribe covers marketing absolutely
+ * (UK GDPR Art. 21(2) / PECR).
+ */
+export async function unsubscribeFromAllEmail(
+  supabase: SupabaseClient<Database>,
+  userId: string
+): Promise<void> {
+  const current = await getNotificationMatrix(supabase, userId)
+
+  const cleared: NotificationMatrix = {}
+  for (const [event, channels] of Object.entries(current)) {
+    cleared[event] = { ...channels, email: false }
+  }
+
+  await updateSettings(supabase, userId, {
+    notification_matrix: cleared,
+    email_digest: 'off',
+    marketing_opt_in: false,
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Cookie consent (M-7 / CL-2)
+// ---------------------------------------------------------------------------
+
+/**
+ * Reads the durable copy of the user's cookie choice from `users.cookie_prefs`.
+ * Returns null when no valid choice has been recorded — never a default that
+ * could be mistaken for consent.
+ */
+export async function getCookiePrefs(
+  supabase: SupabaseClient<Database>,
+  userId: string
+): Promise<CookiePreferences | null> {
+  const { data, error } = await db(supabase)
+    .from('users')
+    .select('cookie_prefs')
+    .eq('id', userId)
+    .single()
+
+  if (error) {
+    throw new SettingsError('COOKIE_PREFS_FETCH_FAILED', (error as { message: string }).message)
+  }
+
+  return parseCookiePreferences((data as { cookie_prefs?: unknown } | null)?.cookie_prefs)
+}
+
+/** Writes the user's cookie choice to `users.cookie_prefs`. */
+export async function updateCookiePrefs(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  prefs: CookiePreferences
+): Promise<CookiePreferences> {
+  const { error } = await db(supabase)
+    .from('users')
+    .update({ cookie_prefs: prefs })
+    .eq('id', userId)
+
+  if (error) {
+    throw new SettingsError('COOKIE_PREFS_UPDATE_FAILED', (error as { message: string }).message)
+  }
+
+  return prefs
+}
+
+/**
+ * Convenience wrapper for the consent banner: resolves the current session and
+ * mirrors the choice to the account, or reports that nobody is signed in.
+ *
+ * Exists so the banner never has to call `supabase.auth`/PostgREST itself —
+ * every Supabase call stays inside lib/supabase (CLAUDE.md). Returns false for
+ * a signed-out visitor, whose choice lives only in the first-party cookie.
+ */
+export async function saveCookiePrefsForCurrentUser(
+  supabase: SupabaseClient<Database>,
+  prefs: CookiePreferences
+): Promise<boolean> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) return false
+
+  await updateCookiePrefs(supabase, user.id, prefs)
+  return true
+}
+
+// ---------------------------------------------------------------------------
 // GDPR data export
 // ---------------------------------------------------------------------------
 
@@ -153,8 +300,7 @@ export async function requestDataExport(
 ): Promise<DataExportRow> {
   // Creates a pending export request; a background job fulfils it and sets the
   // 72h-expiring download_url. Status defaults to 'pending' at the DB level.
-  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
-  const { data, error } = await (supabase as SupabaseClient)
+  const { data, error } = await db(supabase)
     .from('data_export_requests')
     .insert({ user_id: userId })
     .select()

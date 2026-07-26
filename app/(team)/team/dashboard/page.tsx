@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { ROUTES } from '@/lib/routes'
 import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getOwnProfile } from '@/lib/supabase/profiles'
@@ -14,6 +15,14 @@ import { buttonVariants } from '@/components/ui/button'
 import type { Database } from '@/types/database'
 
 type TeamRow = Database['public']['Tables']['team_profiles']['Row']
+
+// M-1: per-route metadata. Authenticated surface: `robots.index = false`
+// mirrors app/robots.ts so a signed-in page can never be indexed.
+export const metadata = {
+  title: 'Team dashboard · Podium',
+  description: 'Your team’s sponsorship activity: listings, conversations and deals.',
+  robots: { index: false, follow: false },
+}
 
 export default async function TeamDashboardPage() {
   const supabase = await createClient()
@@ -110,20 +119,17 @@ export default async function TeamDashboardPage() {
 
       {isActive && hasActivity && (
         <div className="flex flex-wrap gap-3">
-          <Link href="/team/discover" className={buttonVariants()}>
+          <Link href={ROUTES.team.discover} className={buttonVariants()}>
             Find sponsors
           </Link>
+          {/* B-4: /team/listings and /team/messages do not exist — these two
+              buttons 404'd. Teams have no listings or messaging surface yet, so
+              link to what is actually built rather than shipping dead CTAs. */}
           <Link
-            href="/team/listings"
+            href={ROUTES.team.settings}
             className={buttonVariants({ variant: 'outline' })}
           >
-            My listings
-          </Link>
-          <Link
-            href="/team/messages"
-            className={buttonVariants({ variant: 'outline' })}
-          >
-            Messages
+            Team settings
           </Link>
         </div>
       )}

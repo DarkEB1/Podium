@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
-import { getSubscriptionForUser } from '@/lib/supabase/payments'
+import { getSubscriptionForUser, getBrandProfileIdForUser } from '@/lib/supabase/payments'
 import { createCheckoutSession } from '@/lib/stripe'
+import { clientEnv } from '@/lib/env'
 
 const VALID_TIERS = new Set([1, 2, 3])
 
@@ -41,11 +42,25 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const appUrl = process.env['NEXT_PUBLIC_APP_URL'] ?? 'http://localhost:3000'
+  // subscriptions.brand_id references brand_profiles.id, so the checkout session
+  // must carry brand_profiles.id — not the auth user id (B-2).
+  const brandProfileId = await getBrandProfileIdForUser(supabase, user.id)
+
+  if (!brandProfileId) {
+    return NextResponse.json(
+      { error: { code: 'NO_BRAND_PROFILE', message: 'Complete your brand profile before subscribing' } },
+      { status: 404 }
+    )
+  }
+
+  const appUrl = clientEnv().NEXT_PUBLIC_APP_URL
   const existing = await getSubscriptionForUser(supabase, user.id)
 
   const { url, sessionId } = await createCheckoutSession({
-    brandId: user.id,
+    brandProfileId,
+    userId: user.id,
+    // tier as 1 | 2 | 3: VALID_TIERS membership is checked above, which the
+    // compiler cannot narrow from a Set lookup
     tier: tier as 1 | 2 | 3,
     ...(existing?.stripe_customer_id ? { customerId: existing.stripe_customer_id } : {}),
     successUrl: `${appUrl}/dashboard?subscription=success`,

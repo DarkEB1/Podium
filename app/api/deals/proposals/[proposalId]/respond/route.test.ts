@@ -10,10 +10,17 @@ vi.mock('@/lib/supabase/deals', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/supabase/deals')>()
   return { ...actual, respondToProposal: vi.fn() }
 })
+vi.mock('@/lib/email', () => ({ sendTransactionalEmail: vi.fn() }))
+vi.mock('@/lib/email/notify', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/email/notify')>()
+  return { ...actual, resolveDisplayNames: vi.fn() }
+})
 
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { respondToProposal, DealsError } from '@/lib/supabase/deals'
+import { sendTransactionalEmail } from '@/lib/email'
+import { resolveDisplayNames } from '@/lib/email/notify'
 import { POST } from './route'
 
 const fakeUser = { id: 'user-1', email: 'test@example.com', role: 'athlete' as const, role_locked_at: '2026-04-19T00:00:00Z' }
@@ -29,8 +36,15 @@ function makePostRequest(body?: Record<string, unknown>) {
 
 describe('POST /api/deals/proposals/[proposalId]/respond', () => {
   beforeEach(() => {
+    vi.clearAllMocks()
     vi.mocked(createClient).mockResolvedValue({} as unknown as Awaited<ReturnType<typeof createClient>>)
     vi.mocked(createAdminClient).mockReturnValue({} as unknown as ReturnType<typeof createAdminClient>)
+    vi.mocked(resolveDisplayNames).mockResolvedValue({ 'sender-7': 'Acme Co' })
+    vi.mocked(sendTransactionalEmail).mockResolvedValue({
+      status: 'sent',
+      deliveryId: 'd1',
+      providerId: 'p1',
+    })
   })
 
   it('returns 401 when not authenticated', async () => {
@@ -63,6 +77,40 @@ describe('POST /api/deals/proposals/[proposalId]/respond', () => {
     expect(res.status).toBe(200)
     const json = await res.json()
     expect(json).toEqual(fakeProposal)
+  })
+
+  it('emails the ORIGINAL SENDER a proposal_accepted on accept success', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(respondToProposal).mockResolvedValue(
+      { id: 'p1', status: 'accepted', sender_id: 'sender-7', title: 'Summer Campaign' } as never
+    )
+    const res = await POST(makePostRequest({ action: 'accepted' }), { params })
+    expect(res.status).toBe(200)
+    expect(sendTransactionalEmail).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        event: 'proposal_accepted',
+        userId: 'sender-7',
+        data: expect.objectContaining({ recipientName: 'Acme Co', proposalTitle: 'Summer Campaign' }),
+      })
+    )
+  })
+
+  it('does NOT email on decline', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(respondToProposal).mockResolvedValue(
+      { id: 'p1', status: 'declined', sender_id: 'sender-7', title: 'X' } as never
+    )
+    await POST(makePostRequest({ action: 'declined' }), { params })
+    expect(sendTransactionalEmail).not.toHaveBeenCalled()
+  })
+
+  it('does NOT email when the accept fails', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(respondToProposal).mockRejectedValue(new DealsError('PROPOSAL_NOT_PENDING', 'Not pending'))
+    const res = await POST(makePostRequest({ action: 'accepted' }), { params })
+    expect(res.status).toBe(409)
+    expect(sendTransactionalEmail).not.toHaveBeenCalled()
   })
 
   it('returns 404 when proposal not found', async () => {

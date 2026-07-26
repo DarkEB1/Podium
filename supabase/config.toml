@@ -111,9 +111,12 @@ enabled = true
 # The maximum file size allowed (e.g. "5MB", "500KB").
 file_size_limit = "50MiB"
 
-# Storage buckets (Podium v1 — spec §4A.1). Public-read so served images/docs
-# resolve without signed download URLs; writes are gated by RLS storage policies
-# that require the object path to be namespaced under the owner's user id.
+# Storage buckets (Podium v1 — spec §4A.1). The three IMAGE buckets are
+# public-read so public profile pages resolve without signed URLs. `docs` is
+# PRIVATE — it holds media packs, sponsorship briefs and (in future) signed
+# contracts; public-read there meant anon could read every uploaded document.
+# See migration 20260720005002. Writes in every bucket are gated by RLS storage
+# policies requiring the object path to be namespaced under the owner's user id.
 [storage.buckets.avatars]
 public = true
 file_size_limit = "10MiB"
@@ -130,7 +133,8 @@ file_size_limit = "10MiB"
 allowed_mime_types = ["image/png", "image/jpeg", "image/heic", "image/webp"]
 
 [storage.buckets.docs]
-public = true
+# Private: read via createSignedDownloadUrl() — see lib/storage/index.ts.
+public = false
 file_size_limit = "25MiB"
 allowed_mime_types = ["image/png", "image/jpeg", "image/heic", "image/webp", "application/pdf"]
 

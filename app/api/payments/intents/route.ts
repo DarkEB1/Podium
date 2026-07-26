@@ -66,8 +66,17 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // payments.payer_id / payee_id are FKs to users.id. contracts.brand_id and
+  // contracts.athlete_or_team_id are both users.id, and brand_id === user.id is
+  // enforced above. These same ids go into the intent metadata so the webhook
+  // reader can never disagree with this writer (ST-5).
+  const payerId = user.id
+  const payeeId = contract.athlete_or_team_id
+
   const { clientSecret, paymentIntentId } = await createPaymentIntent({
     contractId,
+    payerId,
+    payeeId,
     amount: contract.pay_amount,
     currency: contract.pay_currency.toLowerCase(),
     customerId: subscription.stripe_customer_id,
@@ -76,8 +85,8 @@ export async function POST(request: NextRequest) {
   const adminSupabase = createAdminClient()
   const payment = await createPaymentRecord(adminSupabase, {
     contract_id: contractId,
-    payer_id: user.id,
-    payee_id: contract.athlete_or_team_id,
+    payer_id: payerId,
+    payee_id: payeeId,
     stripe_payment_intent_id: paymentIntentId,
     amount: contract.pay_amount,
     currency: contract.pay_currency,

@@ -1,6 +1,14 @@
 import Link from 'next/link'
 import { buttonVariants } from '@/components/ui/button'
 
+// M-1: per-route metadata. Authenticated surface: `robots.index = false`
+// mirrors app/robots.ts so a signed-in page can never be indexed.
+export const metadata = {
+  title: 'Verify your email · Podium',
+  description: 'Confirm your email address to finish setting up your Podium account.',
+  robots: { index: false, follow: false },
+}
+
 export default function VerifyEmailPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-6 py-16">

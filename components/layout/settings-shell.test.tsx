@@ -1,6 +1,10 @@
 import { render, screen } from '@testing-library/react'
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import SettingsShell from './settings-shell'
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ replace: vi.fn(), refresh: vi.fn(), push: vi.fn() }),
+}))
 
 const sections = [
   { id: 'profile', label: 'Profile' },
@@ -64,5 +68,15 @@ describe('SettingsShell', () => {
     expect(nav.className).toMatch(/md:border-r/)
     expect(nav.className).toMatch(/md:border-border\b/)
     expect(nav.className).not.toMatch(/border-border-ink/)
+  })
+
+  // PR-15: sign out must be reachable from settings, for every role.
+  it('renders a sign out control', () => {
+    render(
+      <SettingsShell sections={sections} active="profile">
+        <div>content</div>
+      </SettingsShell>,
+    )
+    expect(screen.getByRole('button', { name: /sign out/i })).toBeInTheDocument()
   })
 })

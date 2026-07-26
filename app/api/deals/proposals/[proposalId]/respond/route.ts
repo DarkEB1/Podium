@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { respondToProposal, DealsError } from '@/lib/supabase/deals'
-import { sendProposalRespondedEmail } from '@/lib/notifications/email'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { RATE_LIMITS, consume, tooManyRequests, userKey } from '@/lib/rate-limit'
+import { sendTransactionalEmail } from '@/lib/email'
+import { absoluteUrl, nameOf, resolveDisplayNames } from '@/lib/email/notify'
+import { ROUTES } from '@/lib/routes'
 
 const VALID_ACTIONS = new Set(['accepted', 'declined'])
 
@@ -20,6 +22,11 @@ export async function POST(
       { status: 401 }
     )
   }
+
+  // DH-2: accepting a proposal creates a contract, so this is a state change
+  // worth limiting per user in its own key namespace.
+  const limited = await consume(userKey('proposal_respond', user.id), RATE_LIMITS.writeByUser)
+  if (!limited.allowed) return tooManyRequests(limited.retryAfter)
 
   const body = (await request.json()) as { action?: string }
 
@@ -49,24 +56,22 @@ export async function POST(
       body.action as 'accepted' | 'declined'
     )
 
-    // Fire-and-forget: notify proposal sender of the response
-    ;(async () => {
-      try {
-        const { data: sender } = await (adminSupabase as SupabaseClient)
-          .from('users')
-          .select('email')
-          .eq('id', proposal.sender_id)
-          .single()
-        if (sender?.email) {
-          await sendProposalRespondedEmail(
-            sender.email,
-            proposal.title,
-            body.action as 'accepted' | 'declined',
-            user.email
-          )
-        }
-      } catch { /* email failure must not affect response */ }
-    })()
+    // On a successful ACCEPT (the accept RPC also created the contract), email
+    // the proposal's ORIGINAL SENDER that their proposal was accepted. The
+    // accepted row carries sender_id and title directly, so no extra read is
+    // needed. Side effect only — the email layer never throws.
+    if (body.action === 'accepted') {
+      const names = await resolveDisplayNames(adminSupabase, [proposal.sender_id])
+      await sendTransactionalEmail(adminSupabase, {
+        event: 'proposal_accepted',
+        userId: proposal.sender_id,
+        data: {
+          recipientName: nameOf(names, proposal.sender_id),
+          proposalTitle: proposal.title,
+          url: absoluteUrl(ROUTES.dashboard),
+        },
+      })
+    }
 
     return NextResponse.json(proposal)
   } catch (err) {

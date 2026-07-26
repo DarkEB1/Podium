@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database'
+import { db } from '@/lib/supabase/typed-client'
 
 export type ProfileRole = 'athlete' | 'team' | 'brand' | 'agent'
 
@@ -63,7 +64,7 @@ export async function createProfile(
 ): Promise<ProfileRow> {
   const table = TABLE_FOR_ROLE[role]
   const safe = sanitizeProfileData(data)
-  const { data: profile, error } = await (supabase as SupabaseClient)
+  const { data: profile, error } = await db(supabase)
     .from(table)
     .insert({ ...safe, user_id: userId })
     .select()
@@ -85,7 +86,7 @@ export async function getOwnProfile(
   role: ProfileRole
 ): Promise<ProfileRow | null> {
   const table = TABLE_FOR_ROLE[role]
-  const { data, error } = await (supabase as SupabaseClient)
+  const { data, error } = await db(supabase)
     .from(table)
     .select('*')
     .eq('user_id', userId)
@@ -107,7 +108,7 @@ export async function updateProfile(
 ): Promise<ProfileRow> {
   const table = TABLE_FOR_ROLE[role]
   const safe = sanitizeProfileData(data)
-  const { data: profile, error } = await (supabase as SupabaseClient)
+  const { data: profile, error } = await db(supabase)
     .from(table)
     .update(safe)
     .eq('user_id', userId)
@@ -137,7 +138,7 @@ export async function publishProfile(
   }
 
   const table = TABLE_FOR_ROLE[role]
-  const { error } = await (supabase as SupabaseClient)
+  const { error } = await db(supabase)
     .from(table)
     .update({ status: 'active' })
     .eq('user_id', userId)
@@ -158,7 +159,7 @@ export async function getPublicProfile(
   role: ProfileRole
 ): Promise<ProfileRow | null> {
   const table = TABLE_FOR_ROLE[role]
-  const { data, error } = await (supabase as SupabaseClient)
+  const { data, error } = await db(supabase)
     .from(table)
     .select('*')
     .eq('user_id', targetUserId)
@@ -179,7 +180,7 @@ export async function createRepresentationLink(
   clientUserId: string,
   clientRole: 'athlete' | 'team'
 ): Promise<RepLinkRow> {
-  const { data, error } = await (supabase as SupabaseClient)
+  const { data, error } = await db(supabase)
     .from('representation_links')
     .insert({
       agent_id: agentProfileId,
@@ -207,7 +208,7 @@ export async function respondRepresentationLink(
     ? { status: 'active' as const, accepted_at: now }
     : { status: 'terminated' as const, terminated_at: now }
 
-  const { error } = await (supabase as SupabaseClient)
+  const { error } = await db(supabase)
     .from('representation_links')
     .update(update)
     .eq('id', linkId)
@@ -227,7 +228,7 @@ export async function getRepresentationLinks(
   supabase: SupabaseClient<Database>,
   clientUserId: string
 ): Promise<RepLinkRow[]> {
-  const { data, error } = await (supabase as SupabaseClient)
+  const { data, error } = await db(supabase)
     .from('representation_links')
     .select('*')
     .eq('client_user_id', clientUserId)
@@ -239,15 +240,161 @@ export async function getRepresentationLinks(
   return (data ?? []) as RepLinkRow[]
 }
 
+// ---------------------------------------------------------------------------
+// Athlete discovery feed (FA-5 / SB-9 / FA-4)
+// ---------------------------------------------------------------------------
+
+/**
+ * The columns the athlete discovery surfaces actually read.
+ *
+ * SB-9/FA-4: `select('*')` pulled every column of `athlete_profiles` —
+ * including guardian contact details, payout account fragments and Stripe
+ * Connect ids — into a public browse feed. Project instead: less data over the
+ * wire, and nothing sensitive leaves the database for a listing card.
+ */
+const ATHLETE_SUMMARY_COLUMNS = [
+  'id',
+  'user_id',
+  'display_name',
+  'primary_sport',
+  'secondary_sport',
+  'level',
+  'position',
+  'home_city',
+  'home_country',
+  'travel_radius_km',
+  'availability_status',
+  'available_from_date',
+  'profile_photo_url',
+  'social_accounts',
+  'last_active_at',
+  'updated_at',
+  'created_at',
+  'status',
+].join(', ')
+
+type AthleteSummaryKeys =
+  | 'id'
+  | 'user_id'
+  | 'display_name'
+  | 'primary_sport'
+  | 'secondary_sport'
+  | 'level'
+  | 'position'
+  | 'home_city'
+  | 'home_country'
+  | 'travel_radius_km'
+  | 'availability_status'
+  | 'available_from_date'
+  | 'profile_photo_url'
+  | 'social_accounts'
+  | 'last_active_at'
+  | 'updated_at'
+  | 'created_at'
+  | 'status'
+
+/** An athlete as the discovery feed sees them — see ATHLETE_SUMMARY_COLUMNS. */
+export type AthleteSummary = Pick<AthleteRow, AthleteSummaryKeys>
+
+/** Rows per discovery page. Bounded so a 20,000-athlete table is one page, not an outage. */
+export const ATHLETE_PAGE_SIZE = 24
+
+export interface AthletePage {
+  athletes: AthleteSummary[]
+  /** True when more rows exist past this page — drives the "Load more" control. */
+  hasMore: boolean
+}
+
+/**
+ * One bounded page of active athletes, newest-updated first.
+ *
+ * Range pagination (`offset` .. `offset + limit`) rather than a cursor: the sort
+ * key is `updated_at`, which is not unique and mutates, so a cursor would be no
+ * more stable here than an offset and would be harder to render as "load more".
+ * Fetches `limit + 1` rows so `hasMore` is exact and needs no count query.
+ */
+export async function getActiveAthleteProfilesPage(
+  supabase: SupabaseClient<Database>,
+  options: { limit?: number; offset?: number } = {}
+): Promise<AthletePage> {
+  const limit = Math.max(1, options.limit ?? ATHLETE_PAGE_SIZE)
+  const offset = Math.max(0, options.offset ?? 0)
+
+  const { data, error } = await db(supabase)
+    .from('athlete_profiles')
+    .select(ATHLETE_SUMMARY_COLUMNS)
+    .eq('status', 'active')
+    .order('updated_at', { ascending: false })
+    .range(offset, offset + limit) // limit + 1 rows: the extra one only answers hasMore
+
+  if (error) throw new ProfileError('PROFILE_FETCH_FAILED', (error as { message: string }).message)
+
+  // as unknown as AthleteSummary[]: the column list is built at runtime, so
+  // PostgREST's literal-type select parser cannot infer the row shape.
+  const rows = (data ?? []) as unknown as AthleteSummary[]
+  return { athletes: rows.slice(0, limit), hasMore: rows.length > limit }
+}
+
+/**
+ * Every active athlete. Still unbounded — kept for callers that genuinely need
+ * the whole set (the agent client picker). Discovery surfaces must use
+ * `getActiveAthleteProfilesPage`.
+ */
 export async function getActiveAthleteProfiles(
   supabase: SupabaseClient<Database>
-): Promise<Database['public']['Tables']['athlete_profiles']['Row'][]> {
-  const { data, error } = await (supabase as SupabaseClient)
+): Promise<AthleteSummary[]> {
+  const { data, error } = await db(supabase)
     .from('athlete_profiles')
-    .select('*')
+    .select(ATHLETE_SUMMARY_COLUMNS)
     .eq('status', 'active')
     .order('updated_at', { ascending: false })
 
   if (error) throw new ProfileError('PROFILE_FETCH_FAILED', (error as { message: string }).message)
-  return (data ?? []) as Database['public']['Tables']['athlete_profiles']['Row'][]
+  // as unknown as AthleteSummary[]: runtime-built column list, see above.
+  return (data ?? []) as unknown as AthleteSummary[]
+}
+
+// ---------------------------------------------------------------------------
+// Discovery UI mode (PR-23)
+// ---------------------------------------------------------------------------
+
+export type DiscoveryUiMode = Database['public']['Enums']['ui_mode']
+
+/**
+ * The user's persisted browse mode. Every profile table carries
+ * `discovery_ui_mode public.ui_mode not null default 'marketplace'`
+ * (supabase/migrations/20260419000002_profiles.sql), so this is a real column,
+ * not a preference invented in the client.
+ */
+export async function getDiscoveryUiMode(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  role: ProfileRole
+): Promise<DiscoveryUiMode> {
+  const table = TABLE_FOR_ROLE[role]
+  const { data, error } = await db(supabase)
+    .from(table)
+    .select('discovery_ui_mode')
+    .eq('user_id', userId)
+    .single()
+
+  // A missing profile is not an error for a display preference — fall back to
+  // the column default rather than blowing up the page that renders the toggle.
+  if (error || !data) return 'marketplace'
+  return ((data as { discovery_ui_mode?: DiscoveryUiMode }).discovery_ui_mode ??
+    'marketplace') as DiscoveryUiMode
+}
+
+/**
+ * Persist the browse mode. Written through `updateProfile` so it goes through
+ * the same sanitizer as every other profile write (`discovery_ui_mode` is not a
+ * protected field, so `PATCH /api/profiles/me` accepts it from the client).
+ */
+export async function updateDiscoveryUiMode(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  role: ProfileRole,
+  mode: DiscoveryUiMode
+): Promise<void> {
+  await updateProfile(supabase, userId, role, { discovery_ui_mode: mode })
 }

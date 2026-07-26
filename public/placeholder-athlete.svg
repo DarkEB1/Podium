@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 500" width="300" height="500" role="img" aria-label="Athlete photo placeholder" preserveAspectRatio="xMidYMid slice">
+  <title>Athlete photo placeholder</title>
+  <!-- Tokens mirrored from app/globals.css: --muted #ECEFF4, --accent #E5E9F0, --muted-foreground #434C5E -->
+  <defs>
+    <linearGradient id="pa-bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ECEFF4" />
+      <stop offset="100%" stop-color="#E5E9F0" />
+    </linearGradient>
+  </defs>
+  <rect width="300" height="500" fill="url(#pa-bg)" />
+  <g fill="#434C5E" opacity="0.28">
+    <!-- head -->
+    <circle cx="150" cy="205" r="46" />
+    <!-- shoulders / torso -->
+    <path d="M150 262c-52 0-94 34-94 76v32h188v-32c0-42-42-76-94-76Z" />
+  </g>
+</svg>

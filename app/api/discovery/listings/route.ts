@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getOwnProfile } from '@/lib/supabase/profiles'
 import { createListing, getListings } from '@/lib/supabase/discovery'
+import { RATE_LIMITS, consume, tooManyRequests, userKey } from '@/lib/rate-limit'
 
 export async function GET() {
   const supabase = await createClient()
@@ -29,6 +30,11 @@ export async function POST(request: NextRequest) {
       { status: 401 }
     )
   }
+
+  // DH-2: listings are public artefacts — limited per user in its own key
+  // namespace so listing spam cannot also consume the messaging budget.
+  const limited = await consume(userKey('listing_create', user.id), RATE_LIMITS.writeByUser)
+  if (!limited.allowed) return tooManyRequests(limited.retryAfter)
 
   if (user.role !== 'brand') {
     return NextResponse.json(

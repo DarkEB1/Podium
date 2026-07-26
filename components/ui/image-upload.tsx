@@ -91,6 +91,16 @@ function makeDefaultUpload(
       headers: { "content-type": file.type || "application/octet-stream" },
     })
     if (!res.ok) throw new Error("Upload failed. Please try again.")
+
+    // `publicUrl` is null for private buckets. bucketFor() only ever returns
+    // avatars/logos/covers, which are public — but assert rather than cast, so
+    // that routing a private bucket through here fails loudly instead of
+    // silently storing an empty image src.
+    if (!publicUrl) {
+      throw new Error(
+        `The ${bucket} bucket is private; an image surface needs a public bucket or a signed download URL.`
+      )
+    }
     return publicUrl
   }
 }

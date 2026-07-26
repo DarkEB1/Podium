@@ -1,5 +1,17 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { buttonVariants } from '@/components/ui/button'
+
+/**
+ * M-1 — an authenticated route. `robots.ts` already disallows it, but a crawler
+ * that follows a shared link never reads robots.txt, so say it here too.
+ */
+export const metadata: Metadata = {
+  title: 'Access denied · Podium',
+  description: 'You do not have permission to view this page.',
+  robots: { index: false },
+}
+
 
 export default function ForbiddenPage() {
   return (

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database'
+import { db } from '@/lib/supabase/typed-client'
 
 type RepLinkRow = Database['public']['Tables']['representation_links']['Row']
 type ContractRow = Database['public']['Tables']['contracts']['Row']
@@ -27,8 +28,7 @@ export async function getAgentClients(
   agentId: string
 ): Promise<AgentClient[]> {
   // Active representation links are the agent's roster of clients.
-  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
-  const { data, error } = await (supabase as SupabaseClient)
+  const { data, error } = await db(supabase)
     .from('representation_links')
     .select('*')
     .eq('agent_id', agentId)
@@ -49,8 +49,7 @@ export async function getAgentDealPipeline(
   supabase: SupabaseClient<Database>,
   agentId: string
 ): Promise<AgentDeal[]> {
-  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
-  const { data, error } = await (supabase as SupabaseClient)
+  const { data, error } = await db(supabase)
     .from('contracts')
     .select('*')
     .eq('agent_id', agentId)
@@ -73,8 +72,7 @@ export async function applyForVerification(
 ): Promise<AgentProfileRow> {
   // Moves the agent into the 'pending' verification queue; an admin promotes to
   // 'verified'. We never let the caller set 'verified' directly.
-  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
-  const { data, error } = await (supabase as SupabaseClient)
+  const { data, error } = await db(supabase)
     .from('agent_profiles')
     .update({ verification_status: 'pending' })
     .eq('id', agentId)

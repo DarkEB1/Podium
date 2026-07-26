@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NextRequest } from 'next/server'
 
-vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }))
+vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn(), createAdminClient: vi.fn() }))
 vi.mock('@/lib/supabase/auth', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/supabase/auth')>()
   return { ...actual, getUser: vi.fn() }
@@ -10,10 +10,22 @@ vi.mock('@/lib/supabase/deals', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/supabase/deals')>()
   return { ...actual, getProposals: vi.fn(), sendProposal: vi.fn() }
 })
+vi.mock('@/lib/supabase/messaging', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/supabase/messaging')>()
+  return { ...actual, getMatches: vi.fn() }
+})
+vi.mock('@/lib/email', () => ({ sendTransactionalEmail: vi.fn() }))
+vi.mock('@/lib/email/notify', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/email/notify')>()
+  return { ...actual, resolveDisplayNames: vi.fn() }
+})
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getProposals, sendProposal, DealsError } from '@/lib/supabase/deals'
+import { getMatches } from '@/lib/supabase/messaging'
+import { sendTransactionalEmail } from '@/lib/email'
+import { resolveDisplayNames } from '@/lib/email/notify'
 import { GET, POST } from './route'
 
 const fakeUser = { id: 'user-1', email: 'test@example.com', role: 'brand' as const, role_locked_at: '2026-04-19T00:00:00Z' }
@@ -76,7 +88,16 @@ describe('GET /api/deals/proposals', () => {
 
 describe('POST /api/deals/proposals', () => {
   beforeEach(() => {
+    vi.clearAllMocks()
     vi.mocked(createClient).mockResolvedValue({} as unknown as Awaited<ReturnType<typeof createClient>>)
+    vi.mocked(createAdminClient).mockReturnValue({} as unknown as ReturnType<typeof createAdminClient>)
+    vi.mocked(getMatches).mockResolvedValue([])
+    vi.mocked(resolveDisplayNames).mockResolvedValue({ 'user-2': 'Jordan Athlete', 'user-1': 'Acme Co' })
+    vi.mocked(sendTransactionalEmail).mockResolvedValue({
+      status: 'sent',
+      deliveryId: 'd1',
+      providerId: 'p1',
+    })
   })
 
   it('returns 401 when not authenticated', async () => {
@@ -129,5 +150,36 @@ describe('POST /api/deals/proposals', () => {
       'user-1',
       expect.objectContaining({ title: 'Test', pay_amount: 500, pay_type: 'flat_fee' })
     )
+  })
+
+  it('emails the OTHER match participant a proposal_received on success', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(sendProposal).mockResolvedValue(
+      { id: 'p1', match_id: 'm1', title: 'Summer Campaign', sender_id: 'user-1' } as never
+    )
+    vi.mocked(getMatches).mockResolvedValue([
+      { id: 'm1', user_a_id: 'user-1', user_b_id: 'user-2', status: 'active' } as never,
+    ])
+    await POST(makePostRequest({ match_id: 'm1', title: 'Summer Campaign', pay_amount: 5000, pay_type: 'flat_fee' }))
+    expect(sendTransactionalEmail).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        event: 'proposal_received',
+        userId: 'user-2',
+        data: expect.objectContaining({
+          recipientName: 'Jordan Athlete',
+          senderName: 'Acme Co',
+          proposalTitle: 'Summer Campaign',
+        }),
+      })
+    )
+  })
+
+  it('does NOT email when sendProposal fails', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(sendProposal).mockRejectedValue(new DealsError('PROPOSAL_INSERT_FAILED', 'insert failed'))
+    const res = await POST(makePostRequest({ match_id: 'm1', title: 'Test', pay_amount: 500, pay_type: 'flat_fee' }))
+    expect(res.status).toBe(422)
+    expect(sendTransactionalEmail).not.toHaveBeenCalled()
   })
 })

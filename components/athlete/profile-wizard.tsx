@@ -18,6 +18,7 @@ import { CardSelectGroup } from '@/components/ui/card-select'
 import { RequiredKey } from '@/components/ui/required-key'
 import { cn } from '@/lib/utils'
 import { copy } from '@/lib/copy'
+import { track } from '@/lib/analytics'
 import GuardianForm, { type GuardianValues } from './guardian-form'
 import type { Database } from '@/types/database'
 
@@ -749,6 +750,9 @@ function Step6({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
       const res = await fetch('/api/profiles/me/publish', { method: 'POST' })
       const data = await res.json()
       if (!res.ok) { toast.error(data.error?.message ?? 'Failed to publish'); return }
+      // M-6 `profile_published` — the user is now discoverable. Fired after
+      // the publish endpoint confirmed it, role only, no profile fields.
+      track('profile_published', { role: 'athlete' })
       toast.success(copy.toasts.profileLive)
       router.push('/athlete/dashboard')
     } finally {

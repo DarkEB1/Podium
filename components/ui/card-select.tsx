@@ -73,7 +73,7 @@ export function CardSelectGroup({
               className={cn(
                 "pressable group flex flex-col items-start gap-2 rounded-2xl border bg-card p-5 text-left shadow-sm outline-none transition-shadow",
                 "hover:-translate-y-0.5 hover:shadow-lg",
-                "focus-visible:ring-2 focus-visible:ring-ring/50",
+                "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                 selected
                   ? "border-primary bg-primary/5 ring-2 ring-primary/20"
                   : "border-border hover:border-primary/30"

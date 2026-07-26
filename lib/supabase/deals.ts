@@ -26,6 +26,43 @@ export interface ProposalPayload {
   additional_terms?: string | null
 }
 
+/**
+ * Custom SQLSTATEs raised by the SECURITY DEFINER deal functions
+ * (supabase/migrations/20260720001003_deal_transactions.sql), mapped back to
+ * the `DealsError` codes the API routes already branch on.
+ */
+const RPC_ERROR_CODES: Record<string, string> = {
+  PD001: 'UNAUTHENTICATED',
+  PD002: 'PROPOSAL_NOT_FOUND',
+  PD003: 'PROPOSAL_NOT_PENDING',
+  PD004: 'NOT_RECIPIENT',
+  PD005: 'NOT_PARTICIPANT',
+  PD006: 'MATCH_NOT_FOUND',
+  // SEC-1 (20260720005000): an UPDATE tried to change an immutable proposal
+  // column — sender_id, match_id, parent_proposal_id, created_at or any of the
+  // economic terms. Only reachable by a client crafting a raw PostgREST PATCH.
+  PD007: 'PROPOSAL_IMMUTABLE',
+  // SEC-2 (20260720005001): accept_proposal() could not decide which side of
+  // the match is the brand, so it refused rather than write an inverted
+  // contract (which would also invert the payer/payee on every payment).
+  PD008: 'NO_BRAND_PARTICIPANT',
+  PD009: 'AMBIGUOUS_BRAND_PARTICIPANTS',
+  PD010: 'COUNTERPARTY_NOT_ATHLETE_OR_TEAM',
+  // SEC-6 (20260720005003): caller is not the data subject, an admin or the
+  // service role.
+  PD011: 'NOT_AUTHORISED',
+  // SEC-8 (20260720005005): an UPDATE tried to change a match's participants.
+  PD012: 'MATCH_PARTICIPANTS_IMMUTABLE',
+}
+
+function throwRpcError(error: unknown, fallbackCode: string): never {
+  // as { code?: string; message?: string }: PostgrestError is structurally this;
+  // the generic-stripped client returns it as `unknown`.
+  const e = error as { code?: string; message?: string }
+  const mapped = e.code ? RPC_ERROR_CODES[e.code] : undefined
+  throw new DealsError(mapped ?? fallbackCode, e.message ?? 'Unknown database error')
+}
+
 // ---------------------------------------------------------------------------
 // Proposals
 // ---------------------------------------------------------------------------
@@ -85,6 +122,21 @@ export async function getProposals(
   return (data ?? []) as ProposalRow[]
 }
 
+/**
+ * Respond to a proposal.
+ *
+ * ACCEPT is delegated to the `accept_proposal` SECURITY DEFINER function
+ * (SB-8/DI-2): it verifies the caller is a match participant and is not the
+ * proposal's sender, flips the status, and inserts the contract — snapshotting
+ * the economic terms — inside ONE transaction. The old two-step
+ * (update proposal, then admin-client contract insert) could leave an accepted
+ * proposal with no contract if the process died in between.
+ *
+ * DECLINE stays a plain RLS-guarded update; it touches nothing else.
+ *
+ * `adminSupabase` is retained for signature compatibility with existing
+ * callers and is no longer used — the RPC needs no service-role client.
+ */
 export async function respondToProposal(
   supabase: SupabaseClient<Database>,
   adminSupabase: SupabaseClient<Database>,
@@ -92,6 +144,24 @@ export async function respondToProposal(
   responderId: string,
   action: 'accepted' | 'declined'
 ): Promise<ProposalRow> {
+  if (action === 'accepted') {
+    // as SupabaseClient: strips the Database generic — accept_proposal is not in
+    // the generated Functions map, which would otherwise reject the rpc name.
+    const { data, error } = await (supabase as SupabaseClient).rpc('accept_proposal', {
+      p_proposal_id: proposalId,
+    })
+
+    if (error) {
+      throwRpcError(error, 'PROPOSAL_ACCEPT_FAILED')
+    }
+
+    if (!data) {
+      throw new DealsError('PROPOSAL_NOT_FOUND', 'Proposal not found or not accessible')
+    }
+
+    return data as ProposalRow
+  }
+
   // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
   const { data: existing, error: fetchError } = await (supabase as SupabaseClient)
     .from('proposals')
@@ -130,113 +200,50 @@ export async function respondToProposal(
     throw new DealsError('PROPOSAL_UPDATE_FAILED', (updateError as { message: string }).message)
   }
 
-  if (action === 'accepted') {
-    // Fetch only the participant columns needed for contract creation
-    // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
-    const { data: match, error: matchError } = await (supabase as SupabaseClient)
-      .from('matches')
-      .select('user_a_id, user_b_id')
-      .eq('id', proposal.match_id)
-      .single()
-
-    if (matchError) {
-      throw new DealsError('MATCH_NOT_FOUND', 'Match not found when creating contract')
-    }
-
-    const matchRow = match as { user_a_id: string; user_b_id: string }
-
-    // Determine brand vs athlete from match participants; proposal sender is always the brand
-    const brandId = proposal.sender_id
-    const athleteOrTeamId =
-      matchRow.user_a_id === brandId ? matchRow.user_b_id : matchRow.user_a_id
-
-    // Contracts INSERT is service-role only (no client RLS policy) — adminSupabase bypasses RLS
-    // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
-    const { error: contractError } = await (adminSupabase as SupabaseClient)
-      .from('contracts')
-      .insert({
-        proposal_id: proposalId,
-        match_id: proposal.match_id,
-        brand_id: brandId,
-        athlete_or_team_id: athleteOrTeamId,
-      })
-      .select()
-      .single()
-
-    if (contractError) {
-      throw new DealsError(
-        'CONTRACT_CREATE_FAILED',
-        (contractError as { message: string }).message
-      )
-    }
-  }
-
   return updated as ProposalRow
 }
 
+/**
+ * Counter a pending proposal.
+ *
+ * SB-7: marking the parent 'countered' and inserting the counter used to be two
+ * separate round-trips, so a failure between them orphaned the parent in a
+ * 'countered' state with no child. Both statements now run inside the
+ * `counter_proposal` SECURITY DEFINER function, i.e. one transaction.
+ *
+ * `senderId` is no longer sent to the DB (the function uses `auth.uid()`); it is
+ * kept in the signature for call-site compatibility.
+ */
 export async function counterProposal(
   supabase: SupabaseClient<Database>,
   parentProposalId: string,
   senderId: string,
   payload: ProposalPayload
 ): Promise<ProposalRow> {
-  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
-  const { data: existing, error: fetchError } = await (supabase as SupabaseClient)
-    .from('proposals')
-    .select('*')
-    .eq('id', parentProposalId)
-    .single()
+  // as SupabaseClient: strips the Database generic — counter_proposal is not in
+  // the generated Functions map, which would otherwise reject the rpc name.
+  const { data, error } = await (supabase as SupabaseClient).rpc('counter_proposal', {
+    p_parent_proposal_id: parentProposalId,
+    p_title: payload.title,
+    p_pay_amount: payload.pay_amount,
+    p_pay_type: payload.pay_type,
+    p_deliverables: payload.deliverables ?? {},
+    p_pay_currency: payload.pay_currency ?? 'GBP',
+    p_timeline_start: payload.timeline_start ?? null,
+    p_timeline_end: payload.timeline_end ?? null,
+    p_usage_rights: payload.usage_rights ?? null,
+    p_additional_terms: payload.additional_terms ?? null,
+  })
 
-  if (fetchError) {
-    if ((fetchError as { code?: string }).code === 'PGRST116') {
-      throw new DealsError('PROPOSAL_NOT_FOUND', 'Proposal not found or not accessible')
-    }
-    throw new DealsError('PROPOSAL_FETCH_FAILED', (fetchError as { message: string }).message)
+  if (error) {
+    throwRpcError(error, 'COUNTER_INSERT_FAILED')
   }
 
-  const parent = existing as ProposalRow
-
-  if (parent.status !== 'pending') {
-    throw new DealsError('PROPOSAL_NOT_PENDING', 'Proposal is not in pending status')
+  if (!data) {
+    throw new DealsError('PROPOSAL_NOT_FOUND', 'Proposal not found or not accessible')
   }
 
-  if (parent.sender_id === senderId) {
-    throw new DealsError('NOT_RECIPIENT', 'Sender cannot counter their own proposal')
-  }
-
-  const now = new Date().toISOString()
-
-  // Mark parent as countered before inserting the counter-proposal
-  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
-  const { error: updateError } = await (supabase as SupabaseClient)
-    .from('proposals')
-    .update({ status: 'countered', responded_at: now })
-    .eq('id', parentProposalId)
-    .select()
-    .single()
-
-  if (updateError) {
-    throw new DealsError('PROPOSAL_UPDATE_FAILED', (updateError as { message: string }).message)
-  }
-
-  // Insert counter-proposal with reference to the parent
-  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
-  const { data: counter, error: insertError } = await (supabase as SupabaseClient)
-    .from('proposals')
-    .insert({
-      match_id: parent.match_id,
-      sender_id: senderId,
-      parent_proposal_id: parentProposalId,
-      ...payload,
-    })
-    .select()
-    .single()
-
-  if (insertError) {
-    throw new DealsError('COUNTER_INSERT_FAILED', (insertError as { message: string }).message)
-  }
-
-  return counter as ProposalRow
+  return data as ProposalRow
 }
 
 export async function withdrawProposal(

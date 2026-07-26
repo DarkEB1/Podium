@@ -1,8 +1,11 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
-import { Eye, MessageSquare, FileText, UserMinus } from 'lucide-react'
+import { Eye, FileText, UserMinus } from 'lucide-react'
+
+import { isRemoteImageSrc } from '@/components/ui/image-src'
 
 import { Button, buttonVariants } from '@/components/ui/button'
 import { LevelChip } from '@/components/ui/status-badges'
@@ -105,10 +108,15 @@ export default function ClientTable({ clients, onRevoke }: Props) {
               <td className="px-6 py-4">
                 <div className="flex items-center gap-3">
                   {client.photoUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element -- avatar thumbnails are user-uploaded URLs; next/image is reserved for marketplace media
-                    <img
+                    // A-2: explicit 40×40 intrinsic size — the row reserves the
+                    // thumbnail's footprint, and off-screen rows lazy-load.
+                    <Image
                       src={client.photoUrl}
                       alt={client.name}
+                      width={40}
+                      height={40}
+                      loading="lazy"
+                      unoptimized={isRemoteImageSrc(client.photoUrl)}
                       className="size-10 shrink-0 rounded-full object-cover"
                     />
                   ) : (
@@ -139,13 +147,9 @@ export default function ClientTable({ clients, onRevoke }: Props) {
                     <Eye aria-hidden="true" />
                     View Profile
                   </Link>
-                  <Link
-                    href={`/agent/messages?client=${client.clientUserId}`}
-                    className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }))}
-                  >
-                    <MessageSquare aria-hidden="true" />
-                    Message
-                  </Link>
+                  {/* B-4: /agent/messages does not exist — this link 404'd.
+                      Agents have no messaging surface yet; restore this button
+                      when one ships rather than pointing at a dead route. */}
                   <Link
                     href={`/agent/dashboard?client=${client.clientUserId}#pipeline`}
                     className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }))}

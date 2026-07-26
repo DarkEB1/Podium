@@ -24,6 +24,14 @@ export type ComboboxProps = {
   className?: string | undefined
   id?: string | undefined
   "aria-label"?: string | undefined
+  /**
+   * PR-17 — controlled popup state. Pass `open`/`onOpenChange` (e.g. from
+   * `useFilterDisclosure`) so a parent can enforce one-filter-open-at-a-time.
+   * Leave both undefined for the uncontrolled default.
+   */
+  open?: boolean | undefined
+  onOpenChange?: ((open: boolean) => void) | undefined
+  defaultOpen?: boolean | undefined
 }
 
 /** Sentinel prefixed to a free-text value so we can recognise create entries. */
@@ -39,6 +47,9 @@ export function Combobox({
   className,
   id,
   "aria-label": ariaLabel,
+  open,
+  onOpenChange,
+  defaultOpen,
 }: ComboboxProps) {
   const [query, setQuery] = React.useState("")
 
@@ -97,6 +108,11 @@ export function Combobox({
       onInputValueChange={setQuery}
       // When allowCreate filters locally, disable internal filtering.
       filter={allowCreate ? null : undefined}
+      // PR-17 — only pass the controlled props when the caller supplied them,
+      // otherwise Base UI would treat `open={undefined}` as controlled-and-closed.
+      {...(open !== undefined ? { open } : {})}
+      {...(onOpenChange !== undefined ? { onOpenChange } : {})}
+      {...(defaultOpen !== undefined ? { defaultOpen } : {})}
     >
       <div className={cn("relative", className)}>
         <ComboboxPrimitive.Input
@@ -106,9 +122,9 @@ export function Combobox({
           readOnly={!searchable}
           data-slot="combobox-input"
           className={cn(
-            "flex h-10 w-full items-center rounded-xl border border-border bg-card py-2 pr-9 pl-3.5 text-medium shadow-sm transition-[color,box-shadow,border-color] outline-none",
+            "flex h-10 w-full min-w-0 items-center rounded-xl border border-input bg-card py-2 pr-9 pl-3.5 text-medium shadow-sm transition-[color,box-shadow,border-color] outline-none",
             "placeholder:text-muted-foreground",
-            "hover:border-foreground/20 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/40",
+            "hover:border-foreground/40 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
             "disabled:cursor-not-allowed disabled:opacity-50",
             !searchable && "cursor-pointer"
           )}
@@ -122,7 +138,7 @@ export function Combobox({
       </div>
 
       <ComboboxPrimitive.Portal>
-        <ComboboxPrimitive.Positioner sideOffset={4} className="isolate z-50">
+        <ComboboxPrimitive.Positioner sideOffset={4} className="isolate z-[100]">
           <ComboboxPrimitive.Popup
             data-slot="combobox-content"
             className={cn(
@@ -140,7 +156,7 @@ export function Combobox({
                   value={item}
                   className={cn(
                     "relative flex w-full cursor-default items-center gap-2 rounded-lg py-2 pr-8 pl-2.5 text-medium outline-none select-none",
-                    "data-highlighted:bg-accent/15 data-highlighted:text-foreground"
+                    "data-highlighted:bg-accent data-highlighted:text-accent-foreground data-highlighted:ring-2 data-highlighted:ring-inset data-highlighted:ring-ring"
                   )}
                 >
                   {item.icon}

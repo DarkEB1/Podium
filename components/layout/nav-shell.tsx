@@ -2,103 +2,49 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import {
-  Compass,
-  Handshake,
-  LayoutList,
-  MessageSquare,
-  User,
-  Users,
-  type LucideIcon,
-} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { buttonVariants } from '@/components/ui/button'
+import SignOutButton from '@/components/auth/sign-out-button'
+import { ROUTES } from '@/lib/routes'
+import {
+  bottomNavForRole,
+  buildBreadcrumbs,
+  ctaForRole,
+  isActiveHref,
+  navItemsForRole,
+  type NavRole,
+} from '@/lib/nav/config'
 import NotificationBell from './notification-bell'
 import ThemeToggle from './theme-toggle'
 
-type Role = 'athlete' | 'brand' | 'team' | 'agent'
-
 interface NavShellProps {
-  role: Role
+  role: NavRole
   children: React.ReactNode
 }
 
-interface NavItem {
-  label: string
-  href: string
-  icon: LucideIcon
-}
-
-interface RoleCta {
-  label: string
-  href: string
-}
-
-// Exactly four top-level items per role (spec §2.5). GL3 may refine wording;
-// the shape (4 items + role CTA + bottom nav + breadcrumbs) is fixed here.
-const NAV_ITEMS: Record<Role, NavItem[]> = {
-  athlete: [
-    { label: 'Discover', href: '/athlete/discover', icon: Compass },
-    { label: 'Messages', href: '/athlete/messages', icon: MessageSquare },
-    { label: 'Deals', href: '/athlete/deals', icon: Handshake },
-    { label: 'Profile', href: '/athlete/settings', icon: User },
-  ],
-  brand: [
-    { label: 'Discover', href: '/brand/discover', icon: Compass },
-    { label: 'Listings', href: '/brand/listings', icon: LayoutList },
-    { label: 'Deals', href: '/brand/deals', icon: Handshake },
-    { label: 'Messages', href: '/brand/messages', icon: MessageSquare },
-  ],
-  team: [
-    { label: 'Discover', href: '/team/discover', icon: Compass },
-    { label: 'Dashboard', href: '/team/dashboard', icon: LayoutList },
-    { label: 'Messages', href: '/team/messages', icon: MessageSquare },
-    { label: 'Settings', href: '/team/settings', icon: User },
-  ],
-  agent: [
-    { label: 'Dashboard', href: '/agent/dashboard', icon: Compass },
-    { label: 'Clients', href: '/agent/dashboard', icon: Users },
-    { label: 'Messages', href: '/agent/messages', icon: MessageSquare },
-    { label: 'Profile', href: '/agent/profile', icon: User },
-  ],
-}
-
-// Persistent, role-appropriate primary action shown top-right (and last in
-// the mobile bottom nav slot is the CTA-equivalent destination).
-const ROLE_CTA: Record<Role, RoleCta> = {
-  athlete: { label: 'Edit Profile', href: '/athlete/settings' },
-  brand: { label: 'Post a Listing', href: '/brand/listings/new' },
-  team: { label: 'Settings', href: '/team/settings' },
-  agent: { label: 'Profile', href: '/agent/profile' },
-}
-
-function isActiveHref(pathname: string, href: string): boolean {
-  return pathname === href || pathname.startsWith(`${href}/`)
-}
-
-function humanise(segment: string): string {
-  return segment
-    .replace(/-/g, ' ')
-    .replace(/\b\w/g, (c) => c.toUpperCase())
-}
-
+/**
+ * NavShell — the signed-in application shell for all four roles.
+ *
+ * Navigation data comes from `lib/nav/config.ts` (which sources every href
+ * from `lib/routes.ts`); the shell never declares its own hrefs, so a nav item
+ * cannot drift out of sync with the routes that actually exist (B-4).
+ */
 export default function NavShell({ role, children }: NavShellProps) {
   const pathname = usePathname()
-  const items = NAV_ITEMS[role]
-  const cta = ROLE_CTA[role]
+  const items = navItemsForRole(role)
+  const bottomItems = bottomNavForRole(role)
+  const cta = ctaForRole(role)
+  const crumbs = buildBreadcrumbs(pathname)
 
-  const segments = pathname.split('/').filter(Boolean)
-  const crumbs = segments.map((segment, i) => ({
-    label: humanise(segment),
-    href: `/${segments.slice(0, i + 1).join('/')}`,
-  }))
+  // The first nav item doubles as the role's home destination for the wordmark.
+  const home = items[0]?.href ?? ROUTES.home
 
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-6 md:px-16">
           <Link
-            href={`/${role}/discover`}
+            href={home}
             className="mr-6 font-heading text-xl font-extrabold tracking-tight text-foreground"
           >
             Podium
@@ -133,6 +79,8 @@ export default function NavShell({ role, children }: NavShellProps) {
             >
               {cta.label}
             </Link>
+            {/* PR-15: sign out is reachable from every page, for every role. */}
+            <SignOutButton labelHiddenOnMobile />
           </div>
         </div>
         {crumbs.length > 0 && (
@@ -170,7 +118,7 @@ export default function NavShell({ role, children }: NavShellProps) {
         aria-label="Bottom navigation"
         className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-border bg-background/95 backdrop-blur md:hidden"
       >
-        {items.map((item) => {
+        {bottomItems.map((item) => {
           const active = isActiveHref(pathname, item.href)
           const Icon = item.icon
           return (

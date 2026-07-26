@@ -1,0 +1,140 @@
+name: CI
+
+# DH-1 / A-3 / SEC-3 / DX-4 — before this workflow existed there was no
+# .github/ directory at all: the full test suite, the type-checker, the linter,
+# the production build and the dependency audit only ever ran when a human
+# remembered to run them.
+#
+# Every step below is a GATE. Nothing uses continue-on-error: a red job must
+# mean "do not merge", or the workflow is decoration.
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+# A new push supersedes an in-flight run for the same ref.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Next.js and Supabase clients read these at build time. They are throwaway
+  # values for a build that never contacts a real service — no secret is
+  # required to run CI, so forks and Dependabot PRs work too.
+  NEXT_PUBLIC_SUPABASE_URL: https://ci.supabase.co
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-anon-key
+  NEXT_PUBLIC_APP_URL: http://localhost:3000
+  NEXT_TELEMETRY_DISABLED: '1'
+
+jobs:
+  verify:
+    name: Type-check, lint, test, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4 # v4.2.2
+
+      - name: Set up Node
+        uses: actions/setup-node@v4 # v4.1.0
+        with:
+          node-version: 20
+          cache: npm
+
+      # `npm ci` (not `npm install`) so the lockfile is authoritative and a
+      # drifted package.json fails here rather than in production.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npm run type-check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit and integration tests
+        run: npm run test
+
+      - name: Production build
+        run: npx next build
+
+  audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4 # v4.2.2
+
+      - name: Set up Node
+        uses: actions/setup-node@v4 # v4.1.0
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Threshold rationale: the tree today has 0 critical and 0 high, and 2
+      # moderate advisories reached transitively through `next` that we cannot
+      # fix without an upstream release. `--audit-level=high` therefore passes
+      # on the current tree while failing the moment a new high or critical
+      # advisory lands — a gate that is green today and meaningful tomorrow.
+      # Raise the moderates to this gate once `next` ships the fix.
+      - name: npm audit (fails on high or critical)
+        run: npm audit --audit-level=high
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4 # v4.2.2
+        with:
+          # Full history so a secret committed earlier and later "removed" is
+          # still caught — git never forgets, and neither should the scanner.
+          fetch-depth: 0
+
+      # SEC-3. Zero third-party actions by design: gitleaks would need either a
+      # marketplace action (supply-chain surface in a job with repo contents) or
+      # a licence key for org repos. The pinned release binary gives the same
+      # detection with a checksum-able artefact and no action trust.
+      - name: Install gitleaks
+        run: |
+          set -euo pipefail
+          VERSION=8.21.2
+          curl -sSfL -o gitleaks.tar.gz \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${VERSION}/gitleaks_${VERSION}_linux_x64.tar.gz"
+          tar -xzf gitleaks.tar.gz gitleaks
+          chmod +x gitleaks
+
+      - name: Scan history for committed secrets
+        run: ./gitleaks detect --source . --redact --no-banner --exit-code 1
+
+      # Belt and braces, and the fallback if the download above ever breaks:
+      # a grep for the exact credential shapes this project uses. `.env.local`
+      # is gitignored; this catches the day someone force-adds it.
+      - name: Grep for project-specific credential shapes
+        run: |
+          set -euo pipefail
+          PATTERNS='(sk_live_[0-9a-zA-Z]{16,}|rk_live_[0-9a-zA-Z]{16,}|whsec_[0-9a-zA-Z]{16,}|SUPABASE_SERVICE_ROLE_KEY[[:space:]]*=[[:space:]]*[^[:space:]#]|eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9)'
+          if git grep -nIE "$PATTERNS" -- \
+              ':!*.test.ts' ':!*.test.tsx' ':!.env.local.example' ':!.github/workflows/ci.yml'; then
+            echo "::error::A credential-shaped string is committed to the repository. Rotate it, then remove it from history."
+            exit 1
+          fi
+          echo "No credential-shaped strings found."
+
+      - name: Assert .env.local is not tracked
+        run: |
+          set -euo pipefail
+          if git ls-files --error-unmatch .env.local >/dev/null 2>&1; then
+            echo "::error::.env.local is tracked by git. It must stay ignored."
+            exit 1
+          fi
+          echo ".env.local is not tracked."

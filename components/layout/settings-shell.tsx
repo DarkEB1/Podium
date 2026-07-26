@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
+import SignOutButton from '@/components/auth/sign-out-button'
 
 interface SettingsShellProps {
   sections: { id: string; label: string }[]
@@ -59,6 +60,10 @@ export default function SettingsShell({
             )
           })}
           </ul>
+          {/* PR-15: sign out is reachable from every role's settings page. */}
+          <div className="mt-6 border-t border-border pt-6 md:mt-8 md:pt-8">
+            <SignOutButton variant="outline" className="w-full justify-center" />
+          </div>
         </nav>
         <div className="min-w-0">{children}</div>
       </div>

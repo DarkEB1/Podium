@@ -1,30 +1,39 @@
 'use client'
 
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Search, SlidersHorizontal } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 import { CardSkeleton } from '@/components/ui/card-skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
+import { FilterGroup, useFilterDisclosure } from '@/components/ui/filter-group'
 import ListingCard from './listing-card'
-import type { Database } from '@/types/database'
+import type { ListingSummary } from '@/lib/supabase/discovery'
 
-type JobListingRow = Database['public']['Tables']['job_listings']['Row']
+// PR-19: the grid passes listings straight to ListingCard, which needs the
+// brand's *user* id to address a connection request. See ListingSummary.
+type GridListing = ListingSummary
 
 interface Props {
-  listings: JobListingRow[]
+  listings: GridListing[]
   /** While true the grid shows skeleton placeholders instead of results (spec §3D.1: skeleton, not spinner). */
   loading?: boolean
+  /** Rendered under the grid — the "Load more" affordance for the paginated feed (FA-5). */
+  footer?: React.ReactNode
 }
 
-type FacetKey = 'sport' | 'budget' | 'location' | 'industry' | 'verified'
+// PR-1: `verified` used to be a facet here. It was a hardcoded `return true` —
+// a control that filtered nothing. There is no verification column on
+// `brand_profiles` (only `status`, an admin-approval state), so rather than
+// dress approval up as verification the facet is gone until the column exists.
+type FacetKey = 'sport' | 'budget' | 'location' | 'industry'
 
 const FACETS: { key: FacetKey; label: string }[] = [
   { key: 'sport', label: 'Sport' },
   { key: 'budget', label: 'Budget' },
   { key: 'location', label: 'Location' },
   { key: 'industry', label: 'Industry' },
-  { key: 'verified', label: 'Verified' },
 ]
 
 const BUDGET_BANDS: { value: string; label: string; min: number; max: number }[] = [
@@ -49,29 +58,168 @@ function uniqueSorted(values: (string | null | undefined)[]): string[] {
   )
 }
 
-/** Lightweight chip dropdown: a toggle button plus a listbox of selectable options. */
+const DAY_MS = 24 * 60 * 60 * 1000
+
+/**
+ * PR-1 (partial) — a real, documented relevance score.
+ *
+ * "Relevance" was the default sort and did nothing: the sort block only handled
+ * pay and recency, so picking the default left the rows in whatever order the
+ * database returned them. Full preference-based ranking is a Phase-4 epic; this
+ * is the honest interim heuristic over the data a listing actually carries:
+ *
+ * - recency  — `1 / (1 + ageDays / 30)`, so a listing posted today scores 1 and
+ *   one from ~a month ago scores 0.5. Freshness decays, it does not cliff.
+ * - pay      — `pay_amount / maxPay` across the current result set, weight 0.5.
+ *   Relative, so one huge listing cannot flatten the rest to zero.
+ * - query    — only when the user has typed something: +1.5 if the term is in
+ *   the title, +0.75 if it is in the sport. Text the user asked for outranks
+ *   both other signals, which is what "relevance" means to them.
+ *
+ * Ties break on `created_at` descending so the order is stable between renders.
+ */
+export function relevanceScore(
+  listing: GridListing,
+  opts: { query: string; maxPay: number; now: number }
+): number {
+  const ageDays = Math.max(0, (opts.now - new Date(listing.created_at).getTime()) / DAY_MS)
+  const recency = 1 / (1 + ageDays / 30)
+
+  const pay = opts.maxPay > 0 ? (listing.pay_amount ?? 0) / opts.maxPay : 0
+
+  let queryBoost = 0
+  if (opts.query) {
+    if (listing.title.toLowerCase().includes(opts.query)) queryBoost += 1.5
+    if ((listing.sport_required ?? '').toLowerCase().includes(opts.query)) queryBoost += 0.75
+  }
+
+  return recency + pay * 0.5 + queryBoost
+}
+
+/**
+ * A chip that opens a listbox.
+ *
+ * PR-17: the popup used to be an `absolute z-30` child of a `sticky z-20`
+ * toolbar, so it painted *behind* the results grid, and each chip owned its own
+ * `useState`, so opening a second filter left the first hanging open. It is now
+ * portalled to `document.body` at `z-[100]` (no ancestor stacking context can
+ * trap it) and its open state is owned by the surrounding FilterGroup, which
+ * allows exactly one open filter at a time.
+ */
 function FilterChip({
+  id,
   label,
   value,
   options,
   onChange,
 }: {
+  id: string
   label: string
   value: string | null
   options: { value: string; label: string }[]
   onChange: (v: string | null) => void
 }) {
-  const [open, setOpen] = useState(false)
+  const { open = false, onOpenChange } = useFilterDisclosure(id)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const popupRef = useRef<HTMLUListElement>(null)
+  const [rect, setRect] = useState<{ top: number; left: number; width: number } | null>(null)
   const selected = options.find((o) => o.value === value)
   const active = Boolean(value)
 
+  // Position the portalled popup under its trigger. useLayoutEffect so it is
+  // placed before paint and never flashes at the top-left of the document.
+  useLayoutEffect(() => {
+    if (!open) return
+    const el = triggerRef.current
+    if (!el?.getBoundingClientRect) return
+    const r = el.getBoundingClientRect()
+    setRect({ top: r.bottom + 4, left: r.left, width: Math.max(r.width, 224) })
+  }, [open])
+
+  // Dismiss on outside pointerdown / Escape. Deliberately NOT a full-screen
+  // overlay: an overlay would swallow the click that opens the *next* chip, so
+  // switching filters would cost two clicks.
+  useEffect(() => {
+    if (!open) return
+    function onPointerDown(e: PointerEvent | MouseEvent) {
+      const target = e.target as Node | null
+      if (!target) return
+      if (popupRef.current?.contains(target) || triggerRef.current?.contains(target)) return
+      onOpenChange?.(false)
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        onOpenChange?.(false)
+        triggerRef.current?.focus()
+      }
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('mousedown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('mousedown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [open, onOpenChange])
+
+  function close() {
+    onOpenChange?.(false)
+  }
+
+  const popup = (
+    <ul
+      ref={popupRef}
+      role="listbox"
+      aria-label={label}
+      data-testid={`filter-popup-${id}`}
+      style={rect ? { top: rect.top, left: rect.left, minWidth: rect.width } : undefined}
+      className="fixed z-[100] max-h-64 w-56 overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-card"
+    >
+        <li>
+          <button
+            type="button"
+            role="option"
+            aria-selected={!value}
+            onClick={() => {
+              onChange(null)
+              close()
+            }}
+            className="w-full rounded-md px-2 py-1.5 text-left text-medium text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Any {label.toLowerCase()}
+          </button>
+        </li>
+        {options.map((o) => (
+          <li key={o.value}>
+            <button
+              type="button"
+              role="option"
+              aria-selected={value === o.value}
+              onClick={() => {
+                onChange(o.value)
+                close()
+              }}
+              className={cn(
+                'w-full rounded-md px-2 py-1.5 text-left text-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                value === o.value ? 'font-medium text-foreground' : 'text-foreground'
+              )}
+            >
+              {o.label}
+            </button>
+          </li>
+        ))}
+    </ul>
+  )
+
   return (
-    <div className="relative shrink-0">
+    <div className="shrink-0">
       <button
+        ref={triggerRef}
         type="button"
         aria-haspopup="listbox"
         aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => onOpenChange?.(!open)}
         className={cn(
           'inline-flex items-center gap-1 rounded-full border px-4 py-1.5 text-medium transition-colors',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
@@ -83,62 +231,20 @@ function FilterChip({
         {selected ? `${label}: ${selected.label}` : label}
       </button>
 
-      {open && (
-        <ul
-          role="listbox"
-          aria-label={label}
-          className="absolute left-0 top-full z-30 mt-1 max-h-64 w-56 overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-card"
-        >
-          <li>
-            <button
-              type="button"
-              role="option"
-              aria-selected={!value}
-              onClick={() => {
-                onChange(null)
-                setOpen(false)
-              }}
-              className="w-full rounded-md px-2 py-1.5 text-left text-medium text-muted-foreground hover:bg-muted"
-            >
-              Any {label.toLowerCase()}
-            </button>
-          </li>
-          {options.map((o) => (
-            <li key={o.value}>
-              <button
-                type="button"
-                role="option"
-                aria-selected={value === o.value}
-                onClick={() => {
-                  onChange(o.value)
-                  setOpen(false)
-                }}
-                className={cn(
-                  'w-full rounded-md px-2 py-1.5 text-left text-medium hover:bg-muted',
-                  value === o.value ? 'font-medium text-foreground' : 'text-foreground'
-                )}
-              >
-                {o.label}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      {open && typeof document !== 'undefined' ? createPortal(popup, document.body) : null}
     </div>
   )
 }
 
-export default function ListingsGrid({ listings, loading = false }: Props) {
+export default function ListingsGrid({ listings, loading = false, footer }: Props) {
   const [search, setSearch] = useState('')
   const [filters, setFilters] = useState<Record<FacetKey, string | null>>({
     sport: null,
     budget: null,
     location: null,
     industry: null,
-    verified: null,
   })
   const [sort, setSort] = useState<SortKey>('relevance')
-  const liveRef = useRef<HTMLParagraphElement>(null)
 
   const sportOptions = useMemo(
     () => uniqueSorted(listings.map((l) => l.sport_required)).map((s) => ({ value: s, label: s })),
@@ -162,7 +268,6 @@ export default function ListingsGrid({ listings, loading = false }: Props) {
     budget: BUDGET_BANDS.map((b) => ({ value: b.value, label: b.label })),
     location: locationOptions,
     industry: industryOptions,
-    verified: [{ value: 'verified', label: 'Verified brands only' }],
   }
 
   const filtered = useMemo(() => {
@@ -185,15 +290,22 @@ export default function ListingsGrid({ listings, loading = false }: Props) {
         const pay = l.pay_amount ?? 0
         if (pay < band.min || pay > band.max) return false
       }
-      // "verified" is a placeholder facet until brand verification lands in the feed query.
       return true
     })
 
     const sorted = [...result]
     if (sort === 'pay_desc') sorted.sort((a, b) => (b.pay_amount ?? 0) - (a.pay_amount ?? 0))
     else if (sort === 'pay_asc') sorted.sort((a, b) => (a.pay_amount ?? 0) - (b.pay_amount ?? 0))
-    else if (sort === 'newest')
-      sorted.sort((a, b) => b.created_at.localeCompare(a.created_at))
+    else if (sort === 'newest') sorted.sort((a, b) => b.created_at.localeCompare(a.created_at))
+    else {
+      const maxPay = result.reduce((m, l) => Math.max(m, l.pay_amount ?? 0), 0)
+      const now = Date.now()
+      sorted.sort((a, b) => {
+        const diff =
+          relevanceScore(b, { query: q, maxPay, now }) - relevanceScore(a, { query: q, maxPay, now })
+        return diff !== 0 ? diff : b.created_at.localeCompare(a.created_at)
+      })
+    }
     return sorted
   }, [listings, search, filters, sort])
 
@@ -242,25 +354,21 @@ export default function ListingsGrid({ listings, loading = false }: Props) {
           </div>
         </div>
 
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        <FilterGroup className="flex-nowrap overflow-x-auto pb-1">
           {FACETS.map((f) => (
             <FilterChip
               key={f.key}
+              id={f.key}
               label={f.label}
               value={filters[f.key]}
               options={facetOptions[f.key]}
               onChange={(v) => setFilters((prev) => ({ ...prev, [f.key]: v }))}
             />
           ))}
-        </div>
+        </FilterGroup>
       </div>
 
-      <p
-        ref={liveRef}
-        data-testid="results-count"
-        aria-live="polite"
-        className="text-small text-muted-foreground"
-      >
+      <p data-testid="results-count" aria-live="polite" className="text-small text-muted-foreground">
         {filtered.length} {filtered.length === 1 ? 'result' : 'results'}
       </p>
 
@@ -286,6 +394,8 @@ export default function ListingsGrid({ listings, loading = false }: Props) {
           ))}
         </div>
       )}
+
+      {footer}
     </div>
   )
 }

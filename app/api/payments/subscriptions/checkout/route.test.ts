@@ -8,7 +8,7 @@ vi.mock('@/lib/supabase/auth', async (importOriginal) => {
 })
 vi.mock('@/lib/supabase/payments', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/supabase/payments')>()
-  return { ...actual, getSubscriptionForUser: vi.fn() }
+  return { ...actual, getSubscriptionForUser: vi.fn(), getBrandProfileIdForUser: vi.fn() }
 })
 vi.mock('@/lib/stripe', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/stripe')>()
@@ -17,9 +17,12 @@ vi.mock('@/lib/stripe', async (importOriginal) => {
 
 import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
-import { getSubscriptionForUser } from '@/lib/supabase/payments'
+import { getSubscriptionForUser, getBrandProfileIdForUser } from '@/lib/supabase/payments'
 import { createCheckoutSession } from '@/lib/stripe'
+import { resetEnvCache } from '@/lib/env'
 import { POST } from './route'
+
+const BRAND_PROFILE_ID = '11111111-1111-4111-8111-111111111111'
 
 const brandUser = { id: 'user-brand', email: 'brand@test.com', role: 'brand' as const, role_locked_at: '2026-04-01T00:00:00Z' }
 const athleteUser = { id: 'user-athlete', email: 'athlete@test.com', role: 'athlete' as const, role_locked_at: '2026-04-01T00:00:00Z' }
@@ -34,8 +37,13 @@ function makePostRequest(body?: Record<string, unknown>) {
 
 describe('POST /api/payments/subscriptions/checkout', () => {
   beforeEach(() => {
+    vi.clearAllMocks()
     vi.mocked(createClient).mockResolvedValue({} as never)
+    vi.mocked(getBrandProfileIdForUser).mockResolvedValue(BRAND_PROFILE_ID)
     process.env['NEXT_PUBLIC_APP_URL'] = 'https://app.test'
+    process.env['NEXT_PUBLIC_SUPABASE_URL'] = 'https://test.supabase.co'
+    process.env['NEXT_PUBLIC_SUPABASE_ANON_KEY'] = 'anon-key'
+    resetEnvCache()
   })
 
   it('returns 401 when not authenticated', async () => {
@@ -85,5 +93,30 @@ describe('POST /api/payments/subscriptions/checkout', () => {
     expect(vi.mocked(createCheckoutSession)).toHaveBeenCalledWith(
       expect.objectContaining({ customerId: 'cus_existing', tier: 2 })
     )
+  })
+
+  // B-2: subscriptions.brand_id references brand_profiles.id, so the checkout
+  // session must carry brand_profiles.id — not the auth user id.
+  it('passes brand_profiles.id as brandProfileId and the auth user id as userId', async () => {
+    vi.mocked(getUser).mockResolvedValue(brandUser as never)
+    vi.mocked(getSubscriptionForUser).mockResolvedValue(null)
+    vi.mocked(createCheckoutSession).mockResolvedValue({ url: 'https://checkout.stripe.com/cs_abc', sessionId: 'cs_abc' })
+
+    await POST(makePostRequest({ tier: 1 }))
+
+    expect(vi.mocked(createCheckoutSession)).toHaveBeenCalledWith(
+      expect.objectContaining({ brandProfileId: BRAND_PROFILE_ID, userId: 'user-brand' })
+    )
+  })
+
+  it('returns 404 when the brand has no brand profile to attach the subscription to', async () => {
+    vi.mocked(getUser).mockResolvedValue(brandUser as never)
+    vi.mocked(getBrandProfileIdForUser).mockResolvedValue(null)
+
+    const res = await POST(makePostRequest({ tier: 1 }))
+
+    expect(res.status).toBe(404)
+    expect((await res.json()).error.code).toBe('NO_BRAND_PROFILE')
+    expect(vi.mocked(createCheckoutSession)).not.toHaveBeenCalled()
   })
 })
