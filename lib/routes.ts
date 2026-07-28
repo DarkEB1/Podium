@@ -123,9 +123,13 @@ export const ROUTES = {
   team: {
     dashboard: '/team/dashboard',
     discover: '/team/discover',
-    // NOTE: teams have no messaging surface yet — there is no /team/messages
-    // page or chat route. Add them here once those pages exist; until then the
-    // team nav deliberately does not offer a Messages destination (B-4).
+    // 2.1 — teams can now message brands and complete deals. These mirror the
+    // athlete surfaces and reuse the same role-agnostic lib functions.
+    requests: '/team/requests',
+    messages: '/team/messages',
+    message: (matchId: string) => `/team/messages/${matchId}`,
+    deals: '/team/deals',
+    deal: (proposalId: string) => `/team/deals/${proposalId}`,
     profile: '/team/profile',
     settings: '/team/settings',
     onboarding: '/team/onboarding',

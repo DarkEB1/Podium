@@ -7,6 +7,7 @@ import {
   counterProposal,
   withdrawProposal,
   getContract,
+  getProposalById,
   signContract,
   DealsError,
 } from './deals'
@@ -784,6 +785,33 @@ describe('signContract', () => {
 
     const result = await signContract(auth.client, admin.client, 'c1', 'athlete1')
     expect(result.athlete_signed_at).toBeTruthy()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// getProposalById
+// ---------------------------------------------------------------------------
+
+describe('getProposalById', () => {
+  it('returns the proposal when found', async () => {
+    const mock = makeMockClient()
+    mock.queueSingle(fakeProposal)
+    const result = await getProposalById(mock.client, 'p1')
+    expect(result).toEqual(fakeProposal)
+  })
+
+  it('returns null when the proposal does not exist (PGRST116)', async () => {
+    const mock = makeMockClient()
+    mock.queueSingle(null, { code: 'PGRST116', message: 'no rows' })
+    expect(await getProposalById(mock.client, 'nope')).toBeNull()
+  })
+
+  it('throws PROPOSAL_FETCH_FAILED on a real DB error', async () => {
+    const mock = makeMockClient()
+    mock.queueSingle(null, { message: 'db down' })
+    await expect(getProposalById(mock.client, 'p1')).rejects.toMatchObject({
+      code: 'PROPOSAL_FETCH_FAILED',
+    })
   })
 })
 

@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   Inbox,
   MessageSquare,
+  Handshake,
   Settings,
   User,
   Users,
@@ -82,10 +83,14 @@ const NAV_ITEMS: Record<NavRole, readonly NavItem[]> = {
     { label: 'Profile', href: ROUTES.brand.profile, icon: User },
   ],
   team: [
+    // 2.1: teams can now transact, so the nav mirrors the athlete core loop.
+    // Discover -> Messages -> Deals is the negotiate-and-sign path. Settings is
+    // reached from the persistent "Edit Profile" CTA, so it gives up its slot;
+    // the four-item cap is the mobile bottom bar.
     { label: 'Discover', href: ROUTES.team.discover, icon: Compass },
-    { label: 'Dashboard', href: ROUTES.team.dashboard, icon: LayoutDashboard },
+    { label: 'Messages', href: ROUTES.team.messages, icon: MessageSquare },
+    { label: 'Deals', href: ROUTES.team.deals, icon: Handshake },
     { label: 'Profile', href: ROUTES.team.profile, icon: User },
-    { label: 'Settings', href: ROUTES.team.settings, icon: Settings },
   ],
   agent: [
     { label: 'Dashboard', href: ROUTES.agent.dashboard, icon: LayoutDashboard },

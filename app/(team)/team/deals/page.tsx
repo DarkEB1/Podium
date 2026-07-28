@@ -1,0 +1,52 @@
+import { redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server'
+import { getUser } from '@/lib/supabase/auth'
+import { getProposalsForUser } from '@/lib/supabase/deals'
+import ProposalCard from '@/components/deals/proposal-card'
+import { ROUTES } from '@/lib/routes'
+
+export const metadata = {
+  title: 'Deals · Podium',
+  description: 'Proposals and contracts from brands.',
+  robots: { index: false },
+}
+
+export default async function TeamDealsPage() {
+  const supabase = await createClient()
+  const user = await getUser(supabase)
+  if (!user) redirect(ROUTES.auth.signIn)
+
+  const proposals = await getProposalsForUser(supabase, user.id)
+  const received = proposals.filter((p) => p.sender_id !== user.id)
+  const pending = received.filter((p) => p.status === 'pending')
+  const history = received.filter((p) => p.status !== 'pending')
+
+  return (
+    <div className="mx-auto max-w-3xl px-4 py-8 space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold">Deals</h1>
+        <p className="text-muted-foreground">Proposals and contracts from brands</p>
+      </div>
+
+      <section className="space-y-3">
+        <h2 className="text-base font-semibold">Pending ({pending.length})</h2>
+        {pending.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No pending proposals.</p>
+        ) : (
+          pending.map((p) => (
+            <ProposalCard key={p.id} proposal={p} href={ROUTES.team.deal(p.id)} />
+          ))
+        )}
+      </section>
+
+      {history.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-base font-semibold">History</h2>
+          {history.map((p) => (
+            <ProposalCard key={p.id} proposal={p} href={ROUTES.team.deal(p.id)} />
+          ))}
+        </section>
+      )}
+    </div>
+  )
+}

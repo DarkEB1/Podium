@@ -398,3 +398,28 @@ export async function getContract(
 
   return data as ContractRow
 }
+
+/**
+ * A single proposal by id, or null if it is not found or not visible to the
+ * caller under RLS. Used by the deal detail pages so they never issue a raw
+ * Supabase query outside lib/supabase/ (the athlete page's original inline
+ * select predated this helper).
+ */
+export async function getProposalById(
+  supabase: SupabaseClient<Database>,
+  proposalId: string
+): Promise<ProposalRow | null> {
+  // as SupabaseClient: strips the Database generic to avoid deep chain inference
+  const { data, error } = await (supabase as SupabaseClient)
+    .from('proposals')
+    .select('*')
+    .eq('id', proposalId)
+    .single()
+
+  if (error) {
+    if ((error as { code?: string }).code === 'PGRST116') return null
+    throw new DealsError('PROPOSAL_FETCH_FAILED', (error as { message: string }).message)
+  }
+
+  return data as ProposalRow
+}
