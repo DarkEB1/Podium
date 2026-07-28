@@ -1,0 +1,32 @@
+# Gitleaks configuration for Podium.
+#
+# The Secret scan job in .github/workflows/ci.yml runs
+#   ./gitleaks detect --source . --redact --no-banner --exit-code 1
+# over the full git history. gitleaks reads this file automatically.
+#
+# [extend] with useDefault keeps the entire built-in gitleaks ruleset. This
+# file only ADDS an allowlist; it never disables a rule or lowers detection on
+# real source, config, env examples, or migrations.
+#
+# The allowlist is scoped by path to Vitest test files. Those files must embed
+# credential-shaped strings to test the code that handles credentials: the env
+# validator asserts it accepts a test-mode Stripe restricted key, the log
+# redactor asserts it strips Stripe-shaped keys and JWTs, and the unsubscribe
+# signer needs a throwaway HMAC secret. Each such string is a fixed,
+# non-functional placeholder, not a live credential.
+#
+# This mirrors the sibling "Grep for project-specific credential shapes" step in
+# the same workflow, which already excludes *.test.ts and *.test.tsx. Test files
+# are therefore the one place the project treats credential shapes as expected
+# fixtures rather than leaks. gitleaks stays fully in force on all other paths.
+
+title = "Podium gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Credential-shaped strings in Vitest test fixtures are non-functional placeholders."
+paths = [
+  '''.*\.test\.(ts|tsx|js|jsx)$''',
+]

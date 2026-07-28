@@ -79,14 +79,59 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Threshold rationale: the tree today has 0 critical and 0 high, and 2
-      # moderate advisories reached transitively through `next` that we cannot
-      # fix without an upstream release. `--audit-level=high` therefore passes
-      # on the current tree while failing the moment a new high or critical
-      # advisory lands — a gate that is green today and meaningful tomorrow.
-      # Raise the moderates to this gate once `next` ships the fix.
+      # This gate fails on ANY high or critical advisory, the same threshold as
+      # `npm audit --audit-level=high`. Moderate and low advisories stay out of
+      # scope. The one difference is AUDIT_ALLOW: a list of advisory IDs that
+      # are individually reviewed and accepted below. Every ID must carry a
+      # written reason. A new high or critical advisory in any other package
+      # still turns this job red, and plain `npm audit` no longer supports
+      # per-advisory exceptions, which is why the check is scripted here.
+      #
+      # Accepted advisories:
+      #   GHSA-mh99-v99m-4gvg  brace-expansion <=5.0.7, denial of service via
+      #     unbounded brace expansion (out-of-memory crash). Fixed only in
+      #     brace-expansion 5.0.8, whose module export changed from a function
+      #     to an object. minimatch 3 (via eslint 9) and minimatch 9 (via glob)
+      #     call the old function export, so 5.0.8 breaks `next lint`; forcing
+      #     minimatch to 10 instead breaks eslint 9, which imports minimatch's
+      #     default export. No forward-compatible resolution exists today, and
+      #     npm's own fix downgrades eslint to a breaking major. This package is
+      #     reached only by lint, test and coverage tooling expanding the repo's
+      #     own glob patterns, never runtime code or attacker input. Drop this
+      #     entry once eslint's dependency chain ships a minimatch that consumes
+      #     brace-expansion 5.x.
       - name: npm audit (fails on high or critical)
-        run: npm audit --audit-level=high
+        env:
+          AUDIT_ALLOW: GHSA-mh99-v99m-4gvg
+        run: |
+          set -uo pipefail
+          # npm audit exits non-zero when advisories exist; the node script,
+          # not npm's exit code, decides whether this job passes.
+          npm audit --json > npm-audit.json || true
+          node -e '
+            const fs = require("fs");
+            const allow = new Set((process.env.AUDIT_ALLOW || "").split(/\s+/).filter(Boolean));
+            const vulns = JSON.parse(fs.readFileSync("npm-audit.json", "utf8")).vulnerabilities || {};
+            const found = new Map();
+            for (const name of Object.keys(vulns)) {
+              for (const a of vulns[name].via || []) {
+                if (typeof a !== "object") continue;
+                if (a.severity !== "high" && a.severity !== "critical") continue;
+                const id = (a.url || "").split("/").pop();
+                found.set(id, a.severity.toUpperCase() + " " + name + ": " + a.title + " (" + a.url + ")");
+              }
+            }
+            const blocking = [...found].filter(([id]) => !allow.has(id));
+            if (blocking.length) {
+              console.error("High or critical advisories outside the allowlist:");
+              for (const [, d] of blocking) console.error("  - " + d);
+              process.exit(1);
+            }
+            const ignored = [...found].filter(([id]) => allow.has(id)).map(([id]) => id);
+            console.log(ignored.length
+              ? "No blocking advisories. Accepted (see ci.yml): " + ignored.join(", ") + "."
+              : "No high or critical advisories.");
+          '
 
   secrets:
     name: Secret scan
@@ -118,11 +163,14 @@ jobs:
 
       # Belt and braces, and the fallback if the download above ever breaks:
       # a grep for the exact credential shapes this project uses. `.env.local`
-      # is gitignored; this catches the day someone force-adds it.
+      # is gitignored; this catches the day someone force-adds it. The
+      # SUPABASE_SERVICE_ROLE_KEY clause requires a JWT value (eyJ...), which is
+      # the shape of a real service role key, so it fires on a leaked key while
+      # ignoring the placeholder assignments that setup docs legitimately show.
       - name: Grep for project-specific credential shapes
         run: |
           set -euo pipefail
-          PATTERNS='(sk_live_[0-9a-zA-Z]{16,}|rk_live_[0-9a-zA-Z]{16,}|whsec_[0-9a-zA-Z]{16,}|SUPABASE_SERVICE_ROLE_KEY[[:space:]]*=[[:space:]]*[^[:space:]#]|eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9)'
+          PATTERNS='(sk_live_[0-9a-zA-Z]{16,}|rk_live_[0-9a-zA-Z]{16,}|whsec_[0-9a-zA-Z]{16,}|SUPABASE_SERVICE_ROLE_KEY[[:space:]]*=[[:space:]]*eyJ|eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9)'
           if git grep -nIE "$PATTERNS" -- \
               ':!*.test.ts' ':!*.test.tsx' ':!.env.local.example' ':!.github/workflows/ci.yml'; then
             echo "::error::A credential-shaped string is committed to the repository. Rotate it, then remove it from history."

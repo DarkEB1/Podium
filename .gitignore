@@ -48,3 +48,7 @@ next-env.d.ts
 
 # Superpowers brainstorming mockups
 .superpowers/
+
+# CI security-scan artifacts (generated during the audit and secret-scan jobs)
+npm-audit.json
+gitleaks-report.json
