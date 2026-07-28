@@ -11,6 +11,7 @@ const ADMIN_NAV = [
   { label: 'Brands', href: '/admin/brands' },
   { label: 'Listings', href: '/admin/listings' },
   { label: 'Users', href: '/admin/users' },
+  { label: 'Verification', href: '/admin/verification' },
 ]
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {

@@ -5,9 +5,11 @@ import { getUser } from '@/lib/supabase/auth'
 import { listActiveSessions, listLoginHistory } from '@/lib/supabase/sessions'
 import { getLatestDataExport } from '@/lib/supabase/data-export'
 import { isTwoFactorEnabled } from '@/lib/supabase/two-factor'
+import { getLatestVerification } from '@/lib/supabase/verification'
 import SessionList from '@/components/settings/session-list'
 import DataExportSection from '@/components/settings/data-export-section'
 import AccountTwoFactorSection from '@/components/settings/account-two-factor-section'
+import VerificationSection from '@/components/settings/verification-section'
 import { ROUTES } from '@/lib/routes'
 
 export const metadata: Metadata = {
@@ -22,11 +24,12 @@ export default async function SecuritySettingsPage() {
   const user = await getUser(supabase)
   if (!user) redirect(ROUTES.auth.signIn)
 
-  const [sessions, history, latestExport, twoFaEnabled] = await Promise.all([
+  const [sessions, history, latestExport, twoFaEnabled, latestVerification] = await Promise.all([
     listActiveSessions(supabase, user.id),
     listLoginHistory(supabase, user.id, 10),
     getLatestDataExport(supabase, user.id),
     isTwoFactorEnabled(createAdminClient(), user.id),
+    getLatestVerification(supabase, user.id),
   ])
 
   return (
@@ -69,6 +72,8 @@ export default async function SecuritySettingsPage() {
       </section>
 
       <AccountTwoFactorSection enabled={twoFaEnabled} />
+
+      <VerificationSection status={latestVerification?.status ?? null} />
 
       <DataExportSection
         initialStatus={latestExport?.status ?? null}
