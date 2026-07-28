@@ -7,11 +7,17 @@ import { cn } from '@/lib/utils'
 
 const ADMIN_NAV = [
   { label: 'Dashboard', href: '/admin/dashboard' },
+  { label: 'Analytics', href: '/admin/analytics' },
   { label: 'Athletes', href: '/admin/athletes' },
   { label: 'Brands', href: '/admin/brands' },
   { label: 'Listings', href: '/admin/listings' },
   { label: 'Users', href: '/admin/users' },
   { label: 'Verification', href: '/admin/verification' },
+  { label: 'Trust', href: '/admin/reports' },
+  { label: 'Payments', href: '/admin/payments' },
+  { label: 'Subscriptions', href: '/admin/subscriptions' },
+  { label: 'Audit', href: '/admin/audit' },
+  { label: 'Config', href: '/admin/config' },
 ]
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
