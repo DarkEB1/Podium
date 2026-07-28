@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { getUser } from '@/lib/supabase/auth'
+import { clearSession } from '@/lib/supabase/sessions'
 import { ROUTES } from '@/lib/routes'
 
 /**
@@ -11,6 +13,19 @@ import { ROUTES } from '@/lib/routes'
  */
 export async function POST() {
   const supabase = await createClient()
+
+  // Remove this session's active_sessions row before the token is invalidated.
+  try {
+    const { data } = await supabase.auth.getSession()
+    const user = await getUser(supabase)
+    const refreshToken = data.session?.refresh_token
+    if (user && refreshToken) {
+      await clearSession(createAdminClient(), user.id, refreshToken)
+    }
+  } catch {
+    /* sign-out must always succeed from the user's point of view */
+  }
+
   const { error } = await supabase.auth.signOut()
 
   return NextResponse.json({
