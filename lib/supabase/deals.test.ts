@@ -42,6 +42,7 @@ function makeMockClient() {
     or: vi.fn(),
     order: vi.fn(),
     single: mockSingle,
+    maybeSingle: mockSingle,
     then(
       resolve: (v: unknown) => void,
       reject?: ((reason: unknown) => void) | null
@@ -748,6 +749,41 @@ describe('signContract', () => {
     await expect(signContract(auth.client, admin.client, 'c1', 'brand1')).rejects.toMatchObject({
       code: 'CONTRACT_SIGN_FAILED',
     })
+  })
+
+  // 2.3 — under-18 guardian-consent gate on the athlete's signature.
+  it('blocks an under-18 athlete without guardian consent and does not write', async () => {
+    const auth = makeMockClient()
+    const admin = makeMockClient()
+    auth.queueSingle(fakeContract) // fetch contract
+    auth.queueSingle({ is_under_18: true, guardian_accepted_at: null }) // guard read
+
+    await expect(signContract(auth.client, admin.client, 'c1', 'athlete1')).rejects.toMatchObject({
+      code: 'GUARDIAN_CONSENT_REQUIRED',
+    })
+    expect(admin.chain.update).not.toHaveBeenCalled()
+  })
+
+  it('lets an under-18 athlete sign once a guardian has consented', async () => {
+    const auth = makeMockClient()
+    const admin = makeMockClient()
+    auth.queueSingle(fakeContract)
+    auth.queueSingle({ is_under_18: true, guardian_accepted_at: '2026-01-01T00:00:00Z' })
+    admin.queueSingle({ ...fakeContract, athlete_signed_at: '2026-06-01T00:00:00Z', status: 'pending_brand_signature' })
+
+    const result = await signContract(auth.client, admin.client, 'c1', 'athlete1')
+    expect(result.athlete_signed_at).toBeTruthy()
+  })
+
+  it('does not gate an adult athlete', async () => {
+    const auth = makeMockClient()
+    const admin = makeMockClient()
+    auth.queueSingle(fakeContract)
+    auth.queueSingle({ is_under_18: false, guardian_accepted_at: null })
+    admin.queueSingle({ ...fakeContract, athlete_signed_at: '2026-06-01T00:00:00Z', status: 'pending_brand_signature' })
+
+    const result = await signContract(auth.client, admin.client, 'c1', 'athlete1')
+    expect(result.athlete_signed_at).toBeTruthy()
   })
 })
 

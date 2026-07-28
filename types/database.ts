@@ -490,6 +490,41 @@ export type Database = {
           },
         ]
       }
+      guardian_consent_tokens: {
+        Row: {
+          athlete_user_id: string
+          consumed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          token_hash: string
+        }
+        Insert: {
+          athlete_user_id: string
+          consumed_at?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          token_hash: string
+        }
+        Update: {
+          athlete_user_id?: string
+          consumed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guardian_consent_tokens_athlete_user_id_fkey"
+            columns: ["athlete_user_id"]
+            isOneToOne: false
+            referencedRelation: "athlete_profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       brand_profiles: {
         Row: {
           admin_approved_at: string | null

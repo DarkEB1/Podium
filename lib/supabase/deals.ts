@@ -329,6 +329,30 @@ export async function signContract(
     throw new DealsError('ALREADY_SIGNED', 'You have already signed this contract')
   }
 
+  // 2.3 — an under-18 athlete cannot add their signature until a guardian has
+  // consented. The DB trigger (contracts_enforce_guardian_consent) enforces this
+  // unconditionally, even on this service-role write path; this check exists to
+  // return a clean, mappable error before the round-trip. A team signer has no
+  // athlete_profiles row and is unaffected.
+  if (isAthlete) {
+    const { data: ap, error: apError } = await (supabase as SupabaseClient)
+      .from('athlete_profiles')
+      .select('is_under_18, guardian_accepted_at')
+      .eq('user_id', userId)
+      .maybeSingle()
+
+    if (apError) {
+      throw new DealsError('CONTRACT_FETCH_FAILED', (apError as { message: string }).message)
+    }
+    const profile = ap as { is_under_18: boolean; guardian_accepted_at: string | null } | null
+    if (profile && profile.is_under_18 && !profile.guardian_accepted_at) {
+      throw new DealsError(
+        'GUARDIAN_CONSENT_REQUIRED',
+        'A parent or guardian must consent before you can sign this contract'
+      )
+    }
+  }
+
   const now = new Date().toISOString()
   const updates: Record<string, string> = {}
 

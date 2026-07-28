@@ -44,6 +44,8 @@ export const RATE_LIMITS = {
   passwordResetByEmail: { limit: 3, windowSeconds: 3600 },
   /** Generic state-changing write (connection requests, reports, proposals). */
   writeByUser: { limit: 60, windowSeconds: 60 },
+  /** Public guardian-consent accept endpoint — unauthenticated, keyed by IP. */
+  guardianConsentByIp: { limit: 30, windowSeconds: 3600 },
 } as const satisfies Record<string, RateLimitRule>
 
 /**

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { buttonVariants } from '@/components/ui/button'
+import GuardianConsentRequestButton from '@/components/guardian/request-consent-button'
 import type { Database } from '@/types/database'
 
 type ContractStatus = Database['public']['Enums']['contract_status']
@@ -23,6 +24,7 @@ export default function ContractSignButton({
   alreadySigned,
 }: ContractSignButtonProps) {
   const [loading, setLoading] = useState(false)
+  const [guardianNeeded, setGuardianNeeded] = useState(false)
   const router = useRouter()
 
   if (status === 'fully_signed' || status === 'terminated') return null
@@ -40,12 +42,30 @@ export default function ContractSignButton({
 
   if (!needsMySignature) return null
 
+  if (guardianNeeded) {
+    return (
+      <div className="space-y-3">
+        <p className="text-medium text-muted-foreground">
+          Because you are under 18, a parent or guardian must consent before you can sign this
+          contract.
+        </p>
+        <GuardianConsentRequestButton />
+      </div>
+    )
+  }
+
   async function handleSign() {
     setLoading(true)
     try {
       const res = await fetch(`/api/deals/contracts/${contractId}/sign`, { method: 'POST' })
       if (!res.ok) {
         const json = await res.json()
+        // 2.3 — an under-18 athlete is blocked until a guardian consents. Swap the
+        // sign button for a guardian-consent request rather than a bare error.
+        if (json.error?.code === 'GUARDIAN_CONSENT_REQUIRED') {
+          setGuardianNeeded(true)
+          return
+        }
         toast.error(json.error?.message ?? 'Failed to sign contract')
         return
       }
