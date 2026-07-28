@@ -46,6 +46,8 @@ export const RATE_LIMITS = {
   writeByUser: { limit: 60, windowSeconds: 60 },
   /** Public guardian-consent accept endpoint — unauthenticated, keyed by IP. */
   guardianConsentByIp: { limit: 30, windowSeconds: 3600 },
+  /** Admin 2FA challenge — tight, a 6-digit code is otherwise brute-forceable. */
+  admin2faByUser: { limit: 10, windowSeconds: 300 },
 } as const satisfies Record<string, RateLimitRule>
 
 /**

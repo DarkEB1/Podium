@@ -8,6 +8,12 @@ import {
   type NavRole,
   type OnboardingProgress,
 } from '@/lib/nav/config'
+import { ADMIN_2FA_COOKIE, verifyAdmin2faCookie } from '@/lib/auth/admin-2fa-cookie'
+
+// 2.4: the admin 2FA challenge/enrollment page is under /admin but must be
+// reachable WITHOUT a passed challenge, or an un-verified admin could never
+// obtain the cookie. Everything else under /admin requires it.
+const ADMIN_2FA_PATH = '/admin/2fa'
 
 /**
  * Routes a signed-out visitor may reach. B-7/B-10: the landing nav links to
@@ -196,6 +202,14 @@ export async function middleware(request: NextRequest) {
   if (isAdmin) {
     if ((await resolveRole()) !== 'admin') {
       return redirectTo(ROUTES.forbidden)
+    }
+    // 2.4: admin pages require a 2FA challenge passed this session. The 2FA page
+    // itself is exempt so the challenge (and first-time enrollment) is reachable.
+    if (!pathname.startsWith(ADMIN_2FA_PATH)) {
+      const cookie = request.cookies.get(ADMIN_2FA_COOKIE)?.value
+      if (!(await verifyAdmin2faCookie(cookie, userId))) {
+        return redirectTo(ADMIN_2FA_PATH)
+      }
     }
   }
 
