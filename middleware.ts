@@ -14,6 +14,8 @@ import { ADMIN_2FA_COOKIE, verifyAdmin2faCookie } from '@/lib/auth/admin-2fa-coo
 // reachable WITHOUT a passed challenge, or an un-verified admin could never
 // obtain the cookie. Everything else under /admin requires it.
 const ADMIN_2FA_PATH = '/admin/2fa'
+// The general user 2FA challenge (spec §security).
+const TWO_FACTOR_CHALLENGE_PATH = '/auth/2fa'
 
 /**
  * Routes a signed-out visitor may reach. B-7/B-10: the landing nav links to
@@ -209,6 +211,25 @@ export async function middleware(request: NextRequest) {
       const cookie = request.cookies.get(ADMIN_2FA_COOKIE)?.value
       if (!(await verifyAdmin2faCookie(cookie, userId))) {
         return redirectTo(ADMIN_2FA_PATH)
+      }
+    }
+  }
+
+  // User-level 2FA (spec §security): a user who has enabled 2FA must pass a
+  // challenge once per session before reaching the app. Cookie-first, so the
+  // authoritative auth_2fa lookup only runs on the rare request without a valid
+  // pass cookie (i.e. right after sign-in), not on every navigation. API routes
+  // and the /auth surface are exempt so the challenge itself stays reachable.
+  if (!isAdmin && !isPublic && !pathname.startsWith('/api/') && !pathname.startsWith('/auth')) {
+    const passed = await verifyAdmin2faCookie(request.cookies.get(ADMIN_2FA_COOKIE)?.value, userId)
+    if (!passed) {
+      const { data } = await supabase
+        .from('auth_2fa')
+        .select('enabled')
+        .eq('user_id', userId)
+        .maybeSingle()
+      if ((data as { enabled?: boolean } | null)?.enabled) {
+        return redirectTo(TWO_FACTOR_CHALLENGE_PATH)
       }
     }
   }

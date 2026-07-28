@@ -6,8 +6,18 @@ import { cn } from '@/lib/utils'
 import { buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
-/** The recurring admin 2FA login challenge (2.4). */
-export default function TwoFactorChallenge() {
+interface ChallengeProps {
+  /** Verify endpoint. Defaults to the admin one (2.4); users pass the account one. */
+  verifyPath?: string
+  /** Where to go after a successful challenge. */
+  redirectPath?: string
+}
+
+/** The recurring TOTP login challenge, shared by the admin gate and user 2FA. */
+export default function TwoFactorChallenge({
+  verifyPath = '/api/admin/2fa/verify',
+  redirectPath = '/admin/dashboard',
+}: ChallengeProps = {}) {
   const router = useRouter()
   const [token, setToken] = useState('')
   const [error, setError] = useState('')
@@ -18,7 +28,7 @@ export default function TwoFactorChallenge() {
     setBusy(true)
     setError('')
     try {
-      const res = await fetch('/api/admin/2fa/verify', {
+      const res = await fetch(verifyPath, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token }),
@@ -29,7 +39,7 @@ export default function TwoFactorChallenge() {
         setBusy(false)
         return
       }
-      router.push('/admin/dashboard')
+      router.push(redirectPath)
       router.refresh()
     } catch {
       setError('Something went wrong. Please try again.')

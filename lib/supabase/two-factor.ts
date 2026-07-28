@@ -150,6 +150,15 @@ export async function activateTwoFactor(
   return { recoveryCodes }
 }
 
+/** Turn 2FA off and wipe the stored secret and recovery codes. */
+export async function disableTwoFactor(
+  admin: SupabaseClient<Database>,
+  userId: string
+): Promise<void> {
+  const { error } = await (admin as SupabaseClient).from('auth_2fa').delete().eq('user_id', userId)
+  if (error) throw new TwoFactorError('DISABLE_FAILED', (error as { message: string }).message)
+}
+
 /**
  * Verify a login challenge: a live TOTP code, or a one-time recovery code (which
  * is consumed on use). Returns false for a disabled/unenrolled user.

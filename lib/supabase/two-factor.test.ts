@@ -4,6 +4,7 @@ import {
   activateTwoFactor,
   verifyTwoFactorLogin,
   getTwoFactorStatus,
+  disableTwoFactor,
   TwoFactorError,
 } from './two-factor'
 import { generateTotpSecret, generateTotp } from '@/lib/auth/totp'
@@ -29,6 +30,10 @@ function makeAdmin() {
     }),
     update: vi.fn((payload: Record<string, unknown>) => {
       updates.push(payload)
+      pending = mutationQueue.shift() ?? { error: null }
+      return builder
+    }),
+    delete: vi.fn(() => {
       pending = mutationQueue.shift() ?? { error: null }
       return builder
     }),
@@ -137,6 +142,20 @@ describe('verifyTwoFactorLogin', () => {
     const secret = generateTotpSecret()
     m.queueRow({ user_id: 'admin-1', secret: encryptSecret(secret), enabled: true, recovery_codes: [], confirmed_at: '2026-01-01' })
     expect(await verifyTwoFactorLogin(m.admin, 'admin-1', '000000')).toBe(false)
+  })
+})
+
+describe('disableTwoFactor', () => {
+  it('deletes the row without error', async () => {
+    const m = makeAdmin()
+    m.queueMutation()
+    await expect(disableTwoFactor(m.admin, 'admin-1')).resolves.toBeUndefined()
+  })
+
+  it('throws DISABLE_FAILED on a DB error', async () => {
+    const m = makeAdmin()
+    m.queueMutation({ message: 'db down' })
+    await expect(disableTwoFactor(m.admin, 'admin-1')).rejects.toMatchObject({ code: 'DISABLE_FAILED' })
   })
 })
 
