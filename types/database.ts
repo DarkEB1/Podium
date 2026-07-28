@@ -613,6 +613,56 @@ export type Database = {
           },
         ]
       }
+      social_connections: {
+        Row: {
+          access_token: string | null
+          connected_at: string
+          follower_count: number | null
+          handle: string | null
+          id: string
+          provider: string
+          provider_account_id: string | null
+          refresh_token: string | null
+          scope: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token?: string | null
+          connected_at?: string
+          follower_count?: number | null
+          handle?: string | null
+          id?: string
+          provider: string
+          provider_account_id?: string | null
+          refresh_token?: string | null
+          scope?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string | null
+          connected_at?: string
+          follower_count?: number | null
+          handle?: string | null
+          id?: string
+          provider?: string
+          provider_account_id?: string | null
+          refresh_token?: string | null
+          scope?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_connections_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       push_subscriptions: {
         Row: {
           auth: string

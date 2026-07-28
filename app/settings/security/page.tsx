@@ -8,6 +8,9 @@ import { isTwoFactorEnabled } from '@/lib/supabase/two-factor'
 import { getLatestVerification } from '@/lib/supabase/verification'
 import { getConnectAccount } from '@/lib/supabase/connect'
 import PayoutsSection from '@/components/settings/payouts-section'
+import { listConnections } from '@/lib/social'
+import { PROVIDERS, providerConfigured, type SocialProvider } from '@/lib/social/providers'
+import SocialSection from '@/components/settings/social-section'
 import SessionList from '@/components/settings/session-list'
 import DataExportSection from '@/components/settings/data-export-section'
 import AccountTwoFactorSection from '@/components/settings/account-two-factor-section'
@@ -36,6 +39,15 @@ export default async function SecuritySettingsPage() {
     getLatestVerification(supabase, user.id),
     isPayee ? getConnectAccount(supabase, user.id) : Promise.resolve(null),
   ])
+
+  const socialConnections = await listConnections(supabase, user.id)
+  const connectedProviders = new Set(socialConnections.map((c) => c.provider))
+  const socialItems = (Object.keys(PROVIDERS) as SocialProvider[]).map((provider) => ({
+    provider,
+    label: PROVIDERS[provider].label,
+    configured: providerConfigured(provider),
+    connected: connectedProviders.has(provider),
+  }))
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-12 md:px-10 md:py-16">
@@ -81,6 +93,8 @@ export default async function SecuritySettingsPage() {
       <VerificationSection status={latestVerification?.status ?? null} />
 
       <PushSection />
+
+      <SocialSection providers={socialItems} />
 
       {isPayee && (
         <PayoutsSection
