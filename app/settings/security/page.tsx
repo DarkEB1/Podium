@@ -10,6 +10,7 @@ import SessionList from '@/components/settings/session-list'
 import DataExportSection from '@/components/settings/data-export-section'
 import AccountTwoFactorSection from '@/components/settings/account-two-factor-section'
 import VerificationSection from '@/components/settings/verification-section'
+import PushSection from '@/components/settings/push-section'
 import { ROUTES } from '@/lib/routes'
 
 export const metadata: Metadata = {
@@ -74,6 +75,8 @@ export default async function SecuritySettingsPage() {
       <AccountTwoFactorSection enabled={twoFaEnabled} />
 
       <VerificationSection status={latestVerification?.status ?? null} />
+
+      <PushSection />
 
       <DataExportSection
         initialStatus={latestExport?.status ?? null}

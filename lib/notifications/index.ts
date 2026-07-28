@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database'
 import { createNotification } from '@/lib/supabase/notifications'
+import { sendPushToUser } from '@/lib/push'
 
 /**
  * Notification dispatch scaffolding (spec §7).
@@ -53,7 +54,7 @@ export async function dispatchNotification(
   const channels = req.channels?.length ? req.channels : (['in_app'] as NotificationChannel[])
 
   try {
-    return await Promise.all(
+    const logs = await Promise.all(
       channels.map((channel) =>
         createNotification(adminSupabase, {
           user_id: req.userId,
@@ -66,6 +67,20 @@ export async function dispatchNotification(
         })
       )
     )
+
+    // Actually deliver the push channel (spec §7). Best-effort side effect:
+    // sendPushToUser never throws and no-ops when VAPID is unconfigured, so it
+    // can never fail the dispatch or the caller's primary action.
+    if (channels.includes('push' as NotificationChannel)) {
+      const url = typeof req.metadata?.url === 'string' ? req.metadata.url : undefined
+      await sendPushToUser(adminSupabase, req.userId, {
+        title: req.title,
+        body: req.body,
+        ...(url ? { url } : {}),
+      }).catch(() => {})
+    }
+
+    return logs
   } catch (err) {
     throw new NotificationDispatchError(
       'DISPATCH_FAILED',
