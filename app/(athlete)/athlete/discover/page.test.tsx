@@ -22,6 +22,8 @@ vi.mock('@/lib/supabase/discovery', () => ({
 }))
 vi.mock('@/lib/supabase/profiles', () => ({
   getDiscoveryUiMode: (...a: unknown[]) => getDiscoveryUiModeMock(...a),
+  // The page now fetches the athlete profile to rank listings by match (spec §10).
+  getOwnProfile: vi.fn(async () => ({ primary_sport: 'Football', level: 'amateur' })),
 }))
 
 import AthleteDiscoverPage from './page'
