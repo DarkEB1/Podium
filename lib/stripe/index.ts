@@ -18,6 +18,11 @@ function client(): Stripe {
   return _client
 }
 
+/** The shared Stripe client, for other lib/stripe modules (e.g. Connect). */
+export function stripeClient(): Stripe {
+  return client()
+}
+
 // Stripe price IDs per subscription tier — validated via lib/env.
 const TIER_PRICES: Record<1 | 2 | 3, () => string> = {
   1: () => serverEnv().STRIPE_PRICE_TIER_1,

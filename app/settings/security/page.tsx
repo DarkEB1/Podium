@@ -6,6 +6,8 @@ import { listActiveSessions, listLoginHistory } from '@/lib/supabase/sessions'
 import { getLatestDataExport } from '@/lib/supabase/data-export'
 import { isTwoFactorEnabled } from '@/lib/supabase/two-factor'
 import { getLatestVerification } from '@/lib/supabase/verification'
+import { getConnectAccount } from '@/lib/supabase/connect'
+import PayoutsSection from '@/components/settings/payouts-section'
 import SessionList from '@/components/settings/session-list'
 import DataExportSection from '@/components/settings/data-export-section'
 import AccountTwoFactorSection from '@/components/settings/account-two-factor-section'
@@ -25,12 +27,14 @@ export default async function SecuritySettingsPage() {
   const user = await getUser(supabase)
   if (!user) redirect(ROUTES.auth.signIn)
 
-  const [sessions, history, latestExport, twoFaEnabled, latestVerification] = await Promise.all([
+  const isPayee = user.role === 'athlete' || user.role === 'team'
+  const [sessions, history, latestExport, twoFaEnabled, latestVerification, connectAccount] = await Promise.all([
     listActiveSessions(supabase, user.id),
     listLoginHistory(supabase, user.id, 10),
     getLatestDataExport(supabase, user.id),
     isTwoFactorEnabled(createAdminClient(), user.id),
     getLatestVerification(supabase, user.id),
+    isPayee ? getConnectAccount(supabase, user.id) : Promise.resolve(null),
   ])
 
   return (
@@ -77,6 +81,14 @@ export default async function SecuritySettingsPage() {
       <VerificationSection status={latestVerification?.status ?? null} />
 
       <PushSection />
+
+      {isPayee && (
+        <PayoutsSection
+          payoutsEnabled={!!connectAccount?.payouts_enabled}
+          detailsSubmitted={!!connectAccount?.details_submitted}
+          hasAccount={!!connectAccount}
+        />
+      )}
 
       <DataExportSection
         initialStatus={latestExport?.status ?? null}
