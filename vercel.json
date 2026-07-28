@@ -12,6 +12,18 @@
     {
       "path": "/api/cron/reconcile-subscriptions",
       "schedule": "15 */6 * * *"
+    },
+    {
+      "path": "/api/cron/chat-cleanup",
+      "schedule": "45 4 * * *"
+    },
+    {
+      "path": "/api/cron/guardian-consent-expiry",
+      "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/adult-transfer",
+      "schedule": "15 5 * * *"
     }
   ]
 }
