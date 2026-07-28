@@ -3,7 +3,9 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { listActiveSessions, listLoginHistory } from '@/lib/supabase/sessions'
+import { getLatestDataExport } from '@/lib/supabase/data-export'
 import SessionList from '@/components/settings/session-list'
+import DataExportSection from '@/components/settings/data-export-section'
 import { ROUTES } from '@/lib/routes'
 
 export const metadata: Metadata = {
@@ -18,9 +20,10 @@ export default async function SecuritySettingsPage() {
   const user = await getUser(supabase)
   if (!user) redirect(ROUTES.auth.signIn)
 
-  const [sessions, history] = await Promise.all([
+  const [sessions, history, latestExport] = await Promise.all([
     listActiveSessions(supabase, user.id),
     listLoginHistory(supabase, user.id, 10),
+    getLatestDataExport(supabase, user.id),
   ])
 
   return (
@@ -61,6 +64,12 @@ export default async function SecuritySettingsPage() {
           </ul>
         )}
       </section>
+
+      <DataExportSection
+        initialStatus={latestExport?.status ?? null}
+        downloadUrl={latestExport?.download_url ?? null}
+        expiresAt={latestExport?.expires_at ?? null}
+      />
     </main>
   )
 }
