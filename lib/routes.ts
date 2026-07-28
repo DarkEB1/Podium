@@ -96,6 +96,10 @@ export const ROUTES = {
   brand: {
     dashboard: '/brand/dashboard',
     discover: '/brand/discover',
+    /** 2.2 — the brand-side surface for finding teams to sponsor. */
+    discoverTeams: '/brand/discover/teams',
+    /** Any team's public profile as a brand sees it. */
+    teamProfileFor: (userId: string) => `/brand/discover/team/${userId}`,
     listings: '/brand/listings',
     listingsNew: '/brand/listings/new',
     /**

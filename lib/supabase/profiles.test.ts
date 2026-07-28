@@ -10,9 +10,11 @@ import {
   getRepresentationLinks,
   getActiveAthleteProfiles,
   getActiveAthleteProfilesPage,
+  getActiveTeamProfilesPage,
   getDiscoveryUiMode,
   updateDiscoveryUiMode,
   ATHLETE_PAGE_SIZE,
+  TEAM_PAGE_SIZE,
   ProfileError,
 } from './profiles'
 import type { SupabaseClient } from '@supabase/supabase-js'
@@ -541,6 +543,41 @@ describe('getActiveAthleteProfilesPage', () => {
     expect(calls.select).not.toBe('*')
     expect(calls.select).toMatch(/display_name/)
     expect(calls.select).not.toMatch(/guardian_email|payout_|stripe_connect/)
+  })
+})
+
+describe('getActiveTeamProfilesPage', () => {
+  it('requests limit + 1 rows and reports hasMore without returning the extra row', async () => {
+    const rows = Array.from({ length: 4 }, (_, i) => ({ id: `t${i}`, user_id: `u-t${i}`, team_name: `t${i}` }))
+    const { client, calls } = makePagingClient(rows)
+
+    const page = await getActiveTeamProfilesPage(client, { limit: 3, offset: 0 })
+
+    expect(calls.range).toEqual([0, 3])
+    expect(page.teams).toHaveLength(3)
+    expect(page.hasMore).toBe(true)
+  })
+
+  it('reports hasMore false when the page is not full', async () => {
+    const { client } = makePagingClient([{ id: 't0', user_id: 'u-t0', team_name: 't0' }])
+    const page = await getActiveTeamProfilesPage(client, { limit: 3 })
+    expect(page.hasMore).toBe(false)
+    expect(page.teams).toHaveLength(1)
+  })
+
+  it('defaults to a bounded page rather than the whole table', async () => {
+    const { client, calls } = makePagingClient([])
+    await getActiveTeamProfilesPage(client)
+    expect(calls.range).toEqual([0, TEAM_PAGE_SIZE])
+  })
+
+  it('projects public-safe columns, not the whole row', async () => {
+    const { client, calls } = makePagingClient([])
+    await getActiveTeamProfilesPage(client)
+    expect(calls.select).not.toBe('*')
+    expect(calls.select).toMatch(/team_name/)
+    // never ship team contact PII to a browse feed
+    expect(calls.select).not.toMatch(/commercial_manager_email|primary_controller_email|primary_controller_phone/)
   })
 })
 

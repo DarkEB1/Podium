@@ -355,6 +355,86 @@ export async function getActiveAthleteProfiles(
 }
 
 // ---------------------------------------------------------------------------
+// Team discovery (2.2) — the brand-side mirror of athlete discovery.
+// ---------------------------------------------------------------------------
+
+// SB-9/FA-4: project a public-safe column set. Commercial-manager and
+// primary-controller contact details are PII and never ship to a browse feed.
+const TEAM_SUMMARY_COLUMNS = [
+  'id',
+  'user_id',
+  'team_name',
+  'nickname',
+  'sports',
+  'competition_level',
+  'logo_url',
+  'cover_photo_url',
+  'home_city',
+  'home_country',
+  'fan_reach',
+  'total_social_following',
+  'seeking_sponsorship_types',
+  'social_accounts',
+  'updated_at',
+  'created_at',
+  'status',
+].join(', ')
+
+type TeamSummaryKeys =
+  | 'id'
+  | 'user_id'
+  | 'team_name'
+  | 'nickname'
+  | 'sports'
+  | 'competition_level'
+  | 'logo_url'
+  | 'cover_photo_url'
+  | 'home_city'
+  | 'home_country'
+  | 'fan_reach'
+  | 'total_social_following'
+  | 'seeking_sponsorship_types'
+  | 'social_accounts'
+  | 'updated_at'
+  | 'created_at'
+  | 'status'
+
+/** A team as the brand discovery feed sees them — see TEAM_SUMMARY_COLUMNS. */
+export type TeamSummary = Pick<TeamRow, TeamSummaryKeys>
+
+export const TEAM_PAGE_SIZE = 24
+
+export interface TeamPage {
+  teams: TeamSummary[]
+  hasMore: boolean
+}
+
+/**
+ * One bounded page of active teams, newest-updated first. Same range-pagination
+ * and `limit + 1` hasMore trick as getActiveAthleteProfilesPage.
+ */
+export async function getActiveTeamProfilesPage(
+  supabase: SupabaseClient<Database>,
+  options: { limit?: number; offset?: number } = {}
+): Promise<TeamPage> {
+  const limit = Math.max(1, options.limit ?? TEAM_PAGE_SIZE)
+  const offset = Math.max(0, options.offset ?? 0)
+
+  const { data, error } = await db(supabase)
+    .from('team_profiles')
+    .select(TEAM_SUMMARY_COLUMNS)
+    .eq('status', 'active')
+    .order('updated_at', { ascending: false })
+    .range(offset, offset + limit)
+
+  if (error) throw new ProfileError('PROFILE_FETCH_FAILED', (error as { message: string }).message)
+
+  // as unknown as TeamSummary[]: runtime-built column list, see the athlete twin.
+  const rows = (data ?? []) as unknown as TeamSummary[]
+  return { teams: rows.slice(0, limit), hasMore: rows.length > limit }
+}
+
+// ---------------------------------------------------------------------------
 // Discovery UI mode (PR-23)
 // ---------------------------------------------------------------------------
 
