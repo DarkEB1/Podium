@@ -31,11 +31,6 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-New to the repo, or pulling `main` after a gap? Follow
-[docs/setup-for-new-dev.md](docs/setup-for-new-dev.md) instead. It covers the
-self-generated secrets and the migrations that recent fixes depend on, several of
-which leave known bugs live if you skip them.
-
 ### Or: let Claude Code do it for you
 
 Make sure Docker Desktop is running, then paste this into Claude Code from the project root:
