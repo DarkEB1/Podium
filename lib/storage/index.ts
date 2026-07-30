@@ -134,7 +134,7 @@ export async function createUploadUrl(
   if (userId.includes('/')) {
     throw new StorageError(
       'invalid_user',
-      'userId must be a single path segment — it becomes the owner folder.'
+      'userId must be a single path segment, because it becomes the owner folder.'
     )
   }
 

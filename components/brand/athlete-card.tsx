@@ -96,7 +96,7 @@ export default function AthleteCard({ athlete, verified = false, initialSaved = 
     .join(' · ')
 
   const location = [athlete.home_city, athlete.home_country].filter(Boolean).join(', ')
-  const subtitle = [sportLevel, location].filter(Boolean).join(' — ')
+  const subtitle = [sportLevel, location].filter(Boolean).join(' · ')
   const stat = followerStat(athlete)
   const profileHref = `${ROUTES.brand.discover}/${athlete.user_id}`
 

@@ -27,7 +27,7 @@ async function handle(request: NextRequest) {
   // before DH-6 that was completely silent.
   if (!process.env.CRON_SECRET) {
     obs.captureMessage(
-      'CRON_SECRET is not configured — the scheduled maintenance job cannot authenticate and will never run',
+      'CRON_SECRET is not configured, so the scheduled maintenance job cannot authenticate and will never run',
       'error'
     )
   }

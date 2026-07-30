@@ -14,15 +14,15 @@ export function DraftNotice() {
       className="mt-8 rounded-2xl border-2 border-destructive/40 bg-destructive/5 p-6"
     >
       <p className="font-heading text-base font-bold text-destructive">
-        Draft — not yet reviewed by a solicitor
+        Draft, not yet reviewed by a solicitor
       </p>
       <p className="mt-3 text-sm leading-relaxed text-foreground">
         This document was prepared by Podium&apos;s engineering team so that the
         product has a good-faith, substantive policy in place during
         development. It has <strong>not</strong> been reviewed or approved by a
         qualified legal practitioner. It must be reviewed and signed off by a
-        solicitor qualified in England and Wales — with particular attention to
-        the provisions on minors, consumer rights, and data protection — before
+        solicitor qualified in England and Wales, with particular attention to
+        the provisions on minors, consumer rights, and data protection, before
         Podium accepts a single live user. Do not rely on it as legal advice.
       </p>
     </div>

@@ -181,14 +181,14 @@ export default function ProfilePreview({ profile, onEditStep }: Props) {
             <p className="flex items-center gap-1 text-small text-muted-foreground">
               <MapPin aria-hidden="true" className="size-3.5" />
               {/* City only — country is never shown here (§3B.1). */}
-              <span>{profile.home_city || '—'}</span>
+              <span>{profile.home_city || 'Not set'}</span>
             </p>
             <p className="flex items-center gap-1 text-small text-muted-foreground">
               <Navigation aria-hidden="true" className="size-3.5" />
               <span>
                 {typeof profile.travel_radius_km === 'number'
                   ? `Travels up to ${profile.travel_radius_km} km`
-                  : 'Travel radius —'}
+                  : 'Travel radius not set'}
               </span>
             </p>
           </div>

@@ -27,7 +27,7 @@ const VALUE_PROPS = [
   },
   {
     title: 'The whole deal in one place',
-    body: 'Discovery, proposals, e-signature and payment run through Podium, so the terms you agreed are the terms on record — not scattered across DMs.',
+    body: 'Discovery, proposals, e-signature and payment run through Podium, so the terms you agreed are the terms on record, not scattered across DMs.',
   },
   {
     title: 'Built for UK sport',
@@ -48,7 +48,7 @@ export default function SocialProof() {
           </h2>
           <p className="mt-6 max-w-[52ch] text-lg leading-relaxed text-muted-foreground">
             Podium is new. Rather than quote numbers we haven&apos;t earned yet,
-            here is exactly what you get on day one — and what it costs.
+            here is exactly what you get on day one, and what it costs.
           </p>
         </div>
 
@@ -66,8 +66,8 @@ export default function SocialProof() {
         </div>
 
         <p className="mt-8 max-w-[60ch] text-sm leading-relaxed text-muted-foreground">
-          We&apos;ll publish real marketplace figures — profiles listed, deals
-          agreed, value matched — once there are enough of them to be meaningful,
+          We&apos;ll publish real marketplace figures (profiles listed, deals
+          agreed, value matched) once there are enough of them to be meaningful,
           and we&apos;ll source them from the platform rather than from a
           marketing brief.
         </p>

@@ -46,29 +46,29 @@ export default async function AdminBrandDetailPage({
         <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Company details</h2>
         <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
           <dt className="text-muted-foreground">Company name</dt>
-          <dd>{brand.company_name ?? '—'}</dd>
+          <dd>{brand.company_name ?? 'Not set'}</dd>
           <dt className="text-muted-foreground">Trading name</dt>
-          <dd>{brand.trading_name ?? '—'}</dd>
+          <dd>{brand.trading_name ?? 'Not set'}</dd>
           <dt className="text-muted-foreground">Industry</dt>
-          <dd>{brand.industry?.replace(/_/g, ' ') ?? '—'}</dd>
+          <dd>{brand.industry?.replace(/_/g, ' ') ?? 'Not set'}</dd>
           <dt className="text-muted-foreground">Location</dt>
-          <dd>{[brand.headquarters_city, brand.headquarters_country].filter(Boolean).join(', ') || '—'}</dd>
+          <dd>{[brand.headquarters_city, brand.headquarters_country].filter(Boolean).join(', ') || 'Not set'}</dd>
           <dt className="text-muted-foreground">Website</dt>
           <dd>
             {brand.website_url
               ? <a href={brand.website_url} target="_blank" rel="noopener noreferrer" className="underline truncate">{brand.website_url}</a>
-              : '—'}
+              : 'Not set'}
           </dd>
           <dt className="text-muted-foreground">LinkedIn</dt>
           <dd>
             {brand.linkedin_url
               ? <a href={brand.linkedin_url} target="_blank" rel="noopener noreferrer" className="underline">View</a>
-              : '—'}
+              : 'Not set'}
           </dd>
           <dt className="text-muted-foreground">Reg. number</dt>
-          <dd>{brand.company_registration_number ?? '—'}</dd>
+          <dd>{brand.company_registration_number ?? 'Not set'}</dd>
           <dt className="text-muted-foreground">VAT number</dt>
-          <dd>{brand.vat_number ?? '—'}</dd>
+          <dd>{brand.vat_number ?? 'Not set'}</dd>
           <dt className="text-muted-foreground">Created</dt>
           <dd>{new Date(brand.created_at).toLocaleDateString()}</dd>
           <dt className="text-muted-foreground">Updated</dt>

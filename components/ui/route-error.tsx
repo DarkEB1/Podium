@@ -39,7 +39,7 @@ export function RouteError({
   error,
   reset,
   title = "Something went wrong",
-  description = "We hit a problem loading this page. It is not something you did — try again, and if it keeps happening let us know.",
+  description = "We hit a problem loading this page. It is not something you did. Try again, and if it keeps happening let us know.",
   homeHref = "/dashboard",
   className,
 }: RouteErrorProps) {

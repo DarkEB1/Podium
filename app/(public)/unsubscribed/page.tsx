@@ -30,7 +30,7 @@ export default async function UnsubscribedPage({
       <p className="mt-3 text-medium text-muted-foreground">
         {failed
           ? 'This unsubscribe link is invalid or has already been used. You can manage every email preference from your settings.'
-          : 'You will no longer receive marketing emails from Podium. You can fine-tune every notification — including which service emails you receive — from your settings at any time.'}
+          : 'You will no longer receive marketing emails from Podium. You can fine-tune every notification, including which service emails you receive, from your settings at any time.'}
       </p>
       <div className="mt-8 flex flex-col gap-3 sm:flex-row">
         <Link href={ROUTES.auth.signIn} className={buttonVariants()}>

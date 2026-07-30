@@ -87,7 +87,7 @@ export function safeUrl(value: unknown): string {
  *
  * Deliberately NOT `escapeHtml`: that escapes `=` and backtick, which turns a
  * perfectly good query string (`?token=abc&x=1`) into `?token&#61;abc&amp;x&#61;1`
- * — valid HTML that decodes correctly, but ugly and needlessly reliant on every
+ * valid HTML that decodes correctly, but ugly and needlessly reliant on every
  * mail client decoding numeric entities in attributes. Inside a quoted
  * attribute only `&`, `"`, `<` and `>` are significant, so we escape exactly
  * those (and `&` first, or we'd double-escape our own entities). The URL is

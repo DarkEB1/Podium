@@ -22,7 +22,7 @@ const MESSAGES: Record<string, string> = {
   [AUTH_ERROR_CODES.expiredLink]:
     'That link has expired. Sign in to get a fresh confirmation email.',
   [AUTH_ERROR_CODES.invalidLink]:
-    'That link is not valid. It may have been copied incorrectly — request a new one and try again.',
+    'That link is not valid. It may have been copied incorrectly. Request a new one and try again.',
   [AUTH_ERROR_CODES.alreadyUsed]:
     'That link has already been used. You can sign in with your email and password below.',
   [AUTH_ERROR_CODES.failed]:

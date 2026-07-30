@@ -10,19 +10,19 @@
  */
 export const copy = {
   toasts: {
-    profileLive: "You're on the radar — profile is live!",
+    profileLive: "You're on the radar, profile is live!",
     proposalSent: 'Proposal sent. Game on.',
     saved: 'Saved to your shortlist.',
   },
   emptyStates: {
     noMatches: {
-      title: "No matches yet — let's fix that",
+      title: "No matches yet, let's fix that",
       body: "Brands can't pick you if they can't see you. Round out your profile and you'll start showing up in their search.",
       cta: 'Finish my profile',
     },
     noResults: {
       title: 'Nothing here yet',
-      body: "Widen your filters and dig in — there's talent waiting.",
+      body: "Widen your filters and dig in, there's talent waiting.",
       cta: 'Clear filters',
     },
     noDeals: {

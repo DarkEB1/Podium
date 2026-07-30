@@ -790,10 +790,10 @@ function Step6({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
       <div className="space-y-3 rounded-2xl border border-border bg-muted p-6">
         <h2 className="text-large text-foreground">Profile summary</h2>
         <dl className="space-y-1 text-medium">
-          <div className="flex gap-2"><dt className="w-32 text-muted-foreground">Display name</dt><dd>{profile?.display_name ?? '—'}</dd></div>
-          <div className="flex gap-2"><dt className="w-32 text-muted-foreground">Sport</dt><dd>{profile?.primary_sport ?? '—'}</dd></div>
-          <div className="flex gap-2"><dt className="w-32 text-muted-foreground">Level</dt><dd>{profile?.level ?? '—'}</dd></div>
-          <div className="flex gap-2"><dt className="w-32 text-muted-foreground">Location</dt><dd>{[profile?.home_city, profile?.home_country].filter(Boolean).join(', ') || '—'}</dd></div>
+          <div className="flex gap-2"><dt className="w-32 text-muted-foreground">Display name</dt><dd>{profile?.display_name ?? 'Not set'}</dd></div>
+          <div className="flex gap-2"><dt className="w-32 text-muted-foreground">Sport</dt><dd>{profile?.primary_sport ?? 'Not set'}</dd></div>
+          <div className="flex gap-2"><dt className="w-32 text-muted-foreground">Level</dt><dd>{profile?.level ?? 'Not set'}</dd></div>
+          <div className="flex gap-2"><dt className="w-32 text-muted-foreground">Location</dt><dd>{[profile?.home_city, profile?.home_country].filter(Boolean).join(', ') || 'Not set'}</dd></div>
         </dl>
       </div>
       <p className="text-small text-muted-foreground">
@@ -840,7 +840,7 @@ export default function ProfileWizard({ step, profile: initialProfile }: Props) 
       {/* Progress header */}
       <div>
         <div className="mb-2 flex justify-between text-small text-muted-foreground">
-          <span>Step {displayPosition} of {TOTAL_STEPS} — {stepLabel(step)}</span>
+          <span>Step {displayPosition} of {TOTAL_STEPS}: {stepLabel(step)}</span>
           <span>{progressPct}%</span>
         </div>
         <div className="h-1.5 overflow-hidden rounded-full bg-muted">

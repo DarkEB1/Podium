@@ -481,7 +481,7 @@ export default function SettingsForm({
     setExporting(true)
     try {
       await requestDataExport(createClient(), profile.user_id)
-      toast.success('Data export requested — we will email you a download link within 72 hours')
+      toast.success('Data export requested. We will email you a download link within 72 hours')
     } catch {
       toast.error('Failed to request data export')
     } finally {
@@ -985,7 +985,7 @@ export default function SettingsForm({
                       <td key={ch.value} className="px-3 py-3 text-center">
                         <div className="flex justify-center">
                           <Switch
-                            aria-label={`${event.label} — ${ch.label}`}
+                            aria-label={`${event.label}, ${ch.label}`}
                             checked={Boolean(matrix[event.value]?.[ch.value])}
                             onCheckedChange={() => toggleChannel(event.value, ch.value)}
                           />
@@ -1246,7 +1246,7 @@ export default function SettingsForm({
                           Receipt
                         </a>
                       ) : (
-                        <span className="text-small text-muted-foreground">—</span>
+                        <span className="text-small text-muted-foreground">Not set</span>
                       )}
                     </div>
                   </li>
@@ -1489,7 +1489,7 @@ export default function SettingsForm({
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="/api/security/2fa/qr.svg"
-                  alt="2FA QR code — scan with your authenticator app"
+                  alt="2FA QR code. Scan it with your authenticator app"
                   className="size-40 rounded-[var(--radius)] border bg-card"
                 />
                 <p className="text-small text-muted-foreground">

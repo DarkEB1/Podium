@@ -45,7 +45,7 @@ const HINTS: Record<string, string> = {
   STRIPE_PRICE_TIER_2: 'Stripe Dashboard → Product catalogue → Growth plan → Price ID (price_…)',
   STRIPE_PRICE_TIER_3: 'Stripe Dashboard → Product catalogue → Enterprise plan → Price ID (price_…)',
   CRON_SECRET:
-    'Any high-entropy string — `openssl rand -hex 32` — set as a Vercel project env var so Vercel Cron sends it as `Authorization: Bearer …`',
+    'Any high-entropy string from `openssl rand -hex 32`, set as a Vercel project env var so Vercel Cron sends it as `Authorization: Bearer …`',
   SENTRY_DSN: 'Sentry → Project Settings → Client Keys (DSN). Optional; omit to log to stdout only',
 }
 
@@ -53,7 +53,7 @@ function formatIssues(error: z.ZodError, scope: string): never {
   const issues = error.issues.map((issue) => {
     const name = issue.path.join('.') || '(root)'
     const hint = HINTS[name]
-    return `  - ${name}: ${issue.message}${hint ? ` — obtain from: ${hint}` : ''}`
+    return `  - ${name}: ${issue.message}${hint ? `, obtain from: ${hint}` : ''}`
   })
 
   throw new EnvValidationError(
@@ -114,7 +114,7 @@ const serverSchema = z.object({
    */
   CRON_SECRET: z
     .string()
-    .min(32, 'must be at least 32 characters — generate with `openssl rand -hex 32`')
+    .min(32, 'must be at least 32 characters, generate with `openssl rand -hex 32`')
     .optional(),
   /**
    * DH-6 — optional Sentry DSN. When absent (the default) `lib/observability`
@@ -144,7 +144,7 @@ const serverSchema = z.object({
    */
   UNSUBSCRIBE_SECRET: z
     .string()
-    .min(16, 'must be at least 16 characters — generate with `openssl rand -hex 32`')
+    .min(16, 'must be at least 16 characters, generate with `openssl rand -hex 32`')
     .optional(),
 })
 

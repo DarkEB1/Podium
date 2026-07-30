@@ -33,7 +33,7 @@ export default async function AdminUsersPage() {
             {users.map((u) => (
               <tr key={u.id} className="hover:bg-muted/30 transition-colors">
                 <td className="px-4 py-2 font-mono text-xs">{u.email}</td>
-                <td className="px-4 py-2 capitalize">{u.role ?? '—'}</td>
+                <td className="px-4 py-2 capitalize">{u.role ?? 'Not set'}</td>
                 <td className="px-4 py-2">
                   <span className={u.email_verified ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}>
                     {u.email_verified ? 'Yes' : 'No'}

@@ -36,7 +36,7 @@ async function handle(request: NextRequest) {
   // Now it is a queryable log line every time the scheduler calls.
   if (!process.env.CRON_SECRET) {
     obs.captureMessage(
-      'CRON_SECRET is not configured — the scheduled GDPR erasure job cannot authenticate and will never run',
+      'CRON_SECRET is not configured, so the scheduled GDPR erasure job cannot authenticate and will never run',
       'error'
     )
   }

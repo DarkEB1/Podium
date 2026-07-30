@@ -6,21 +6,21 @@ const STEPS = [
     icon: UserRoundPlus,
     eyebrow: 'Athletes & teams',
     title: 'Build your profile',
-    body: 'Add your sport, stats, reach and rates. Show brands exactly why you are worth backing — no agent required.',
+    body: 'Add your sport, stats, reach and rates. Show brands exactly why you are worth backing, no agent required.',
   },
   {
     n: '02',
     icon: Radar,
     eyebrow: 'On the marketplace',
     title: 'Get discovered',
-    body: 'Sponsors search the marketplace by sport, audience and budget — then land on your profile and reach out.',
+    body: 'Sponsors search the marketplace by sport, audience and budget, then land on your profile and reach out.',
   },
   {
     n: '03',
     icon: Handshake,
     eyebrow: 'Deal done',
     title: 'Close the deal',
-    body: 'Negotiate terms, e-sign the contract and get paid — all in one place. No middlemen, no gatekeepers.',
+    body: 'Negotiate terms, e-sign the contract and get paid, all in one place. No middlemen, no gatekeepers.',
   },
 ]
 

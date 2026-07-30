@@ -98,7 +98,7 @@ export default async function TeamProfilePage() {
           </ul>
         ) : (
           <p className="text-medium text-muted-foreground">
-            You have not listed the sponsorship types you are seeking yet — add them in Settings so
+            You have not listed the sponsorship types you are seeking yet. Add them in Settings so
             sponsors know what to offer.
           </p>
         )}
@@ -118,12 +118,12 @@ export default async function TeamProfilePage() {
           <div>
             <dt className="text-small text-muted-foreground">Match-day attendance</dt>
             <dd className="text-medium text-foreground">
-              {profile.match_day_attendance?.toLocaleString() ?? '—'}
+              {profile.match_day_attendance?.toLocaleString() ?? 'Not set'}
             </dd>
           </div>
           <div>
             <dt className="text-small text-muted-foreground">Home venue</dt>
-            <dd className="text-medium text-foreground">{profile.home_venue ?? '—'}</dd>
+            <dd className="text-medium text-foreground">{profile.home_venue ?? 'Not set'}</dd>
           </div>
         </dl>
       </section>

@@ -93,7 +93,7 @@ export function button(label: string, url: string): string {
 export function renderText(lines: string[], footerUrls: { preferencesUrl: string; unsubscribeUrl?: string }): string {
   const footer = [
     '',
-    '—',
+    '---',
     `Manage email preferences: ${footerUrls.preferencesUrl}`,
     footerUrls.unsubscribeUrl ? `Unsubscribe: ${footerUrls.unsubscribeUrl}` : '',
     `You are receiving this because you have a ${BRAND} account.`,

@@ -16,7 +16,7 @@ export default function Error({
       error={error}
       reset={reset}
       title="We couldn't load this page"
-      description="Something went wrong on our side while loading your agent workspace. Try again — nothing you entered has been lost."
+      description="Something went wrong on our side while loading your agent workspace. Try again. Nothing you entered has been lost."
       homeHref="/agent/dashboard"
     />
   )

@@ -56,7 +56,7 @@ export default function ConnectionRequestCard({
       // Acceptance is what creates a match, so this is the funnel's hinge.
       // Only the responder's role and the outcome enum leave the browser.
       track('connection_request_responded', { role: viewerRole ?? 'unknown', outcome: action })
-      toast.success(action === 'accepted' ? 'Request accepted — you can now message them' : 'Request declined')
+      toast.success(action === 'accepted' ? 'Request accepted, you can now message them' : 'Request declined')
       onResponded()
     } catch {
       toast.error('Could not reach Podium. Please check your connection and try again.')

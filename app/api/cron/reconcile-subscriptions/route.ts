@@ -286,7 +286,7 @@ async function handle(request: NextRequest) {
   // from "there was never any drift".
   if (!process.env.CRON_SECRET) {
     obs.captureMessage(
-      'CRON_SECRET is not configured — the subscription reconciliation job cannot authenticate and will never run',
+      'CRON_SECRET is not configured, so the subscription reconciliation job cannot authenticate and will never run',
       'error'
     )
   }

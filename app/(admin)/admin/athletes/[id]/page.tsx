@@ -50,23 +50,23 @@ export default async function AdminAthleteDetailPage({
         <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Profile details</h2>
         <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
           <dt className="text-muted-foreground">Full legal name</dt>
-          <dd>{athlete.full_legal_name ?? '—'}</dd>
+          <dd>{athlete.full_legal_name ?? 'Not set'}</dd>
           <dt className="text-muted-foreground">Display name</dt>
-          <dd>{athlete.display_name ?? '—'}</dd>
+          <dd>{athlete.display_name ?? 'Not set'}</dd>
           <dt className="text-muted-foreground">Sport</dt>
-          <dd>{athlete.primary_sport ?? '—'}</dd>
+          <dd>{athlete.primary_sport ?? 'Not set'}</dd>
           <dt className="text-muted-foreground">Level</dt>
-          <dd>{athlete.level?.replace(/_/g, ' ') ?? '—'}</dd>
+          <dd>{athlete.level?.replace(/_/g, ' ') ?? 'Not set'}</dd>
           <dt className="text-muted-foreground">Location</dt>
-          <dd>{[athlete.home_city, athlete.home_country].filter(Boolean).join(', ') || '—'}</dd>
+          <dd>{[athlete.home_city, athlete.home_country].filter(Boolean).join(', ') || 'Not set'}</dd>
           <dt className="text-muted-foreground">Has agent</dt>
           <dd>{athlete.has_agent ? 'Yes' : 'No'}</dd>
           <dt className="text-muted-foreground">Under 18</dt>
           <dd>{athlete.is_under_18 ? 'Yes' : 'No'}</dd>
           <dt className="text-muted-foreground">Date of birth</dt>
-          <dd>{athlete.date_of_birth ?? '—'}</dd>
+          <dd>{athlete.date_of_birth ?? 'Not set'}</dd>
           <dt className="text-muted-foreground">Profile photo</dt>
-          <dd>{athlete.profile_photo_url ? <a href={athlete.profile_photo_url} target="_blank" rel="noopener noreferrer" className="underline">View</a> : '—'}</dd>
+          <dd>{athlete.profile_photo_url ? <a href={athlete.profile_photo_url} target="_blank" rel="noopener noreferrer" className="underline">View</a> : 'Not set'}</dd>
           <dt className="text-muted-foreground">Created</dt>
           <dd>{new Date(athlete.created_at).toLocaleDateString()}</dd>
           <dt className="text-muted-foreground">Updated</dt>

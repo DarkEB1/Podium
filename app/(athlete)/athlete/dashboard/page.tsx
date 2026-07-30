@@ -55,7 +55,7 @@ export default async function AthleteDashboardPage() {
         className="sm:grid-cols-3"
         stats={[
           { label: 'Active conversations', value: String(activeMatches.length), iconKey: 'partners' },
-          { label: 'Sport', value: profile.primary_sport ?? '—', iconKey: 'trophy' },
+          { label: 'Sport', value: profile.primary_sport ?? 'Not set', iconKey: 'trophy' },
           { label: 'Profile status', value: profile.status.replace('_', ' '), iconKey: 'verified' },
         ]}
       />

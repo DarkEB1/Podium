@@ -51,7 +51,7 @@ export default function TeamCard({ team, initialSaved = false }: Props) {
 
   const sport = team.sports?.[0]
   const location = [team.home_city, team.home_country].filter(Boolean).join(', ')
-  const subtitle = [sport, location].filter(Boolean).join(' — ')
+  const subtitle = [sport, location].filter(Boolean).join(' · ')
   const following = team.total_social_following ?? 0
   const stat = following > 0 ? { label: 'followers', value: formatCount(following) } : undefined
   const profileHref = ROUTES.brand.teamProfileFor(team.user_id)

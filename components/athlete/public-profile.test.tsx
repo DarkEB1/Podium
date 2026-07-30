@@ -59,9 +59,11 @@ describe('ProfileStatStrip', () => {
     expect(screen.getByText('National')).toBeInTheDocument()
   })
 
-  it('shows an em dash for missing stats rather than blank', () => {
+  // Was an em dash. A bare dash announces as nothing useful to a screen reader
+  // and reads as broken markup, so the tiles say what is actually true.
+  it('labels missing stats rather than leaving a tile blank', () => {
     render(<ProfileStatStrip followers={null} engagement={null} sport={null} level={null} />)
-    expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(4)
+    expect(screen.getAllByText('Not set').length).toBeGreaterThanOrEqual(4)
   })
 })
 

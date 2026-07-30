@@ -16,7 +16,7 @@ export default function Error({
       error={error}
       reset={reset}
       title="We couldn't load your dashboard"
-      description="Your client data is fine — we just couldn't fetch it. Try again."
+      description="Your client data is fine, we just couldn't fetch it. Try again."
       homeHref="/agent/dashboard"
     />
   )

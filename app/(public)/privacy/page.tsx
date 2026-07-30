@@ -49,7 +49,7 @@ export default function PrivacyPage() {
         <LegalSection id="what-we-collect" heading="2. What personal data we collect">
           <p>
             <strong>Account data (all users).</strong> Email address, hashed
-            password (held by our authentication provider — we never see your
+            password (held by our authentication provider, so we never see your
             password), account role, email verification state, the version and
             timestamp of the Terms and Privacy Policy you accepted, your cookie
             preferences, and account lifecycle timestamps including deactivation
@@ -75,8 +75,8 @@ export default function PrivacyPage() {
             <strong>Team and agent profile data.</strong> Team or agency name,
             sports, competition level, venue, attendance and fan-reach figures,
             social accounts, sponsorship targets and brief documents, plus named
-            contacts — commercial manager and primary controller name, role,
-            email and telephone — and, for agents, specialisms, regions,
+            contacts (commercial manager and primary controller name, role,
+            email and telephone) and, for agents, specialisms, regions,
             services and verification status. Team accounts may also list
             additional administrators by name and email address.
           </p>
@@ -89,7 +89,7 @@ export default function PrivacyPage() {
             <strong>Marketplace activity.</strong> Listings, connection requests
             and the message that accompanies them, matches, shortlists, blocks,
             reports you file or that are filed about you, and the contents of
-            messages you send — including attachments and their file metadata.
+            messages you send, including attachments and their file metadata.
           </p>
           <p>
             <strong>Deal, contract and payment data.</strong> Proposals and
@@ -98,7 +98,7 @@ export default function PrivacyPage() {
             description, e-signature provider and envelope reference), payment
             records including amount, currency, status, fees, receipt links and
             Stripe payment identifiers, saved card metadata (brand, last four
-            digits, expiry — never the full card number), payout preferences
+            digits and expiry, never the full card number), payout preferences
             including bank name, account holder and the last four digits of the
             account and sort code, and brand subscription records.
           </p>
@@ -131,7 +131,7 @@ export default function PrivacyPage() {
         <LegalSection id="lawful-basis" heading="3. Why we use it, and our lawful basis">
           <ul className="list-disc space-y-3 pl-6">
             <li>
-              <strong>To provide the platform</strong> — creating your account,
+              <strong>To provide the platform:</strong> creating your account,
               publishing your profile, running discovery and matching, carrying
               messages, generating proposals and contracts, and taking payment.{' '}
               <em>Basis: performance of a contract</em> (Art. 6(1)(b)).
@@ -144,7 +144,7 @@ export default function PrivacyPage() {
             </li>
             <li>
               <strong>
-                To keep the platform safe — fraud prevention, moderation,
+                To keep the platform safe, covering fraud prevention, moderation,
                 reports, blocking, login history, session management and audit
                 logging.
               </strong>{' '}
@@ -154,7 +154,7 @@ export default function PrivacyPage() {
               (Art. 6(1)(f)), and legal obligation where we must act.
             </li>
             <li>
-              <strong>Safeguarding minors</strong> — recording guardian consent,
+              <strong>Safeguarding minors:</strong> recording guardian consent,
               flagging under-18 accounts, and acting on underage concerns.{' '}
               <em>
                 Basis: legitimate interests in child protection, and legal
@@ -163,7 +163,7 @@ export default function PrivacyPage() {
               .
             </li>
             <li>
-              <strong>Service and transactional messages</strong> — verification
+              <strong>Service and transactional messages:</strong> verification
               emails, security alerts, deal and payment notifications.{' '}
               <em>Basis: performance of a contract and legitimate interests</em>
               . You cannot opt out of essential security and transactional
@@ -212,15 +212,15 @@ export default function PrivacyPage() {
           </p>
           <ul className="list-disc space-y-2 pl-6">
             <li>
-              <strong>Supabase</strong> — database, authentication and file
+              <strong>Supabase:</strong> database, authentication and file
               storage. Holds essentially all platform data.
             </li>
             <li>
-              <strong>Vercel</strong> — application hosting, edge network and
+              <strong>Vercel:</strong> application hosting, edge network and
               request logging. Processes IP addresses and request metadata.
             </li>
             <li>
-              <strong>Stripe</strong> — card payments, subscription billing and
+              <strong>Stripe:</strong> card payments, subscription billing and
               payouts. Stripe is an independent controller for its own
               anti-fraud and regulatory purposes; see Stripe&apos;s own privacy
               policy.
@@ -235,7 +235,7 @@ export default function PrivacyPage() {
             <strong>Others.</strong> Professional advisers under duties of
             confidentiality; law enforcement, regulators or a court where we are
             legally required or where it is necessary to protect someone&apos;s
-            safety — in particular a child&apos;s; and an acquirer if the
+            safety, in particular a child&apos;s; and an acquirer if the
             business is sold, subject to this policy continuing to apply.
           </p>
           <p>We do not sell your personal data.</p>
@@ -244,7 +244,7 @@ export default function PrivacyPage() {
         <LegalSection id="transfers" heading="5. International transfers">
           <p>
             We aim to host data in the UK or the European Economic Area. Some of
-            our processors — including Stripe and Vercel — operate globally, so
+            our processors, including Stripe and Vercel, operate globally, so
             personal data may be processed outside the UK, including in the
             United States.
           </p>
@@ -263,17 +263,17 @@ export default function PrivacyPage() {
         <LegalSection id="retention" heading="6. How long we keep it">
           <ul className="list-disc space-y-3 pl-6">
             <li>
-              <strong>Active accounts</strong> — for as long as your account is
+              <strong>Active accounts:</strong> for as long as your account is
               open.
             </li>
             <li>
-              <strong>After you request deletion</strong> — we hold the request
+              <strong>After you request deletion:</strong> we hold the request
               for a 14-day grace period, during which you can cancel it simply
               by signing back in and cancelling. After that a scheduled job
               erases your data as described in section 7.
             </li>
             <li>
-              <strong>Concluded contracts</strong> — retained until{' '}
+              <strong>Concluded contracts:</strong> retained until{' '}
               <strong>seven years after the contract was finalised</strong>{' '}
               (recorded on each contract as its retention date), to meet
               accounting and limitation-period requirements. After erasure of
@@ -281,28 +281,28 @@ export default function PrivacyPage() {
               identifiers.
             </li>
             <li>
-              <strong>Payment and subscription records</strong> — retained for
+              <strong>Payment and subscription records:</strong> retained for
               at least six full financial years, as required by tax and
               accounting law, in anonymised form once your account is erased.
             </li>
             <li>
-              <strong>Login history and active sessions</strong> — deleted with
+              <strong>Login history and active sessions:</strong> deleted with
               your account; in normal operation, login history is kept for a
               limited security window.
             </li>
             <li>
-              <strong>Data export files</strong> — download links expire 72
+              <strong>Data export files:</strong> download links expire 72
               hours after the export is ready, and the file is purged.
             </li>
             <li>
-              <strong>Moderation reports and audit logs</strong> — retained
+              <strong>Moderation reports and audit logs:</strong> retained
               after account erasure, because they are the record of safety
               decisions and cannot be reconstructed. The free-text description
               and any internal notes are deleted once the report is closed, and
               IP addresses recorded against your actions are cleared.
             </li>
             <li>
-              <strong>Backups</strong> — deleted data persists in encrypted
+              <strong>Backups:</strong> deleted data persists in encrypted
               backups for a short rolling window before those backups expire.
             </li>
           </ul>
@@ -326,7 +326,7 @@ export default function PrivacyPage() {
               details, and your two-factor and data-export records;
             </li>
             <li>
-              <strong>anonymises</strong> — rather than deletes — contracts,
+              <strong>anonymises</strong>, rather than deletes, contracts,
               proposals, payments and subscriptions. Names, email addresses,
               addresses, IP addresses and device descriptions are removed or
               replaced; amounts, dates and record identifiers are kept, because
@@ -334,7 +334,7 @@ export default function PrivacyPage() {
               record; and
             </li>
             <li>
-              <strong>replaces your user record with a tombstone</strong> — your
+              <strong>replaces your user record with a tombstone</strong>: your
               email address is replaced with a non-routable placeholder and the
               account is permanently disabled. The empty record remains only so
               that the retained financial records stay internally consistent; it
@@ -361,7 +361,7 @@ export default function PrivacyPage() {
               generate a machine-readable export from your settings.
             </li>
             <li>
-              <strong>Rectify</strong> inaccurate or incomplete data — most of
+              <strong>Rectify</strong> inaccurate or incomplete data. Most of
               which you can correct directly in your profile.
             </li>
             <li>
@@ -375,11 +375,11 @@ export default function PrivacyPage() {
             </li>
             <li>
               <strong>Object</strong> to processing based on legitimate
-              interests, and to object to direct marketing at any time —
+              interests, and to object to direct marketing at any time.
               absolutely and free of charge.
             </li>
             <li>
-              <strong>Data portability</strong> — receive data you gave us in a
+              <strong>Data portability:</strong> receive data you gave us in a
               structured, commonly used, machine-readable format.
             </li>
             <li>

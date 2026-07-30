@@ -16,7 +16,7 @@ export default function Error({
       error={error}
       reset={reset}
       title="Something went wrong"
-      description="We hit an unexpected problem. Try again — if it keeps happening, get in touch and quote the reference below."
+      description="We hit an unexpected problem. Try again. If it keeps happening, get in touch and quote the reference below."
       homeHref="/"
     />
   )

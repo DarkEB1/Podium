@@ -12,7 +12,7 @@ const dmSans = DM_Sans({ variable: '--font-dm-sans', subsets: ['latin'] })
 const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Podium — Sports Sponsorship Marketplace',
+  title: 'Podium: Sports Sponsorship Marketplace',
   description: 'The marketplace connecting athletes and teams with sponsors.',
 }
 

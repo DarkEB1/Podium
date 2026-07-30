@@ -22,15 +22,15 @@ import { Accordion as AccordionPrimitive } from '@base-ui/react/accordion'
 const faqs = [
   {
     q: 'Is it really free for athletes and teams?',
-    a: 'Yes. Athletes, teams and agents pay nothing to list a profile, message brands, agree a deal or get paid — there are no Podium fees on your side. Brand subscriptions fund the platform. If that ever changes we will tell you in advance, and you will never be charged without agreeing first.',
+    a: 'Yes. Athletes, teams and agents pay nothing to list a profile, message brands, agree a deal or get paid. There are no Podium fees on your side. Brand subscriptions fund the platform. If that ever changes we will tell you in advance, and you will never be charged without agreeing first.',
   },
   {
     q: 'How do brands find me?',
-    a: 'Brands search by sport, level, location, audience size and budget, so your profile is your shop window. A complete profile — stats, highlights, availability and what you are looking for — gives the search more to match on than a sparse one.',
+    a: 'Brands search by sport, level, location, audience size and budget, so your profile is your shop window. A complete profile, with stats, highlights, availability and what you are looking for, gives the search more to match on than a sparse one.',
   },
   {
     q: 'How do payments work?',
-    a: 'Deal payments run from the brand to you through Stripe, so they are traceable and you get a receipt. Podium does not take a cut of your deal. You are responsible for your own tax and National Insurance — we do not withhold anything on your behalf, and we cannot give tax advice.',
+    a: 'Deal payments run from the brand to you through Stripe, so they are traceable and you get a receipt. Podium does not take a cut of your deal. You are responsible for your own tax and National Insurance. We do not withhold anything on your behalf, and we cannot give tax advice.',
   },
   {
     q: 'Do I need an agent?',
@@ -38,11 +38,11 @@ const faqs = [
   },
   {
     q: 'What sports are supported?',
-    a: 'Podium is sport-agnostic — football, athletics, rugby, netball, cycling, boxing, swimming, hockey, tennis, rowing and more. You choose your sport, position and level when you build your profile, from recreational through to international.',
+    a: 'Podium is sport-agnostic, covering football, athletics, rugby, netball, cycling, boxing, swimming, hockey, tennis, rowing and more. You choose your sport, position and level when you build your profile, from recreational through to international.',
   },
   {
     q: 'How do I get verified?',
-    a: 'Upload proof of your identity and your competitive status and our team reviews it manually. We aim to turn reviews around quickly, and we will tell you if we need anything else. Verification shows brands we have checked those documents — it is not a guarantee of results.',
+    a: 'Upload proof of your identity and your competitive status and our team reviews it manually. We aim to turn reviews around quickly, and we will tell you if we need anything else. Verification shows brands we have checked those documents. It is not a guarantee of results.',
   },
 ]
 

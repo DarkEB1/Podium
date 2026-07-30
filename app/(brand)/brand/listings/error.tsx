@@ -16,7 +16,7 @@ export default function Error({
       error={error}
       reset={reset}
       title="We couldn't load your listings"
-      description="Your listings are safe — we just couldn't fetch them. Try again."
+      description="Your listings are safe, we just couldn't fetch them. Try again."
       homeHref="/brand/dashboard"
     />
   )

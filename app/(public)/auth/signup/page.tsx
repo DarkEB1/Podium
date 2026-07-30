@@ -6,11 +6,11 @@ import { ROUTES } from '@/lib/routes'
 const ROLE_HEADLINE: Record<string, { title: string; blurb: string }> = {
   athlete: {
     title: 'Create your athlete profile',
-    blurb: 'Free forever — get discovered by the brands that want to back you.',
+    blurb: 'Free forever. Get discovered by the brands that want to back you.',
   },
   team: {
     title: 'List your team',
-    blurb: 'Free forever — turn your fanbase into your next sponsor.',
+    blurb: 'Free forever. Turn your fanbase into your next sponsor.',
   },
   brand: {
     title: 'Start finding talent',
@@ -18,7 +18,7 @@ const ROLE_HEADLINE: Record<string, { title: string; blurb: string }> = {
   },
   agent: {
     title: 'Manage your roster',
-    blurb: 'Free forever — represent athletes and teams from one dashboard.',
+    blurb: 'Free forever. Represent athletes and teams from one dashboard.',
   },
 }
 
@@ -50,7 +50,7 @@ export default async function SignUpPage({
     ? ROLE_HEADLINE[role]
     : {
         title: 'Create your account',
-        blurb: 'Join Podium — free for athletes, teams & agents',
+        blurb: 'Join Podium, free for athletes, teams & agents',
       }
 
   return (

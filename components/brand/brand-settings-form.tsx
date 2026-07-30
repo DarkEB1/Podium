@@ -278,7 +278,7 @@ export default function BrandSettingsForm({ profile, stats, subscription, billin
           <div className="space-y-2">
             <p className="text-medium font-medium text-foreground">Change plan</p>
             <p className="text-small text-muted-foreground">
-              Changes take effect on your next billing date —{' '}
+              Changes take effect on your next billing date,{' '}
               <span className="font-medium text-foreground">
                 effective {formatDate(subscription.current_period_end)}
               </span>

@@ -94,7 +94,7 @@ export default async function BrandProfilePage() {
           </ul>
         ) : (
           <p className="text-medium text-muted-foreground">
-            You have not told athletes what you are looking for yet — add it in Settings so the
+            You have not told athletes what you are looking for yet. Add it in Settings so the
             right talent finds you.
           </p>
         )}
@@ -107,20 +107,20 @@ export default async function BrandProfilePage() {
         <dl className="grid gap-4 sm:grid-cols-2">
           <div>
             <dt className="text-small text-muted-foreground">Website</dt>
-            <dd className="text-medium text-foreground">{profile.website_url ?? '—'}</dd>
+            <dd className="text-medium text-foreground">{profile.website_url ?? 'Not set'}</dd>
           </div>
           <div>
             <dt className="text-small text-muted-foreground">LinkedIn</dt>
-            <dd className="truncate text-medium text-foreground">{profile.linkedin_url || '—'}</dd>
+            <dd className="truncate text-medium text-foreground">{profile.linkedin_url || 'Not set'}</dd>
           </div>
           <div>
             <dt className="text-small text-muted-foreground">Headquarters</dt>
-            <dd className="text-medium text-foreground">{location || '—'}</dd>
+            <dd className="text-medium text-foreground">{location || 'Not set'}</dd>
           </div>
           <div>
             <dt className="text-small text-muted-foreground">Target level</dt>
             <dd className="text-medium text-foreground">
-              {profile.target_level ? humanise(profile.target_level) : '—'}
+              {profile.target_level ? humanise(profile.target_level) : 'Not set'}
             </dd>
           </div>
         </dl>

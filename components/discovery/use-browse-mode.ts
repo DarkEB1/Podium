@@ -44,7 +44,7 @@ export function useBrowseMode(initialMode: BrowseMode): {
           if (!res.ok) throw new Error('preference not saved')
         })
         .catch(() => {
-          toast.error('We could not save your browse preference — it will reset next visit.')
+          toast.error('We could not save your browse preference, so it will reset next visit.')
         })
         .finally(() => setPending(false))
     },

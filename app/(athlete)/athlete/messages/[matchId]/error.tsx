@@ -16,7 +16,7 @@ export default function Error({
       error={error}
       reset={reset}
       title="We couldn't load this conversation"
-      description="The thread is still there — we just couldn't fetch it. Try again."
+      description="The thread is still there, we just couldn't fetch it. Try again."
       homeHref="/athlete/messages"
     />
   )

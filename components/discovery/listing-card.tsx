@@ -170,7 +170,7 @@ export default function ListingCard({ listing }: Props) {
                 Personalised message
               </label>
               <p className="text-small text-muted-foreground">
-                Tell this brand why you are a great fit — between {CONNECTION_MESSAGE_MIN} and{' '}
+                Tell this brand why you are a great fit, in between {CONNECTION_MESSAGE_MIN} and{' '}
                 {CONNECTION_MESSAGE_MAX} characters.
               </p>
               <Textarea

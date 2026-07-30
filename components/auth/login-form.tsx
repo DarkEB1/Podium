@@ -43,7 +43,7 @@ export default function LoginForm() {
     }
     const { user } = data
     if (!user) {
-      toast.error('Login failed — please try again')
+      toast.error('Login failed, please try again')
       return
     }
     if (!user.role || !user.role_locked_at) {

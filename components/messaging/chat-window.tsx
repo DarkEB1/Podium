@@ -188,7 +188,7 @@ export default function ChatWindow({
           <EmptyState
             variant="emptyInbox"
             title="No messages yet"
-            description="Say hello — the first message is the hard one."
+            description="Say hello. The first message is the hard one."
           />
         ) : null}
         {messages.map((msg, i) => {

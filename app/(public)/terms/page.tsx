@@ -81,7 +81,7 @@ export default function TermsPage() {
             <li>
               the guardian reviews and countersigns, or otherwise expressly
               approves, <strong>every</strong> proposal and contract before the
-              minor athlete accepts it — a minor cannot be bound by a commercial
+              minor athlete accepts it, because a minor cannot be bound by a commercial
               contract without that adult approval, and we will not treat an
               acceptance by a minor alone as a valid signature; and
             </li>
@@ -111,7 +111,7 @@ export default function TermsPage() {
           <p>
             <strong>Amateur, collegiate and governing-body rules.</strong> Some
             athletes are subject to eligibility rules set by their school,
-            university, club, league or national governing body — including
+            university, club, league or national governing body, including
             rules about name, image and likeness (NIL) deals and about
             advertising certain product categories. You are responsible for
             checking and complying with those rules before you accept a deal.
@@ -170,7 +170,7 @@ export default function TermsPage() {
               any content you publish under a deal;
             </li>
             <li>
-              complying with advertising law and the CAP Code — including
+              complying with advertising law and the CAP Code, including
               clearly disclosing paid partnerships (for example
               &ldquo;#ad&rdquo;) in accordance with ASA and Competition and
               Markets Authority guidance;
@@ -242,7 +242,7 @@ export default function TermsPage() {
             </li>
             <li>
               use Podium to promote anything you may not lawfully promote to the
-              relevant audience — including tobacco and vaping products, and
+              relevant audience, including tobacco and vaping products, and
               gambling or alcohol promotion to under-18s;
             </li>
             <li>
@@ -265,14 +265,14 @@ export default function TermsPage() {
             We operate reporting and blocking tools and we review reports. We
             may remove content, restrict features, suspend or close accounts
             where we reasonably believe these rules have been broken, and we may
-            report unlawful conduct — in particular any safeguarding concern
-            involving a minor — to the police or another competent authority.
+            report unlawful conduct, in particular any safeguarding concern
+            involving a minor, to the police or another competent authority.
           </p>
         </LegalSection>
 
         <LegalSection id="content" heading="7. Your content and our licence">
           <p>
-            You keep ownership of everything you upload — your photographs,
+            You keep ownership of everything you upload: your photographs,
             videos, statistics, logos and profile copy (&ldquo;your
             content&rdquo;). You must have the right to upload it, including any
             third-party rights in photographs and footage taken by others.
@@ -332,9 +332,9 @@ export default function TermsPage() {
               the platform;
             </li>
             <li>
-              we are not liable for business losses — loss of profit, revenue,
+              we are not liable for business losses (loss of profit, revenue,
               contracts, sponsorship opportunity, goodwill, anticipated savings
-              or data — or for any indirect or consequential loss;
+              or data) or for any indirect or consequential loss;
             </li>
             <li>
               our total liability to you arising out of or in connection with
@@ -378,7 +378,7 @@ export default function TermsPage() {
             number (this one is {TERMS_VERSION}). Where a change materially
             affects your rights or obligations we will notify you and ask you to
             accept the new version before you continue to use Podium. Your
-            recorded acceptance — which version and when — is stored against
+            recorded acceptance, meaning which version and when, is stored against
             your account.
           </p>
         </LegalSection>

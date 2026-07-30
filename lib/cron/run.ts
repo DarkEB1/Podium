@@ -18,7 +18,7 @@ export async function runCountingCronJob(
   // runs. Surface that rather than failing invisibly (matches the DH-6 fix).
   if (!process.env.CRON_SECRET) {
     obs.captureMessage(
-      `CRON_SECRET is not configured — the scheduled ${opts.job} job cannot authenticate and will never run`,
+      `CRON_SECRET is not configured, so the scheduled ${opts.job} job cannot authenticate and will never run`,
       'error'
     )
   }

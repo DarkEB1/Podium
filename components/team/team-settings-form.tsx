@@ -50,7 +50,7 @@ function lastActive(admin: TeamAdmin): string {
       day: 'numeric',
     })
   } catch {
-    return '—'
+    return 'Unknown'
   }
 }
 
@@ -205,7 +205,7 @@ export default function TeamSettingsForm({
               {admins.map((admin) => {
                 const isYou = admin.user_id === currentUserId
                 const unaccepted = admin.invite_status !== 'accepted'
-                const name = admin.full_name ?? (unaccepted ? 'Invited' : '—')
+                const name = admin.full_name ?? (unaccepted ? 'Invited' : 'Not set')
                 const confirming = pendingRemoval === admin.id
                 return (
                   <tr key={admin.id} className="border-b last:border-0">

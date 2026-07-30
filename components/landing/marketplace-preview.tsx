@@ -101,7 +101,7 @@ export default function MarketplacePreview() {
             Browse the <span className="text-primary">marketplace</span>.
           </h2>
           <p className="mt-6 max-w-[46ch] text-lg leading-relaxed text-muted-foreground">
-            Filter thousands of athletes and teams by sport, budget and location. Spot who&apos;s ready to deal — then reach out direct.
+            Filter thousands of athletes and teams by sport, budget and location. Spot who&apos;s ready to deal, then reach out direct.
           </p>
         </div>
 

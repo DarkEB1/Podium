@@ -7,7 +7,7 @@ import { ROUTES } from '@/lib/routes'
 import Footer from '@/components/layout/footer'
 
 export const metadata = {
-  title: 'Pricing — Podium',
+  title: 'Pricing · Podium',
   description:
     'Free forever for athletes, teams and agents. Simple monthly tiers for brands.',
 }
@@ -23,7 +23,7 @@ export const metadata = {
 const FREE_ROLES = [
   {
     role: 'Athletes',
-    blurb: 'List your profile, message brands, sign contracts and get paid — no fees, ever.',
+    blurb: 'List your profile, message brands, sign contracts and get paid, with no fees, ever.',
     href: ROUTES.auth.signUpAs('athlete'),
     cta: 'Create your profile',
   },
@@ -89,7 +89,7 @@ export default function PricingPage() {
             Free for talent. <span className="text-primary">Simple</span> for brands.
           </h1>
           <p className="mt-6 max-w-[52ch] text-lg leading-relaxed text-muted-foreground">
-            Athletes, teams and agents never pay a penny — brands cover the cost of the
+            Athletes, teams and agents never pay a penny. Brands cover the cost of the
             marketplace with a straightforward monthly subscription.
           </p>
         </div>

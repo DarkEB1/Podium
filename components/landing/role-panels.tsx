@@ -36,7 +36,7 @@ const panels: Panel[] = [
   {
     role: 'Brands',
     icon: Building2,
-    tagline: 'Reach elite talent at scale — no agency markup.',
+    tagline: 'Reach elite talent at scale, with no agency markup.',
     points: ['Powerful search across verified talent', 'Run campaigns, proposals & contracts', '7-day free trial, then simple tiers'],
     cta: 'Start Finding Talent',
     href: ROUTES.auth.signUpAs('brand'),

@@ -16,7 +16,7 @@ export default function Error({
       error={error}
       reset={reset}
       title="We couldn't load discovery"
-      description="Discovery is having a moment. Try again — your filters are still set."
+      description="Discovery is having a moment. Try again, your filters are still set."
       homeHref="/team/dashboard"
     />
   )

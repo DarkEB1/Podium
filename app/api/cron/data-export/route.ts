@@ -16,7 +16,7 @@ async function handle(request: NextRequest) {
 
   if (!process.env.CRON_SECRET) {
     obs.captureMessage(
-      'CRON_SECRET is not configured — the data-export job cannot authenticate and will never run',
+      'CRON_SECRET is not configured, so the data-export job cannot authenticate and will never run',
       'error'
     )
   }

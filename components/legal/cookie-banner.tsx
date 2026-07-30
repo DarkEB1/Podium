@@ -69,7 +69,7 @@ export default function CookieBanner() {
             Your cookie choices
           </p>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-            We use cookies that are strictly necessary to run Podium — keeping
+            We use cookies that are strictly necessary to run Podium, such as keeping
             you signed in and keeping the site secure. We would also like to set
             optional analytics and marketing cookies, but only if you agree.
             They stay off until you say otherwise. Read our{' '}

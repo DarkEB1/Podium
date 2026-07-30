@@ -23,7 +23,7 @@ export default function CookiesPage() {
         title="Cookie Policy"
         version={COOKIE_POLICY_VERSION}
         effectiveDate={POLICY_EFFECTIVE_DATE}
-        intro="Cookies are small files stored on your device. Under the Privacy and Electronic Communications Regulations we may only set cookies that are not strictly necessary if you have agreed to them first — so on Podium they stay off until you turn them on."
+        intro="Cookies are small files stored on your device. Under the Privacy and Electronic Communications Regulations we may only set cookies that are not strictly necessary if you have agreed to them first, so on Podium they stay off until you turn them on."
       >
         <LegalSection id="categories" heading="1. The categories we use">
           <div className="space-y-6">
@@ -33,7 +33,7 @@ export default function CookiesPage() {
                   {category.label}
                   {category.locked && (
                     <span className="ml-2 text-sm font-normal">
-                      (always on — no consent required)
+                      (always on, no consent required)
                     </span>
                   )}
                 </p>
@@ -61,21 +61,21 @@ export default function CookiesPage() {
             provider, we will list it here and ask for your consent again.
           </p>
           <p>
-            We also use technologies similar to cookies — such as browser local
-            storage — and we treat them under exactly the same rules.
+            We also use technologies similar to cookies, such as browser local
+            storage, and we treat them under exactly the same rules.
           </p>
         </LegalSection>
 
         <LegalSection id="your-choice" heading="3. Changing your mind">
           <p>
             You can accept all, reject everything that is not strictly
-            necessary, or choose category by category — and change that choice
+            necessary, or choose category by category, and change that choice
             whenever you like. Rejecting is exactly as easy as accepting, and
             rejecting will not stop you using Podium.
           </p>
           <p>
             <CookiePreferencesButton className="font-semibold text-primary underline underline-offset-4 hover:text-foreground" />{' '}
-            — opens the preference panel. The same link sits in the footer of
+            opens the preference panel. The same link sits in the footer of
             every page.
           </p>
           <p>

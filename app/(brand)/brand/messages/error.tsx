@@ -16,7 +16,7 @@ export default function Error({
       error={error}
       reset={reset}
       title="We couldn't load your messages"
-      description="Your conversations are safe — we just couldn't fetch them. Try again."
+      description="Your conversations are safe, we just couldn't fetch them. Try again."
       homeHref="/brand/dashboard"
     />
   )

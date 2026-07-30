@@ -9,7 +9,7 @@ import { getUser } from '@/lib/supabase/auth'
  */
 export const metadata: Metadata = {
   title: 'Dashboard · Podium',
-  description: 'Your Podium home — jump back into your role dashboard.',
+  description: 'Your Podium home. Jump back into your role dashboard.',
   robots: { index: false },
 }
 
