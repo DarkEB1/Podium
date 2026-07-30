@@ -45,6 +45,51 @@ export class SettingsError extends Error {
 // Profile settings
 // ---------------------------------------------------------------------------
 
+/**
+ * The row a user gets when their account is created: every column at its DB
+ * default (migration 20260616000003). Mirrored here so a read can answer with
+ * the same values the database would have, rather than failing.
+ *
+ * `id` is empty and the timestamps are null on purpose: this value was never
+ * persisted, and nothing should mistake it for a stored row.
+ */
+function defaultSettings(userId: string): ProfileSettings {
+  // as ProfileSettings: id/created_at/updated_at are non-null on a stored row,
+  // but this synthetic value is explicitly not one — see above.
+  return {
+    id: '',
+    user_id: userId,
+    notification_matrix: {},
+    quiet_hours_start: null,
+    quiet_hours_end: null,
+    email_digest: 'off',
+    marketing_opt_in: false,
+    profile_visible: true,
+    discoverable: true,
+    section_visibility: {},
+    location_precision: 'city',
+    pause_matches: false,
+    display_currency: 'gbp',
+    created_at: null,
+    updated_at: null,
+  } as unknown as ProfileSettings
+}
+
+/**
+ * The user's settings, or the defaults if no row has been written yet.
+ *
+ * QA-1.5: this used `.single()`, which throws when there is no row, and nothing
+ * in the product ever created one. Every transactional email checks preferences
+ * through here (sendTransactionalEmail -> emailAllowed -> getSettings), so the
+ * throw meant no email had ever been sent to anyone, for any event. The email
+ * layer swallows its own errors by design so a mail problem cannot roll back the
+ * connection request or proposal that triggered it, which is exactly why this
+ * went unnoticed.
+ *
+ * Migration 20260730000300 makes the row exist for everyone from now on. This
+ * fallback is the other half: a preference read is not the place to fail, and
+ * defaults are the correct answer for a user who has never expressed one.
+ */
 export async function getSettings(
   supabase: SupabaseClient<Database>,
   userId: string
@@ -53,13 +98,13 @@ export async function getSettings(
     .from('profile_settings')
     .select('*')
     .eq('user_id', userId)
-    .single()
+    .maybeSingle()
 
   if (error) {
     throw new SettingsError('SETTINGS_FETCH_FAILED', (error as { message: string }).message)
   }
 
-  return data as ProfileSettings
+  return (data as ProfileSettings | null) ?? defaultSettings(userId)
 }
 
 export async function updateSettings(

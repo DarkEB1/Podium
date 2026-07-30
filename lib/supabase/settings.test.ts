@@ -28,6 +28,7 @@ function makeMockClient() {
     eq: vi.fn(),
     order: vi.fn(),
     single: mockSingle,
+    maybeSingle: mockSingle,
     then(
       resolve: (v: unknown) => void,
       reject?: ((reason: unknown) => void) | null
@@ -91,6 +92,27 @@ describe('getSettings', () => {
     const m = makeMockClient()
     m.queueSingle(null, { message: 'boom' })
     await expect(getSettings(m.client, 'user-1')).rejects.toBeInstanceOf(SettingsError)
+  })
+
+  it('returns defaults when the user has no settings row yet', async () => {
+    // QA-1.5: this used to throw, and since every transactional email checks
+    // preferences through here, one missing row meant no email of any kind ever
+    // sent. A preference read is not the place to fail.
+    const m = makeMockClient()
+    m.queueSingle(null)
+    const result = await getSettings(m.client, 'user-1')
+    expect(result.user_id).toBe('user-1')
+    expect(result.email_digest).toBe('off')
+    expect(result.marketing_opt_in).toBe(false)
+    expect(result.notification_matrix).toEqual({})
+  })
+
+  it('does not present the defaults as a stored row', async () => {
+    const m = makeMockClient()
+    m.queueSingle(null)
+    const result = await getSettings(m.client, 'user-1')
+    expect(result.id).toBe('')
+    expect(result.created_at).toBeNull()
   })
 })
 
