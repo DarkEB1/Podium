@@ -4,8 +4,9 @@ import { redirect } from 'next/navigation'
 
 import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
-import { getOwnProfile, getPublicProfile } from '@/lib/supabase/profiles'
+import { getOwnProfile } from '@/lib/supabase/profiles'
 import { getAgentClients, getAgentDealPipeline } from '@/lib/supabase/agents'
+import { resolveClientDisplays, UNKNOWN_CLIENT } from '@/lib/supabase/agent-clients'
 import { buttonVariants } from '@/components/ui/button'
 import type { AgentClientRow } from '@/components/agent/client-table'
 import { ROUTES } from '@/lib/routes'
@@ -25,19 +26,7 @@ export const metadata: Metadata = {
 }
 
 
-type AthleteRow = Database['public']['Tables']['athlete_profiles']['Row']
 type AgentRow = Database['public']['Tables']['agent_profiles']['Row']
-
-const LEVEL_LABELS: Record<string, string> = {
-  recreational: 'Recreational',
-  amateur: 'Amateur',
-  semi_professional: 'Semi-Professional',
-  professional: 'Professional',
-  international: 'International',
-  university_bucs: 'University/BUCS',
-  academy: 'Academy',
-  national: 'National',
-}
 
 /**
  * B-4 — the agent nav's "Clients" item pointed at `/agent/clients`, which did
@@ -59,16 +48,10 @@ export default async function AgentClientsPage() {
     getAgentDealPipeline(supabase, user.id),
   ])
 
-  const athleteByUserId = new Map<string, AthleteRow>()
-  await Promise.all(
-    links
-      .filter((l) => l.client_role === 'athlete')
-      .map(async (l) => {
-        // getPublicProfile returns the role union; client_role narrows it.
-        const p = (await getPublicProfile(supabase, l.client_user_id, 'athlete')) as AthleteRow | null
-        if (p) athleteByUserId.set(l.client_user_id, p)
-      })
-  )
+  // Resolves athlete AND team clients. This used to enrich only links whose
+  // client_role was 'athlete' while still rendering a row for every link, so a
+  // team client appeared as a nameless "Client" with no sport or level.
+  const displayByUserId = await resolveClientDisplays(supabase, links)
 
   const activeDealsByUser = new Map<string, number>()
   for (const c of contracts) {
@@ -80,16 +63,12 @@ export default async function AgentClientsPage() {
   }
 
   const clients: AgentClientRow[] = links.map((l) => {
-    const athlete = athleteByUserId.get(l.client_user_id)
+    const display = displayByUserId.get(l.client_user_id) ?? UNKNOWN_CLIENT
     return {
       linkId: l.id,
       clientUserId: l.client_user_id,
-      name: athlete?.display_name ?? 'Client',
-      photoUrl: athlete?.profile_photo_url ?? null,
-      sport: athlete?.primary_sport ?? null,
-      level: athlete?.level ? (LEVEL_LABELS[athlete.level] ?? athlete.level) : null,
+      ...display,
       activeDeals: activeDealsByUser.get(l.client_user_id) ?? 0,
-      lastActivity: athlete?.last_active_at ?? null,
     }
   })
 

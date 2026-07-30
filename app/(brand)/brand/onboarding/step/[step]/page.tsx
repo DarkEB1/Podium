@@ -53,7 +53,7 @@ export default async function BrandOnboardingStepPage({
       <TrackOnboardingStep role="brand" step={step} />
       <Card className="w-full max-w-xl">
         <CardHeader>
-          <CardTitle>Set up your brand — {STEP_TITLES[step]}</CardTitle>
+          <CardTitle>Set up your brand: {STEP_TITLES[step]}</CardTitle>
         </CardHeader>
         <CardContent>
           <BrandProfileForm step={step} profile={profile} />

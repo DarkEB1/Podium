@@ -72,6 +72,12 @@ export const ROUTES = {
     profiles: {
       me: '/api/profiles/me',
       publish: '/api/profiles/me/publish',
+      /**
+       * Brands finish onboarding here rather than at `publish`: their `status`
+       * is admin-controlled (pending_approval -> active on approval), so it
+       * cannot also mean "the user finished the wizard".
+       */
+      onboardingComplete: '/api/profiles/me/onboarding-complete',
       representation: '/api/profiles/representation',
     },
   },

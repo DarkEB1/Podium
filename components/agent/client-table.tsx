@@ -130,9 +130,9 @@ export default function ClientTable({ clients, onRevoke }: Props) {
                   <span className="font-medium text-foreground">{client.name}</span>
                 </div>
               </td>
-              <td className="px-6 py-4 text-muted-foreground">{client.sport ?? '—'}</td>
+              <td className="px-6 py-4 text-muted-foreground">{client.sport ?? 'Not set'}</td>
               <td className="px-6 py-4">
-                {client.level ? <LevelChip level={client.level} /> : <span className="text-muted-foreground">—</span>}
+                {client.level ? <LevelChip level={client.level} /> : <span className="text-muted-foreground">Not set</span>}
               </td>
               <td className="px-6 py-4 tabular-nums">{client.activeDeals}</td>
               <td className="px-6 py-4 text-small text-muted-foreground">

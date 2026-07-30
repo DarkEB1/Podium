@@ -230,7 +230,11 @@ describe('middleware', () => {
         {
           users: { role: 'brand' },
           brand_profiles: {
-            status: 'draft',
+            // The real default from the brand_status enum. This test used to say
+            // 'draft', which brand_status has no value for, so it was asserting
+            // against a state the database cannot produce.
+            status: 'pending_approval',
+            onboarding_completed_at: null,
             company_name: 'Acme',
             cover_image_url: 'https://x/cover.jpg',
             industry: 'sport',
@@ -241,12 +245,59 @@ describe('middleware', () => {
       expect(redirectedTo(res)).toBe('/brand/onboarding/step/3')
     })
 
-    it('lets a published brand through untouched', async () => {
+    // The bug this replaces: brand_status is
+    // ('pending_approval','active','suspended','rejected') with no 'draft', so
+    // the old shared `status !== 'draft'` gate was true from the instant step 1
+    // inserted the row. A brand could leave after step 1 with no industry,
+    // description, sports or seeking set and never be asked to come back.
+    it('keeps a brand who has only finished step 1 inside the wizard', async () => {
       stubSupabase(
         { id: 'u1' },
-        { users: { role: 'brand' }, brand_profiles: { status: 'active', company_name: 'Acme' } },
+        {
+          users: { role: 'brand' },
+          brand_profiles: {
+            status: 'pending_approval',
+            onboarding_completed_at: null,
+            company_name: 'Acme',
+            cover_image_url: 'https://x/cover.jpg',
+          },
+        },
+      )
+      const res = await middleware(request('/brand/dashboard'))
+      expect(redirectedTo(res)).toBe('/brand/onboarding/step/2')
+    })
+
+    it('lets a brand who submitted the final step through untouched', async () => {
+      stubSupabase(
+        { id: 'u1' },
+        {
+          users: { role: 'brand' },
+          brand_profiles: {
+            status: 'active',
+            onboarding_completed_at: '2026-07-30T10:00:00.000Z',
+            company_name: 'Acme',
+          },
+        },
       )
       const res = await middleware(request('/brand/discover'))
+      expect(redirectedTo(res)).toBeNull()
+    })
+
+    // Awaiting admin approval is not unfinished onboarding: such a brand has to
+    // be able to reach /brand/subscription.
+    it('lets a brand awaiting approval through once onboarding is submitted', async () => {
+      stubSupabase(
+        { id: 'u1' },
+        {
+          users: { role: 'brand' },
+          brand_profiles: {
+            status: 'pending_approval',
+            onboarding_completed_at: '2026-07-30T10:00:00.000Z',
+            company_name: 'Acme',
+          },
+        },
+      )
+      const res = await middleware(request('/brand/subscription'))
       expect(redirectedTo(res)).toBeNull()
     })
   })
@@ -261,6 +312,29 @@ describe('middleware', () => {
       stubSupabase({ id: 'u1' }, { users: { role }, [`${role}_profiles`]: null })
       const res = await middleware(request(from))
       expect(redirectedTo(res)).toBe(to)
+    })
+
+    // The signup-breaking loop. Both flows create the row without setting
+    // status, so it stayed at the 'draft' column default forever. This gate then
+    // bounced every navigation back to onboarding, the onboarding page saw an
+    // existing row and redirected straight back out, and the two chased each
+    // other indefinitely: a real team signup produced 77+ consecutive
+    // GET /team/onboarding requests after a successful POST.
+    //
+    // Fixed at the source (rows are created 'active'), so the state below should
+    // no longer occur. Asserted anyway, because a row already stranded in draft
+    // by the old code must be let through rather than trapped again, and because
+    // the next single-form role added must not reintroduce the same hole.
+    it.each([
+      ['team', '/team/settings'],
+      ['agent', '/agent/dashboard'],
+    ])('lets an active %s reach the app instead of looping', async (role, destination) => {
+      stubSupabase(
+        { id: 'u1' },
+        { users: { role }, [`${role}_profiles`]: { status: 'active' } },
+      )
+      const res = await middleware(request(destination))
+      expect(redirectedTo(res)).toBeNull()
     })
   })
 })

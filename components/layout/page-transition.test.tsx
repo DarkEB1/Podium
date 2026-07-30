@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, act, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { PageTransition } from './page-transition'
 
@@ -76,5 +76,59 @@ describe('PageTransition', () => {
     const cls = container.firstElementChild?.className ?? ''
     expect(cls).toMatch(/opacity/)
     expect(cls).not.toMatch(/translate/)
+  })
+
+  // Every route starts at opacity-0 and is only revealed by a state flip. If the
+  // trigger for that flip never fires, correctly-rendered content stays
+  // invisible with no way to recover. Browsers stop servicing
+  // requestAnimationFrame in a hidden or backgrounded tab, which is exactly the
+  // case reproduced: content present in the DOM, permanently at opacity-0.
+  describe('reveal does not depend on an animation frame arriving', () => {
+    /** Replaces rAF with a no-op, the behaviour of a backgrounded tab. */
+    function stubDeadRaf() {
+      vi.stubGlobal('requestAnimationFrame', vi.fn(() => 1))
+      vi.stubGlobal('cancelAnimationFrame', vi.fn())
+    }
+
+    it('still reveals content when the animation frame never fires', async () => {
+      vi.useFakeTimers()
+      try {
+        stubMatchMedia(false)
+        stubDeadRaf()
+        const { container } = render(
+          <PageTransition>
+            <p>route content</p>
+          </PageTransition>,
+        )
+
+        // Precondition: the from-state is applied and nothing has revealed it.
+        expect(container.firstElementChild?.className).not.toMatch(/opacity-100/)
+
+        await act(async () => {
+          vi.advanceTimersByTime(500)
+        })
+
+        expect(container.firstElementChild?.className).toMatch(/opacity-100/)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    // No fake timers and no rAF stub: whichever trigger this environment
+    // provides, the content must end up visible. jsdom does not run rAF
+    // callbacks, so in practice this exercises the fallback path too — it is
+    // kept as the end-to-end assertion that a plain render becomes visible
+    // without a test having to drive any timer by hand.
+    it('reveals content on a plain render', async () => {
+      stubMatchMedia(false)
+      const { container } = render(
+        <PageTransition>
+          <p>route content</p>
+        </PageTransition>,
+      )
+      await waitFor(() =>
+        expect(container.firstElementChild?.className).toMatch(/opacity-100/),
+      )
+    })
   })
 })

@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getOwnProfile, getPublicProfile } from '@/lib/supabase/profiles'
 import { getAgentClients, getAgentDealPipeline } from '@/lib/supabase/agents'
+import { resolveClientDisplays, UNKNOWN_CLIENT } from '@/lib/supabase/agent-clients'
 import StatStrip from '@/components/layout/stat-strip'
 import { AccentHeading } from '@/components/ui/accent-heading'
 import { SectionDivider } from '@/components/ui/section-divider'
@@ -60,22 +61,10 @@ export default async function AgentDashboardPage() {
     getAgentDealPipeline(supabase, user.id),
   ])
 
-  // Enrich athlete clients with display data. Only athlete clients carry the
-  // photo/sport/level the table shows; team clients fall back to id-only.
-  const athleteByUserId = new Map<string, AthleteRow>()
-  await Promise.all(
-    links
-      .filter((l) => l.client_role === 'athlete')
-      .map(async (l) => {
-        // getPublicProfile is a union over roles; client_role narrows it.
-        const p = (await getPublicProfile(
-          supabase,
-          l.client_user_id,
-          'athlete'
-        )) as AthleteRow | null
-        if (p) athleteByUserId.set(l.client_user_id, p)
-      })
-  )
+  // Enrich every client with display data, athlete and team alike. This used to
+  // resolve only links whose client_role was 'athlete' while still rendering a
+  // row per link, so a team client showed as a nameless "Client".
+  const displayByUserId = await resolveClientDisplays(supabase, links)
 
   // Active deals per client user id (a contract is active unless terminated).
   const activeDealsByUser = new Map<string, number>()
@@ -88,21 +77,17 @@ export default async function AgentDashboardPage() {
   }
 
   const clientRows: AgentClientRow[] = links.map((l) => {
-    const athlete = athleteByUserId.get(l.client_user_id)
+    const display = displayByUserId.get(l.client_user_id) ?? UNKNOWN_CLIENT
     return {
       linkId: l.id,
       clientUserId: l.client_user_id,
-      name: athlete?.display_name ?? 'Client',
-      photoUrl: athlete?.profile_photo_url ?? null,
-      sport: athlete?.primary_sport ?? null,
-      level: athlete?.level ? (LEVEL_LABELS[athlete.level] ?? athlete.level) : null,
+      ...display,
       activeDeals: activeDealsByUser.get(l.client_user_id) ?? 0,
-      lastActivity: athlete?.last_active_at ?? null,
     }
   })
 
   // Build the pipeline view-model. Resolve brand names; resolve client names
-  // from the athletes already fetched, else fall back to a label.
+  // from the clients already fetched, else fall back to a label.
   const brandIds = Array.from(new Set(contracts.map((c) => c.brand_id)))
   const brandById = new Map<string, BrandRow>()
   await Promise.all(
@@ -118,7 +103,7 @@ export default async function AgentDashboardPage() {
       if (!stage) return null
       return {
         id: c.id,
-        clientName: athleteByUserId.get(c.athlete_or_team_id)?.display_name ?? 'Client',
+        clientName: displayByUserId.get(c.athlete_or_team_id)?.name ?? 'Client',
         brandName: brandById.get(c.brand_id)?.company_name ?? 'Brand',
         stage,
         updatedAt: c.updated_at,

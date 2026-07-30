@@ -4,6 +4,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { ROUTES } from '@/lib/routes'
 import {
   ONBOARDING_PROGRESS_COLUMNS,
+  isOnboardingComplete,
   onboardingResumePath,
   type NavRole,
   type OnboardingProgress,
@@ -260,8 +261,11 @@ export async function middleware(request: NextRequest) {
     // the all-optional union every reader in lib/nav/config.ts guards against.
     const progress = profile as (OnboardingProgress & { status?: string }) | null
 
-    const status = progress?.status ?? null
-    const onboardingComplete = status !== null && status !== 'draft'
+    // Role-aware by necessity: the four role tables do not agree on how
+    // "unfinished" is spelled, and a single shared comparison here was the root
+    // cause of both the team/agent signup loop and brands escaping the wizard
+    // after step 1. See isOnboardingComplete for the full account.
+    const onboardingComplete = isOnboardingComplete(navRole, progress)
 
     // Never redirect onto the page we are already on — that is the loop.
     if (!onboardingComplete && !pathname.startsWith(`/${navRole}/onboarding`)) {

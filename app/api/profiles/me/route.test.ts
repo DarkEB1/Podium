@@ -163,3 +163,71 @@ describe('PATCH /api/profiles/me', () => {
     expect(json).toEqual(fakeProfile)
   })
 })
+
+// ---------------------------------------------------------------------------
+// Every write failure must come back as JSON the client can actually read.
+//
+// The regression: both handlers re-threw any ProfileError other than one known
+// code. Next turned that into an empty, non-JSON 500, so the browser's
+// `res.json()` threw a SyntaxError *before* it could check `res.ok`, and the
+// caller's try/finally swallowed it. A brand who left LinkedIn blank hit exactly
+// this: profile creation was rejected by a not-null constraint and the UI showed
+// no error at all.
+// ---------------------------------------------------------------------------
+describe('write failures return a readable JSON envelope', () => {
+  beforeEach(() => {
+    vi.mocked(createClient).mockResolvedValue(
+      {} as unknown as Awaited<ReturnType<typeof createClient>>
+    )
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+  })
+
+  it('turns a rejected create into a 400 with an error body', async () => {
+    vi.mocked(createProfile).mockRejectedValue(
+      new ProfileError(
+        'PROFILE_CREATE_FAILED',
+        'null value in column "linkedin_url" of relation "brand_profiles" violates not-null constraint'
+      )
+    )
+    const res = await POST(makeRequest('POST', { company_name: 'Acme' }))
+    expect(res.status).toBe(400)
+    const json = await res.json()
+    expect(json.error.code).toBe('PROFILE_CREATE_FAILED')
+    expect(json.error.message).toBeTruthy()
+  })
+
+  it('never forwards the raw Postgres message to the browser', async () => {
+    vi.mocked(createProfile).mockRejectedValue(
+      new ProfileError('PROFILE_CREATE_FAILED', 'null value in column "linkedin_url" violates x')
+    )
+    const res = await POST(makeRequest('POST', { company_name: 'Acme' }))
+    const json = await res.json()
+    expect(json.error.message).not.toContain('linkedin_url')
+    expect(json.error.message).not.toContain('null value')
+  })
+
+  it('turns a rejected update into a 400 with an error body', async () => {
+    vi.mocked(updateProfile).mockRejectedValue(
+      new ProfileError('PROFILE_UPDATE_FAILED', 'invalid input value for enum brand_industry')
+    )
+    const res = await PATCH(makeRequest('PATCH', { industry: 'nonsense' }))
+    expect(res.status).toBe(400)
+    const json = await res.json()
+    expect(json.error.code).toBe('PROFILE_UPDATE_FAILED')
+  })
+
+  it.each([
+    ['POST', POST],
+    ['PATCH', PATCH],
+  ])('%s rejects a malformed body with JSON rather than throwing', async (method, handler) => {
+    const request = new NextRequest(new URL('/api/profiles/me', 'http://localhost'), {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: 'not json at all',
+    })
+    const res = await handler(request)
+    expect(res.status).toBe(400)
+    const json = await res.json()
+    expect(json.error.code).toBe('INVALID_JSON')
+  })
+})

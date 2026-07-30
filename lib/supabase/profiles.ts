@@ -153,6 +153,43 @@ export async function publishProfile(
   }
 }
 
+/**
+ * Records that a brand has submitted the final onboarding step.
+ *
+ * Deliberately separate from `publishProfile`, and deliberately not a `status`
+ * write. `brand_status` is ('pending_approval','active','suspended','rejected')
+ * and is owned by admin review, so it has no value meaning "still filling in
+ * the wizard" and cannot be borrowed as one. Reusing it was the bug: because no
+ * brand status is ever `'draft'`, the onboarding gate's shared
+ * `status !== 'draft'` test passed the instant step 1 created the row, and a
+ * brand could walk away with steps 2 to 4 empty and never be asked to return.
+ *
+ * The two states are genuinely independent: a brand that has finished the wizard
+ * and is awaiting approval is onboarded (it must be able to reach
+ * `/brand/subscription`) but not yet active.
+ */
+export async function completeBrandOnboarding(
+  supabase: SupabaseClient<Database>,
+  userId: string
+): Promise<void> {
+  const { error } = await db(supabase)
+    .from('brand_profiles')
+    .update({ onboarding_completed_at: new Date().toISOString() })
+    .eq('user_id', userId)
+    .select()
+    .single()
+
+  if (error) {
+    if ((error as { code?: string }).code === 'PGRST116') {
+      throw new ProfileError('PROFILE_NOT_FOUND', 'No profile found for this user')
+    }
+    throw new ProfileError(
+      'ONBOARDING_COMPLETE_FAILED',
+      (error as { message: string }).message
+    )
+  }
+}
+
 export async function getPublicProfile(
   supabase: SupabaseClient<Database>,
   targetUserId: string,
@@ -432,6 +469,26 @@ export async function getActiveTeamProfilesPage(
   // as unknown as TeamSummary[]: runtime-built column list, see the athlete twin.
   const rows = (data ?? []) as unknown as TeamSummary[]
   return { teams: rows.slice(0, limit), hasMore: rows.length > limit }
+}
+
+/**
+ * Every active team, unpaginated. The twin of `getActiveAthleteProfiles`, for
+ * the same reason it exists: the agent "Add Client" picker needs the whole set
+ * to mark which teams are already represented. Browse feeds must keep using
+ * `getActiveTeamProfilesPage`.
+ */
+export async function getActiveTeamProfiles(
+  supabase: SupabaseClient<Database>
+): Promise<TeamSummary[]> {
+  const { data, error } = await db(supabase)
+    .from('team_profiles')
+    .select(TEAM_SUMMARY_COLUMNS)
+    .eq('status', 'active')
+    .order('updated_at', { ascending: false })
+
+  if (error) throw new ProfileError('PROFILE_FETCH_FAILED', (error as { message: string }).message)
+  // as unknown as TeamSummary[]: runtime-built column list, see the athlete twin.
+  return (data ?? []) as unknown as TeamSummary[]
 }
 
 // ---------------------------------------------------------------------------

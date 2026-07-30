@@ -32,6 +32,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { ROUTES } from '@/lib/routes'
 import type { Database } from '@/types/database'
 
 type BrandRow = Database['public']['Tables']['brand_profiles']['Row']
@@ -104,6 +105,21 @@ function stepLabel(step: number): string {
   return { 1: 'Company Basics', 2: 'Targeting', 3: 'About', 4: 'Review' }[step] ?? ''
 }
 
+/** Anything the profile API can return: the saved row, or an error envelope. */
+type ApiPayload = Record<string, unknown> & { error?: { message?: string } }
+
+/**
+ * Reads a response body without assuming it is JSON.
+ *
+ * A route handler that throws returns an empty, non-JSON body, and
+ * `res.json()` on that throws a SyntaxError before the `res.ok` check can run.
+ * The caller's try/finally then swallowed it, which is why a failed save showed
+ * "Saving…" and silently reverted with no error message of any kind.
+ */
+async function readJson(res: Response): Promise<ApiPayload> {
+  return (await res.json().catch(() => ({}))) as ApiPayload
+}
+
 function Step1({ profile, onSaved }: { profile: BrandRow | null; onSaved: (p: BrandRow) => void }) {
   const [loading, setLoading] = useState(false)
   const [logoUrl, setLogoUrl] = useState<string | null>(profile?.logo_url ?? null)
@@ -132,14 +148,19 @@ function Step1({ profile, onSaved }: { profile: BrandRow | null; onSaved: (p: Br
     setLoading(true)
     try {
       const method = profile?.id ? 'PATCH' : 'POST'
-      const res = await fetch('/api/profiles/me', {
+      const res = await fetch(ROUTES.api.profiles.me, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...values, logo_url: logoUrl, cover_image_url: coverUrl }),
       })
-      const data = await res.json()
-      if (!res.ok) { toast.error(data.error?.message ?? 'Failed to save'); return }
-      onSaved(data as BrandRow)
+      const data = await readJson(res)
+      if (!res.ok) {
+        toast.error(data.error?.message ?? 'Could not save your details. Please try again.')
+        return
+      }
+      onSaved(data as unknown as BrandRow)
+    } catch {
+      toast.error('Could not save your details. Please check your connection and try again.')
     } finally {
       setLoading(false)
     }
@@ -272,14 +293,20 @@ function Step2({ profile, onSaved }: { profile: BrandRow | null; onSaved: (p: Br
   async function onSubmit(values: Step2Values) {
     setLoading(true)
     try {
-      const res = await fetch('/api/profiles/me', {
+      const res = await fetch(ROUTES.api.profiles.me, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...values, seeking, target_sports: targetSports }),
       })
-      const data = await res.json()
-      if (!res.ok) { toast.error(data.error?.message ?? 'Failed to save'); return }
-      onSaved(data as BrandRow)
+      const data = await readJson(res)
+      if (!res.ok) {
+        toast.error(data.error?.message ?? 'Could not save your targeting. Please try again.')
+        return
+      }
+      // as unknown as BrandRow: a 2xx body from this endpoint is the saved row.
+      onSaved(data as unknown as BrandRow)
+    } catch {
+      toast.error('Could not save your targeting. Please check your connection and try again.')
     } finally {
       setLoading(false)
     }
@@ -397,14 +424,20 @@ function Step3({ profile, onSaved }: { profile: BrandRow | null; onSaved: (p: Br
   async function onSubmit(values: Step3Values) {
     setLoading(true)
     try {
-      const res = await fetch('/api/profiles/me', {
+      const res = await fetch(ROUTES.api.profiles.me, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(values),
       })
-      const data = await res.json()
-      if (!res.ok) { toast.error(data.error?.message ?? 'Failed to save'); return }
-      onSaved(data as BrandRow)
+      const data = await readJson(res)
+      if (!res.ok) {
+        toast.error(data.error?.message ?? 'Could not save your description. Please try again.')
+        return
+      }
+      // as unknown as BrandRow: a 2xx body from this endpoint is the saved row.
+      onSaved(data as unknown as BrandRow)
+    } catch {
+      toast.error('Could not save your description. Please check your connection and try again.')
     } finally {
       setLoading(false)
     }
@@ -427,7 +460,7 @@ function Step3({ profile, onSaved }: { profile: BrandRow | null; onSaved: (p: Br
             </FormControl>
             <div className="flex items-start justify-between gap-4">
               <p className="text-small text-muted-foreground">
-                Keep it concise — lead with what makes your brand a great partner.
+                Keep it concise, and lead with what makes your brand a great partner.
               </p>
               <CharacterCounter value={description} max={DESCRIPTION_MAX} />
             </div>
@@ -444,10 +477,30 @@ function Step3({ profile, onSaved }: { profile: BrandRow | null; onSaved: (p: Br
 
 function Step4({ profile }: { profile: BrandRow | null }) {
   const router = useRouter()
+  const [loading, setLoading] = useState(false)
 
-  function handleSubmit() {
-    toast.success('Profile submitted for review. You will be notified when approved.')
-    router.push('/brand/subscription')
+  /**
+   * This used to fire a success toast and navigate, without telling the server
+   * anything. Nothing recorded that the wizard had been finished, so the
+   * onboarding gate had nothing to read and fell back to `status`, which for a
+   * brand is never 'draft' and so always read as "finished" from step 1 onwards.
+   */
+  async function handleSubmit() {
+    setLoading(true)
+    try {
+      const res = await fetch(ROUTES.api.profiles.onboardingComplete, { method: 'POST' })
+      const data = await readJson(res)
+      if (!res.ok) {
+        toast.error(data.error?.message ?? 'Could not submit your profile. Please try again.')
+        return
+      }
+      toast.success('Profile submitted for review. You will be notified when approved.')
+      router.push(ROUTES.brand.subscription)
+    } catch {
+      toast.error('Could not submit your profile. Please check your connection and try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -457,27 +510,27 @@ function Step4({ profile }: { profile: BrandRow | null }) {
         <dl className="space-y-1 text-sm">
           <div className="flex gap-2">
             <dt className="text-muted-foreground w-40">Company</dt>
-            <dd>{profile?.company_name ?? '—'}</dd>
+            <dd>{profile?.company_name ?? 'Not set'}</dd>
           </div>
           <div className="flex gap-2">
             <dt className="text-muted-foreground w-40">Industry</dt>
-            <dd>{profile?.industry?.replace('_', ' ') ?? '—'}</dd>
+            <dd>{profile?.industry?.replace('_', ' ') ?? 'Not set'}</dd>
           </div>
           <div className="flex gap-2">
             <dt className="text-muted-foreground w-40">Location</dt>
-            <dd>{[profile?.headquarters_city, profile?.headquarters_country].filter(Boolean).join(', ') || '—'}</dd>
+            <dd>{[profile?.headquarters_city, profile?.headquarters_country].filter(Boolean).join(', ') || 'Not set'}</dd>
           </div>
           <div className="flex gap-2">
             <dt className="text-muted-foreground w-40">Website</dt>
-            <dd>{profile?.website_url ?? '—'}</dd>
+            <dd>{profile?.website_url ?? 'Not set'}</dd>
           </div>
         </dl>
       </div>
       <p className="text-xs text-muted-foreground">
         Your profile will be reviewed by the Podium team. Meanwhile, set up your subscription to start discovering athletes and teams.
       </p>
-      <Button className="w-full" onClick={handleSubmit}>
-        Submit for review →
+      <Button className="w-full" onClick={handleSubmit} disabled={loading}>
+        {loading ? 'Submitting…' : 'Submit for review →'}
       </Button>
     </div>
   )
@@ -507,7 +560,7 @@ export default function BrandProfileForm({ step, profile: initialProfile }: Prop
     <div className="space-y-6">
       <div>
         <div className="flex justify-between text-xs text-muted-foreground mb-1">
-          <span>Step {step} of {TOTAL_STEPS} — {stepLabel(step)}</span>
+          <span>Step {step} of {TOTAL_STEPS}: {stepLabel(step)}</span>
           <span>{Math.round((step / TOTAL_STEPS) * 100)}%</span>
         </div>
         <div className="h-1.5 rounded-full bg-muted overflow-hidden">

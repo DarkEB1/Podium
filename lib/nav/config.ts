@@ -192,6 +192,12 @@ export interface BrandOnboardingProgress {
   target_sports?: readonly string[] | null
   seeking?: readonly string[] | null
   description?: string | null
+  /**
+   * Set when the brand submits the final wizard step. See
+   * `isOnboardingComplete` for why brands need their own marker instead of
+   * reusing `status` the way the other three roles do.
+   */
+  onboarding_completed_at?: string | null
 }
 
 /**
@@ -301,15 +307,56 @@ export function onboardingResumePath(
 }
 
 /**
+ * Has this user finished onboarding, and may they therefore reach the rest of
+ * the app?
+ *
+ * This used to be one expression, `status !== 'draft'`, applied to all four role
+ * tables by middleware. It was correct for exactly one of them, and the two
+ * different ways it was wrong produced opposite failures:
+ *
+ *   * **team and agent** never left `'draft'`, because both flows are a single
+ *     form that inserts a row and nothing afterwards published it. The gate
+ *     bounced every navigation back to onboarding, the onboarding page saw an
+ *     existing row and redirected out, and the two chased each other forever.
+ *     Signup was impossible to complete. Fixed at the source (rows are now
+ *     created `'active'`) and backfilled by
+ *     `20260730000000_onboarding_completion.sql`.
+ *
+ *   * **brand** has no `'draft'` to be in: `brand_status` is
+ *     ('pending_approval','active','suspended','rejected'). The check was
+ *     vacuously true from the moment step 1 of the four-step wizard inserted the
+ *     row, so the gate never asked a brand to finish steps 2 to 4. Brands now
+ *     carry their own `onboarding_completed_at`, set when they submit step 4.
+ *     It has to be a separate column: brand `status` is admin-controlled and
+ *     tracks approval, so a brand who has finished the wizard and is waiting on
+ *     an admin is onboarded and must be able to reach `/brand/subscription`.
+ *
+ * A row that does not exist yet is always incomplete. Note that "not draft" is
+ * deliberately what completion means for the status-driven roles rather than
+ * "is active": a profile the user later deactivated is a finished profile, and
+ * sending them back through the wizard would be a fresh bug.
+ */
+export function isOnboardingComplete(
+  role: NavRole,
+  profile: (OnboardingProgress & { status?: string | null }) | null,
+): boolean {
+  if (!profile) return false
+  if (role === 'brand') return isNonEmpty(profile.onboarding_completed_at)
+  const status = profile.status ?? null
+  return status !== null && status !== 'draft'
+}
+
+/**
  * The profile columns middleware must project to derive a resume path for a
- * role — replaces `select('*')` on the auth hot path (SB-9/FA-4). `status` is
- * always included: it is what decides whether onboarding is finished at all.
+ * role — replaces `select('*')` on the auth hot path (SB-9/FA-4). Whatever
+ * `isOnboardingComplete` reads for that role must appear here, or the gate
+ * decides on a column it never fetched.
  */
 export const ONBOARDING_PROGRESS_COLUMNS: Record<NavRole, string> = {
   athlete:
     'status, display_name, home_country, profile_photo_url, primary_sport, availability_status, social_accounts, notable_achievements',
   brand:
-    'status, company_name, cover_image_url, industry, target_level, geographic_preference, target_sports, seeking, description',
+    'status, onboarding_completed_at, company_name, cover_image_url, industry, target_level, geographic_preference, target_sports, seeking, description',
   // Single-form roles need nothing beyond the completion flag.
   team: 'status',
   agent: 'status',

@@ -717,9 +717,10 @@ export type Database = {
           headquarters_country: string | null
           id: string
           industry: Database["public"]["Enums"]["brand_industry"] | null
-          linkedin_url: string
+          linkedin_url: string | null
           logo_url: string | null
           notification_prefs: Json
+          onboarding_completed_at: string | null
           rejection_reason: string | null
           seeking: string[]
           social_accounts: Json
@@ -747,9 +748,10 @@ export type Database = {
           headquarters_country?: string | null
           id?: string
           industry?: Database["public"]["Enums"]["brand_industry"] | null
-          linkedin_url: string
+          linkedin_url?: string | null
           logo_url?: string | null
           notification_prefs?: Json
+          onboarding_completed_at?: string | null
           rejection_reason?: string | null
           seeking?: string[]
           social_accounts?: Json
@@ -777,9 +779,10 @@ export type Database = {
           headquarters_country?: string | null
           id?: string
           industry?: Database["public"]["Enums"]["brand_industry"] | null
-          linkedin_url?: string
+          linkedin_url?: string | null
           logo_url?: string | null
           notification_prefs?: Json
+          onboarding_completed_at?: string | null
           rejection_reason?: string | null
           seeking?: string[]
           social_accounts?: Json

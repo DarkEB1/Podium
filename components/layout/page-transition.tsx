@@ -44,6 +44,14 @@ export function useReducedMotion(): boolean {
   return reduced
 }
 
+/**
+ * How long to wait for `requestAnimationFrame` before revealing the content
+ * anyway. Comfortably longer than a frame on a slow device, so it never
+ * pre-empts the real animation in a foregrounded tab, and short enough that a
+ * user who focuses a background tab does not sit looking at a blank page.
+ */
+const ENTER_FALLBACK_MS = 150
+
 export interface PageTransitionProps {
   children: React.ReactNode
   /** Motion behaviour to apply. Defaults to the top-level cross-fade. */
@@ -68,11 +76,28 @@ export function PageTransition({
     setEntered(false)
   }, [pathname])
 
+  const fallback = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
   useEffect(() => {
     if (entered) return
+
+    // rAF is the preferred trigger: it fires on the next paint, which is exactly
+    // when the from-state should be released.
     frame.current = requestAnimationFrame(() => setEntered(true))
+
+    // But rAF is not guaranteed to fire at all. Browsers stop servicing it in a
+    // backgrounded or hidden tab, and this wrapper starts every route at
+    // opacity-0, so a page opened in a background tab or hit by mobile tab
+    // throttling renders correctly into the DOM and then stays invisible
+    // indefinitely with no way to recover. Verified: with
+    // visibilityState 'hidden' the callback never runs and the content never
+    // appears. A page being visible is not an animation, so it must not depend
+    // on one — this timer guarantees the reveal regardless.
+    fallback.current = setTimeout(() => setEntered(true), ENTER_FALLBACK_MS)
+
     return () => {
       if (frame.current !== undefined) cancelAnimationFrame(frame.current)
+      if (fallback.current !== undefined) clearTimeout(fallback.current)
     }
   }, [entered])
 

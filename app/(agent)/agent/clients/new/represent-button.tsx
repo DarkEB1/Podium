@@ -10,7 +10,14 @@ import { ROUTES } from '@/lib/routes'
 interface Props {
   clientUserId: string
   clientName: string
-  /** Already represented — the action is shown as done rather than repeated. */
+  /**
+   * Which kind of client this is. Previously hardcoded to 'athlete' in the
+   * request body, so agents could only ever represent athletes even though
+   * `POST /api/profiles/representation` has always accepted 'team' and the
+   * product describes agents representing athletes and teams.
+   */
+  clientRole: 'athlete' | 'team'
+  /** Already represented, so the action is shown as done rather than repeated. */
   alreadyLinked: boolean
 }
 
@@ -18,7 +25,12 @@ interface Props {
  * Sends the representation request that backs the agent's "Add Client" CTA.
  * Failures are surfaced to the user rather than swallowed.
  */
-export default function RepresentButton({ clientUserId, clientName, alreadyLinked }: Props) {
+export default function RepresentButton({
+  clientUserId,
+  clientName,
+  clientRole,
+  alreadyLinked,
+}: Props) {
   const router = useRouter()
   const [pending, setPending] = useState(false)
   const [done, setDone] = useState(alreadyLinked)
@@ -30,7 +42,7 @@ export default function RepresentButton({ clientUserId, clientName, alreadyLinke
       const res = await fetch(ROUTES.api.profiles.representation, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ client_user_id: clientUserId, client_role: 'athlete' }),
+        body: JSON.stringify({ client_user_id: clientUserId, client_role: clientRole }),
       })
       const data = (await res.json().catch(() => ({}))) as { error?: { message?: string } }
       if (!res.ok) {

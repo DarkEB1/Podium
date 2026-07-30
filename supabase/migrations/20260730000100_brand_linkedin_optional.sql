@@ -1,0 +1,25 @@
+-- ============================================================
+-- brand_profiles.linkedin_url is optional, as the form always claimed
+-- ============================================================
+--
+-- The column was declared `text not null` with no default, while the onboarding
+-- form that fills it labels the field "(optional)" and validates it as
+-- `.optional().or(z.literal(''))`. The data layer strips empty strings before
+-- insert, so a brand who left LinkedIn blank sent no value at all and Postgres
+-- rejected the insert:
+--
+--   null value in column "linkedin_url" of relation "brand_profiles"
+--   violates not-null constraint
+--
+-- No brand could create a profile without supplying a LinkedIn URL, and because
+-- the API re-threw the error instead of returning JSON, the browser showed
+-- nothing at all: the button said "Saving…", reverted to "Next →", and that was
+-- the entire feedback.
+--
+-- Resolved in the form's favour rather than the column's. Every other profile
+-- table treats social links as optional (this was the only NOT NULL-without-
+-- default column across all four), a brand's LinkedIn presence is not something
+-- Podium can require them to have, and nothing in the product reads this column
+-- expecting it to be populated.
+alter table public.brand_profiles
+  alter column linkedin_url drop not null;

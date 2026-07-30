@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getPublicProfile } from '@/lib/supabase/profiles'
 import AthleteProfileDetail from '@/components/discovery/athlete-profile-detail'
+import TeamProfileDetail from '@/components/discovery/team-profile-detail'
 import { ROUTES } from '@/lib/routes'
 import type { Database } from '@/types/database'
 
@@ -27,6 +28,7 @@ export function generateMetadata(): Metadata {
 
 
 type AthleteRow = Database['public']['Tables']['athlete_profiles']['Row']
+type TeamRow = Database['public']['Tables']['team_profiles']['Row']
 
 /**
  * The client profile an agent opens from their roster. `ClientTable`'s
@@ -44,15 +46,25 @@ export default async function AgentClientProfilePage({
   if (!user) redirect(ROUTES.auth.signIn)
   if (user.role !== 'agent') redirect(ROUTES.forbidden)
 
-  // getPublicProfile returns the role union; role 'athlete' narrows it to AthleteRow.
-  const profile = (await getPublicProfile(supabase, userId, 'athlete')) as AthleteRow | null
-  if (!profile) notFound()
+  // An agent's roster holds athletes and teams, and the roster links every row
+  // here, so this page must resolve both. Looking up athlete_profiles only meant
+  // every team client's "View Profile" action rendered a 404.
+  // getPublicProfile returns the role union; the role argument narrows it.
+  const athlete = (await getPublicProfile(supabase, userId, 'athlete')) as AthleteRow | null
+  if (athlete) {
+    return (
+      <AthleteProfileDetail
+        athlete={athlete}
+        backHref={ROUTES.agent.clients}
+        backLabel="Back to clients"
+      />
+    )
+  }
+
+  const team = (await getPublicProfile(supabase, userId, 'team')) as TeamRow | null
+  if (!team) notFound()
 
   return (
-    <AthleteProfileDetail
-      athlete={profile}
-      backHref={ROUTES.agent.clients}
-      backLabel="Back to clients"
-    />
+    <TeamProfileDetail team={team} backHref={ROUTES.agent.clients} backLabel="Back to clients" />
   )
 }

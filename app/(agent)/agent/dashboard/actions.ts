@@ -41,6 +41,6 @@ export async function revokeClientAction(linkId: string): Promise<void> {
 
   // Revoke primitive pending Track B. Surface a typed error for the toast layer.
   throw new Error(
-    'Revoking client access is not available yet — this requires an agent-side termination endpoint.'
+    'Revoking client access is not available yet. This requires an agent-side termination endpoint.'
   )
 }

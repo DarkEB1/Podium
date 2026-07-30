@@ -13,7 +13,9 @@ import {
   brandResumeStep,
   roleResumeStep,
   onboardingResumePath,
+  isOnboardingComplete,
   ONBOARDING_STEPS,
+  ONBOARDING_PROGRESS_COLUMNS,
 } from './config'
 
 const APP_DIR = path.resolve(__dirname, '..', '..', 'app')
@@ -249,5 +251,74 @@ describe('single-form roles (PR-9)', () => {
   it('still resumes them at their form rather than anywhere else', () => {
     expect(onboardingResumePath('team', null)).toBe('/team/onboarding')
     expect(onboardingResumePath('agent', null)).toBe('/agent/onboarding')
+  })
+})
+
+describe('isOnboardingComplete', () => {
+  // The regression this guards: one shared `status !== 'draft'` expression was
+  // applied to all four role tables. It was right for exactly one of them.
+  it('treats a missing profile row as incomplete for every role', () => {
+    for (const role of NAV_ROLES) {
+      expect(isOnboardingComplete(role, null)).toBe(false)
+    }
+  })
+
+  describe('athlete and the single-form roles use status', () => {
+    it.each(['athlete', 'team', 'agent'] as const)('%s in draft is incomplete', (role) => {
+      expect(isOnboardingComplete(role, { status: 'draft' })).toBe(false)
+    })
+
+    it.each(['athlete', 'team', 'agent'] as const)('%s that is active is complete', (role) => {
+      expect(isOnboardingComplete(role, { status: 'active' })).toBe(true)
+    })
+
+    // A profile taken down later is not an unfinished profile. Sending a
+    // deactivated athlete back through the wizard would be a second bug.
+    it.each(['athlete', 'team', 'agent'] as const)('%s that is deactivated is still complete', (role) => {
+      expect(isOnboardingComplete(role, { status: 'deactivated' })).toBe(true)
+    })
+  })
+
+  describe('brand uses its own completion marker', () => {
+    // brand_status is ('pending_approval','active','suspended','rejected') —
+    // there is no 'draft', so `status !== 'draft'` was true the instant step 1
+    // inserted the row and the gate never asked for steps 2 to 4.
+    const midWizard = {
+      status: 'pending_approval',
+      company_name: 'Acme',
+      cover_image_url: 'https://x/cover.jpg',
+      onboarding_completed_at: null,
+    }
+
+    it('is incomplete after step 1 even though status is not draft', () => {
+      expect(isOnboardingComplete('brand', midWizard)).toBe(false)
+    })
+
+    it('is complete once the final step records a timestamp', () => {
+      expect(
+        isOnboardingComplete('brand', {
+          ...midWizard,
+          onboarding_completed_at: '2026-07-30T10:00:00.000Z',
+        }),
+      ).toBe(true)
+    })
+
+    // Awaiting admin approval is not the same as unfinished onboarding: a brand
+    // in that state must be able to reach /brand/subscription.
+    it('does not depend on admin approval having happened', () => {
+      expect(
+        isOnboardingComplete('brand', {
+          status: 'pending_approval',
+          onboarding_completed_at: '2026-07-30T10:00:00.000Z',
+        }),
+      ).toBe(true)
+    })
+  })
+
+  it('projects the columns each role check actually reads', () => {
+    expect(ONBOARDING_PROGRESS_COLUMNS.brand).toContain('onboarding_completed_at')
+    for (const role of NAV_ROLES) {
+      expect(ONBOARDING_PROGRESS_COLUMNS[role]).toContain('status')
+    }
   })
 })
