@@ -10,12 +10,18 @@ import type { Database } from '@/types/database'
  * mints the short-lived signed URL the client uploads to.
  */
 
-/** The four v1 storage buckets (spec §4A.1). */
+/** The four v1 storage buckets (spec §4A.1), plus the GDPR export bucket. */
 export const STORAGE_BUCKETS = {
   avatars: 'avatars', // athlete/agent profile photos (1:1)
   logos: 'logos', // brand/team logos
   covers: 'covers', // brand/team cover images (wide)
   docs: 'docs', // media packs / sponsorship brief PDFs
+  // QA-1.7: assembled "download my data" archives. Its own bucket rather than a
+  // corner of `docs`, because `docs` accepts only images and PDF (so every
+  // export upload failed with invalid_mime_type), and because a full personal
+  // data dump should not share a bucket with documents a match counterparty is
+  // allowed to read.
+  exports: 'exports',
 } as const
 
 export type StorageBucket = (typeof STORAGE_BUCKETS)[keyof typeof STORAGE_BUCKETS]
@@ -51,6 +57,10 @@ const ALLOWED_EXTS: Record<StorageBucket, readonly string[]> = {
   logos: IMAGE_EXTS,
   covers: IMAGE_EXTS,
   docs: [...IMAGE_EXTS, 'pdf'],
+  // Empty on purpose: nothing may presign an upload into the exports bucket.
+  // Export files are written server-side by the data-export cron with the
+  // service-role client, never by a browser.
+  exports: [],
 }
 
 export class StorageError extends Error {
@@ -110,8 +120,8 @@ export async function createUploadUrl(
   const { bucket } = opts
 
   const allowedExts = ALLOWED_EXTS[bucket]
-  if (!allowedExts) {
-    throw new StorageError('invalid_bucket', `Unknown storage bucket: ${String(bucket)}`)
+  if (!allowedExts || allowedExts.length === 0) {
+    throw new StorageError('invalid_bucket', `Cannot presign uploads for bucket: ${String(bucket)}`)
   }
 
   // The storage.objects policies (PR-16, migration 20260720001005) require

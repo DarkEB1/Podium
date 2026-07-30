@@ -1,14 +1,20 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database'
 import { STORAGE_BUCKETS, createSignedDownloadUrl } from '@/lib/storage'
+import { captureException } from '@/lib/observability'
 
 /**
  * GDPR "download my data" fulfilment (spec §privacy, Art. 20 portability).
  *
  * requestDataExport() only ever inserted a `pending` row; nothing produced the
  * file. This module assembles the user's data as JSON, stores it in the private
- * `docs` bucket, signs a 72h download URL, and marks the request ready. It is
+ * `exports` bucket, signs a 72h download URL, and marks the request ready. It is
  * driven by the data-export cron. Service-role only.
+ *
+ * QA-1.7: the upload originally targeted the `docs` bucket, which accepts only
+ * images and PDF, so Storage rejected every export with invalid_mime_type and no
+ * request could ever succeed. Exports now have their own owner-only bucket
+ * (migration 20260730000400).
  */
 
 const DOWNLOAD_TTL_SECONDS = 72 * 60 * 60
@@ -84,17 +90,20 @@ export async function processExportRequest(
     await client.from('data_export_requests').update({ status: 'processing' }).eq('id', requestId)
 
     const payload = await assembleExport(admin, userId, nowIso)
-    const path = `exports/${userId}/${requestId}.json`
+    // Owner id is the FIRST path segment, which is what the bucket's
+    // owner-scoped SELECT policy matches on. The old `exports/<uid>/...` shape
+    // put a literal folder name there, so no owner policy could apply.
+    const path = `${userId}/${requestId}.json`
 
     const { error: uploadError } = await client.storage
-      .from(STORAGE_BUCKETS.docs)
+      .from(STORAGE_BUCKETS.exports)
       .upload(path, JSON.stringify(payload, null, 2), {
         contentType: 'application/json',
         upsert: true,
       })
     if (uploadError) throw new Error(uploadError.message)
 
-    const downloadUrl = await createSignedDownloadUrl(admin, STORAGE_BUCKETS.docs, path, DOWNLOAD_TTL_SECONDS)
+    const downloadUrl = await createSignedDownloadUrl(admin, STORAGE_BUCKETS.exports, path, DOWNLOAD_TTL_SECONDS)
     const expiresAt = new Date(new Date(nowIso).getTime() + DOWNLOAD_TTL_SECONDS * 1000).toISOString()
 
     await client
@@ -146,7 +155,11 @@ export async function processPendingExports(
     try {
       await processExportRequest(admin, row.id, row.user_id, nowIso)
       processed++
-    } catch {
+    } catch (err) {
+      // The failure used to be discarded entirely, so a permanently broken
+      // export looked like a bare {"failed":1} with no way to find out why.
+      // Never log the request's contents, only which request and what broke.
+      captureException(err, { stage: 'processPendingExports', requestId: row.id })
       failed++
     }
   }

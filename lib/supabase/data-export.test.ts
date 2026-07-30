@@ -39,6 +39,11 @@ function makeAdmin(opts: { tables?: Record<string, unknown[]>; account?: unknown
     },
   }
 
+  const upload = vi.fn(async () =>
+    opts.uploadError ? { error: { message: opts.uploadError } } : { error: null }
+  )
+  const storageFrom = vi.fn(() => ({ upload }))
+
   const admin = {
     from: vi.fn((t: string) => {
       table = t
@@ -46,13 +51,11 @@ function makeAdmin(opts: { tables?: Record<string, unknown[]>; account?: unknown
       return builder
     }),
     storage: {
-      from: vi.fn(() => ({
-        upload: vi.fn(async () => (opts.uploadError ? { error: { message: opts.uploadError } } : { error: null })),
-      })),
+      from: storageFrom,
     },
   } as unknown as SupabaseClient<Database>
 
-  return { admin, updates }
+  return { admin, updates, storageFrom, upload }
 }
 
 const NOW = '2026-07-28T10:00:00.000Z'
@@ -89,6 +92,24 @@ describe('processExportRequest', () => {
     const ready = updates.find((u) => u.payload.status === 'ready')!
     expect(ready.payload.download_url).toBe('https://signed.example/export.json')
     expect(ready.payload.expires_at).toBeTruthy()
+  })
+
+  it('uploads JSON to the exports bucket, under the owner as first path segment', async () => {
+    // QA-1.7: this used to target `docs`, which allows only images and PDF, so
+    // Storage rejected every export with invalid_mime_type and no request could
+    // ever succeed. The path also has to start with the owner id for the
+    // bucket's owner-scoped SELECT policy to match.
+    const { admin, storageFrom, upload } = makeAdmin({ account: { id: 'u1' }, tables: {} })
+    await processExportRequest(admin, 'req1', 'u1', NOW)
+
+    expect(storageFrom).toHaveBeenCalledWith('exports')
+    const [path, , options] = upload.mock.calls[0] as unknown as [
+      string,
+      string,
+      { contentType: string },
+    ]
+    expect(path).toBe('u1/req1.json')
+    expect(options.contentType).toBe('application/json')
   })
 
   it('marks the request failed when the upload fails', async () => {

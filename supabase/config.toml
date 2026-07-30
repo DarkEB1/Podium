@@ -138,6 +138,14 @@ public = false
 file_size_limit = "25MiB"
 allowed_mime_types = ["image/png", "image/jpeg", "image/heic", "image/webp", "application/pdf"]
 
+[storage.buckets.exports]
+# QA-1.7: assembled GDPR "download my data" archives. Private and owner-only
+# (narrower than docs, which an active-match counterparty may read). Written by
+# the data-export cron with the service-role key, never uploaded by a browser.
+public = false
+file_size_limit = "50MiB"
+allowed_mime_types = ["application/json"]
+
 # Allow connections via S3 compatible clients
 [storage.s3_protocol]
 enabled = true
