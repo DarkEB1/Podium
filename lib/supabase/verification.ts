@@ -101,7 +101,21 @@ export async function listPendingVerifications(
   return (data as VerificationRow[] | null) ?? []
 }
 
-/** Admin: approve or reject a request. */
+/**
+ * Admin: approve or reject a request.
+ *
+ * QA-3.1: agents are the one role that also carries verification on their own
+ * profile (`agent_profiles.verification_status` / `is_verified`, which is what
+ * the agent profile and settings screens render, and what `applyForVerification`
+ * moves to 'pending'). An approval that updated only verification_requests left
+ * those columns saying "unverified" forever, so an approved agent saw no change
+ * anywhere. Athletes, teams and brands have no such column: for them
+ * verification_requests IS the source of truth and the read helpers above are
+ * what surface it.
+ *
+ * The write-back is best-effort and runs after the review is recorded: the
+ * review itself must not fail because a mirror column could not be updated.
+ */
 export async function reviewVerification(
   admin: SupabaseClient<Database>,
   requestId: string,
@@ -109,12 +123,14 @@ export async function reviewVerification(
   action: 'approve' | 'reject',
   reviewNote?: string
 ): Promise<VerificationRow> {
+  const reviewedAt = new Date().toISOString()
+
   const { data, error } = await (admin as SupabaseClient)
     .from('verification_requests')
     .update({
       status: action === 'approve' ? 'approved' : 'rejected',
       reviewed_by: reviewerId,
-      reviewed_at: new Date().toISOString(),
+      reviewed_at: reviewedAt,
       review_note: reviewNote ?? null,
     })
     .eq('id', requestId)
@@ -122,5 +138,23 @@ export async function reviewVerification(
     .single()
 
   if (error) throw new VerificationError('REVIEW_FAILED', (error as { message: string }).message)
-  return data as VerificationRow
+
+  const review = data as VerificationRow
+
+  if (review.role === 'agent') {
+    await (admin as SupabaseClient)
+      .from('agent_profiles')
+      .update(
+        action === 'approve'
+          ? { verification_status: 'verified', is_verified: true, verified_at: reviewedAt }
+          // agent_verification_status is the tri-state unverified/pending/verified
+          // (20260419000012) with no 'rejected' member, so a rejection returns the
+          // agent to 'unverified' rather than inventing a fourth state. The reason
+          // lives on the verification_requests row.
+          : { verification_status: 'unverified', is_verified: false, verified_at: null }
+      )
+      .eq('user_id', review.user_id)
+  }
+
+  return review
 }

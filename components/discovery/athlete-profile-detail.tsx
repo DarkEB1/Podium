@@ -15,6 +15,12 @@ interface Props {
   /** Where the "Back" affordance returns to (the viewer's discovery surface). */
   backHref: string
   backLabel?: string
+  /**
+   * Whether this athlete holds an approved verification request
+   * (`lib/supabase/verification.ts` is the source of truth). Resolved by the
+   * page, since only a server component can query it.
+   */
+  verified?: boolean
   /** Optional call-to-action rendered beneath the summary (e.g. send a request). */
   action?: React.ReactNode
 }
@@ -55,7 +61,13 @@ function seekingLabel(value: string): string {
  * actually has: what are they looking for, when are they available, and are
  * they open to connection requests or only browsing.
  */
-export default function AthleteProfileDetail({ athlete, backHref, backLabel = 'Back to discover', action }: Props) {
+export default function AthleteProfileDetail({
+  athlete,
+  backHref,
+  backLabel = 'Back to discover',
+  verified = false,
+  action,
+}: Props) {
   const name = athlete.display_name ?? 'Athlete'
   const sport = athlete.primary_sport
   const level = athlete.level ? humanise(athlete.level) : null
@@ -95,10 +107,11 @@ export default function AthleteProfileDetail({ athlete, backHref, backLabel = 'B
             {[sport, level, location].filter(Boolean).join(' · ') || 'Athlete on Podium'}
           </p>
           <div className="flex flex-wrap items-center gap-2">
-            {/* athlete_profiles has no verification column; a published
-                (active) profile is the verified signal, matching the athlete's
-                own public profile page. */}
-            {athlete.status === 'active' ? <VerifiedBadge verified /> : null}
+            {/* QA-3.1: this used to read `status === 'active'`, i.e. every
+                published profile was shown a "Verified" trust badge nobody had
+                earned, while an actual admin approval changed nothing. The badge
+                now reflects an approved verification request and nothing else. */}
+            {verified ? <VerifiedBadge verified /> : null}
             {athlete.level ? <LevelChip level={humanise(athlete.level)} /> : null}
             {athlete.availability_status ? (
               <AvailabilityBadge
@@ -172,13 +185,13 @@ export default function AthleteProfileDetail({ athlete, backHref, backLabel = 'B
             <dd className="text-medium text-foreground">
               {athlete.available_from_date
                 ? new Date(athlete.available_from_date).toLocaleDateString()
-                : '—'}
+                : 'Not stated'}
             </dd>
           </div>
           <div>
             <dt className="text-small text-muted-foreground">Travel radius</dt>
             <dd className="text-medium text-foreground">
-              {athlete.travel_radius_km ? `${athlete.travel_radius_km} km` : '—'}
+              {athlete.travel_radius_km ? `${athlete.travel_radius_km} km` : 'Not stated'}
             </dd>
           </div>
         </dl>

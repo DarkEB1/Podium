@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getActiveAthleteProfilesPage, ATHLETE_PAGE_SIZE, getDiscoveryUiMode } from '@/lib/supabase/profiles'
 import { getShortlist } from '@/lib/supabase/discovery'
+import { getVerifiedUserIds } from '@/lib/supabase/verification'
 import { getSubscriptionForUser } from '@/lib/supabase/payments'
 import AthletesBrowser from '@/components/discovery/athletes-browser'
 import DiscoverySwitch from '@/components/brand/discovery-switch'
@@ -45,6 +46,16 @@ export default async function BrandDiscoverPage({
 
   const savedUserIds = shortlist.map((s) => s.target_user_id)
 
+  // QA-3.1: the grid has always accepted verifiedUserIds and no page ever passed
+  // it, so an approved verification request produced no badge anywhere. This is
+  // the annotation getVerifiedUserIds was written for.
+  const verifiedUserIds = Array.from(
+    await getVerifiedUserIds(
+      supabase,
+      athletes.map((a) => a.user_id)
+    )
+  )
+
   return (
     <div className="mx-auto max-w-6xl space-y-12 px-6 py-12 md:px-16 md:py-16">
       <div className="space-y-5">
@@ -64,6 +75,7 @@ export default async function BrandDiscoverPage({
         athletes={athletes}
         initialMode={mode}
         savedUserIds={savedUserIds}
+        verifiedUserIds={verifiedUserIds}
         {...(subscription ? { tier: subscription.tier } : {})}
         {...(hasMore
           ? {

@@ -4,7 +4,9 @@ import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getPublicProfile } from '@/lib/supabase/profiles'
+import { isVerified } from '@/lib/supabase/verification'
 import TeamProfileDetail from '@/components/discovery/team-profile-detail'
+import ConnectRequestButton from '@/components/discovery/connect-request-button'
 import { ROUTES } from '@/lib/routes'
 import type { Database } from '@/types/database'
 
@@ -35,5 +37,27 @@ export default async function BrandTeamProfilePage({
   const profile = (await getPublicProfile(supabase, userId, 'team')) as TeamRow | null
   if (!profile) notFound()
 
-  return <TeamProfileDetail team={profile} backHref={ROUTES.brand.discoverTeams} />
+  // team_profiles has no availability column, so unlike the athlete page there is
+  // nothing to gate on: a published team is contactable. Before this the page
+  // rendered the profile and a "Back" link only, with no way to reach the team.
+  // QA-3.1: the badge follows an approved verification request. The detail
+  // component used to infer it from status === 'active', which showed a trust
+  // badge to every published team and ignored admin approval entirely.
+  const verified = await isVerified(supabase, userId)
+
+  return (
+    <TeamProfileDetail
+      team={profile}
+      backHref={ROUTES.brand.discoverTeams}
+      verified={verified}
+      action={
+        <ConnectRequestButton
+          recipientUserId={profile.user_id}
+          recipientName={profile.team_name ?? 'this team'}
+          recipientRole="team"
+          surface="brand_team_detail"
+        />
+      }
+    />
+  )
 }

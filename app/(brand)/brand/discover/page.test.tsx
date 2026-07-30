@@ -8,6 +8,7 @@ const getPageMock = vi.fn()
 const getShortlistMock = vi.fn()
 const getSubscriptionMock = vi.fn()
 const getDiscoveryUiModeMock = vi.fn()
+const getVerifiedUserIdsMock = vi.fn()
 
 vi.mock('next/navigation', () => ({
   redirect: (...args: unknown[]) => {
@@ -27,6 +28,11 @@ vi.mock('@/lib/supabase/discovery', () => ({
 }))
 vi.mock('@/lib/supabase/payments', () => ({
   getSubscriptionForUser: (...a: unknown[]) => getSubscriptionMock(...a),
+}))
+// QA-3.1: the grid now receives the verified-athlete annotation it always
+// accepted, so the page reads verification_requests.
+vi.mock('@/lib/supabase/verification', () => ({
+  getVerifiedUserIds: (...a: unknown[]) => getVerifiedUserIdsMock(...a),
 }))
 
 import BrandDiscoverPage from './page'
@@ -60,6 +66,7 @@ beforeEach(() => {
   getShortlistMock.mockResolvedValue([])
   getSubscriptionMock.mockResolvedValue(null)
   getDiscoveryUiModeMock.mockResolvedValue('marketplace')
+  getVerifiedUserIdsMock.mockResolvedValue(new Set<string>())
 })
 
 async function renderPage(params: Record<string, string> = {}) {

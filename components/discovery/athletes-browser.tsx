@@ -17,6 +17,8 @@ interface Props {
   /** Persisted `profiles.discovery_ui_mode` for this brand. */
   initialMode: BrowseMode
   savedUserIds?: string[]
+  /** user_ids holding an approved verification request (QA-3.1). */
+  verifiedUserIds?: string[]
   tier?: number
   /** Footer for the grid — the "Load more" control (FA-5). */
   footer?: React.ReactNode
@@ -33,6 +35,7 @@ export default function AthletesBrowser({
   athletes,
   initialMode,
   savedUserIds = [],
+  verifiedUserIds = [],
   tier,
   footer,
 }: Props) {
@@ -97,6 +100,7 @@ export default function AthletesBrowser({
         <AthletesGrid
           athletes={athletes}
           savedUserIds={saved}
+          verifiedUserIds={verifiedUserIds}
           footer={footer}
           {...(typeof tier === 'number' ? { tier } : {})}
         />

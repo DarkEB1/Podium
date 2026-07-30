@@ -40,22 +40,30 @@ function walk(dir: string): string[] {
 const SOURCE_FILES = [...walk(APP_DIR), ...walk(COMPONENTS_DIR)]
 
 /**
- * Which role a `recipient_id:` expression addresses. The FK is to `users.id`,
- * so the role is only knowable from the field the caller reads it out of.
- * An unrecognised expression FAILS the suite on purpose — a new send surface
- * must declare who it is writing to.
+ * Which role(s) a `recipient_id:` expression can address. The FK is to
+ * `users.id`, so the role is only knowable from the field the caller reads it
+ * out of. An unrecognised expression FAILS the suite on purpose — a new send
+ * surface must declare who it is writing to.
+ *
+ * Most entries name one role because the expression itself does. A
+ * role-parameterised sender declares every role it can address instead, and the
+ * assertion below requires an inbox for each of them.
  */
-const RECIPIENT_EXPRESSION_ROLE: ReadonlyArray<{ pattern: RegExp; role: Role }> = [
-  { pattern: /brand_user_id|brand\.user_id|brandUserId/, role: 'brand' },
-  { pattern: /athlete_user_id|athlete\.user_id|athleteUserId/, role: 'athlete' },
-  { pattern: /team_user_id|team\.user_id|teamUserId/, role: 'team' },
-  { pattern: /agent_user_id|agent\.user_id|agentUserId/, role: 'agent' },
+const RECIPIENT_EXPRESSION_ROLE: ReadonlyArray<{ pattern: RegExp; roles: readonly Role[] }> = [
+  { pattern: /brand_user_id|brand\.user_id|brandUserId/, roles: ['brand'] },
+  { pattern: /athlete_user_id|athlete\.user_id|athleteUserId/, roles: ['athlete'] },
+  { pattern: /team_user_id|team\.user_id|teamUserId/, roles: ['team'] },
+  { pattern: /agent_user_id|agent\.user_id|agentUserId/, roles: ['agent'] },
+  // components/discovery/connect-request-button.tsx takes the recipient's role
+  // as a prop, so its expression cannot name one role on its own. Its
+  // `recipientRole` prop type is the declaration, and all three are checked.
+  { pattern: /^recipientUserId$/, roles: ['athlete', 'team', 'brand'] },
 ]
 
 interface SendSurface {
   file: string
   expression: string
-  role: Role | null
+  roles: readonly Role[]
 }
 
 /** Every client surface that POSTs a connection request. */
@@ -67,7 +75,7 @@ function findSendSurfaces(): SendSurface[] {
     for (const match of src.matchAll(/recipient_id\s*:\s*([^,\n}]+)/g)) {
       const expression = match[1]!.trim()
       const entry = RECIPIENT_EXPRESSION_ROLE.find((e) => e.pattern.test(expression))
-      found.push({ file: path.relative(ROOT, file), expression, role: entry?.role ?? null })
+      found.push({ file: path.relative(ROOT, file), expression, roles: entry?.roles ?? [] })
     }
   }
   return found
@@ -106,7 +114,7 @@ describe('connection-request core loop', () => {
   })
 
   it('resolves the recipient role of every send surface', () => {
-    const unknown = sendSurfaces.filter((s) => s.role === null)
+    const unknown = sendSurfaces.filter((s) => s.roles.length === 0)
     expect(
       unknown,
       `Unrecognised recipient expression(s): ${unknown
@@ -118,7 +126,7 @@ describe('connection-request core loop', () => {
 
   // THE ASSERTION. Send-side recipient role === accept-side owner role.
   it('gives every role a send surface can address an inbox of its own', () => {
-    const targeted = new Set(sendSurfaces.map((s) => s.role).filter((r): r is Role => r !== null))
+    const targeted = new Set(sendSurfaces.flatMap((s) => s.roles))
     expect(targeted.size).toBeGreaterThan(0)
 
     for (const role of targeted) {

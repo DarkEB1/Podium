@@ -13,6 +13,12 @@ interface Props {
   team: TeamRow
   backHref: string
   backLabel?: string
+  /**
+   * Whether this team holds an approved verification request
+   * (`lib/supabase/verification.ts` is the source of truth). Resolved by the
+   * page, since only a server component can query it.
+   */
+  verified?: boolean
   /** Optional call-to-action rendered beneath the summary. */
   action?: React.ReactNode
 }
@@ -45,7 +51,13 @@ function sponsorshipLabel(value: string): string {
  * reach, and what sponsorship they are seeking) without exposing the team's
  * private commercial-contact details.
  */
-export default function TeamProfileDetail({ team, backHref, backLabel = 'Back to teams', action }: Props) {
+export default function TeamProfileDetail({
+  team,
+  backHref,
+  backLabel = 'Back to teams',
+  verified = false,
+  action,
+}: Props) {
   const name = team.team_name ?? 'Team'
   const sport = team.sports?.[0]
   const level = team.competition_level ? humanise(team.competition_level) : null
@@ -84,7 +96,9 @@ export default function TeamProfileDetail({ team, backHref, backLabel = 'Back to
             {[sport, level, location].filter(Boolean).join(' · ') || 'Team on Podium'}
           </p>
           <div className="flex flex-wrap items-center gap-2">
-            {team.status === 'active' ? <VerifiedBadge verified /> : null}
+            {/* QA-3.1: an approved verification request, not merely a published
+                profile, is what earns the badge. */}
+            {verified ? <VerifiedBadge verified /> : null}
             {team.competition_level ? <LevelChip level={humanise(team.competition_level)} /> : null}
           </div>
         </div>

@@ -4,7 +4,9 @@ import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getPublicProfile } from '@/lib/supabase/profiles'
+import { isVerified } from '@/lib/supabase/verification'
 import AthleteProfileDetail from '@/components/discovery/athlete-profile-detail'
+import ConnectRequestButton from '@/components/discovery/connect-request-button'
 import { ROUTES } from '@/lib/routes'
 import type { Database } from '@/types/database'
 
@@ -49,5 +51,38 @@ export default async function BrandAthleteProfilePage({
   const profile = (await getPublicProfile(supabase, userId, 'athlete')) as AthleteRow | null
   if (!profile) notFound()
 
-  return <AthleteProfileDetail athlete={profile} backHref={ROUTES.brand.discover} />
+  // The athlete's own availability signal decides whether a request can be sent
+  // today. This page previously rendered the profile and a "Back" link only, so
+  // a brand could read that an athlete was "open to connection requests" and had
+  // no way anywhere in the UI to send one.
+  const openToRequests =
+    profile.availability_status === 'available_now' ||
+    profile.availability_status === 'available_from'
+  const name = profile.display_name ?? 'this athlete'
+
+  // QA-3.1: the badge follows an approved verification request. The detail
+  // component used to infer it from status === 'active', which showed a trust
+  // badge to every published athlete and ignored admin approval entirely.
+  const verified = await isVerified(supabase, userId)
+
+  return (
+    <AthleteProfileDetail
+      athlete={profile}
+      backHref={ROUTES.brand.discover}
+      verified={verified}
+      action={
+        <ConnectRequestButton
+          recipientUserId={profile.user_id}
+          recipientName={name}
+          recipientRole="athlete"
+          surface="brand_athlete_detail"
+          {...(openToRequests
+            ? {}
+            : {
+                unavailableReason: `${name} is browsing only right now and is not taking connection requests.`,
+              })}
+        />
+      }
+    />
+  )
 }

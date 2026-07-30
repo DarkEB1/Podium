@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 
 import { createClient } from '@/lib/supabase/server'
 import { getPublicProfile } from '@/lib/supabase/profiles'
+import { isVerified } from '@/lib/supabase/verification'
 import type { Database } from '@/types/database'
 
 import ProfileHero from '@/components/athlete/profile-hero'
@@ -89,6 +90,12 @@ export default async function AthletePublicProfilePage({
 
   const social = (profile.social_accounts ?? {}) as SocialAccounts
 
+  // QA-3.1: verification is an approved verification_requests row, not a
+  // published profile. Reading status here meant every athlete wore a trust
+  // badge they had not been granted, and an admin approving a real request
+  // changed nothing anywhere in the UI.
+  const verified = await isVerified(supabase, userId)
+
   return (
     <div className="pb-16">
       <ProfileHero
@@ -96,7 +103,7 @@ export default async function AthletePublicProfilePage({
         name={name}
         tagline={tagline}
         location={location}
-        verified={profile.status === 'active'}
+        verified={verified}
         availability={availability}
       />
 
