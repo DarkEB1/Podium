@@ -67,25 +67,48 @@ function throwRpcError(error: unknown, fallbackCode: string): never {
 // Proposals
 // ---------------------------------------------------------------------------
 
+/**
+ * Send a proposal, which is also what opens the match's free-text chat.
+ *
+ * QA-1.4: this used to be a bare insert into `proposals`, and nothing anywhere
+ * ever set `matches.proposal_sent`. Since both the messages RLS policy and
+ * `sendMessage` refuse free text until that flag is true, no match in the
+ * product could ever hold an ordinary conversation. The insert and the gate
+ * release now happen inside the `send_proposal` SECURITY DEFINER function
+ * (20260730000200), i.e. one transaction, for the same reason accept/counter
+ * were moved there: a stored proposal with the gate still shut is a match that
+ * can never chat, and retrying would duplicate the proposal.
+ *
+ * `senderId` is no longer sent to the DB (the function uses `auth.uid()`); it is
+ * kept in the signature for call-site compatibility.
+ */
 export async function sendProposal(
   supabase: SupabaseClient<Database>,
   matchId: string,
   senderId: string,
   payload: ProposalPayload
 ): Promise<ProposalRow> {
-  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
-  const { data, error } = await (supabase as SupabaseClient)
-    .from('proposals')
-    .insert({
-      match_id: matchId,
-      sender_id: senderId,
-      ...payload,
-    })
-    .select()
-    .single()
+  // as SupabaseClient: strips the Database generic — send_proposal is not in the
+  // generated Functions map, which would otherwise reject the rpc name.
+  const { data, error } = await (supabase as SupabaseClient).rpc('send_proposal', {
+    p_match_id: matchId,
+    p_title: payload.title,
+    p_pay_amount: payload.pay_amount,
+    p_pay_type: payload.pay_type,
+    p_deliverables: payload.deliverables ?? {},
+    p_pay_currency: payload.pay_currency ?? 'GBP',
+    p_timeline_start: payload.timeline_start ?? null,
+    p_timeline_end: payload.timeline_end ?? null,
+    p_usage_rights: payload.usage_rights ?? null,
+    p_additional_terms: payload.additional_terms ?? null,
+  })
 
   if (error) {
-    throw new DealsError('PROPOSAL_INSERT_FAILED', (error as { message: string }).message)
+    throwRpcError(error, 'PROPOSAL_INSERT_FAILED')
+  }
+
+  if (!data) {
+    throw new DealsError('MATCH_NOT_FOUND', 'Match not found or not accessible')
   }
 
   return data as ProposalRow

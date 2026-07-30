@@ -158,40 +158,97 @@ const fakeProposalInput = {
 // ---------------------------------------------------------------------------
 
 describe('sendProposal', () => {
-  it('inserts a proposal with match_id, sender_id, and all deal fields', async () => {
-    const { client, chain, mockFrom, queueSingle } = makeMockClient()
-    queueSingle(fakeProposal)
+  it('goes through send_proposal so the proposal and the chat gate move together', async () => {
+    // QA-1.4: a bare insert into proposals left matches.proposal_sent false
+    // forever, and free-text chat never opened for any match in the product.
+    const { client, mockRpc, mockFrom, queueRpc } = makeMockClient()
+    queueRpc(fakeProposal)
 
     await sendProposal(client, 'm1', 'brand1', fakeProposalInput)
 
-    expect(mockFrom).toHaveBeenCalledWith('proposals')
-    expect(chain.insert).toHaveBeenCalledWith(
+    expect(mockRpc).toHaveBeenCalledWith(
+      'send_proposal',
       expect.objectContaining({
-        match_id: 'm1',
-        sender_id: 'brand1',
-        title: 'Summer Campaign',
-        pay_amount: 5000,
-        pay_type: 'flat_fee',
+        p_match_id: 'm1',
+        p_title: 'Summer Campaign',
+        p_pay_amount: 5000,
+        p_pay_type: 'flat_fee',
       })
     )
+    // No direct table write: the function owns both statements.
+    expect(mockFrom).not.toHaveBeenCalled()
+  })
+
+  it('never passes a sender id: the function takes it from auth.uid()', async () => {
+    const { client, mockRpc, queueRpc } = makeMockClient()
+    queueRpc(fakeProposal)
+
+    await sendProposal(client, 'm1', 'brand1', fakeProposalInput)
+
+    const args = mockRpc.mock.calls[0]?.[1] as Record<string, unknown>
+    expect(Object.keys(args)).not.toContain('p_sender_id')
+    expect(Object.values(args)).not.toContain('brand1')
+  })
+
+  it('defaults currency and deliverables rather than sending undefined', async () => {
+    const { client, mockRpc, queueRpc } = makeMockClient()
+    queueRpc(fakeProposal)
+
+    await sendProposal(client, 'm1', 'brand1', {
+      title: 'Bare minimum',
+      pay_amount: 100,
+      pay_type: 'flat_fee',
+    })
+
+    const args = mockRpc.mock.calls[0]?.[1] as Record<string, unknown>
+    expect(args.p_pay_currency).toBe('GBP')
+    expect(args.p_deliverables).toEqual({})
+    expect(args.p_timeline_start).toBeNull()
   })
 
   it('returns the created proposal row', async () => {
-    const { client, queueSingle } = makeMockClient()
-    queueSingle(fakeProposal)
+    const { client, queueRpc } = makeMockClient()
+    queueRpc(fakeProposal)
 
     const result = await sendProposal(client, 'm1', 'brand1', fakeProposalInput)
 
     expect(result).toEqual(fakeProposal)
   })
 
-  it('throws PROPOSAL_INSERT_FAILED on DB error', async () => {
-    const { client, queueSingle } = makeMockClient()
-    queueSingle(null, { message: 'db error' })
+  it('throws PROPOSAL_INSERT_FAILED on an unmapped DB error', async () => {
+    const { client, queueRpc } = makeMockClient()
+    queueRpc(null, { message: 'db error' })
 
     await expect(
       sendProposal(client, 'm1', 'brand1', fakeProposalInput)
     ).rejects.toMatchObject({ code: 'PROPOSAL_INSERT_FAILED' })
+  })
+
+  it('maps PD005 to NOT_PARTICIPANT', async () => {
+    const { client, queueRpc } = makeMockClient()
+    queueRpc(null, { code: 'PD005', message: 'Not a participant in this match' })
+
+    await expect(
+      sendProposal(client, 'm1', 'brand1', fakeProposalInput)
+    ).rejects.toMatchObject({ code: 'NOT_PARTICIPANT' })
+  })
+
+  it('maps PD006 to MATCH_NOT_FOUND', async () => {
+    const { client, queueRpc } = makeMockClient()
+    queueRpc(null, { code: 'PD006', message: 'Match not found' })
+
+    await expect(
+      sendProposal(client, 'm1', 'brand1', fakeProposalInput)
+    ).rejects.toMatchObject({ code: 'MATCH_NOT_FOUND' })
+  })
+
+  it('throws MATCH_NOT_FOUND when the function returns no row', async () => {
+    const { client, queueRpc } = makeMockClient()
+    queueRpc(null)
+
+    await expect(
+      sendProposal(client, 'm1', 'brand1', fakeProposalInput)
+    ).rejects.toMatchObject({ code: 'MATCH_NOT_FOUND' })
   })
 })
 
