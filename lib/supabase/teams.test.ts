@@ -71,7 +71,32 @@ describe('createTeamProfile', () => {
       // includes spoofed protected fields to assert they are stripped
     } as unknown as Database['public']['Tables']['team_profiles']['Insert'])
     const insert = m.chain.insert.mock.calls[0]?.[0] as Record<string, unknown>
-    expect(insert).toEqual({ team_name: 'Falcons', user_id: 'user-1' })
+    expect(insert).toEqual({ team_name: 'Falcons', user_id: 'user-1', status: 'active' })
+  })
+
+  it('creates the profile active, not draft', async () => {
+    // Team onboarding is a single form with no separate publish step, so the
+    // profile must be usable the moment it exists. Left at the column default
+    // ('draft') the middleware treats the account as mid-onboarding forever and
+    // the team can never reach its dashboard or settings.
+    const m = makeMockClient()
+    m.queueSingle({ id: 'team-1', user_id: 'user-1', status: 'active' })
+    await createTeamProfile(m.client, 'user-1', {
+      team_name: 'Falcons',
+    } as Database['public']['Tables']['team_profiles']['Insert'])
+    const insert = m.chain.insert.mock.calls[0]?.[0] as Record<string, unknown>
+    expect(insert.status).toBe('active')
+  })
+
+  it('ignores a caller-supplied status and still activates', async () => {
+    const m = makeMockClient()
+    m.queueSingle({ id: 'team-1', user_id: 'user-1', status: 'active' })
+    await createTeamProfile(m.client, 'user-1', {
+      team_name: 'Falcons',
+      status: 'suspended',
+    } as unknown as Database['public']['Tables']['team_profiles']['Insert'])
+    const insert = m.chain.insert.mock.calls[0]?.[0] as Record<string, unknown>
+    expect(insert.status).toBe('active')
   })
 
   it('throws TeamError on failure', async () => {

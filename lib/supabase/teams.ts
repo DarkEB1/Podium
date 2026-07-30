@@ -10,8 +10,9 @@ type TeamAdminRole = Database['public']['Enums']['team_admin_role']
 export type TeamProfile = TeamProfileRow
 export type TeamAdmin = TeamAdminRow
 
-// Columns the caller must never set on profile creation — identity / audit columns
-// are managed by the DB and triggers.
+// Columns the caller must never set on profile creation. Identity / audit
+// columns are managed by the DB and triggers; `status` is set by
+// createTeamProfile itself, never by the submitted form payload.
 const PROTECTED_TEAM_FIELDS = new Set<string>([
   'id',
   'user_id',
@@ -53,9 +54,15 @@ export async function createTeamProfile(
 ): Promise<TeamProfile> {
   const clean = sanitizeTeamData(data as Record<string, unknown>)
 
+  // status: 'active' is set here, not left to the column default of 'draft'.
+  // Team onboarding is one form with no separate publish step (unlike the
+  // athlete wizard, which finishes at /api/profiles/me/publish), and middleware
+  // treats any 'draft' profile as onboarding-in-progress. A draft team profile
+  // therefore means the team is redirected back into onboarding forever and can
+  // never reach its dashboard or settings.
   const { data: row, error } = await db(supabase)
     .from('team_profiles')
-    .insert({ ...clean, user_id: userId })
+    .insert({ ...clean, user_id: userId, status: 'active' })
     .select()
     .single()
 

@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 
 import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
-import { createProfile, getOwnProfile } from '@/lib/supabase/profiles'
+import { createProfile, getOwnProfile, publishProfile } from '@/lib/supabase/profiles'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -57,6 +57,13 @@ export default async function AgentOnboardingPage() {
       website_url: formData.get('website_url'),
       ...(years !== null && Number.isFinite(years) ? { years_in_industry: years } : {}),
     })
+
+    // createProfile leaves status at the column default of 'draft', which
+    // middleware reads as onboarding-in-progress for every role. Agent
+    // onboarding is this single form, so publish immediately: without it the
+    // agent is redirected back here forever and never reaches the dashboard.
+    // (The athlete wizard does the same thing from its final review step.)
+    await publishProfile(sb, me.id, 'agent')
 
     redirect(ROUTES.agent.dashboard)
   }
