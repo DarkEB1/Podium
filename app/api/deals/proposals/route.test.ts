@@ -182,4 +182,22 @@ describe('POST /api/deals/proposals', () => {
     expect(res.status).toBe(422)
     expect(sendTransactionalEmail).not.toHaveBeenCalled()
   })
+
+  it('answers the authorization errors send_proposal now raises, as JSON', async () => {
+    // send_proposal is SECURITY DEFINER and does its own participant check, so
+    // these reach the route. Re-thrown they would be an empty, unparseable 500.
+    for (const [code, status] of [
+      ['NOT_PARTICIPANT', 403],
+      ['MATCH_NOT_FOUND', 404],
+    ] as const) {
+      vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+      vi.mocked(sendProposal).mockRejectedValue(new DealsError(code, 'nope'))
+      const res = await POST(
+        makePostRequest({ match_id: 'm1', title: 'Test', pay_amount: 500, pay_type: 'flat_fee' })
+      )
+      expect(res.status).toBe(status)
+      const json = await res.json()
+      expect(json.error.code).toBe(code)
+    }
+  })
 })

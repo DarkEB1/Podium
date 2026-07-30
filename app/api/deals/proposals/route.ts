@@ -13,6 +13,14 @@ type PayType = Database['public']['Enums']['pay_type']
 
 const VALID_PAY_TYPES = new Set<PayType>(['flat_fee', 'monthly_retainer', 'per_post', 'revenue_share'])
 
+/** DealsError codes this endpoint answers with, and the status each deserves. */
+const PROPOSAL_ERROR_STATUS: Record<string, number> = {
+  PROPOSAL_INSERT_FAILED: 422,
+  UNAUTHENTICATED: 401,
+  NOT_PARTICIPANT: 403,
+  MATCH_NOT_FOUND: 404,
+}
+
 export async function GET(request: NextRequest) {
   const supabase = await createClient()
   const user = await getUser(supabase)
@@ -139,11 +147,14 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(proposal, { status: 201 })
   } catch (err) {
-    if (err instanceof DealsError && err.code === 'PROPOSAL_INSERT_FAILED') {
-      return NextResponse.json(
-        { error: { code: 'PROPOSAL_INSERT_FAILED', message: err.message } },
-        { status: 422 }
-      )
+    if (err instanceof DealsError) {
+      // send_proposal does its own authorization (it is SECURITY DEFINER), so
+      // these two now reach the route and need real statuses. Re-throwing them
+      // would return an empty non-JSON 500 that a client cannot parse.
+      const status = PROPOSAL_ERROR_STATUS[err.code]
+      if (status) {
+        return NextResponse.json({ error: { code: err.code, message: err.message } }, { status })
+      }
     }
     throw err
   }
