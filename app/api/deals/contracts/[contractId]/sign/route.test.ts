@@ -73,7 +73,32 @@ describe('POST /api/deals/contracts/[contractId]/sign', () => {
       mockSupabase,
       mockAdmin,
       'c1',
-      'brand1'
+      'brand1',
+      expect.any(Object)
+    )
+  })
+
+  it('passes the signer IP and device through for the audit trail', async () => {
+    // QA-1.6 / spec 11.6: only this layer can see the request, so it is what
+    // captures where a signature came from.
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(signContract).mockResolvedValue(fakeContract as never)
+
+    const request = new NextRequest('http://localhost/api/deals/contracts/c1/sign', {
+      method: 'POST',
+      headers: {
+        'x-forwarded-for': '1.2.3.4, 5.6.7.8',
+        'user-agent': 'Mozilla/5.0 (Macintosh)',
+      },
+    })
+    await POST(request, { params: Promise.resolve({ contractId: 'c1' }) })
+
+    expect(vi.mocked(signContract)).toHaveBeenCalledWith(
+      mockSupabase,
+      mockAdmin,
+      'c1',
+      'brand1',
+      { ip: '1.2.3.4', device: 'Mozilla/5.0 (Macintosh)' }
     )
   })
 

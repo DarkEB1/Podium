@@ -318,11 +318,60 @@ export async function getProposalsForUser(
   return (data ?? []) as ProposalRow[]
 }
 
+/**
+ * Where a signature came from, for the audit trail spec 11.6 requires.
+ *
+ * Both values are best-effort and both are personal data: the GDPR erasure
+ * routine clears them (20260720003000) while keeping the signature timestamps,
+ * which is what makes a retained contract evidentially useful.
+ */
+export interface SignerContext {
+  /** Requester IP, from the leftmost x-forwarded-for entry. */
+  ip?: string | null
+  /** Raw user-agent string of the signing device. */
+  device?: string | null
+}
+
+/** Longest device string we keep. Real user agents are well under this. */
+const MAX_DEVICE_LENGTH = 512
+
+function normaliseSigner(signer: SignerContext | undefined): {
+  ip: string | null
+  device: string | null
+} {
+  const ip = signer?.ip?.trim()
+  const device = signer?.device?.trim()
+  return {
+    // 'unknown' is what clientIpFrom returns when no header is present; an audit
+    // trail should say "not captured" rather than record a placeholder as fact.
+    ip: ip && ip !== 'unknown' ? ip : null,
+    device: device ? device.slice(0, MAX_DEVICE_LENGTH) : null,
+  }
+}
+
+/**
+ * Add the caller's signature to a contract.
+ *
+ * QA-1.6: this used to write only the signature timestamp and the next status.
+ * Two things were missing, both of them legal rather than cosmetic:
+ *
+ *   * `locked_at` was never set, so a contract reached 'fully_signed' while
+ *     still unlocked, and the DB trigger that computes
+ *     `retain_until = locked_at + 7 years` (20260419000005) never fired. With
+ *     retain_until null, the GDPR erasure logic cannot evaluate how long a
+ *     signed contract must be kept, and the spec's "once both parties have
+ *     signed: contract locked, immutable" was never actually true of any
+ *     contract.
+ *
+ *   * no signer IP or device was captured, though the columns exist and spec
+ *     11.6 requires them per signature event. Only the timestamp half existed.
+ */
 export async function signContract(
   supabase: SupabaseClient<Database>,
   adminSupabase: SupabaseClient<Database>,
   contractId: string,
-  userId: string
+  userId: string,
+  signer?: SignerContext
 ): Promise<ContractRow> {
   const { data: existing, error: fetchError } = await (supabase as SupabaseClient)
     .from('contracts')
@@ -377,14 +426,26 @@ export async function signContract(
   }
 
   const now = new Date().toISOString()
-  const updates: Record<string, string> = {}
+  const { ip, device } = normaliseSigner(signer)
+  const updates: Record<string, string | null> = {}
 
   if (isBrand) {
     updates.brand_signed_at = now
+    updates.brand_signer_ip = ip
+    updates.brand_signer_device = device
     updates.status = contract.athlete_signed_at ? 'fully_signed' : 'pending_athlete_signature'
   } else {
     updates.athlete_signed_at = now
+    updates.athlete_signer_ip = ip
+    updates.athlete_signer_device = device
     updates.status = contract.brand_signed_at ? 'fully_signed' : 'pending_brand_signature'
+  }
+
+  // This signature completes the contract, so lock it. Setting locked_at is
+  // also what fires contracts_set_retain_until, which computes the 7-year
+  // retention date the GDPR erasure logic reads.
+  if (updates.status === 'fully_signed') {
+    updates.locked_at = now
   }
 
   const { data: updated, error: updateError } = await (adminSupabase as SupabaseClient)

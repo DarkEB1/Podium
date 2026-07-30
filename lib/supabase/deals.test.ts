@@ -768,6 +768,94 @@ describe('signContract', () => {
     expect(result.status).toBe('fully_signed')
   })
 
+  it('locks the contract on the signature that completes it', async () => {
+    // QA-1.6: locked_at was never written, so no contract was ever locked and
+    // the trigger that computes retain_until (locked_at + 7 years) never fired.
+    const auth = makeMockClient()
+    const admin = makeMockClient()
+    auth.queueSingle({ ...fakeContract, brand_signed_at: '2026-06-01T00:00:00Z' })
+    admin.queueSingle({ ...fakeContract, status: 'fully_signed' })
+
+    await signContract(auth.client, admin.client, 'c1', 'athlete1')
+
+    const update = admin.chain.update.mock.calls[0]?.[0] as Record<string, unknown>
+    expect(update.status).toBe('fully_signed')
+    expect(update.locked_at).toEqual(update.athlete_signed_at)
+  })
+
+  it('does not lock while the contract is still waiting for the other party', async () => {
+    const auth = makeMockClient()
+    const admin = makeMockClient()
+    auth.queueSingle(fakeContract)
+    admin.queueSingle({ ...fakeContract, status: 'pending_athlete_signature' })
+
+    await signContract(auth.client, admin.client, 'c1', 'brand1')
+
+    const update = admin.chain.update.mock.calls[0]?.[0] as Record<string, unknown>
+    expect(update).not.toHaveProperty('locked_at')
+  })
+
+  it('records the brand signer IP and device', async () => {
+    const auth = makeMockClient()
+    const admin = makeMockClient()
+    auth.queueSingle(fakeContract)
+    admin.queueSingle({ ...fakeContract, status: 'pending_athlete_signature' })
+
+    await signContract(auth.client, admin.client, 'c1', 'brand1', {
+      ip: '1.2.3.4',
+      device: 'Mozilla/5.0 (Macintosh)',
+    })
+
+    const update = admin.chain.update.mock.calls[0]?.[0] as Record<string, unknown>
+    expect(update.brand_signer_ip).toBe('1.2.3.4')
+    expect(update.brand_signer_device).toBe('Mozilla/5.0 (Macintosh)')
+    // The athlete's columns belong to the athlete's signature event.
+    expect(update).not.toHaveProperty('athlete_signer_ip')
+  })
+
+  it('records the athlete signer IP and device on their own columns', async () => {
+    const auth = makeMockClient()
+    const admin = makeMockClient()
+    auth.queueSingle(fakeContract)
+    admin.queueSingle({ ...fakeContract, status: 'pending_brand_signature' })
+
+    await signContract(auth.client, admin.client, 'c1', 'athlete1', {
+      ip: '5.6.7.8',
+      device: 'Mozilla/5.0 (Android)',
+    })
+
+    const update = admin.chain.update.mock.calls[0]?.[0] as Record<string, unknown>
+    expect(update.athlete_signer_ip).toBe('5.6.7.8')
+    expect(update.athlete_signer_device).toBe('Mozilla/5.0 (Android)')
+  })
+
+  it('stores null rather than a placeholder when the IP could not be determined', async () => {
+    const auth = makeMockClient()
+    const admin = makeMockClient()
+    auth.queueSingle(fakeContract)
+    admin.queueSingle({ ...fakeContract, status: 'pending_athlete_signature' })
+
+    // 'unknown' is what clientIpFrom returns with no forwarding headers; an
+    // audit trail must not record that as if it were an address.
+    await signContract(auth.client, admin.client, 'c1', 'brand1', { ip: 'unknown', device: '' })
+
+    const update = admin.chain.update.mock.calls[0]?.[0] as Record<string, unknown>
+    expect(update.brand_signer_ip).toBeNull()
+    expect(update.brand_signer_device).toBeNull()
+  })
+
+  it('truncates an absurdly long device string', async () => {
+    const auth = makeMockClient()
+    const admin = makeMockClient()
+    auth.queueSingle(fakeContract)
+    admin.queueSingle({ ...fakeContract, status: 'pending_athlete_signature' })
+
+    await signContract(auth.client, admin.client, 'c1', 'brand1', { device: 'x'.repeat(1000) })
+
+    const update = admin.chain.update.mock.calls[0]?.[0] as Record<string, unknown>
+    expect((update.brand_signer_device as string).length).toBe(512)
+  })
+
   it('throws CONTRACT_NOT_FOUND when contract does not exist', async () => {
     const auth = makeMockClient()
     const admin = makeMockClient()

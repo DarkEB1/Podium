@@ -4,9 +4,10 @@ import { getUser } from '@/lib/supabase/auth'
 import { signContract, DealsError } from '@/lib/supabase/deals'
 import { buildGuardianDealNotice } from '@/lib/supabase/guardian'
 import { sendGuardianDealNoticeEmail } from '@/lib/email/guardian'
+import { clientIpFrom } from '@/lib/rate-limit'
 
 export async function POST(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ contractId: string }> }
 ) {
   const supabase = await createClient()
@@ -23,7 +24,13 @@ export async function POST(
   const adminSupabase = createAdminClient()
 
   try {
-    const contract = await signContract(supabase, adminSupabase, contractId, user.id)
+    // QA-1.6 / spec 11.6: a signature event records where it came from, not just
+    // when. Only this layer can see the request, so the audit values are read
+    // here and handed to signContract.
+    const contract = await signContract(supabase, adminSupabase, contractId, user.id, {
+      ip: clientIpFrom(request.headers),
+      device: request.headers.get('user-agent'),
+    })
 
     // 2.3 hybrid half: when the signer is an under-18 athlete, send the guardian
     // an informational notice of the signed deal. Best-effort and never blocks
