@@ -40,6 +40,16 @@ const PUBLIC_PATHS = [
   // be redirected to /auth and silently never run. The route enforces its own
   // constant-time CRON_SECRET bearer check and fails closed.
   '/api/cron',
+  // Stripe posts webhook events from its own servers with no session; the
+  // routes verify the HMAC signature themselves and Stripe treats a redirect
+  // as a failed delivery, so behind the auth wall every subscription event
+  // is silently lost.
+  '/api/webhooks',
+  // A guardian follows the emailed consent link without having an account —
+  // the token in the URL is the authorisation, checked by the page and the
+  // accept endpoint. (The request endpoint stays session-gated.)
+  '/guardian/consent',
+  '/api/guardian-consent/accept',
   ROUTES.auth.signIn,
   '/auth/callback',
   '/auth/confirm',

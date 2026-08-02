@@ -84,6 +84,22 @@ describe('middleware', () => {
       },
     )
 
+    // These callers can never hold a session: Stripe posts signed webhook
+    // events from its own servers, and a guardian follows an emailed token
+    // link without having an account. Each route enforces its own auth
+    // (HMAC signature / consent token); a redirect to /auth silently breaks
+    // subscription state and the entire guardian-consent flow.
+    it.each([
+      '/api/webhooks/stripe',
+      '/api/webhooks/stripe-connect',
+      '/guardian/consent/some-token',
+      '/api/guardian-consent/accept',
+    ])('lets a sessionless caller reach %s', async (path) => {
+      stubSupabase(null, {})
+      const res = await middleware(request(path))
+      expect(redirectedTo(res)).toBeNull()
+    })
+
     it('sends a signed-out visitor on a private route to the sign-in page', async () => {
       stubSupabase(null, {})
       const res = await middleware(request('/athlete/discover'))

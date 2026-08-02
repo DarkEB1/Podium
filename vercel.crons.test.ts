@@ -1,6 +1,7 @@
 import { readFileSync, existsSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, it, expect } from 'vitest'
+import { DAILY_CRON_JOBS } from './lib/cron/daily-jobs'
 
 // Every scheduled cron in vercel.json must resolve to a real route handler, and
 // every cron route handler must run somewhere — either on its own schedule or
@@ -36,8 +37,7 @@ describe('vercel.json crons', () => {
     }
   })
 
-  it('runs every cron route: its own schedule or the daily runner', async () => {
-    const { DAILY_CRON_JOBS } = await import('./lib/cron/daily-jobs')
+  it('runs every cron route: its own schedule or the daily runner', () => {
     const scheduled = new Set([
       ...vercel.crons.map((c) => c.path),
       ...DAILY_CRON_JOBS.map((j) => j.path),
