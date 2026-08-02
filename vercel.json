@@ -2,32 +2,12 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
     {
-      "path": "/api/cron/gdpr-deletion",
+      "path": "/api/cron/daily",
       "schedule": "0 3 * * *"
     },
     {
-      "path": "/api/cron/maintenance",
-      "schedule": "30 4 * * *"
-    },
-    {
-      "path": "/api/cron/reconcile-subscriptions",
-      "schedule": "15 */6 * * *"
-    },
-    {
-      "path": "/api/cron/chat-cleanup",
-      "schedule": "45 4 * * *"
-    },
-    {
-      "path": "/api/cron/guardian-consent-expiry",
-      "schedule": "0 5 * * *"
-    },
-    {
-      "path": "/api/cron/adult-transfer",
-      "schedule": "15 5 * * *"
-    },
-    {
       "path": "/api/cron/data-export",
-      "schedule": "*/30 * * * *"
+      "schedule": "0 15 * * *"
     }
   ]
 }
