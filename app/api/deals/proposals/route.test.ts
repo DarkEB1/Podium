@@ -22,6 +22,7 @@ vi.mock('@/lib/email/notify', async (importOriginal) => {
 
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
+import { PROPOSAL_TERMS_MAX, PROPOSAL_TITLE_MAX } from '@/lib/limits'
 import { getProposals, sendProposal, DealsError } from '@/lib/supabase/deals'
 import { getMatches } from '@/lib/supabase/messaging'
 import { sendTransactionalEmail } from '@/lib/email'
@@ -128,6 +129,73 @@ describe('POST /api/deals/proposals', () => {
     expect(res.status).toBe(400)
     const json = await res.json()
     expect(json.error.code).toBe('INVALID_PAY_AMOUNT')
+  })
+
+  // PROPOSAL_TERMS_MAX was exported from lib/limits.ts and imported by nobody,
+  // and `proposals.additional_terms` is plain `text` with no CHECK, so the
+  // field was unbounded all the way to the database.
+  it('returns 400 when additional_terms exceeds PROPOSAL_TERMS_MAX', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    const res = await POST(
+      makePostRequest({
+        match_id: 'm1',
+        title: 'Test',
+        pay_amount: 100,
+        pay_type: 'flat_fee',
+        additional_terms: 'x'.repeat(PROPOSAL_TERMS_MAX + 1),
+      })
+    )
+    expect(res.status).toBe(400)
+    const json = await res.json()
+    expect(json.error.code).toBe('TERMS_TOO_LONG')
+    expect(sendProposal).not.toHaveBeenCalled()
+  })
+
+  it('accepts additional_terms exactly at the limit', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(sendProposal).mockResolvedValue({ id: 'p1' } as never)
+    const res = await POST(
+      makePostRequest({
+        match_id: 'm1',
+        title: 'Test',
+        pay_amount: 100,
+        pay_type: 'flat_fee',
+        additional_terms: 'x'.repeat(PROPOSAL_TERMS_MAX),
+      })
+    )
+    expect(res.status).toBe(201)
+  })
+
+  // `title` is the other free-text column on this insert, equally unbounded.
+  // The composer already stops at 200; only the server stops a scripted caller.
+  it('returns 400 when title exceeds PROPOSAL_TITLE_MAX', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    const res = await POST(
+      makePostRequest({
+        match_id: 'm1',
+        title: 'x'.repeat(PROPOSAL_TITLE_MAX + 1),
+        pay_amount: 100,
+        pay_type: 'flat_fee',
+      })
+    )
+    expect(res.status).toBe(400)
+    const json = await res.json()
+    expect(json.error.code).toBe('TITLE_TOO_LONG')
+    expect(sendProposal).not.toHaveBeenCalled()
+  })
+
+  it('accepts a title exactly at the limit', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(sendProposal).mockResolvedValue({ id: 'p1' } as never)
+    const res = await POST(
+      makePostRequest({
+        match_id: 'm1',
+        title: 'x'.repeat(PROPOSAL_TITLE_MAX),
+        pay_amount: 100,
+        pay_type: 'flat_fee',
+      })
+    )
+    expect(res.status).toBe(201)
   })
 
   it('returns 201 with proposal on success', async () => {

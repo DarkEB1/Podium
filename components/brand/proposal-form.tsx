@@ -11,13 +11,15 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { copy } from '@/lib/copy'
 import { track } from '@/lib/analytics'
+import { PROPOSAL_TITLE_MAX } from '@/lib/limits'
 import type { Database } from '@/types/database'
 
 type PayType = Database['public']['Enums']['pay_type']
 type ProposalRow = Database['public']['Tables']['proposals']['Row']
 
 const schema = z.object({
-  title: z.string().min(1, 'Title is required').max(200),
+  // From lib/limits so the form and the route cannot drift apart.
+  title: z.string().min(1, 'Title is required').max(PROPOSAL_TITLE_MAX),
   pay_amount: z.coerce.number().positive('Amount must be positive'),
   // Required: POST /api/deals/proposals rejects a missing pay_type with its own
   // internal string ("match_id, title, pay_amount, and pay_type are required"),

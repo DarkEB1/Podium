@@ -17,6 +17,7 @@ vi.mock('@/lib/supabase/admin', async (importOriginal) => {
 import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { createReport, getOwnReports, AdminError } from '@/lib/supabase/admin'
+import { REPORT_DETAIL_MAX } from '@/lib/limits'
 import { GET, POST } from './route'
 
 const fakeUser = {
@@ -130,5 +131,76 @@ describe('POST /api/reports', () => {
     const res = await POST(makePostRequest({ reported_user_id: 'user-2', reason: 'spam' }))
     expect(res.status).toBe(500)
     expect((await res.json()).error.code).toBe('REPORT_CREATE_FAILED')
+  })
+
+  // `reason` is a Postgres enum. Unvalidated it went straight into the insert,
+  // and Postgres answered with the raw driver text quoted below, which was
+  // handed to the browser as a 500.
+  it('returns 400 for a reason outside the enum, before the insert', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(createReport).mockClear()
+    const res = await POST(makePostRequest({ reported_user_id: 'user-2', reason: 'whatever' }))
+    expect(res.status).toBe(400)
+    expect((await res.json()).error.code).toBe('INVALID_REASON')
+    expect(createReport).not.toHaveBeenCalled()
+  })
+
+  it.each(['fake_profile', 'inappropriate_content', 'harassment', 'spam', 'underage_concern', 'other'])(
+    'accepts the %s reason',
+    async (reason) => {
+      vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+      vi.mocked(createReport).mockResolvedValue(fakeReport as never)
+      const res = await POST(makePostRequest({ reported_user_id: 'user-2', reason }))
+      expect(res.status).toBe(201)
+    },
+  )
+
+  it('returns 400 for a detail longer than REPORT_DETAIL_MAX', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(createReport).mockClear()
+    const res = await POST(
+      makePostRequest({
+        reported_user_id: 'user-2',
+        reason: 'spam',
+        detail: 'x'.repeat(REPORT_DETAIL_MAX + 1),
+      }),
+    )
+    expect(res.status).toBe(400)
+    expect((await res.json()).error.code).toBe('DETAIL_TOO_LONG')
+    expect(createReport).not.toHaveBeenCalled()
+  })
+
+  it('accepts a detail exactly at the limit', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(createReport).mockResolvedValue(fakeReport as never)
+    const res = await POST(
+      makePostRequest({
+        reported_user_id: 'user-2',
+        reason: 'spam',
+        detail: 'x'.repeat(REPORT_DETAIL_MAX),
+      }),
+    )
+    expect(res.status).toBe(201)
+  })
+
+  // The driver message names internal enums, columns and types. It belongs in
+  // the server log; the browser gets copy a person can act on.
+  it('never sends the raw driver message to the client', async () => {
+    const raw = 'invalid input value for enum report_reason: "whatever"'
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(createReport).mockRejectedValue(new AdminError('REPORT_CREATE_FAILED', raw))
+    const res = await POST(makePostRequest({ reported_user_id: 'user-2', reason: 'spam' }))
+    const body = await res.json()
+    expect(JSON.stringify(body)).not.toContain('report_reason')
+    expect(body.error.message).not.toBe(raw)
+    expect(body.error.message.length).toBeGreaterThan(0)
+  })
+
+  it('never sends the raw driver message on a failed fetch either', async () => {
+    const raw = 'column reports.reporter_id does not exist'
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(getOwnReports).mockRejectedValue(new AdminError('REPORTS_FETCH_FAILED', raw))
+    const res = await GET(makeGetRequest())
+    expect((await res.json()).error.message).not.toBe(raw)
   })
 })

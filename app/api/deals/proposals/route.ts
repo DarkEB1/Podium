@@ -4,6 +4,7 @@ import { getUser } from '@/lib/supabase/auth'
 import { sendProposal, getProposals, DealsError } from '@/lib/supabase/deals'
 import { getMatches } from '@/lib/supabase/messaging'
 import { RATE_LIMITS, consume, tooManyRequests, userKey } from '@/lib/rate-limit'
+import { PROPOSAL_TERMS_MAX, PROPOSAL_TITLE_MAX } from '@/lib/limits'
 import { sendTransactionalEmail } from '@/lib/email'
 import { absoluteUrl, nameOf, resolveDisplayNames, FALLBACK_OTHER_NAME } from '@/lib/email/notify'
 import { ROUTES } from '@/lib/routes'
@@ -102,6 +103,34 @@ export async function POST(request: NextRequest) {
   if (!VALID_PAY_TYPES.has(pay_type as PayType)) {
     return NextResponse.json(
       { error: { code: 'INVALID_PAY_TYPE', message: 'Invalid pay_type value' } },
+      { status: 400 }
+    )
+  }
+
+  // Both free-text columns on this insert are plain `text` with no CHECK.
+  // PROPOSAL_TERMS_MAX was exported from lib/limits.ts and imported by nobody,
+  // so additional_terms reached the database unbounded; title never had a
+  // server-side cap at all, only the composer's.
+  if (title.length > PROPOSAL_TITLE_MAX) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'TITLE_TOO_LONG',
+          message: `Title must be ${PROPOSAL_TITLE_MAX} characters or fewer`,
+        },
+      },
+      { status: 400 }
+    )
+  }
+
+  if (typeof body.additional_terms === 'string' && body.additional_terms.length > PROPOSAL_TERMS_MAX) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'TERMS_TOO_LONG',
+          message: `Additional terms must be ${PROPOSAL_TERMS_MAX} characters or fewer`,
+        },
+      },
       { status: 400 }
     )
   }

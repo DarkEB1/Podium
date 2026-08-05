@@ -28,6 +28,16 @@ export const CHAT_MESSAGE_MAX = 5000
 /** Proposal free-text terms. */
 export const PROPOSAL_TERMS_MAX = 2000
 
+/**
+ * Proposal title. Matches the `max(200)` the composer in
+ * `components/brand/proposal-form.tsx` already enforces; the column is plain
+ * `text`, so the server is the only backstop.
+ */
+export const PROPOSAL_TITLE_MAX = 200
+
+/** Free-text detail on an abuse report. Long enough to describe an incident. */
+export const REPORT_DETAIL_MAX = 2000
+
 /** Short profile/bio blurbs. */
 export const BIO_MAX = 1000
 
