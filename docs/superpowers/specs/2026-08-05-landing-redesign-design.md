@@ -20,7 +20,7 @@ Replace the current Nord-palette landing page with a soft-brutalist, horizontall
 | Electric blue | `#2742F0` | everything interactive: CTAs, links, focus rings | 6.5:1 on bg; white on blue 6.7:1 |
 | Body grey | `#4A4B4E` | secondary text | 8.9:1 on bg |
 
-Rules: lime is never a text colour and never sits behind body copy. One saturated lime element per panel. Blue means clickable, nothing else is blue.
+Rules: lime is never a text colour and never sits behind body copy. One full-saturation lime element per panel; supporting bars (e.g. unfocused skyline profiles) use lime tints (`#DDF0A8`, `#E9F5C4`). Blue means clickable, nothing else is blue.
 
 ### Type
 
@@ -44,7 +44,10 @@ Hook headline: **"The podium has room for ___"** with the last word rotating thr
 The landing page is one horizontal track travelled left→right by normal vertical scroll input. DOM order = panel order = reading order.
 
 1. **Hero** — hook left (mono label "SPONSORSHIP MARKETPLACE", headline, subline, CTAs), lime podium steps right, `SCROLL → 01 / 05` wayfinding bottom-left.
-2. **The marketplace** — lead with the goods: marketplace preview card (profile cards, filters, deal counts) plus testimonial chips. Merges and compacts `marketplace-preview.tsx` + `social-proof.tsx`.
+2. **The marketplace** — lead with the goods. Built in TWO variants (decision 2026-08-05); both ship to staging behind a switch (`?market=skyline|rally`, default `skyline`) and Nicholas picks the winner in implementation review, after which the loser is deleted:
+   - **A · Skyline** — every profile is a bar of the podium: a pannable row of logo-bars standing on the baseline, height encoding momentum (deal count). The focused bar widens into a full profile card (name, sport, tier, deals, View CTA); neighbours stay bars. Filter chips re-grow the skyline in a wave. Drag/wheel pans horizontally; keyboard arrows move focus bar-to-bar.
+   - **B · Rally game** — an interactive tennis mini-game telling the two-sided market story: athlete card left, brand card right, lime ball arcing between them over the baseline. The visitor plays the athlete side: moving the pointer moves a small racket line; returning the ball advances the deal ticker (offer amount/terms flip like a scoreboard) and after 5 successful returns the deal stamps SIGNED in lime, then a new rally serves with a different athlete/brand pair. Missing just re-serves, no fail state. Mobile: tap-to-return timing. Reduced motion / no JS: a static three-frame rally storyboard with the same deal copy.
+   Replaces `marketplace-preview.tsx` + `social-proof.tsx`; testimonial chips sit under the selector in both variants.
 3. **What we do** — three flat lime slabs (echoing the fallen dominoes) carrying: Build your profile / Get discovered / Sign and get paid. Reworks `how-it-works.tsx` content. Secondary hero CTA "How it works" jumps here.
 4. **Who's on the podium** — athlete, team, brand cards at podium-step heights. Reworks `role-panels.tsx` content.
 5. **Build your profile** — closing ask: ink-field banner with "Build your profile" CTA, pricing link, footer links row. No FAQ section (decision 2026-08-05); `faq.tsx` and its FAQPage schema are removed from the landing page. Cookie banner overlays as today.
@@ -66,6 +69,7 @@ The landing page is one horizontal track travelled left→right by normal vertic
 ## Implementation
 
 - `components/landing/horizontal-track.tsx` (client) owns scroll mapping and the domino choreography; panel content stays in server components.
+- Marketplace variants: `components/landing/market-skyline.tsx` and `components/landing/market-rally.tsx` (both client); `app/page.tsx` reads the `market` search param (default `skyline`) to pick. The rally game uses requestAnimationFrame with scripted ball physics (no physics engine); both variants use demo/anonymised profile data from a local fixture, not live DB reads.
 - `components/brand/podium-mark.tsx` — the SVG mark (three bars, proportional rounding baked into the geometry).
 - `app/globals.css` token update (global): `--background: #FAFBFB`, `--primary: #2742F0`, `--ring: #2742F0`, new `--lime: #C1EC2F`, `--foreground: #17181A`, `--font-heading: var(--font-dm-sans)`. Dashboards inherit the new palette; their layouts are untouched. Nord chart colours re-derived from the new palette (blues + lime).
 - `app/layout.tsx`: drop the Geist (sans) import, keep DM Sans + Geist Mono.
@@ -80,7 +84,7 @@ Animation is progressive enhancement only: if JS fails or `motion` errors, the p
 
 - Update `components/ui/contrast.test.ts` expected values to the new palette; keep the WCAG assertions.
 - Update `app/design-tokens.test.ts` / `gl5-audit.test.ts` for the new token values (type scale unchanged).
-- New Playwright spec `e2e/landing.spec.ts`: five panels present in DOM order, horizontal traversal on desktop viewport, vertical layout at mobile viewport, reduced-motion renders vertical, CTAs navigate.
+- New Playwright spec `e2e/landing.spec.ts`: five panels present in DOM order, horizontal traversal on desktop viewport, vertical layout at mobile viewport, reduced-motion renders vertical, CTAs navigate. Both marketplace variants render via `?market=skyline` and `?market=rally`; the rally's static storyboard appears under reduced motion.
 - `npm run check` green before any merge talk; visual confirmation on the staging preview URL.
 
 ## Out of scope
