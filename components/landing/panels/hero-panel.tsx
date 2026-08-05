@@ -6,8 +6,22 @@ export default function HeroPanel() {
   return (
     <section
       aria-labelledby="hero-heading"
-      className="flex h-full items-end justify-between gap-14 px-6 pb-[30vh] pt-24 md:px-16"
+      className="relative flex h-full items-end justify-between gap-14 px-6 pb-[30vh] pt-24 md:px-16"
     >
+      {/* QA: the page had no wordmark and no way back in for returning users —
+          "logo top-left leads nowhere" must never regress into "no logo". */}
+      <div className="absolute left-6 top-6 z-10 flex w-[calc(100vw-3rem)] items-center justify-between md:left-16 md:w-[calc(100vw-8rem)]">
+        <Link
+          href="/"
+          aria-label="Podium home"
+          className="font-heading text-xl font-extrabold tracking-tight text-foreground"
+        >
+          Podium
+        </Link>
+        <Link href="/auth" className="text-medium font-medium text-primary underline underline-offset-4">
+          Sign in
+        </Link>
+      </div>
       <div className="max-w-xl">
         <p className="mb-4 font-mono text-small uppercase tracking-[.15em] text-muted-foreground">
           SPONSORSHIP MARKETPLACE
