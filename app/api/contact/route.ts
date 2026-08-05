@@ -15,7 +15,9 @@ import { RATE_LIMITS, clientIpFrom, consumeAll, ipKey, tooManyRequests } from '@
  * that swallows naive bots without telling them anything went wrong.
  */
 
-export const FIELD_LIMITS = {
+// Not exported: a Next.js route module may only export route fields, and the
+// client form keeps its own mirror of these caps.
+const FIELD_LIMITS = {
   name: 100,
   email: 254, // RFC 5321 maximum path length
   message: 2000,
