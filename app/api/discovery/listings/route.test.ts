@@ -18,7 +18,7 @@ vi.mock('@/lib/supabase/discovery', async (importOriginal) => {
 import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getOwnProfile } from '@/lib/supabase/profiles'
-import { createListing, getListings } from '@/lib/supabase/discovery'
+import { createListing, getListings, DiscoveryError } from '@/lib/supabase/discovery'
 import { GET, POST } from './route'
 
 const fakeUser = {
@@ -105,5 +105,37 @@ describe('POST /api/discovery/listings', () => {
     expect(res.status).toBe(201)
     const json = await res.json()
     expect(json).toEqual(fakeListing)
+  })
+
+  // A rejected insert used to escape the handler, so Next answered with a
+  // non-JSON 500 and the client's res.json() threw before it could read the
+  // failure — the real reason never reached the brand or the logs.
+  it('turns a rejected insert into a JSON 400 without the raw Postgres message', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(getOwnProfile).mockResolvedValue(fakeBrandProfile as never)
+    vi.mocked(createListing).mockRejectedValue(
+      new DiscoveryError(
+        'LISTING_CREATE_FAILED',
+        'invalid input syntax for type timestamp with time zone: ""'
+      )
+    )
+    const res = await POST(makeRequest('POST', { title: 'Test', application_deadline: '' }))
+    expect(res.status).toBe(400)
+    const json = await res.json()
+    expect(json.error.code).toBe('LISTING_CREATE_FAILED')
+    expect(json.error.message).not.toMatch(/timestamp with time zone/)
+    expect(json.error.message).toMatch(/could not save/i)
+  })
+
+  it('keeps the status of a known DiscoveryError code', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(getOwnProfile).mockResolvedValue(fakeBrandProfile as never)
+    vi.mocked(createListing).mockRejectedValue(
+      new DiscoveryError('LISTING_NOT_FOUND', 'Listing not found or not owned by this brand')
+    )
+    const res = await POST(makeRequest('POST', { title: 'Test' }))
+    expect(res.status).toBe(404)
+    const json = await res.json()
+    expect(json.error.message).toBe('Listing not found or not owned by this brand')
   })
 })

@@ -143,6 +143,36 @@ describe('createListing', () => {
     // brand_id is always set from the parameter, not from user data
     expect(insertArg['brand_id']).toBe('bp1')
   })
+
+  // A blank optional field arrives as '' from the listing form. Postgres rejects
+  // '' for a timestamptz (22007) and fails the whole insert, so empty strings are
+  // dropped here exactly as sanitizeProfileData drops them.
+  it('drops empty-string values before inserting', async () => {
+    const { client, chain, setSingle } = makeMockClient()
+    setSingle({ id: 'l1', brand_id: 'bp1', title: 'Test' })
+
+    await createListing(client, 'bp1', {
+      title: 'Test',
+      application_deadline: '',
+      description: '',
+      pay_currency: 'GBP',
+    })
+
+    const insertArg = chain.insert.mock.calls[0]![0] as Record<string, unknown>
+    expect(insertArg).not.toHaveProperty('application_deadline')
+    expect(insertArg).not.toHaveProperty('description')
+    expect(insertArg['pay_currency']).toBe('GBP')
+  })
+
+  it('keeps a null value, which is how a deadline is cleared', async () => {
+    const { client, chain, setSingle } = makeMockClient()
+    setSingle({ id: 'l1', brand_id: 'bp1', title: 'Test' })
+
+    await createListing(client, 'bp1', { title: 'Test', application_deadline: null })
+
+    const insertArg = chain.insert.mock.calls[0]![0] as Record<string, unknown>
+    expect(insertArg['application_deadline']).toBeNull()
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -204,6 +234,17 @@ describe('updateListing', () => {
     expect(updateArg['status']).toBeUndefined()
     expect(updateArg['id']).toBeUndefined()
     expect(updateArg['brand_id']).toBeUndefined()
+  })
+
+  it('drops empty-string values before updating', async () => {
+    const { client, chain, setSingle } = makeMockClient()
+    setSingle({ id: 'l1', title: 'Updated' })
+
+    await updateListing(client, 'l1', 'bp1', { title: 'Updated', application_deadline: '' })
+
+    const updateArg = chain.update.mock.calls[0]![0] as Record<string, unknown>
+    expect(updateArg['title']).toBe('Updated')
+    expect(updateArg).not.toHaveProperty('application_deadline')
   })
 })
 

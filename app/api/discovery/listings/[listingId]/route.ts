@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getOwnProfile } from '@/lib/supabase/profiles'
-import { getListing, updateListing, DiscoveryError } from '@/lib/supabase/discovery'
+import { getListing, updateListing } from '@/lib/supabase/discovery'
+import { listingErrorResponse, readJsonBody } from '@/lib/api/errors'
 
 export async function GET(
   _request: NextRequest,
@@ -62,18 +63,18 @@ export async function PATCH(
   }
 
   const { listingId } = await params
-  const body = (await request.json()) as Record<string, unknown>
+  const parsed = await readJsonBody(request)
+  if ('response' in parsed) return parsed.response
 
   try {
-    const listing = await updateListing(supabase, listingId, brandProfile.id, body)
+    const listing = await updateListing(supabase, listingId, brandProfile.id, parsed.body)
     return NextResponse.json(listing)
   } catch (err) {
-    if (err instanceof DiscoveryError && err.code === 'LISTING_NOT_FOUND') {
-      return NextResponse.json(
-        { error: { code: 'LISTING_NOT_FOUND', message: 'Listing not found or not owned by this brand' } },
-        { status: 404 }
-      )
-    }
+    // Every rejected update used to be re-thrown as a bodyless 500 except
+    // LISTING_NOT_FOUND, so `res.json()` threw in the browser before it could
+    // read the error. Shared with POST so the two cannot drift apart.
+    const response = listingErrorResponse(err)
+    if (response) return response
     throw err
   }
 }

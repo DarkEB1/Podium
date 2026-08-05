@@ -33,8 +33,23 @@ const LISTING_PROTECTED_FIELDS = new Set([
   'updated_at',
 ])
 
+/**
+ * Drops protected keys and empty strings, exactly as sanitizeProfileData does.
+ *
+ * Every optional field on the listing form submits '' when left blank, and
+ * `application_deadline` is a **timestamptz**: Postgres rejects '' with 22007
+ * and fails the entire insert, so a brand could not create a listing at all
+ * unless it set a deadline. `null` still passes through — it is how a deadline
+ * is cleared.
+ */
 function sanitizeListingData(data: Record<string, unknown>): Record<string, unknown> {
-  return Object.fromEntries(Object.entries(data).filter(([key]) => !LISTING_PROTECTED_FIELDS.has(key)))
+  return Object.fromEntries(
+    Object.entries(data).filter(([key, value]) => {
+      if (LISTING_PROTECTED_FIELDS.has(key)) return false
+      if (value === '') return false
+      return true
+    })
+  )
 }
 
 // ---------------------------------------------------------------------------

@@ -76,10 +76,15 @@ export default function ListingForm({ listing }: Props) {
         ? `/api/discovery/listings/${listing.id}`
         : '/api/discovery/listings'
       const method = listing ? 'PATCH' : 'POST'
+      // application_deadline is a timestamptz column and this optional field is
+      // an <input type="date">, which reads '' when blank. Postgres rejects ''
+      // with 22007 and fails the whole write, so send null: it is the value the
+      // column actually takes, and on an edit it clears a deadline that was set.
+      const payload = { ...values, application_deadline: values.application_deadline || null }
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(values),
+        body: JSON.stringify(payload),
       })
       const data = await res.json()
       if (!res.ok) { toast.error(data.error?.message ?? 'Failed to save'); return }
@@ -106,7 +111,9 @@ export default function ListingForm({ listing }: Props) {
         <FormField control={form.control} name="type" render={({ field }) => (
           <FormItem>
             <FormLabel>Listing type</FormLabel>
-            <Select onValueChange={field.onChange} defaultValue={field.value}>
+            {/* base-ui renders the raw value in the collapsed trigger unless the
+                root is given the value→label map. */}
+            <Select items={LISTING_TYPE_LABEL} onValueChange={field.onChange} defaultValue={field.value}>
               <FormControl>
                 <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
               </FormControl>
@@ -167,7 +174,9 @@ export default function ListingForm({ listing }: Props) {
         <FormField control={form.control} name="pay_type" render={({ field }) => (
           <FormItem>
             <FormLabel>Pay type <span className="text-muted-foreground text-small">(optional)</span></FormLabel>
-            <Select onValueChange={field.onChange} defaultValue={field.value}>
+            {/* base-ui renders the raw value in the collapsed trigger unless the
+                root is given the value→label map. */}
+            <Select items={PAY_TYPE_LABEL} onValueChange={field.onChange} defaultValue={field.value}>
               <FormControl>
                 <SelectTrigger><SelectValue placeholder="Select pay type" /></SelectTrigger>
               </FormControl>

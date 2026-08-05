@@ -4,6 +4,7 @@ import { getUser } from '@/lib/supabase/auth'
 import { getOwnProfile } from '@/lib/supabase/profiles'
 import { createListing, getListings } from '@/lib/supabase/discovery'
 import { RATE_LIMITS, consume, tooManyRequests, userKey } from '@/lib/rate-limit'
+import { listingErrorResponse, readJsonBody } from '@/lib/api/errors'
 
 export async function GET() {
   const supabase = await createClient()
@@ -16,8 +17,14 @@ export async function GET() {
     )
   }
 
-  const listings = await getListings(supabase)
-  return NextResponse.json(listings)
+  try {
+    const listings = await getListings(supabase)
+    return NextResponse.json(listings)
+  } catch (err) {
+    const response = listingErrorResponse(err)
+    if (response) return response
+    throw err
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -52,7 +59,15 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const body = (await request.json()) as Record<string, unknown>
-  const listing = await createListing(supabase, brandProfile.id, body)
-  return NextResponse.json(listing, { status: 201 })
+  const parsed = await readJsonBody(request)
+  if ('response' in parsed) return parsed.response
+
+  try {
+    const listing = await createListing(supabase, brandProfile.id, parsed.body)
+    return NextResponse.json(listing, { status: 201 })
+  } catch (err) {
+    const response = listingErrorResponse(err)
+    if (response) return response
+    throw err
+  }
 }
