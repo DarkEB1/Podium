@@ -1,84 +1,35 @@
----
-plan: Phase 5 — Deals UI, Contract Signing, Email Notifications
-task: Phase 5 — COMPLETE
-status: complete
-last_updated: 2026-06-19T12:58:00.000Z
-head_sha: b4ec8cc
----
+# Handoff: landing rebuild, 3D hero in progress (2026-08-05)
 
-<current_state>
-Phase 5 is fully implemented and committed (commit b4ec8cc). All 572 unit tests pass (72 files). Type-check clean, lint warnings are pre-existing pattern only. Playwright E2E: 55/55 passing (Chromium headless-shell manually extracted).
-</current_state>
+Session ended at context limit mid build-step 3/4 of the landing rebuild. Read this fully, then continue. Branch: `staging`. A concurrent session (EB1) is also committing to this checkout: stage/commit by explicit path only, never `git add -A`. (Previous Phase-5 handoff was stale-complete and replaced by this one.)
 
-<completed_work>
+## Governing documents (read in this order)
+1. `docs/superpowers/specs/2026-08-05-landing-build-spec-v3.md` — THE build spec (geometry, motion score with exact timings, both marketplace variants, QA gates, 12-step build order). Build exactly this.
+2. `docs/superpowers/specs/2026-08-05-landing-redesign-design.md` — original spec + amendments section.
+3. Memory: `podium-landing-quality-bar.md` — Nicholas's standing rules (Awwwards bar, 3D r3f language, verify EVERY change visually via claude-in-chrome screenshots on localhost:3000, unlimited subagents/ultracode, compress context at 70%, no em dashes in copy).
 
-## Phase 4 — Admin Dashboard (commit f374bb5)
-- Full admin approval/reject flow for athletes and brands ✅
-- Admin pages: dashboard, athletes, brands, listings, users ✅
+## Where the build stands (commits 134de60, ee3dee4, 8f764c6)
+- Build steps 1-2 DONE and visually verified: stage scroll fabric (1000vh, damped spring writing `--p` + imperative track transform, snap, keyboard jumps, skip), fixed nav with active marker, fixed baseline + travelling tick tape, poster hero DOM (stepped display-xl with 16vh cap, static lime chip, CTA row on baseline, dashed domino placeholder volumes), stub panels 02-05. Travel/dwell verified in browser.
+- `lib/landing/motion-map.ts` (+35 passing tests): trackX piecewise map with real bezier solving, dominoTheta cascade curves incl settle tails, rest/snap/dwell helpers. Stage and scene still use inline v0 placeholder maps: SWAP them to import motion-map (interfaces match by design).
+- Build step 3 (3D stage) WIP in `components/landing/stage/scene.tsx`: camera/world mapping (1 unit = 10vh, floor y=0 at 72vh, fov 28 at dist 5/tan(14°), camera x couples to trackX), extruded podium-glyph geometry with fillet, MeshPhysicalMaterial lime plastic per spec, RoomEnvironment PMREM (no network), RectAreaLight rig, ContactShadows, un-fall load animation, cascade scrub wiring.
 
-## Phase 5 — Deals, Contracts, Notifications (commit b4ec8cc)
+## THE BLOCKER (fix first)
+r3f Canvas children do not mount on current builds: canvas element exists, `SceneInner` never runs (no `[scene] SceneInner mounted` log, `window.__sceneDebug` stays undefined, no meshes). ONE earlier dev build DID render all three glossy plastic pieces with shadows (visually verified screenshot), so geometry/material/camera/lighting are correct. Fixes already applied:
+- `next/dynamic({ssr:false})` silently never loaded the chunk: replaced with static import + mount gate. After this the DOM wrapper + red debug dot rendered.
+- Suspected React context read inside the r3f renderer (useStage in canvas children) suspending the internal Suspense: stage API now passed as PROP into SceneInner/Rig/HeroDominoes. Still not mounting after this change on the last fresh build.
+- Dev toolchain was repeatedly serving stale/mixed bundles (edits invisible until server restart + hard reload; root cause suspicion: stray `C:\Users\nicho\package-lock.json` made Next infer the home dir as workspace root and broke watching; `outputFileTracingRoot` now pinned in next.config.ts). Because of this, DISTRUST any single dev observation.
 
-**Deals data layer (lib/supabase/deals.ts)**
-- getProposalsForUser: fetches all proposals for the current user (RLS scopes results) ✅
-- signContract: validates participant, checks idempotency, updates brand_signed_at or athlete_signed_at, transitions status through pending_brand_signature → pending_athlete_signature → fully_signed ✅
+Next debugging steps, in order:
+1. `npm run build && npm run start` (production build on :3000, kill dev first) — eliminates every dev-server ghost. If pieces render in prod, the scene is DONE and the issue is purely dev-HMR; continue building and only restart dev when stale.
+2. If prod also fails: bisect SceneInner children (start with bare `<mesh><boxGeometry/><meshBasicMaterial/></mesh>` directly inside Canvas, add back Rig, HeroDominoes, environment effect, ContactShadows one at a time, hard reload each). Suspects in order: SceneInner's PMREM/RoomEnvironment effect, drei ContactShadows, RectAreaLightUniformsLib.
+3. Known secondary bug once mounting works: in the one build where pieces rendered they were stuck FALLEN (~90°): if frameloop was 'demand' at that point r3f pauses the clock so the un-fall never advanced. Canvas is currently frameloop='always'. Later, per spec, restore demand-with-invalidate but drive the un-fall from performance.now() rather than state.clock so it cannot freeze.
+4. Remove debug artifacts when verified: red DOM dot + `data-scene-version` in scene.tsx, red 3D box, `__sceneDebug`, `[scene]` log.
 
-**API routes**
-- POST /api/deals/contracts/[contractId]/sign: auth-gated, returns 404/403/409/200 ✅
-- /api/deals/proposals/[proposalId]/respond: now fires email to proposal sender after respond ✅
+## Then continue the spec build order (step 4 onward)
+Word-flip chip cycle, cascade scrub + type exits + chip detach (motion-map has the curves), scroll-locked intro (spec amendment: page pins until D3 tip crosses right viewport edge ~P 0.118; cascade owns P 0-0.15 with track x=0 so the map already accommodates), shove velocity match, then panels: skyline (spec §3 P02A + §5.1), rally (§3 P02B + §5.2, `?variant=rally`, page.tsx already reads it), panels 3/4/5 (§3), mobile stack + reduced motion + posters (§6-7), QA gates + screenshot matrix (§8), rewrite stale `e2e/landing.spec.ts` and `e2e/auth.spec.ts` landing assertions for the new DOM, full `npm run check`, push staging.
+Use subagents freely for panels once the 3D pipeline is stable; keep the browser verification loop yourself. Fan out an ultracode review workflow before pushing.
 
-**Email notifications (lib/notifications/email.ts)**
-- Resend-based, graceful no-op if RESEND_API_KEY not set ✅
-- sendProposalReceivedEmail, sendProposalRespondedEmail, sendContractFullySignedEmail ✅
-- Fire-and-forget pattern — email failures never block API responses ✅
-
-**UI components**
-- components/deals/proposal-card.tsx: displays proposal title, amount, pay type, status badge, timeline ✅
-- components/deals/contract-sign-button.tsx: client component, calls sign API, router.refresh() ✅
-
-**Pages**
-- app/(athlete)/athlete/deals/page.tsx: pending + history sections ✅
-- app/(athlete)/athlete/deals/[proposalId]/page.tsx: detail + accept/decline + contract sign ✅
-- app/(brand)/brand/deals/page.tsx: active + history sections ✅
-- app/(brand)/brand/deals/[proposalId]/page.tsx: detail + withdraw + contract sign ✅
-
-**Navigation**
-- Deals link added to athlete and brand nav in components/layout/nav-shell.tsx ✅
-
-**Tests: 572 passing**
-- lib/supabase/deals.test.ts: 45 tests (includes 12 new for getProposalsForUser + signContract)
-- app/api/deals/contracts/[contractId]/sign/route.test.ts: 5 tests
-- lib/notifications/email.test.ts: 6 tests
-</completed_work>
-
-<remaining_work>
-Phase 6 candidates:
-- Landing page (public marketing page per spec Flow 1)
-- Stripe payment flow for contracts (pay_type: fixed, milestone, etc.)
-- Real-time messaging with Supabase Realtime
-- Push notifications (web push or Expo)
-- Agent dashboard (agent/clients management)
-
-To add email in production:
-1. Set RESEND_API_KEY in Vercel env vars
-2. Set RESEND_FROM_EMAIL (e.g. noreply@podium.app)
-3. Verify sending domain in Resend dashboard
-</remaining_work>
-
-<decisions_made>
-
-- signContract uses adminSupabase for the UPDATE to bypass RLS (athlete_profiles and brand_profiles have restrictive RLS; contract updates need service role for cross-party writes)
-- getProposalsForUser ignores _userId param — RLS on proposals table already scopes results to participants; the param exists for API consistency/future use
-- Email is fire-and-forget: wrapped in void IIFE so email failures are caught and logged but never propagate to the HTTP response
-- ContractSignButton: hidden when status is fully_signed or terminated; shows "Waiting for other party" when the current user has already signed
-- Playwright Chromium binary was manually extracted from ZIP (Windows extraction stall bug in npx playwright install)
-</decisions_made>
-
-<context>
-Podium marketplace now has: auth, profiles, discovery (listings, shortlist, blocks), messaging, payments (Stripe), admin dashboard, deals (proposals → contract → e-signature), and email notifications.
-
-Playwright: 55/55 passing. Chromium binary at C:\Users\eono2\AppData\Local\ms-playwright\chromium-headless-shell-1217\chrome-win\headless_shell.exe (manually extracted — do not delete).
-</context>
-
-<next_action>
-Decide Phase 6 feature. Landing page is the most impactful for public-facing demo.
-</next_action>
+## Environment notes
+- Dev server: background task, `npm run dev` from repo root; after editing scene/stage files, if changes do not appear: restart server AND ctrl+shift+r (watcher unreliability may persist).
+- Chrome tab 532371252 is the working tab (claude-in-chrome); viewport 1512x795, vh=795.
+- The visual companion mockups (aesthetic references Nicholas approved) live in `.superpowers/brainstorm/33237-1785930672/content/` — `locked-hero.html` is the approved hero look pre-3D.
+- Nicholas's system is dark mode: `.landing-light` scope must keep the landing light. Fonts: DM Sans vars are on `<html>` (do not move back to body).
