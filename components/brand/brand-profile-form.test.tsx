@@ -98,12 +98,15 @@ describe('BrandProfileForm', () => {
     expect(patchedBody()['industry_other']).toBe('Renewable energy')
   })
 
-  it('step 2 clears the free-text industry for a non-Other industry', async () => {
+  // The key is omitted, not nulled: a migration and the code that needs it are
+  // separate deploy steps, and naming a column that does not exist yet makes
+  // PostgREST reject the whole PATCH, which would fail step 2 for every brand.
+  it('step 2 omits the free-text industry entirely for a non-Other industry', async () => {
     const profile = { id: '1', company_name: 'Acme', industry: 'sport', seeking: [], target_sports: [] } as never
     render(<BrandProfileForm step={2} profile={profile} />)
     await userEvent.click(screen.getByRole('button', { name: /next/i }))
     await waitFor(() => expect(fetch).toHaveBeenCalled())
-    expect(patchedBody()['industry_other']).toBeNull()
+    expect(patchedBody()).not.toHaveProperty('industry_other')
   })
 
   // base-ui renders the raw value in the collapsed trigger unless the Select

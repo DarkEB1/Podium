@@ -293,13 +293,18 @@ function Step2({ profile, onSaved }: { profile: BrandRow | null; onSaved: (p: Br
   async function onSubmit(values: Step2Values) {
     setLoading(true)
     try {
-      // industry_other only means anything for the "other" industry. A brand
-      // that answers it and then picks a real industry would otherwise leave a
-      // stale free-text answer on the row; null clears it, where '' cannot —
-      // sanitizeProfileData drops empty strings before they reach the column.
+      // industry_other only means anything for the "other" industry, and the
+      // key is OMITTED otherwise rather than nulled. Migrations are applied
+      // ahead of the code that needs them but the two are separate steps, and
+      // sending a column that does not exist yet makes PostgREST reject the
+      // whole PATCH (PGRST204) — which would fail step 2 for every brand, not
+      // just the ones this field is for. Omitting leaves a stale answer on the
+      // row after switching industry; nothing renders it unless the industry is
+      // 'other' again.
+      const { industry_other, ...rest } = values
       const payload = {
-        ...values,
-        industry_other: values.industry === 'other' ? (values.industry_other ?? '') : null,
+        ...rest,
+        ...(values.industry === 'other' ? { industry_other: industry_other ?? '' } : {}),
         seeking,
         target_sports: targetSports,
       }
