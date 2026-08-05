@@ -1,15 +1,17 @@
+import { Suspense } from 'react'
 import Link from 'next/link'
-import { AlertCircle } from 'lucide-react'
 
 import LoginForm from '@/components/auth/login-form'
-import { authErrorMessage } from '@/components/auth/auth-errors'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import AuthErrorAlert from '@/components/auth/auth-error-alert'
 import { ROUTES } from '@/lib/routes'
 
 /**
- * The sign-in page. B-3/NX-1: the auth callback redirects failures here with
- * `?error=<code>`; the code is translated to human copy and rendered above the
- * form so the user learns why their link did not work.
+ * The sign-in page.
+ *
+ * PERF: the `?error=` code is read CLIENT-side, in AuthErrorAlert. Awaiting
+ * `searchParams` here forced dynamic rendering, so this page was an uncached
+ * server render on every view. Keep this file free of `searchParams`,
+ * `cookies()` and `headers()` or it silently becomes dynamic again.
  */
 // M-1: per-route metadata. Authenticated surface: `robots.index = false`
 // mirrors app/robots.ts so a signed-in page can never be indexed.
@@ -19,14 +21,7 @@ export const metadata = {
   robots: { index: false, follow: true },
 }
 
-export default async function LoginPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ error?: string }>
-}) {
-  const { error } = await searchParams
-  const message = authErrorMessage(error)
-
+export default function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-6 py-16">
       <div className="mx-auto w-full max-w-md">
@@ -39,13 +34,11 @@ export default async function LoginPage({
           </p>
         </div>
 
-        {message ? (
-          <Alert variant="destructive" className="mb-6" data-testid="auth-error">
-            <AlertCircle aria-hidden="true" />
-            <AlertTitle>We couldn&apos;t complete that link</AlertTitle>
-            <AlertDescription>{message}</AlertDescription>
-          </Alert>
-        ) : null}
+        {/* No fallback: the alert is absent on the overwhelming majority of
+            visits, so rendering nothing while the query is read is correct. */}
+        <Suspense fallback={null}>
+          <AuthErrorAlert />
+        </Suspense>
 
         <div className="rounded-2xl border border-border bg-card p-8 shadow-card">
           <LoginForm />
