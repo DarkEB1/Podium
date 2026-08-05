@@ -11,7 +11,7 @@ const layout = readFileSync(path.resolve(__dirname, 'layout.tsx'), 'utf8')
 
 describe('T1 design tokens (globals.css)', () => {
   it('maps the heading typeface to Geist and body to DM Sans', () => {
-    expect(css).toMatch(/--font-heading:\s*var\(--font-geist\)/)
+    expect(css).toMatch(/--font-heading:\s*var\(--font-dm-sans\)/)
     expect(css).toMatch(/--font-sans:\s*var\(--font-dm-sans\)/)
   })
 
@@ -38,12 +38,12 @@ describe('T1 design tokens (globals.css)', () => {
   })
 
   it('page background is near-white distinct from the white card surface', () => {
-    expect(css).toMatch(/--background:\s*#FAFAFC/)
+    expect(css).toMatch(/--background:\s*#FAFBFB/)
     expect(css).toMatch(/--card:\s*#FFFFFF/)
   })
 
   it('uses the Nord snow-storm hairline border token', () => {
-    expect(css).toMatch(/--border:\s*#E5E9F0/)
+    expect(css).toMatch(/--border:\s*#E4E6E5/)
   })
 
   // A-3: the original #5E81AC frost blue rendered white button labels at
@@ -51,8 +51,17 @@ describe('T1 design tokens (globals.css)', () => {
   // The authoritative check is components/ui/contrast.test.ts, which recomputes
   // every token pair — this assertion only pins the chosen hue.
   it('uses an accessible frost-blue primary and a light frost accent tint', () => {
-    expect(css).toMatch(/--primary:\s*#456489/)
-    expect(css).toMatch(/--accent:\s*#E5E9F0/)
+    expect(css).toMatch(/--primary:\s*#2742F0/)
+    expect(css).toMatch(/--accent:\s*#EEF0EE/)
+  })
+
+  it('defines the lime brand fill tokens and exposes them as utilities', () => {
+    expect(css).toMatch(/--lime:\s*#C1EC2F/)
+    expect(css).toMatch(/--lime-tint-1:\s*#DDF0A8/)
+    expect(css).toMatch(/--lime-tint-2:\s*#E9F5C4/)
+    expect(css).toMatch(/--baseline:\s*#C9CBCA/)
+    expect(css).toMatch(/--color-lime:\s*var\(--lime\)/)
+    expect(css).toMatch(/--color-baseline:\s*var\(--baseline\)/)
   })
 
   it('defines soft layered card shadows', () => {

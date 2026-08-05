@@ -11,9 +11,9 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
 
-  /* Type system: Geist (Helvetica-adjacent) headings; DM Sans body & buttons */
+  /* Type system: DM Sans for both headings and body/buttons */
   --font-sans: var(--font-dm-sans);
-  --font-heading: var(--font-geist);
+  --font-heading: var(--font-dm-sans);
   --font-mono: var(--font-geist-mono);
 
   /* Three-size type scale — the only permitted sizes (spec §2.2) */
@@ -34,6 +34,12 @@
      map onto the soft tokens (no hard neo-brutalist offsets remain). */
   --shadow-press: var(--shadow-card);
   --shadow-focus: var(--shadow-focus);
+
+  /* Brand fill + baseline utilities (bg-lime, bg-lime-tint-1/2, border-baseline) */
+  --color-lime: var(--lime);
+  --color-lime-tint-1: var(--lime-tint-1);
+  --color-lime-tint-2: var(--lime-tint-2);
+  --color-baseline: var(--baseline);
 
   /* Border colour utility (border-border-ink): now the soft grey border. */
   --color-border-ink: var(--border-ink);
@@ -84,57 +90,56 @@
   /* Display tier (D1) — big page titles only; gl5-audit forbids raw text-2xl..7xl but allows text-display */
   --text-display: clamp(2rem, 1.2rem + 3vw, 3rem);
 
-  /* Colour — Nord palette (classic charcoal Polar Night + frost blues), light only */
-  --background: #FAFAFC; /* page: near-white */
-  --foreground: #2E3440; /* charcoal (Nord polar night) */
-  --card: #FFFFFF; /* surface */
-  --card-foreground: #2E3440;
+  /* Colour — Podium soft-brutalist palette (spec 2026-08-05), light */
+  --background: #FAFBFB;   /* cold white page */
+  --foreground: #17181A;   /* ink; 15.8:1 on page */
+  --card: #FFFFFF;
+  --card-foreground: #17181A;
   --popover: #FFFFFF;
-  --popover-foreground: #2E3440;
-  /* A-3 — every foreground token below is measured against #FAFAFC (page),
-     #FFFFFF (card), #ECEFF4 (muted/secondary) and #E5E9F0 (accent). Worst-case
-     ratio noted per token; all normal-size text clears WCAG AA 4.5:1, all
-     non-text UI clears 3:1. Ratios recomputed in components/ui/contrast.test.ts. */
-  --primary: #456489; /* frost blue, darkened: 5.02:1 worst bg; white-on-primary 6.11:1 */
+  --popover-foreground: #17181A;
+  --primary: #2742F0;      /* electric blue; 6.5:1 on page, white-on-primary 6.7:1 */
   --primary-foreground: #FFFFFF;
-  --secondary: #ECEFF4; /* snow storm */
-  --secondary-foreground: #2E3440;
-  --muted: #ECEFF4;
-  --muted-foreground: #434C5E; /* slate — secondary/metadata; 7.09:1 worst bg */
-  --accent: #E5E9F0; /* light frost tint for subtle surfaces */
-  --accent-foreground: #2E3440;
-  --success: #2F6446; /* readable green for status text/icons; 5.69:1 worst bg */
-  --warning: #835A10; /* readable amber for status text/icons; 5.02:1 worst bg */
-  --destructive: #963B43; /* Nord aurora red, darkened; 5.74:1 worst bg */
-  --border: #E5E9F0; /* snow-storm hairline border — decorative separators only */
+  --secondary: #F0F1F0;
+  --secondary-foreground: #17181A;
+  --muted: #F0F1F0;
+  --muted-foreground: #4A4B4E; /* body grey; 8.9:1 on page */
+  --accent: #EEF0EE;
+  --accent-foreground: #17181A;
+  --success: #2F6446;
+  --warning: #835A10;
+  --destructive: #963B43;
+  --border: #E4E6E5;
   /* Legacy alias: border-border-ink maps onto the soft grey border. */
   --border-ink: var(--border);
   --border-ink-width: 1px;
-  /* Form-control boundary (WCAG 1.4.11 non-text contrast): 3.47:1 on the page,
-     3.62:1 on a card. `--border` (1.17:1) is not sufficient for a control edge. */
-  --input: #7E8798;
-  --ring: #456489; /* focus ring: 5.86:1 on page — clears the 3:1 non-text bar */
-  --chart-1: #456489;
-  --chart-2: #81A1C1;
-  --chart-3: #88C0D0;
-  --chart-4: #8FBCBB;
-  --chart-5: #434C5E;
+  --input: #7B7C7F;
+  --ring: #2742F0;
+  --chart-1: #2742F0;
+  --chart-2: #16249B;
+  --chart-3: #C1EC2F;
+  --chart-4: #7C8DF7;
+  --chart-5: #4A4B4E;
+  /* Brand fills — lime is NEVER a text colour (1.2:1 on page) */
+  --lime: #C1EC2F;
+  --lime-tint-1: #DDF0A8;
+  --lime-tint-2: #E9F5C4;
+  --baseline: #C9CBCA;     /* the anchorline hairline */
 
   /* Radius & soft layered shadows (C1 — clean Airbnb) */
   --radius: 0.875rem; /* 14px */
   --shadow-card: 0 1px 2px rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.08);
   --shadow-card-hover: 0 10px 28px rgba(0,0,0,0.12);
   /* Soft focus ring (replaces the hard offset focus shadow). */
-  --shadow-focus: 0 0 0 3px rgba(69, 100, 137, 0.40);
+  --shadow-focus: 0 0 0 3px rgba(39, 66, 240, 0.35);
 
   --sidebar: #FFFFFF;
-  --sidebar-foreground: #2E3440;
-  --sidebar-primary: #456489;
+  --sidebar-foreground: #17181A;
+  --sidebar-primary: #2742F0;
   --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #E5E9F0;
-  --sidebar-accent-foreground: #2E3440;
-  --sidebar-border: #E5E9F0;
-  --sidebar-ring: #456489;
+  --sidebar-accent: #EEF0EE;
+  --sidebar-accent-foreground: #17181A;
+  --sidebar-border: #EEF0EE;
+  --sidebar-ring: #2742F0;
 
   color-scheme: light;
 }
@@ -145,46 +150,50 @@
    Applied by next-themes via `class` on <html>, matched by the @custom-variant
    at the top of this file. */
 .dark {
-  --background: #1C212B; /* deep polar night page */
-  --foreground: #ECEFF4; /* snow storm; 14.00:1 on page */
-  --card: #252B36;
-  --card-foreground: #ECEFF4;
-  --popover: #252B36;
-  --popover-foreground: #ECEFF4;
-  --primary: #9CBBE0; /* lifted frost blue; 4.95:1 worst bg */
-  --primary-foreground: #141821; /* dark ink on the lifted blue; 8.96:1 */
-  --secondary: #2F3644;
-  --secondary-foreground: #ECEFF4;
-  --muted: #2F3644;
-  --muted-foreground: #C3CBD8; /* 6.00:1 worst bg */
-  --accent: #343C4B;
-  --accent-foreground: #ECEFF4;
-  --success: #8FD3A8; /* 5.63:1 worst bg */
-  --warning: #F0C05A; /* 5.79:1 worst bg */
-  --destructive: #F2A2A9; /* 4.91:1 worst bg */
-  --border: #3A4251;
+  --background: #131417;
+  --foreground: #F2F3F1;
+  --card: #1C1D21;
+  --card-foreground: #F2F3F1;
+  --popover: #1C1D21;
+  --popover-foreground: #F2F3F1;
+  --primary: #A7B4FB;          /* lifted electric blue */
+  --primary-foreground: #131417;
+  --secondary: #26272C;
+  --secondary-foreground: #F2F3F1;
+  --muted: #26272C;
+  --muted-foreground: #C6C7CB;
+  --accent: #2B2C31;
+  --accent-foreground: #F2F3F1;
+  --success: #8FD3A8;
+  --warning: #F0C05A;
+  --destructive: #F2A2A9;
+  --border: #34353A;
   --border-ink: var(--border);
-  --input: #707C90; /* control edge: 3.05:1 on card — clears 3:1 */
-  --ring: #9CBBE0; /* focus ring: 8.14:1 on page */
-  --chart-1: #9CBBE0;
-  --chart-2: #81A1C1;
-  --chart-3: #88C0D0;
-  --chart-4: #8FBCBB;
-  --chart-5: #C3CBD8;
+  --input: #77787D;
+  --ring: #A7B4FB;
+  --chart-1: #A7B4FB;
+  --chart-2: #7C8DF7;
+  --chart-3: #C1EC2F;
+  --chart-4: #DDF0A8;
+  --chart-5: #C6C7CB;
+  --lime: #C1EC2F;
+  --lime-tint-1: #46521B;      /* tints darken in dark mode so panels stay quiet */
+  --lime-tint-2: #2E360F;
+  --baseline: #46474C;
 
   /* Shadows read as flat mush on dark surfaces — deepen them and lean on borders. */
   --shadow-card: 0 1px 2px rgba(0,0,0,0.40), 0 6px 16px rgba(0,0,0,0.45);
   --shadow-card-hover: 0 10px 28px rgba(0,0,0,0.55);
-  --shadow-focus: 0 0 0 3px rgba(156, 187, 224, 0.45);
+  --shadow-focus: 0 0 0 3px rgba(167, 180, 251, 0.45);
 
-  --sidebar: #252B36;
-  --sidebar-foreground: #ECEFF4;
-  --sidebar-primary: #9CBBE0;
-  --sidebar-primary-foreground: #141821;
-  --sidebar-accent: #343C4B;
-  --sidebar-accent-foreground: #ECEFF4;
-  --sidebar-border: #3A4251;
-  --sidebar-ring: #9CBBE0;
+  --sidebar: #1C1D21;
+  --sidebar-foreground: #F2F3F1;
+  --sidebar-primary: #A7B4FB;
+  --sidebar-primary-foreground: #131417;
+  --sidebar-accent: #2B2C31;
+  --sidebar-accent-foreground: #F2F3F1;
+  --sidebar-border: #34353A;
+  --sidebar-ring: #A7B4FB;
 
   color-scheme: dark;
 }
