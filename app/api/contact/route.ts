@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
   const website = typeof body.website === 'string' ? body.website.trim() : ''
 
   if (website) {
-    return NextResponse.json({ message: 'Thanks — we will get back to you soon.' })
+    return NextResponse.json({ message: 'Thanks, we will get back to you soon.' })
   }
 
   if (!name || !email || !message) {
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
     return invalid('Enter a valid email address')
   }
   if (message.length < MIN_MESSAGE_CHARS) {
-    return invalid('Tell us a little more — messages need at least 10 characters')
+    return invalid('Tell us a little more. Messages need at least 10 characters')
   }
   if (message.length > FIELD_LIMITS.message) {
     return invalid(`Message must be ${FIELD_LIMITS.message} characters or fewer`)
@@ -102,5 +102,5 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  return NextResponse.json({ message: 'Thanks — we will get back to you soon.' })
+  return NextResponse.json({ message: 'Thanks, we will get back to you soon.' })
 }

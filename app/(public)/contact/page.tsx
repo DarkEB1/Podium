@@ -22,7 +22,7 @@ export default function ContactPage() {
             Talk to us
           </h1>
           <p className="text-medium text-muted-foreground">
-            Questions, feedback or a partnership idea — send a message and it
+            Questions, feedback or a partnership idea? Send a message and it
             lands straight in our inbox. Prefer email? Write to{' '}
             <a className="font-medium text-primary hover:underline" href={`mailto:${CONTROLLER.supportEmail}`}>
               {CONTROLLER.supportEmail}

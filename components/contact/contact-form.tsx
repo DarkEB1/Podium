@@ -28,7 +28,7 @@ const contactSchema = z.object({
   message: z
     .string()
     .trim()
-    .min(10, 'Tell us a little more — messages need at least 10 characters')
+    .min(10, 'Tell us a little more. Messages need at least 10 characters')
     .max(2000, 'Message must be 2000 characters or fewer'),
   // Honeypot — hidden from humans, filled by naive bots.
   website: z.string().max(200).optional(),
