@@ -73,9 +73,9 @@ Every support, legal and privacy address was pointing at `podium.com`, which is
 someone else's domain. They now read `@podiumsponsorship.com`
 (`CONTROLLER` in `lib/legal/versions.ts`), but the mailboxes have to exist:
 
-- `hello@podiumsponsorship.com` — the contact form delivers here
-- `privacy@podiumsponsorship.com` — named in the privacy policy
-- `legal@podiumsponsorship.com` — named in the terms
+- `hello@podiumsponsorship.com`, where the contact form delivers
+- `privacy@podiumsponsorship.com`, named in the privacy policy
+- `legal@podiumsponsorship.com`, named in the terms
 
 Cloudflare Email Routing is the quickest option, forwarding to whatever you
 actually read. Until then contact submissions will bounce at the mailbox.
