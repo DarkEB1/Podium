@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import MarketRally from './market-rally'
@@ -41,10 +41,24 @@ describe('MarketRally', () => {
     expect(screen.getByText(/RALLY 0 · OFFER £650/)).toBeInTheDocument()
   })
 
+  it('keeps the card names out of the labelled court button, but present on the page', () => {
+    stubReducedMotion(false)
+    render(<MarketRally />)
+    expect(within(screen.getByTestId('rally-court')).queryByText('Rita Silva')).toBeNull()
+    expect(screen.getByText('Rita Silva')).toBeInTheDocument()
+  })
+
   it('renders the static storyboard under reduced motion', () => {
     stubReducedMotion(true)
     render(<MarketRally />)
     expect(screen.getByTestId('rally-storyboard')).toBeInTheDocument()
     expect(screen.queryByTestId('rally-court')).not.toBeInTheDocument()
+  })
+
+  it('derives the storyboard\'s final frame from the engine (SIGNED)', () => {
+    stubReducedMotion(true)
+    render(<MarketRally />)
+    const lines = screen.getAllByRole('listitem').map((li) => li.textContent)
+    expect(lines[lines.length - 1]).toMatch(/^SIGNED ·/)
   })
 })

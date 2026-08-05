@@ -7,6 +7,7 @@ import {
   registerReturn,
   nextRally,
   tickerLine,
+  RETURNS_TO_SIGN,
   type RallyState,
 } from '@/lib/landing/rally-engine'
 
@@ -26,13 +27,13 @@ function useReducedMotion(): boolean {
   return reduced
 }
 
-function PairCard({ title, subtitle, side }: { title: string; subtitle: string; side: 'left' | 'right' }) {
+function PairCard({ title, subtitle }: { title: string; subtitle: string }) {
+  // Both cards share the same border treatment — blue is reserved for
+  // interactive elements (spec: colour rules), so the athlete/brand distinction
+  // is carried by the mono subtitle text alone ("BRAND · …" vs the sport/tier
+  // line), not by border colour.
   return (
-    <div
-      className={`w-40 rounded-xl border-[1.5px] bg-card p-3 ${
-        side === 'left' ? 'border-foreground' : 'border-primary'
-      }`}
-    >
+    <div className="w-40 rounded-xl border-[1.5px] border-foreground bg-card p-3">
       <span className="block font-heading text-medium font-extrabold text-foreground">{title}</span>
       <span className="mt-1 block font-mono text-small uppercase tracking-[.15em] text-muted-foreground">
         {subtitle}
@@ -75,15 +76,21 @@ export default function MarketRally() {
 
   const cards = (
     <div className="flex items-end justify-between gap-6">
-      <PairCard title={pair.athlete.name} subtitle={`${pair.athlete.sport} · ${pair.athlete.tier}`} side="left" />
-      <PairCard title={pair.brand} subtitle={`BRAND · ${pair.category}`} side="right" />
+      <PairCard title={pair.athlete.name} subtitle={`${pair.athlete.sport} · ${pair.athlete.tier}`} />
+      <PairCard title={pair.brand} subtitle={`BRAND · ${pair.category}`} />
     </div>
   )
 
   if (reduced) {
     // Static three-frame storyboard with the same deal copy — same information,
-    // zero motion (spec: fallbacks).
-    const frames = [newRally(state.pairIndex), { ...state, returns: 2, signed: false }, { ...newRally(state.pairIndex), returns: 5, signed: true }]
+    // zero motion (spec: fallbacks). Frames are derived from the engine itself
+    // (one source of truth for the ticker math) rather than hand-computed
+    // returns/offer numbers.
+    const frame0 = newRally(state.pairIndex)
+    const frame1 = registerReturn(registerReturn(frame0))
+    let frame2 = frame0
+    for (let i = 0; i < RETURNS_TO_SIGN; i++) frame2 = registerReturn(frame2)
+    const frames = [frame0, frame1, frame2]
     return (
       <div data-testid="rally-storyboard">
         {cards}
@@ -100,24 +107,33 @@ export default function MarketRally() {
 
   return (
     <div>
-      <button
-        type="button"
-        data-testid="rally-court"
-        onClick={onReturn}
-        aria-label={`Tennis rally game. ${ticker}. Click or tap to return the ball.`}
-        className="relative block w-full cursor-pointer border-0 bg-transparent p-0 text-left"
-      >
+      {/* Cards are siblings of the court button, not descendants — the button's
+          aria-label overrides the browser-computed accessible name, so any
+          text nested inside it (e.g. "Rita Silva") would be unreachable to
+          assistive tech. Rendering cards above the court and layering the
+          court on top via absolute positioning keeps the click target
+          covering the full playing area without nesting content in the
+          labelled control. */}
+      <div className="relative">
         {cards}
-        {/* ball on a dashed arc over the baseline */}
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute h-4 w-4 rounded-full border-2 border-foreground bg-lime"
-          style={{
-            left: `calc(${10 + ballT * 80}% - 8px)`,
-            bottom: `${30 + Math.sin(ballT * Math.PI) * 55}%`,
-          }}
-        />
-      </button>
+        <button
+          type="button"
+          data-testid="rally-court"
+          onClick={onReturn}
+          aria-label={`Tennis rally game. ${ticker}. Click or tap to return the ball.`}
+          className="absolute inset-0 block w-full cursor-pointer border-0 bg-transparent p-0"
+        >
+          {/* ball on a dashed arc over the baseline */}
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute h-4 w-4 rounded-full border-2 border-foreground bg-lime"
+            style={{
+              left: `calc(${10 + ballT * 80}% - 8px)`,
+              bottom: `${30 + Math.sin(ballT * Math.PI) * 55}%`,
+            }}
+          />
+        </button>
+      </div>
       <p aria-live="polite" className="mt-4 font-mono text-small uppercase tracking-[.15em] text-muted-foreground">
         {ticker}
       </p>
