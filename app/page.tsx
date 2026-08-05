@@ -1,10 +1,9 @@
-import Hero from '@/components/landing/hero'
-import HowItWorks from '@/components/landing/how-it-works'
-import MarketplacePreview from '@/components/landing/marketplace-preview'
-import RolePanels from '@/components/landing/role-panels'
-import SocialProof from '@/components/landing/social-proof'
-import FAQ from '@/components/landing/faq'
-import Footer from '@/components/layout/footer'
+import HorizontalTrack from '@/components/landing/horizontal-track'
+import HeroPanel from '@/components/landing/panels/hero-panel'
+import MarketPanel from '@/components/landing/panels/market-panel'
+import WhatWeDoPanel from '@/components/landing/panels/what-we-do-panel'
+import RolesPanel from '@/components/landing/panels/roles-panel'
+import BuildPanel from '@/components/landing/panels/build-panel'
 import { siteUrl } from './sitemap'
 
 // M-1: per-route metadata. This page is public and indexable — see app/sitemap.ts.
@@ -31,16 +30,24 @@ export const metadata = {
   },
 }
 
-export default function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ market?: string }>
+}) {
+  // Two marketplace variants ship to staging; the winner is chosen in
+  // implementation review and the loser deleted (spec: page structure).
+  const { market } = await searchParams
+  const variant = market === 'rally' ? 'rally' : 'skyline'
   return (
     <main>
-      <Hero />
-      <SocialProof />
-      <HowItWorks />
-      <MarketplacePreview />
-      <RolePanels />
-      <FAQ />
-      <Footer />
+      <HorizontalTrack>
+        <HeroPanel />
+        <MarketPanel variant={variant} />
+        <WhatWeDoPanel />
+        <RolesPanel />
+        <BuildPanel />
+      </HorizontalTrack>
     </main>
   )
 }
