@@ -15,6 +15,8 @@ import { ADMIN_2FA_COOKIE, verifyAdmin2faCookie } from '@/lib/auth/admin-2fa-coo
 // reachable WITHOUT a passed challenge, or an un-verified admin could never
 // obtain the cookie. Everything else under /admin requires it.
 const ADMIN_2FA_PATH = '/admin/2fa'
+// The endpoints that page posts to, exempt for the same reason it is.
+const ADMIN_2FA_API_PATH = '/api/admin/2fa'
 // The general user 2FA challenge (spec §security).
 const TWO_FACTOR_CHALLENGE_PATH = '/auth/2fa'
 
@@ -77,7 +79,15 @@ const ONBOARDING_ALLOWED_PATHS = [
   ROUTES.forbidden,
 ]
 
-const ADMIN_PATHS = ['/admin']
+/**
+ * SECURITY: `/api/admin` belongs here as much as `/admin` does. This list held
+ * only '/admin', so an `/api/admin/...` request never matched and the 2FA
+ * cookie check below never ran; every handler under app/api/admin gates on
+ * `role === 'admin'` alone. An attacker with an admin's password but not their
+ * second factor was bounced to /admin/2fa in the browser and then called
+ * PATCH /api/admin/profiles/<id> directly with 2FA fully bypassed.
+ */
+const ADMIN_PATHS = ['/admin', '/api/admin']
 
 const PROFILE_TABLE: Record<NavRole, string> = {
   athlete: 'athlete_profiles',
@@ -181,6 +191,16 @@ export async function middleware(request: NextRequest) {
     return withCookies(NextResponse.redirect(redirectUrl))
   }
 
+  /**
+   * A refusal an API caller can actually read. `fetch` follows a 307 without
+   * telling the caller, so redirecting an /api request to the 2FA challenge
+   * returns that page's HTML with a 200 and the failure only surfaces when
+   * `res.json()` throws. Same envelope the route handlers use.
+   */
+  function apiError(status: number, code: string, message: string) {
+    return withCookies(NextResponse.json({ error: { code, message } }, { status }))
+  }
+
   /** Forwards the request with the resolved role attached (or no role at all). */
   function forward(role: string | null) {
     if (role) requestHeaders.set(ROLE_HEADER, role)
@@ -217,15 +237,24 @@ export async function middleware(request: NextRequest) {
   }
 
   if (isAdmin) {
+    const isApiPath = pathname.startsWith('/api/')
+
     if ((await resolveRole()) !== 'admin') {
-      return redirectTo(ROUTES.forbidden)
+      return isApiPath
+        ? apiError(403, 'FORBIDDEN', 'Admin access required')
+        : redirectTo(ROUTES.forbidden)
     }
-    // 2.4: admin pages require a 2FA challenge passed this session. The 2FA page
-    // itself is exempt so the challenge (and first-time enrollment) is reachable.
-    if (!pathname.startsWith(ADMIN_2FA_PATH)) {
+    // 2.4: every admin surface, page and API alike, requires a 2FA challenge
+    // passed this session. The challenge page and the endpoints it posts to are
+    // exempt so the challenge (and first-time enrollment) is reachable.
+    const isChallenge =
+      pathname.startsWith(ADMIN_2FA_PATH) || pathname.startsWith(ADMIN_2FA_API_PATH)
+    if (!isChallenge) {
       const cookie = request.cookies.get(ADMIN_2FA_COOKIE)?.value
       if (!(await verifyAdmin2faCookie(cookie, userId))) {
-        return redirectTo(ADMIN_2FA_PATH)
+        return isApiPath
+          ? apiError(403, 'ADMIN_2FA_REQUIRED', 'Two-factor verification is required for admin access')
+          : redirectTo(ADMIN_2FA_PATH)
       }
     }
   }

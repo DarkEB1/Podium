@@ -1,12 +1,13 @@
 // @vitest-environment node
 // Middleware runs on the edge runtime, not in a DOM: NextResponse.next() rejects
 // jsdom's Headers implementation.
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { NextRequest } from 'next/server'
 
 const createServerClient = vi.fn()
 vi.mock('@supabase/ssr', () => ({ createServerClient: (...args: unknown[]) => createServerClient(...args) }))
 
+import { ADMIN_2FA_COOKIE, signAdmin2faCookie } from '@/lib/auth/admin-2fa-cookie'
 import { middleware, ROLE_HEADER } from './middleware'
 
 interface Row { [key: string]: unknown }
@@ -164,6 +165,77 @@ describe('middleware', () => {
       stubSupabase({ id: 'u1' }, { users: { role: 'athlete' } })
       const res = await middleware(request('/admin/dashboard'))
       expect(redirectedTo(res)).toBe('/403')
+    })
+
+    // ── SECURITY: the admin API was outside the 2FA gate entirely ────────────
+    // ADMIN_PATHS held only '/admin', so `/api/admin/...` never matched and the
+    // cookie check never ran. Every handler under app/api/admin checks the role
+    // and nothing else, so an attacker holding an admin password but not the
+    // second factor was bounced to /admin/2fa in the browser and then simply
+    // called PATCH /api/admin/profiles/<id> instead.
+    describe('2FA gate covers the admin API', () => {
+      beforeEach(() => {
+        process.env.ADMIN_2FA_COOKIE_SECRET = 'a-sufficiently-long-secret-value'
+      })
+      afterEach(() => {
+        delete process.env.ADMIN_2FA_COOKIE_SECRET
+      })
+
+      it.each(['/api/admin/profiles/p1', '/api/admin/audit-logs', '/api/admin/reports'])(
+        'refuses %s from an admin who has not passed 2FA',
+        async (path) => {
+          stubSupabase({ id: 'admin-1' }, { users: { role: 'admin' } })
+          const res = await middleware(request(path))
+          expect(res.status).toBe(403)
+          expect((await res.json()).error.code).toBe('ADMIN_2FA_REQUIRED')
+        },
+      )
+
+      // A fetch follows a 307 transparently, so a redirect to the challenge page
+      // reaches the caller as the page's HTML with a 200 — indistinguishable
+      // from success until res.json() throws.
+      it('answers the admin API with JSON rather than a redirect', async () => {
+        stubSupabase({ id: 'admin-1' }, { users: { role: 'admin' } })
+        const res = await middleware(request('/api/admin/audit-logs'))
+        expect(redirectedTo(res)).toBeNull()
+        expect(res.headers.get('content-type')).toContain('application/json')
+      })
+
+      it('lets an admin API call through once the 2FA cookie is valid', async () => {
+        stubSupabase({ id: 'admin-1' }, { users: { role: 'admin' } })
+        const token = await signAdmin2faCookie('admin-1')
+        const res = await middleware(
+          request('/api/admin/audit-logs', { cookie: `${ADMIN_2FA_COOKIE}=${token}` }),
+        )
+        expect(res.status).toBe(200)
+        expect(redirectedTo(res)).toBeNull()
+      })
+
+      // Gate these too and an admin could never obtain the cookie the gate
+      // demands: the challenge page posts to them.
+      it.each(['/api/admin/2fa/enroll', '/api/admin/2fa/activate', '/api/admin/2fa/verify'])(
+        'keeps %s reachable without the cookie',
+        async (path) => {
+          stubSupabase({ id: 'admin-1' }, { users: { role: 'admin' } })
+          const res = await middleware(request(path))
+          expect(res.status).toBe(200)
+          expect(redirectedTo(res)).toBeNull()
+        },
+      )
+
+      it('refuses a non-admin on the admin API with JSON, not a redirect to /403', async () => {
+        stubSupabase({ id: 'u1' }, { users: { role: 'athlete' } })
+        const res = await middleware(request('/api/admin/audit-logs'))
+        expect(redirectedTo(res)).toBeNull()
+        expect(res.status).toBe(403)
+        expect((await res.json()).error.code).toBe('FORBIDDEN')
+      })
+
+      it('still sends an admin browser page to the challenge as a redirect', async () => {
+        stubSupabase({ id: 'admin-1' }, { users: { role: 'admin' } })
+        const res = await middleware(request('/admin/dashboard'))
+        expect(redirectedTo(res)).toBe('/admin/2fa')
+      })
     })
   })
 

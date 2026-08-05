@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 import { buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
-type Stage = 'idle' | 'confirm' | 'recovery'
+type Stage = 'idle' | 'confirm' | 'recovery' | 'disable'
 
 /** Manage the caller's own TOTP two-factor authentication (spec §security). */
 export default function AccountTwoFactorSection({ enabled }: { enabled: boolean }) {
@@ -60,15 +60,30 @@ export default function AccountTwoFactorSection({ enabled }: { enabled: boolean 
     }
   }
 
-  async function disable() {
+  // Turning 2FA OFF now costs a current code or a recovery code, exactly as
+  // turning it on does. Without that, a stolen session could strip the second
+  // factor in one request, which is the scenario 2FA exists for.
+  async function disable(e: React.FormEvent) {
+    e.preventDefault()
     setBusy(true)
+    setError('')
     try {
-      const res = await fetch('/api/account/2fa/disable', { method: 'POST' })
-      if (!res.ok) throw new Error('failed')
+      const res = await fetch('/api/account/2fa/disable', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
+      })
+      const json = (await res.json().catch(() => ({}))) as { error?: { message?: string } }
+      if (!res.ok) {
+        setError(json.error?.message ?? 'That code is not valid.')
+        return
+      }
       toast.success('Two-factor authentication turned off')
+      setStage('idle')
+      setToken('')
       router.refresh()
     } catch {
-      toast.error('Could not turn off 2FA. Please try again.')
+      setError('Could not turn off 2FA. Please try again.')
     } finally {
       setBusy(false)
     }
@@ -83,10 +98,46 @@ export default function AccountTwoFactorSection({ enabled }: { enabled: boolean 
           <p className="text-medium text-muted-foreground">
             Two-factor authentication is on. You will be asked for a code when you sign in.
           </p>
-          <button type="button" onClick={disable} disabled={busy} className={cn(buttonVariants({ variant: 'outline' }), busy && 'opacity-60')}>
-            {busy ? 'Turning off…' : 'Turn off 2FA'}
+          <button
+            type="button"
+            onClick={() => { setError(''); setToken(''); setStage('disable') }}
+            disabled={busy}
+            className={cn(buttonVariants({ variant: 'outline' }), busy && 'opacity-60')}
+          >
+            Turn off 2FA
           </button>
         </div>
+      )}
+
+      {stage === 'disable' && (
+        <form onSubmit={disable} className="mt-4 space-y-4">
+          <p className="text-medium text-muted-foreground">
+            Enter a code from your authenticator app, or one of your recovery
+            codes, to turn two-factor authentication off.
+          </p>
+          <Input
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            aria-label="Authentication code"
+            placeholder="123456"
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+          />
+          {error && <p role="alert" className="text-small text-destructive">{error}</p>}
+          <div className="flex gap-2">
+            <button type="submit" disabled={busy || !token} className={cn(buttonVariants({ variant: 'outline' }), (busy || !token) && 'opacity-60')}>
+              {busy ? 'Turning off…' : 'Confirm and turn off'}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setStage('idle'); setToken(''); setError('') }}
+              disabled={busy}
+              className={cn(buttonVariants({ variant: 'ghost' }))}
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
       )}
 
       {!enabled && stage === 'idle' && (
