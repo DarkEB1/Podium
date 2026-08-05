@@ -4,6 +4,25 @@
 Next.js 15 (App Router) · TypeScript strict · Supabase JS 2.x · Tailwind 4 · shadcn/ui · Stripe · Vitest · Playwright
 All commands via `npm run` — see `package.json` scripts
 
+## Environments & Deployment (live since 2026-08-05)
+| | Production | Staging / internal dev |
+|---|---|---|
+| Git branch | `main` | `staging` |
+| URL | https://podiumsponsorship.com (alias podium-lyart.vercel.app) | podium-git-staging-podium6.vercel.app |
+| Vercel env | Production | Preview |
+| Supabase project | `podium` — ref `wchvidibjhjhchorjsup` (eu-west-2) | `podium-staging` — ref `cltvgjsmzujsrnmnfues` (eu-west-2) |
+| Stripe | test mode for now; live-mode switch pending real prices | test mode, permanently |
+
+- Vercel project `podium` on team `podium6`, **Hobby plan**. Once the GitHub repo is connected: push to `main` = production deploy, push to `staging` = preview deploy. Until then deploys are CLI-only, and the permission layer requires the human to run `vercel deploy --prod`.
+- **`main` is live.** Do feature work on `staging` (or a branch off it); merge to `main` only after `npm run check` is green and the change was seen working on the staging URL.
+- **Migrations**: `supabase link` points at PRODUCTION (`wchvidibjhjhchorjsup`) — a bare `supabase db push` hits the live DB. Apply to staging first (`npx supabase link --project-ref cltvgjsmzujsrnmnfues && npx supabase db push`), verify, then relink to production and push. Always leave the link on production afterwards.
+- **Secrets** live in `.env.local` (gitignored) and in Vercel env vars — never in committed files. Production and Preview have separate values; Preview's Supabase keys point at staging, and its 2FA/cron/unsubscribe secrets are distinct from production's on purpose.
+- **Crons**: Hobby allows 2 daily cron slots. `/api/cron/daily` runs every job via `lib/cron/daily-jobs.ts`; a second slot re-runs data-export. A new cron job = new route + entry in `DAILY_CRON_JOBS`, NOT a new `vercel.json` schedule (`vercel.crons.test.ts` enforces this).
+- **Email**: Resend, domain podiumsponsorship.com (region eu-west-1), sender `no-reply@podiumsponsorship.com`.
+- **DNS**: Cloudflare (free) manages the zone; the domain registration itself is at Turbify under a coworker's account. Record inventory and rationale: `docs/dns-podiumsponsorship.md`. Don't change nameservers.
+- **Stripe accounts**: the only real one is `acct_1U00dtRuiS086Bui` ("Podium"). Test-mode tier prices are placeholders (£99/£199/£399). Webhooks `/api/webhooks/stripe` + `/api/webhooks/stripe-connect` point at podium-lyart.vercel.app; signing secrets are in both Vercel envs.
+- **Boundaries for agents**: never `vercel deploy --prod`, `db push` to production, or change Production env vars without the human explicitly asking; never create live-mode Stripe objects; sessionless routes (webhooks, guardian consent, cron) must stay in `PUBLIC_PATHS` in `middleware.ts` — they self-authenticate.
+
 ## Task Routing (applied automatically — no explicit command needed)
 | User says... | Apply |
 |---|---|
