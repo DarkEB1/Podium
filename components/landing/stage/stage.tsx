@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from 'react'
 import StageNav from './stage-nav'
+import LandingScene from './scene'
 
 // ————————————————————————————————————————————————————————————————————————
 // The stage: one 1000vh scroll fabric driving a fixed 500vw corridor
@@ -183,10 +184,12 @@ export default function Stage({ children }: { children: ReactNode }) {
       <div style={{ height: `${(TRAVEL_VIEWPORTS + 1) * 100}vh` }} aria-hidden="true" />
       {/* the corridor viewport */}
       <div ref={rootRef} data-testid="stage" className="fixed inset-0 overflow-hidden bg-background">
+        {/* 3D stage behind the DOM (spec §2.6) */}
+        <LandingScene />
         <div
           ref={trackRef}
           data-testid="stage-track"
-          className="absolute inset-y-0 left-0 flex will-change-transform"
+          className="absolute inset-y-0 left-0 z-10 flex will-change-transform"
           style={{ width: '500vw' }}
         >
           {children}
@@ -239,7 +242,7 @@ function TickTape() {
         />
         {origin && vw < 500 && (
           <span className="absolute left-2 top-1 font-mono text-[10.5px] tracking-[.15em] text-foreground/40">
-            {String(vw * 4).padStart(3, '0')}
+            {String(vw).padStart(3, '0')}
           </span>
         )}
       </div>

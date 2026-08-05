@@ -12,6 +12,10 @@ import type { NextConfig } from "next"
  *   it uses, keeping the initial JS under the <200kb gzipped budget.
  */
 const nextConfig: NextConfig = {
+  // A stray lockfile in the user home dir makes Next infer C:\Users\<user> as
+  // the workspace root, which misroots file tracing (and broke dev-watch
+  // reliability for new directories). Pin the root to this project.
+  outputFileTracingRoot: __dirname,
   images: {
     // AVIF first (smallest), WebP fallback; both decode progressively.
     formats: ["image/avif", "image/webp"],
