@@ -30,6 +30,10 @@ const PUBLIC_PATHS = [
   '/terms',
   '/privacy',
   '/cookies',
+  // The contact page and its submission endpoint are for visitors without
+  // accounts — behind the auth wall the form would be pointless.
+  '/contact',
+  '/api/contact',
   // CL-4: the one-click unsubscribe link is followed from a mail client with no
   // session; the HMAC token in the URL is its authorisation. The confirmation
   // page it redirects to must be reachable signed out too.

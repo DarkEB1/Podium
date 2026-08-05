@@ -19,6 +19,11 @@ export interface SendParams {
   subject: string
   html: string
   text: string
+  /**
+   * Per-message Reply-To (e.g. a contact-form submitter, so support can reply
+   * from their mail client). Falls back to EMAIL_REPLY_TO when unset.
+   */
+  replyTo?: string
   /** RFC 8058 one-click unsubscribe, when the message is unsubscribable. */
   listUnsubscribeUrl?: string
 }
@@ -61,7 +66,7 @@ export async function sendViaProvider(params: SendParams): Promise<ProviderResul
     html: params.html,
     text: params.text,
   }
-  const rt = replyTo()
+  const rt = params.replyTo ?? replyTo()
   if (rt) body.reply_to = rt
 
   // RFC 8058: List-Unsubscribe + List-Unsubscribe-Post lets Gmail/Apple render

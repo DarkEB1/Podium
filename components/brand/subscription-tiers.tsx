@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Sticker } from '@/components/ui/sticker'
 import { cn } from '@/lib/utils'
 import { track } from '@/lib/analytics'
+import { CONTROLLER } from '@/lib/legal/versions'
 import type { Database } from '@/types/database'
 
 type SubscriptionRow = Database['public']['Tables']['subscriptions']['Row']
@@ -90,9 +91,11 @@ function CurrentSubscription({ subscription }: { subscription: SubscriptionRow }
         )}
       </div>
       <p className="text-medium text-muted-foreground">
+        {/* podium.com is not our domain — the address must come from
+            CONTROLLER so support mail can never route to a third party. */}
         To change your plan, contact{' '}
-        <a href="mailto:support@podium.com" className="underline">
-          support@podium.com
+        <a href={`mailto:${CONTROLLER.supportEmail}`} className="underline">
+          {CONTROLLER.supportEmail}
         </a>
         .
       </p>

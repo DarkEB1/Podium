@@ -43,9 +43,11 @@ export const CONTROLLER = {
   legalEntity: 'Podium (legal entity name to be confirmed before launch)',
   country: 'United Kingdom',
   governingLaw: 'England and Wales',
-  privacyEmail: 'privacy@podium.com',
-  legalEmail: 'legal@podium.com',
-  supportEmail: 'hello@podium.com',
+  // These MUST stay on podiumsponsorship.com — podium.com is someone else's
+  // domain, so mail sent to addresses there goes to a third party.
+  privacyEmail: 'privacy@podiumsponsorship.com',
+  legalEmail: 'legal@podiumsponsorship.com',
+  supportEmail: 'hello@podiumsponsorship.com',
 } as const
 
 /**

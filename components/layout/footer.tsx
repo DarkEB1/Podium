@@ -74,12 +74,11 @@ export default function Footer() {
                   </li>
                 ))}
                 <li>
-                  <a
-                    href={`mailto:${CONTROLLER.supportEmail}`}
-                    className={linkClass}
-                  >
+                  {/* A real page with a form — the mailto link did nothing on
+                      devices without a configured mail client. */}
+                  <Link href="/contact" className={linkClass}>
                     Contact us
-                  </a>
+                  </Link>
                 </li>
               </ul>
             </nav>
