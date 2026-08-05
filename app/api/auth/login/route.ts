@@ -23,6 +23,15 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // Hard caps before any provider or store work: no real credential exceeds
+  // these, so oversized payloads are refused without burning a hash attempt.
+  if (email.length > 254 || password.length > 128) {
+    return NextResponse.json(
+      { error: { code: 'INVALID_CREDENTIALS', message: 'Invalid email or password' } },
+      { status: 401 }
+    )
+  }
+
   // DH-2/SEC-2: throttle before touching the auth provider. Limited on both
   // axes — per IP (one host spraying many accounts) and per email (many hosts
   // targeting one account). Either tripping refuses the request.
@@ -49,6 +58,20 @@ export async function POST(request: NextRequest) {
       if (failedUserId) await recordFailedLogin(admin, failedUserId, { ip, userAgent })
     } catch {
       /* recording must never affect the auth result */
+    }
+    // With email confirmations on, an unverified user is not a bad password —
+    // telling them "invalid credentials" sends them to reset a password that
+    // was never wrong.
+    if (error.code === 'email_not_confirmed') {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'EMAIL_NOT_CONFIRMED',
+            message: 'Please confirm your email address first — check your inbox for the verification link.',
+          },
+        },
+        { status: 403 }
+      )
     }
     return NextResponse.json(
       { error: { code: 'INVALID_CREDENTIALS', message: 'Invalid email or password' } },

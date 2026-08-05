@@ -43,6 +43,27 @@ describe('POST /api/auth/login', () => {
     expect(json.error.code).toBe('INVALID_CREDENTIALS')
   })
 
+  it('returns 401 for oversized credentials without calling the provider', async () => {
+    mockSignIn.mockClear()
+    const res = await POST(
+      makeRequest({ email: `${'a'.repeat(255)}@example.com`, password: 'ValidPass1!' })
+    )
+    expect(res.status).toBe(401)
+    expect(mockSignIn).not.toHaveBeenCalled()
+  })
+
+  // With Supabase email confirmations enabled, an unverified account must not
+  // be reported as a wrong password.
+  it('returns 403 EMAIL_NOT_CONFIRMED when the account is unverified', async () => {
+    mockSignIn.mockResolvedValue({
+      error: { code: 'email_not_confirmed', message: 'Email not confirmed' },
+    })
+    const res = await POST(makeRequest({ email: 'test@example.com', password: 'ValidPass1!' }))
+    expect(res.status).toBe(403)
+    const json = await res.json()
+    expect(json.error.code).toBe('EMAIL_NOT_CONFIRMED')
+  })
+
   it('returns 200 with user data on valid credentials', async () => {
     mockSignIn.mockResolvedValue({ error: null })
     const fakeUser = { id: 'user-123', email: 'test@example.com', role: null }

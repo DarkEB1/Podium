@@ -20,6 +20,14 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // RFC 5321 caps an address at 254 chars; anything longer is junk or abuse.
+  if (email.length > 254) {
+    return NextResponse.json(
+      { error: { code: 'INVALID_EMAIL', message: 'Enter a valid email address' } },
+      { status: 400 }
+    )
+  }
+
   const passwordCheck = validatePassword(password)
   if (!passwordCheck.valid) {
     return NextResponse.json(
@@ -53,13 +61,20 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = await createClient()
-  const { data } = await supabase.auth.signUp({
+  const { data, error: signUpError } = await supabase.auth.signUp({
     email,
     password,
     options: {
       emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback?type=email_confirmation`,
     },
   })
+
+  // The response stays generic (never reveal whether an email exists), but the
+  // failure must be visible in logs — a silently dropped signUp error is how
+  // "the verification email never arrived" went undiagnosed.
+  if (signUpError) {
+    console.error('[signup] supabase signUp failed', signUpError.code, signUpError.message)
+  }
 
   // Record consent against the account. Best-effort: a failure here must not
   // reveal whether the email already existed, nor block a legitimate signup —

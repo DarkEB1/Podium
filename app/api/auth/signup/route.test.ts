@@ -54,6 +54,26 @@ describe('POST /api/auth/signup', () => {
     expect(json.error.code).toBe('MISSING_FIELDS')
   })
 
+  it('returns 400 for an email over the RFC 5321 254-char cap', async () => {
+    const res = await POST(
+      makeRequest({ email: `${'a'.repeat(250)}@example.com`, password: 'ValidPass1!', ...CONSENT })
+    )
+    expect(res.status).toBe(400)
+    const json = await res.json()
+    expect(json.error.code).toBe('INVALID_EMAIL')
+    expect(mockSignUp).not.toHaveBeenCalled()
+  })
+
+  it('returns 400 for a password over 128 chars', async () => {
+    const res = await POST(
+      makeRequest({ email: 'test@example.com', password: `Aa1!${'x'.repeat(130)}`, ...CONSENT })
+    )
+    expect(res.status).toBe(400)
+    const json = await res.json()
+    expect(json.error.code).toBe('WEAK_PASSWORD')
+    expect(mockSignUp).not.toHaveBeenCalled()
+  })
+
   it('returns 400 when password is too weak', async () => {
     const res = await POST(makeRequest({ email: 'test@example.com', password: 'weak' }))
     expect(res.status).toBe(400)

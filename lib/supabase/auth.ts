@@ -22,6 +22,11 @@ export function validatePassword(password: string): PasswordValidationResult {
   if (password.length < 8) {
     return { valid: false, error: 'Password must be at least 8 characters' }
   }
+  // An unbounded password is a free DoS lever — every attempt is hashed
+  // server-side. 128 chars is far beyond any passphrase a human will type.
+  if (password.length > 128) {
+    return { valid: false, error: 'Password must be 128 characters or fewer' }
+  }
   if (!/[A-Z]/.test(password)) {
     return { valid: false, error: 'Password must contain at least one uppercase letter' }
   }
