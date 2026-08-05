@@ -293,10 +293,20 @@ function Step2({ profile, onSaved }: { profile: BrandRow | null; onSaved: (p: Br
   async function onSubmit(values: Step2Values) {
     setLoading(true)
     try {
+      // industry_other only means anything for the "other" industry. A brand
+      // that answers it and then picks a real industry would otherwise leave a
+      // stale free-text answer on the row; null clears it, where '' cannot —
+      // sanitizeProfileData drops empty strings before they reach the column.
+      const payload = {
+        ...values,
+        industry_other: values.industry === 'other' ? (values.industry_other ?? '') : null,
+        seeking,
+        target_sports: targetSports,
+      }
       const res = await fetch(ROUTES.api.profiles.me, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...values, seeking, target_sports: targetSports }),
+        body: JSON.stringify(payload),
       })
       const data = await readJson(res)
       if (!res.ok) {
@@ -318,7 +328,9 @@ function Step2({ profile, onSaved }: { profile: BrandRow | null; onSaved: (p: Br
         <FormField control={form.control} name="industry" render={({ field }) => (
           <FormItem>
             <FormLabel>Industry</FormLabel>
-            <Select onValueChange={field.onChange} defaultValue={field.value}>
+            {/* base-ui renders the raw value in the collapsed trigger unless the
+                root is given the value→label map. */}
+            <Select items={INDUSTRY_OPTIONS} onValueChange={field.onChange} defaultValue={field.value}>
               <FormControl>
                 <SelectTrigger><SelectValue placeholder="Select industry" /></SelectTrigger>
               </FormControl>

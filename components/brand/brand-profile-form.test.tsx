@@ -5,6 +5,11 @@ import BrandProfileForm from './brand-profile-form'
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 
+function patchedBody(): Record<string, unknown> {
+  const mockFetch = fetch as unknown as { mock: { calls: [string, { body: string }][] } }
+  return JSON.parse(mockFetch.mock.calls[0]![1].body) as Record<string, unknown>
+}
+
 describe('BrandProfileForm', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
@@ -80,6 +85,35 @@ describe('BrandProfileForm', () => {
     const profile = { id: '1', company_name: 'Acme', industry: 'sport', seeking: [], target_sports: [] } as never
     render(<BrandProfileForm step={2} profile={profile} />)
     expect(screen.queryByLabelText(/please specify your industry/i)).not.toBeInTheDocument()
+  })
+
+  // brand_profiles.industry_other only means anything for the "other" industry:
+  // a value left on the row for any other industry is a stale answer.
+  it('step 2 sends the free-text industry when Other is selected', async () => {
+    const profile = { id: '1', company_name: 'Acme', industry: 'other', seeking: [], target_sports: [] } as never
+    render(<BrandProfileForm step={2} profile={profile} />)
+    await userEvent.type(screen.getByLabelText(/please specify your industry/i), 'Renewable energy')
+    await userEvent.click(screen.getByRole('button', { name: /next/i }))
+    await waitFor(() => expect(fetch).toHaveBeenCalled())
+    expect(patchedBody()['industry_other']).toBe('Renewable energy')
+  })
+
+  it('step 2 clears the free-text industry for a non-Other industry', async () => {
+    const profile = { id: '1', company_name: 'Acme', industry: 'sport', seeking: [], target_sports: [] } as never
+    render(<BrandProfileForm step={2} profile={profile} />)
+    await userEvent.click(screen.getByRole('button', { name: /next/i }))
+    await waitFor(() => expect(fetch).toHaveBeenCalled())
+    expect(patchedBody()['industry_other']).toBeNull()
+  })
+
+  // base-ui renders the raw value in the collapsed trigger unless the Select
+  // root is given the value→label map.
+  it('step 2 shows the human label for a saved industry, not the raw enum', () => {
+    const profile = { id: '1', company_name: 'Acme', industry: 'nutrition', seeking: [], target_sports: [] } as never
+    render(<BrandProfileForm step={2} profile={profile} />)
+    const trigger = screen.getByRole('combobox', { name: /industry/i })
+    expect(trigger).toHaveTextContent('Nutrition & Health')
+    expect(trigger).not.toHaveTextContent(/^nutrition$/)
   })
 
   it('step 2 renders "what brand is looking for" as selectable tiles', () => {
