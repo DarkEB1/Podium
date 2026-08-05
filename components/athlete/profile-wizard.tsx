@@ -71,7 +71,6 @@ const step3Schema = z.object({
   availability_status: z.enum(['available_now', 'available_from', 'not_available'] as const).optional(),
   available_from_date: z.string().optional(),
   travel_radius_km: z.coerce.number().int().min(0).max(20000).optional(),
-  seeking: z.array(z.string()).optional(),
 })
 
 const step4Schema = z.object({
@@ -102,14 +101,6 @@ const AVAILABILITY_OPTIONS: { value: AvailabilityStatus; label: string }[] = [
   { value: 'available_now', label: 'Available Now' },
   { value: 'available_from', label: 'Available From a Date' },
   { value: 'not_available', label: 'Not Available' },
-]
-
-const SEEKING_OPTIONS = [
-  { value: 'endorsement', label: 'Endorsement' },
-  { value: 'sponsorship', label: 'Sponsorship' },
-  { value: 'ambassador', label: 'Brand Ambassador' },
-  { value: 'media_appearance', label: 'Media Appearance' },
-  { value: 'product_deal', label: 'Product Deal' },
 ]
 
 const LEVEL_OPTIONS: { value: AthleteLevel; label: string }[] = [
@@ -484,22 +475,14 @@ function Step2({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
 
 function Step3({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: AthleteRow) => void }) {
   const [loading, setLoading] = useState(false)
-  const [seeking, setSeeking] = useState<string[]>(profile?.seeking ?? [])
   const form = useForm<Step3Values>({
     resolver: zodResolver(step3Schema),
     defaultValues: {
       availability_status: (profile?.availability_status as AvailabilityStatus | undefined) ?? undefined,
       available_from_date: profile?.available_from_date ?? '',
       travel_radius_km: profile?.travel_radius_km ?? undefined,
-      seeking: profile?.seeking ?? [],
     },
   })
-
-  function toggleSeeking(val: string) {
-    setSeeking((prev) =>
-      prev.includes(val) ? prev.filter((s) => s !== val) : [...prev, val]
-    )
-  }
 
   async function onSubmit(values: Step3Values) {
     setLoading(true)
@@ -507,7 +490,7 @@ function Step3({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
       const res = await fetch('/api/profiles/me', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...values, seeking }),
+        body: JSON.stringify(values),
       })
       const data = await res.json()
       if (!res.ok) { toast.error(data.error?.message ?? 'Failed to save'); return }
@@ -526,6 +509,9 @@ function Step3({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
           <FormItem>
             <FormLabel>Availability</FormLabel>
             <Select
+              // base-ui renders the raw value in the collapsed trigger unless
+              // it is given the value→label map (§3A.4: never show the enum).
+              items={AVAILABILITY_OPTIONS}
               onValueChange={(v) => {
                 field.onChange(v)
                 // §3A.4: the date only applies to "Available From"; clear any stale
@@ -564,26 +550,6 @@ function Step3({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
             <FormMessage />
           </FormItem>
         )} />
-        <div>
-          <p className="mb-2 text-medium font-medium">I am seeking</p>
-          <div className="flex flex-wrap gap-2">
-            {SEEKING_OPTIONS.map((o) => (
-              <button
-                key={o.value}
-                type="button"
-                onClick={() => toggleSeeking(o.value)}
-                className={cn(
-                  'rounded-full border px-3 py-1 text-small transition-colors',
-                  seeking.includes(o.value)
-                    ? 'border-primary bg-primary/10 text-foreground'
-                    : 'border-border hover:border-foreground/50'
-                )}
-              >
-                {o.label}
-              </button>
-            ))}
-          </div>
-        </div>
         <Button type="submit" className="w-full" disabled={loading}>
           {loading ? 'Saving…' : 'Next →'}
         </Button>

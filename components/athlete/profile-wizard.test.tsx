@@ -143,6 +143,44 @@ describe('ProfileWizard', () => {
     expect(screen.getByLabelText(/available from/i)).toHaveValue('2026-09-01')
   })
 
+  // The seeking_type enum only holds the 10 NIL discovery values (§3A.6,
+  // migration 20260616000001). Step 3 used to render five legacy chips
+  // (endorsement, sponsorship, ambassador…) that are not in the enum, so any
+  // selection made the whole PATCH fail with "We could not save those details".
+  // Seeking is chosen in step 6; step 3 must not touch it at all.
+  it('step 3: does not render the legacy seeking chips', () => {
+    render(<ProfileWizard step={3} profile={null} />)
+    expect(screen.queryByText(/i am seeking/i)).toBeNull()
+    expect(screen.queryByRole('button', { name: /^endorsement$/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^sponsorship$/i })).toBeNull()
+  })
+
+  it('step 3: the PATCH payload never contains seeking', async () => {
+    render(<ProfileWizard step={3} profile={null} />)
+    await userEvent.click(screen.getByRole('combobox', { name: /availability/i }))
+    await userEvent.click(await screen.findByRole('option', { name: /^Available Now$/ }))
+    await userEvent.click(screen.getByRole('button', { name: /next/i }))
+    await waitFor(() => expect(fetch).toHaveBeenCalled())
+    const mockFetch = fetch as unknown as { mock: { calls: [string, { body: string }][] } }
+    const body = JSON.parse(mockFetch.mock.calls[0]![1].body) as Record<string, unknown>
+    expect(body).not.toHaveProperty('seeking')
+    expect(body).toMatchObject({ availability_status: 'available_now' })
+  })
+
+  // §3A.4: the collapsed trigger must show the human label, never the raw enum
+  // value — base-ui's Select.Value renders the raw value unless the root gets
+  // an items map.
+  it('step 3: the trigger shows the human label for a saved status', () => {
+    const profile = {
+      user_id: 'u1', is_under_18: false, status: 'draft',
+      availability_status: 'available_now',
+    }
+    render(<ProfileWizard step={3} profile={profile as never} />)
+    const trigger = screen.getByRole('combobox', { name: /availability/i })
+    expect(trigger).toHaveTextContent('Available Now')
+    expect(trigger).not.toHaveTextContent(/available_now/)
+  })
+
   it('step 5: guardian step is skipped when is_under_18 is false', () => {
     const profile = {
       user_id: 'u1', is_under_18: false, display_name: 'James', status: 'draft',
