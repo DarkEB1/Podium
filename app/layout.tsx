@@ -23,8 +23,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${dmSans.variable} ${geistMono.variable} antialiased`}>
+    // Font variables live on <html>: globals.css applies `font-sans` at the html
+    // level, and a custom property declared on <body> is invisible up there —
+    // which is how the whole site silently fell back to Times New Roman.
+    <html lang="en" className={`${dmSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
+      <body className="antialiased">
         {/*
           NX-2/A-1/PR-7: this previously passed `forcedTheme="light"`, which makes
           next-themes ignore every setTheme() call — the reason the ThemeToggle

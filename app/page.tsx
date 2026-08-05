@@ -40,7 +40,10 @@ export default async function Home({
   const { market } = await searchParams
   const variant = market === 'rally' ? 'rally' : 'skyline'
   return (
-    <main>
+    // landing-light: this page is art-directed light-only (locked palette);
+    // the scope re-declares the light tokens so a system-dark visitor still
+    // sees the approved cold-white design. App dashboards keep dark mode.
+    <main className="landing-light bg-background text-foreground">
       <a
         href="#hero-heading"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-[10px] focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground"

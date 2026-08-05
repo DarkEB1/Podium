@@ -205,6 +205,34 @@
   color-scheme: dark;
 }
 
+/* The landing page is art-directed light-only (locked design 2026-08-05):
+   inside this scope the light tokens win regardless of `.dark` on <html>.
+   A per-surface decision, not a theme — dashboards keep their dark mode. */
+.landing-light {
+  --background: #FAFBFB;
+  --foreground: #17181A;
+  --card: #FFFFFF;
+  --card-foreground: #17181A;
+  --primary: #2742F0;
+  --primary-foreground: #FFFFFF;
+  --secondary: #F0F1F0;
+  --secondary-foreground: #17181A;
+  --muted: #F0F1F0;
+  --muted-foreground: #4A4B4E;
+  --accent: #EEF0EE;
+  --accent-foreground: #17181A;
+  --border: #E4E6E5;
+  --border-ink: var(--border);
+  --input: #7B7C7F;
+  --ring: #2742F0;
+  --lime: #C1EC2F;
+  --lime-foreground: #17181A;
+  --lime-tint-1: #DDF0A8;
+  --lime-tint-2: #E9F5C4;
+  --baseline: #C9CBCA;
+  color-scheme: light;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -223,6 +251,18 @@
     line-height: 1.18;
     letter-spacing: -0.01em;
   }
+}
+
+/* Landing hero: the rotating word rises into the lime block. */
+@keyframes rw-rise {
+  from { transform: translateY(110%); }
+  to { transform: translateY(0); }
+}
+.rw-word {
+  animation: rw-rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .rw-word { animation: none; }
 }
 
 /* Motion utilities (C1) — gentle Airbnb-style feedback; degrades under reduced motion. */
