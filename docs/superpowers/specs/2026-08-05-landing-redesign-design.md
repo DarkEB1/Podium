@@ -37,22 +37,29 @@ Rules: lime is never a text colour and never sits behind body copy. One saturate
 
 ## Copy
 
-Hook headline: **"The podium has room for ___"** with the last word rotating through `athletes → teams → brands → you` every 2.5s. The word sits in a lime rounded block that stretches to fit each word. Subline: "Build a profile, get discovered, agree the deal and get paid. Athletes, teams and brands, all in one place." Primary CTA: **"Get on the podium"** (blue, to sign-up/role-select). Secondary: "How it works" (blue underlined link, jumps to panel 2).
+Hook headline: **"The podium has room for ___"** with the last word rotating through `athletes → teams → brands → you` every 2.5s. The word sits in a lime rounded block that stretches to fit each word. Subline: "Build a profile, get discovered, agree the deal and get paid. Athletes, teams and brands, all in one place." Primary CTA: **"Get on the podium"** (blue, to sign-up/role-select). Secondary: "How it works" (blue underlined link, jumps to panel 3).
 
 ## Page structure — five horizontal panels
 
 The landing page is one horizontal track travelled left→right by normal vertical scroll input. DOM order = panel order = reading order.
 
 1. **Hero** — hook left (mono label "SPONSORSHIP MARKETPLACE", headline, subline, CTAs), lime podium steps right, `SCROLL → 01 / 05` wayfinding bottom-left.
-2. **How it works** — the tipped dominoes come to rest as three flat slabs carrying: Build your profile / Get discovered / Sign and get paid. Reworks `how-it-works.tsx` content.
-3. **Who's on the podium** — athlete, team, brand cards at podium-step heights. Reworks `role-panels.tsx` content.
-4. **Proof** — marketplace preview card plus testimonial chips. Merges and compacts `marketplace-preview.tsx` + `social-proof.tsx`.
-5. **Finish line** — ink-field CTA banner, compact 4-item FAQ accordion (from `faq.tsx`, keeps FAQPage schema markup), pricing link, footer links row. Cookie banner overlays as today.
+2. **The marketplace** — lead with the goods: marketplace preview card (profile cards, filters, deal counts) plus testimonial chips. Merges and compacts `marketplace-preview.tsx` + `social-proof.tsx`.
+3. **What we do** — three flat lime slabs (echoing the fallen dominoes) carrying: Build your profile / Get discovered / Sign and get paid. Reworks `how-it-works.tsx` content. Secondary hero CTA "How it works" jumps here.
+4. **Who's on the podium** — athlete, team, brand cards at podium-step heights. Reworks `role-panels.tsx` content.
+5. **Build your profile** — closing ask: ink-field banner with "Build your profile" CTA, pricing link, footer links row. No FAQ section (decision 2026-08-05); `faq.tsx` and its FAQPage schema are removed from the landing page. Cookie banner overlays as today.
+
+## Scroll model and the baseline
+
+- **The anchorline is "the baseline":** a continuous 1.5px hairline ground line at a fixed ~72% of viewport height, running the entire length of the track. Every panel's key elements stand ON it: the hero podium steps, the falling dominoes, the marketplace selector, the "what we do" slabs, the role cards, and the closing ink banner. It is the court baseline the whole page travels along, and it is what makes five different panels read as one continuous world instead of five slides.
+- Mono wayfinding ticks sit on the baseline like distance markers (`01`, `02` … at each panel boundary), replacing any dots/progress UI.
+- **Scroll behaviour:** continuous scrub, not slide-jumping. Scroll position maps linearly to track position; the domino fall between panels 1→2 is scroll-linked (scrub forward and back replays it). When scrolling comes to rest within ~15% of a panel boundary, the track eases gently to alignment (soft snap); mid-panel resting positions are allowed everywhere else.
+- Keyboard: PageDown/PageUp and left/right arrows move one panel; Tab focus pulls the track to the focused element.
 
 ## Motion
 
 - **Load:** hero steps rise with staggered spring (~120ms stagger); rotating word flips vertically every 2.5s.
-- **Scroll (desktop):** body height defines scroll length; a sticky viewport translates the track horizontally from scroll progress. Between panels 1→2 the podium steps tip like dominoes (scripted rotations around bottom-right corners, tallest last), the last bar visually "shoving" the track. Panels 2→5 slide with mild inner-content parallax.
+- **Scroll (desktop):** body height defines scroll length; a sticky viewport translates the track horizontally from scroll progress. Between panels 1→2 the podium steps tip like dominoes (scripted rotations around bottom-right corners, tallest last), the last bar visually "shoving" the track into the marketplace panel. Panels 2→5 slide with mild inner-content parallax. The slabs in panel 3 reuse the fallen-domino shape language, tying the story back to the transition.
 - **Fallbacks:** `prefers-reduced-motion` and viewports < 1024px get a vertical page: same five sections stacked, dominoes replaced by a gentle in-view fade-rise, no scroll hijacking, no pinning.
 - Library: `motion` (new dependency) — `useScroll` + transforms; no GSAP.
 
@@ -81,4 +88,4 @@ Animation is progressive enhancement only: if JS fails or `motion` errors, the p
 - Restyling dashboard/app screens beyond what global tokens inherit.
 - Logo asset redraw (the existing logo image stays wherever it's used outside the site header).
 - Live Stripe/pricing changes; pricing page content.
-- FAQ page beyond the compact 4-item accordion.
+- Any FAQ presence on the landing page (removed by decision; a standalone FAQ page can be considered later).
