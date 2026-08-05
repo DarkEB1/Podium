@@ -38,26 +38,43 @@ export default function HorizontalTrack({ children }: { children: ReactNode }) {
   const [progress, setProgress] = useState(0)
   const snapAnim = useRef<ReturnType<typeof animate> | null>(null)
   const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // True while a soft-snap animation is driving window.scrollTo, so the
+  // scroll events it generates don't cancel their own animation or queue a
+  // second snap on top of it (spec: scroll model).
+  const isSnapping = useRef(false)
 
   const onScroll = useCallback(() => {
+    const el = trackRef.current
+    if (!el) return
     const vw = window.innerWidth
     const trackW = vw * PANEL_COUNT
-    const range = document.body.scrollHeight - window.innerHeight
-    const nextX = trackX(window.scrollY, range, trackW, vw)
-    snapAnim.current?.stop()
+    // Range and position are relative to the track wrapper, not document.body,
+    // so this stays correct even if something else ever shares the body
+    // (spec: scroll model).
+    const range = el.offsetHeight - window.innerHeight
+    const localY = window.scrollY - el.offsetTop
+    const nextX = trackX(localY, range, trackW, vw)
     setX(nextX)
     // Domino transition occupies the first inter-panel gap: x in [0, -vw].
     setProgress(Math.min(Math.max(-nextX / vw, 0), 1))
+    // A snap animation in flight drives its own scroll events; let it finish
+    // undisturbed instead of stopping/rescheduling itself out of existence.
+    if (isSnapping.current) return
     // Soft snap once scrolling rests near a boundary (spec: scroll model).
+    snapAnim.current?.stop()
     if (settleTimer.current) clearTimeout(settleTimer.current)
     settleTimer.current = setTimeout(() => {
       const target = snapTarget(nextX, vw)
       if (target !== null && target !== nextX) {
-        const targetScroll = (-target / (trackW - vw)) * range
+        const targetScroll = el.offsetTop + (-target / (trackW - vw)) * range
+        isSnapping.current = true
         snapAnim.current = animate(window.scrollY, targetScroll, {
           duration: 0.35,
           ease: 'easeOut',
           onUpdate: (v) => window.scrollTo(0, v),
+          onComplete: () => {
+            isSnapping.current = false
+          },
         })
       }
     }, 140)
@@ -65,10 +82,19 @@ export default function HorizontalTrack({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!wide || reduced) return
+    // Wheel/touch input lets the user interrupt an in-flight snap.
+    const onInterrupt = () => {
+      snapAnim.current?.stop()
+      isSnapping.current = false
+    }
     window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('wheel', onInterrupt, { passive: true })
+    window.addEventListener('touchstart', onInterrupt, { passive: true })
     onScroll()
     return () => {
       window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('wheel', onInterrupt)
+      window.removeEventListener('touchstart', onInterrupt)
       snapAnim.current?.stop()
       if (settleTimer.current) clearTimeout(settleTimer.current)
     }
@@ -78,8 +104,10 @@ export default function HorizontalTrack({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!wide || reduced) return
     const onKey = (e: KeyboardEvent) => {
-      const step = window.innerHeight * ((document.body.scrollHeight - window.innerHeight) /
-        (window.innerWidth * (PANEL_COUNT - 1))) // scroll distance per panel
+      const el = trackRef.current
+      if (!el) return
+      const range = el.offsetHeight - window.innerHeight
+      const step = range / (PANEL_COUNT - 1) // scroll distance per panel
       if (['ArrowRight', 'PageDown'].includes(e.key)) window.scrollBy({ top: step, behavior: 'smooth' })
       if (['ArrowLeft', 'PageUp'].includes(e.key)) window.scrollBy({ top: -step, behavior: 'smooth' })
     }
@@ -97,7 +125,7 @@ export default function HorizontalTrack({ children }: { children: ReactNode }) {
 
   return (
     // Body height provides the scroll length; the sticky viewport shows the track.
-    <div style={{ height: `${PANEL_COUNT * 100}vh` }}>
+    <div ref={trackRef} data-testid="track-wrapper" style={{ height: `${PANEL_COUNT * 100}vh` }}>
       <div className="sticky top-0 h-screen overflow-hidden">
         <TrackContext.Provider value={{ progress }}>
           <div
