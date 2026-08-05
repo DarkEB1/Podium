@@ -25,7 +25,7 @@ vi.mock('@/components/ui/sonner', () => ({
 import RootLayout from './layout'
 
 describe('T1 RootLayout', () => {
-  it('applies the Geist heading-font variable class to <body>', () => {
+  it('applies the DM Sans and Geist Mono font variable classes to <body>', () => {
     // RootLayout renders the document <html><body>; jsdom can't nest those in a
     // container, so render to static markup and assert the <body> class wiring.
     const html = renderToStaticMarkup(
@@ -36,8 +36,8 @@ describe('T1 RootLayout', () => {
     const bodyTag = html.match(/<body[^>]*class="([^"]*)"/)
     expect(bodyTag).not.toBeNull()
     const bodyClass = bodyTag?.[1] ?? ''
-    expect(bodyClass).toContain('font-geist-var')
     expect(bodyClass).toContain('font-dm-sans-var')
+    expect(bodyClass).toContain('font-geist-mono-var')
     expect(bodyClass).toContain('antialiased')
   })
 })

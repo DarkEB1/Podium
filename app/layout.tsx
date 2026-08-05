@@ -1,14 +1,19 @@
 import type { Metadata } from 'next'
-import { Geist, DM_Sans, Geist_Mono } from 'next/font/google'
+import { DM_Sans, Geist_Mono } from 'next/font/google'
 import { ThemeProvider } from '@/components/ui/theme-provider'
 import CookieBanner from '@/components/legal/cookie-banner'
 import { Toaster } from '@/components/ui/sonner'
 import './globals.css'
 import type { ReactNode } from 'react'
 
-// Type system: Geist (Helvetica-adjacent) for headings; DM Sans for body & buttons.
-const geist = Geist({ variable: '--font-geist', subsets: ['latin'], display: 'swap' })
-const dmSans = DM_Sans({ variable: '--font-dm-sans', subsets: ['latin'] })
+// Type system: DM Sans everywhere (800 display / 500 UI / 300 secondary);
+// Geist_Mono only for micro-labels.
+const dmSans = DM_Sans({
+  variable: '--font-dm-sans',
+  subsets: ['latin'],
+  weight: ['300', '500', '700', '800'],
+  display: 'swap',
+})
 const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] })
 
 export const metadata: Metadata = {
@@ -19,7 +24,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${geist.variable} ${dmSans.variable} ${geistMono.variable} antialiased`}>
+      <body className={`${dmSans.variable} ${geistMono.variable} antialiased`}>
         {/*
           NX-2/A-1/PR-7: this previously passed `forcedTheme="light"`, which makes
           next-themes ignore every setTheme() call — the reason the ThemeToggle

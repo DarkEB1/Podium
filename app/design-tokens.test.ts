@@ -121,8 +121,9 @@ describe('T1 design tokens (globals.css)', () => {
 describe('T1 typefaces (layout.tsx)', () => {
   it('wires Geist and DM Sans via next/font/google', () => {
     expect(layout).toMatch(/from ['"]next\/font\/google['"]/)
-    expect(layout).toMatch(/\bGeist\b/)
     expect(layout).toMatch(/DM_Sans/)
+    expect(layout).toMatch(/Geist_Mono/)
+    expect(layout).not.toMatch(/\bGeist\b(?!_Mono)/)
   })
 
   it('removes the old Syne import', () => {
@@ -130,7 +131,7 @@ describe('T1 typefaces (layout.tsx)', () => {
   })
 
   it('binds the font CSS variables expected by the tokens', () => {
-    expect(layout).toMatch(/--font-geist/)
     expect(layout).toMatch(/--font-dm-sans/)
+    expect(layout).toMatch(/--font-geist-mono/)
   })
 })
