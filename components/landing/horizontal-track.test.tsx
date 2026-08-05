@@ -3,6 +3,18 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import HorizontalTrack from './horizontal-track'
 import { PANEL_COUNT } from '@/lib/landing/track-math'
 
+// Real `animate` schedules via requestAnimationFrame, which never fires
+// within a synchronous jsdom test. Replace it with a synchronous stand-in so
+// the anchor-click test can assert the resolved target without needing fake
+// timers or frame pumping.
+vi.mock('motion', () => ({
+  animate: vi.fn((_from: number, to: number, opts: { onUpdate?: (v: number) => void; onComplete?: () => void }) => {
+    opts.onUpdate?.(to)
+    opts.onComplete?.()
+    return { stop: vi.fn() }
+  }),
+}))
+
 afterEach(() => vi.unstubAllGlobals())
 
 function stubMedia({ wide, reduced }: { wide: boolean; reduced: boolean }) {
@@ -86,5 +98,30 @@ describe('HorizontalTrack', () => {
 
     const track = screen.getByTestId('landing-track')
     expect(track.style.transform).toBe('translateX(0px)')
+  })
+
+  it('intercepts an in-page anchor click and scrolls to the owning panel', () => {
+    stubMedia({ wide: true, reduced: false })
+    const anchoredPanels = [
+      <section key="P1">P1</section>,
+      <section key="P2">
+        <div id="t2" />
+        <a href="#t2">Jump to panel 2</a>
+      </section>,
+      <section key="P3">P3</section>,
+      <section key="P4">P4</section>,
+      <section key="P5">P5</section>,
+    ]
+    render(<HorizontalTrack>{anchoredPanels}</HorizontalTrack>)
+    const wrapper = screen.getByTestId('track-wrapper')
+    Object.defineProperty(wrapper, 'offsetHeight', { value: 4000, configurable: true })
+    Object.defineProperty(wrapper, 'offsetTop', { value: 200, configurable: true })
+    const scrollToSpy = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+
+    fireEvent.click(screen.getByText('Jump to panel 2'))
+
+    const expectedTarget = 200 + 1 * ((4000 - window.innerHeight) / (PANEL_COUNT - 1))
+    expect(scrollToSpy).toHaveBeenCalledWith(0, expectedTarget)
+    scrollToSpy.mockRestore()
   })
 })

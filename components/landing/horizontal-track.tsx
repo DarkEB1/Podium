@@ -43,6 +43,37 @@ export default function HorizontalTrack({ children }: { children: ReactNode }) {
   // second snap on top of it (spec: scroll model).
   const isSnapping = useRef(false)
 
+  // In track mode a panel's position is a CSS transform, not a scroll offset,
+  // so a native in-page anchor (e.g. the hero's "How it works" link) has
+  // nowhere on the document to scroll to. Intercept it, find which panel
+  // wrapper owns the target, and drive window.scrollTo to that panel's
+  // boundary instead (spec: anchor navigation inside the track).
+  const onAnchorClick = useCallback((e: MouseEvent) => {
+    const target = e.target as Element | null
+    const anchor = target?.closest('a[href^="#"]') as HTMLAnchorElement | null
+    if (!anchor) return
+    const id = anchor.getAttribute('href')?.slice(1)
+    if (!id) return
+    const dest = document.getElementById(id)
+    const panelEl = dest?.closest('[data-panel-index]') as HTMLElement | null
+    const el = trackRef.current
+    if (!panelEl || !el) return
+    const panelIndex = Number(panelEl.dataset.panelIndex)
+    e.preventDefault()
+    const range = el.offsetHeight - window.innerHeight
+    const targetScroll = el.offsetTop + panelIndex * (range / (PANEL_COUNT - 1))
+    snapAnim.current?.stop()
+    isSnapping.current = true
+    snapAnim.current = animate(window.scrollY, targetScroll, {
+      duration: 0.35,
+      ease: 'easeOut',
+      onUpdate: (v) => window.scrollTo(0, v),
+      onComplete: () => {
+        isSnapping.current = false
+      },
+    })
+  }, [])
+
   const onScroll = useCallback(() => {
     const el = trackRef.current
     if (!el) return
@@ -90,15 +121,17 @@ export default function HorizontalTrack({ children }: { children: ReactNode }) {
     window.addEventListener('scroll', onScroll, { passive: true })
     window.addEventListener('wheel', onInterrupt, { passive: true })
     window.addEventListener('touchstart', onInterrupt, { passive: true })
+    window.addEventListener('click', onAnchorClick)
     onScroll()
     return () => {
       window.removeEventListener('scroll', onScroll)
       window.removeEventListener('wheel', onInterrupt)
       window.removeEventListener('touchstart', onInterrupt)
+      window.removeEventListener('click', onAnchorClick)
       snapAnim.current?.stop()
       if (settleTimer.current) clearTimeout(settleTimer.current)
     }
-  }, [wide, reduced, onScroll])
+  }, [wide, reduced, onScroll, onAnchorClick])
 
   // Keyboard: arrows/PageDown move one panel (spec: scroll model).
   useEffect(() => {
@@ -134,7 +167,7 @@ export default function HorizontalTrack({ children }: { children: ReactNode }) {
             style={{ width: `${PANEL_COUNT * 100}vw`, transform: `translateX(${x}px)` }}
           >
             {panels.map((panel, i) => (
-              <div key={i} className="relative h-full w-screen shrink-0">
+              <div key={i} className="relative h-full w-screen shrink-0" data-panel-index={i}>
                 {panel}
                 <span className="absolute bottom-[calc(28%-1.75rem)] left-6 font-mono text-small uppercase tracking-[.15em] text-muted-foreground">
                   {TICKS[i] ?? ''}
