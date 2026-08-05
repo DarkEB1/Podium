@@ -14,6 +14,7 @@ vi.mock('@/lib/supabase/messaging', async (importOriginal) => {
 import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getMessages, sendMessage, MessagingError } from '@/lib/supabase/messaging'
+import { CHAT_MESSAGE_MAX } from '@/lib/limits'
 import { GET, POST } from './route'
 
 const fakeUser = {
@@ -114,6 +115,63 @@ describe('POST /api/messaging/matches/[matchId]/messages', () => {
     expect(res.status).toBe(400)
     const json = await res.json()
     expect(json.error.code).toBe('INVALID_CONTENT_TYPE')
+  })
+
+  // SEC-3: these are system card types. Nothing server-side creates them, and
+  // the chat renders them as authoritative status cards, so a participant who
+  // could post one could forge a payment receipt to their counterparty.
+  it.each(['proposal_card', 'esignature_request', 'payment_confirmation'])(
+    'refuses the system content type %s',
+    async (contentType) => {
+      vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+      vi.mocked(sendMessage).mockClear()
+      const res = await POST(
+        makePostRequest({ content_type: contentType, metadata: { proposal_id: 'p1' } }),
+        { params }
+      )
+      expect(res.status).toBe(400)
+      const json = await res.json()
+      expect(json.error.code).toBe('INVALID_CONTENT_TYPE')
+      expect(sendMessage).not.toHaveBeenCalled()
+    }
+  )
+
+  it('refuses client-supplied metadata even on an allowed content type', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(sendMessage).mockClear()
+    const res = await POST(
+      makePostRequest({ content_type: 'text', text_content: 'Hi', metadata: { proposal_id: 'p1' } }),
+      { params }
+    )
+    expect(res.status).toBe(400)
+    const json = await res.json()
+    expect(json.error.code).toBe('METADATA_NOT_ALLOWED')
+    expect(sendMessage).not.toHaveBeenCalled()
+  })
+
+  // SEC-4: CHAT_MESSAGE_MAX was defined in lib/limits.ts but never imported,
+  // and the table has no CHECK, so text_content was unbounded.
+  it('refuses a message longer than CHAT_MESSAGE_MAX', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(sendMessage).mockClear()
+    const res = await POST(
+      makePostRequest({ content_type: 'text', text_content: 'x'.repeat(CHAT_MESSAGE_MAX + 1) }),
+      { params }
+    )
+    expect(res.status).toBe(400)
+    const json = await res.json()
+    expect(json.error.code).toBe('MESSAGE_TOO_LONG')
+    expect(sendMessage).not.toHaveBeenCalled()
+  })
+
+  it('accepts a message exactly at the limit', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(sendMessage).mockResolvedValue({ id: 'msg1' } as never)
+    const res = await POST(
+      makePostRequest({ content_type: 'text', text_content: 'x'.repeat(CHAT_MESSAGE_MAX) }),
+      { params }
+    )
+    expect(res.status).toBe(201)
   })
 
   it('returns 201 with message on success', async () => {

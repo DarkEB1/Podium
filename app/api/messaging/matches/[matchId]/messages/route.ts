@@ -3,13 +3,28 @@ import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getMessages, sendMessage, MessagingError } from '@/lib/supabase/messaging'
 import { RATE_LIMITS, consume, tooManyRequests, userKey } from '@/lib/rate-limit'
+import { CHAT_MESSAGE_MAX } from '@/lib/limits'
 import type { Database } from '@/types/database'
 
 type MessageType = Database['public']['Enums']['message_type']
 
+/**
+ * SEC-3 — the content types a PARTICIPANT may create.
+ *
+ * `proposal_card`, `esignature_request` and `payment_confirmation` are system
+ * types: they carry `metadata.proposal_id` and the chat renders them as
+ * authoritative status cards. Nothing server-side has ever created one (a
+ * proposal is written by the `send_proposal` RPC, into `proposals`, and the
+ * composer only ever sends `text`), so allowing them here was pure attack
+ * surface: a brand could POST `payment_confirmation` with a real proposal id
+ * and the athlete, who may be a minor, would see a green "Payment confirmed"
+ * card showing the real deal amount for money that was never sent.
+ *
+ * If a system card is ever needed, it must be written server-side by the code
+ * that owns the event, never accepted from a client.
+ */
 const VALID_MESSAGE_TYPES = new Set<MessageType>([
   'text', 'image', 'video', 'document',
-  'proposal_card', 'esignature_request', 'payment_confirmation',
 ])
 
 export async function GET(
@@ -87,15 +102,40 @@ export async function POST(
     )
   }
 
+  // SEC-3: `metadata` exists to carry the proposal id of a system card. No
+  // client-creatable type uses it, so accepting it would just reopen the
+  // forged-card path through a type that is still allowed.
+  if (body.metadata !== undefined) {
+    return NextResponse.json(
+      { error: { code: 'METADATA_NOT_ALLOWED', message: 'metadata cannot be set on a message' } },
+      { status: 400 }
+    )
+  }
+
+  // SEC-4: CHAT_MESSAGE_MAX existed in lib/limits.ts but nothing imported it,
+  // and `messages` has no CHECK constraint, so text_content was unbounded all
+  // the way to the database. getMessages returns a match's messages unpaginated,
+  // so one scripted sender could make the other participant's chat unloadable.
+  if (typeof body.text_content === 'string' && body.text_content.length > CHAT_MESSAGE_MAX) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'MESSAGE_TOO_LONG',
+          message: `Messages must be ${CHAT_MESSAGE_MAX} characters or fewer`,
+        },
+      },
+      { status: 400 }
+    )
+  }
+
   const { matchId } = await params
-  const { content_type, text_content, attachment_url, attachment_size_bytes, attachment_mime_type, metadata } = body
+  const { content_type, text_content, attachment_url, attachment_size_bytes, attachment_mime_type } = body
 
   const payload = {
     ...(text_content !== undefined && { text_content }),
     ...(attachment_url !== undefined && { attachment_url }),
     ...(attachment_size_bytes !== undefined && { attachment_size_bytes }),
     ...(attachment_mime_type !== undefined && { attachment_mime_type }),
-    ...(metadata !== undefined && { metadata }),
   }
 
   try {
