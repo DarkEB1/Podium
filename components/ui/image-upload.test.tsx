@@ -78,6 +78,22 @@ describe("ImageUpload", () => {
     expect(input.accept).toMatch(/heic/)
   })
 
+  // A single input with capture="environment" forced iOS straight to the
+  // camera, making it impossible to pick from the photo library. The Upload
+  // button must drive a capture-less input; the camera button its own input.
+  it("the library input has no capture attribute so the photo roll opens", () => {
+    render(<ImageUpload value={null} onUploaded={() => {}} aspect={1} />)
+    const input = screen.getByTestId("image-upload-input") as HTMLInputElement
+    expect(input.hasAttribute("capture")).toBe(false)
+  })
+
+  it("the camera button drives a separate input that requests camera capture", () => {
+    render(<ImageUpload value={null} onUploaded={() => {}} aspect={1} shape="circle" />)
+    const camera = screen.getByTestId("image-upload-camera-input") as HTMLInputElement
+    expect(camera.hasAttribute("capture")).toBe(true)
+    expect(camera.accept).toMatch(/image\/jpeg/)
+  })
+
   it("shows a circular thumbnail preview when an existing value is set and shape is circle", () => {
     render(
       <ImageUpload

@@ -141,6 +141,7 @@ export function ImageUpload({
   const inputId = React.useId()
   const errorId = React.useId()
   const fileRef = React.useRef<HTMLInputElement>(null)
+  const cameraRef = React.useRef<HTMLInputElement>(null)
 
   const [error, setError] = React.useState<string | null>(null)
   const [pending, setPending] = React.useState<PendingCrop | null>(null)
@@ -195,6 +196,7 @@ export function ImageUpload({
     setPending(null)
     setUploading(false)
     if (fileRef.current) fileRef.current.value = ""
+    if (cameraRef.current) cameraRef.current.value = ""
   }
 
   async function handleSave() {
@@ -275,7 +277,7 @@ export function ImageUpload({
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => fileRef.current?.click()}
+              onClick={() => cameraRef.current?.click()}
             >
               <Camera aria-hidden="true" className="size-4" />
               <span className="sr-only">Use camera</span>
@@ -287,13 +289,27 @@ export function ImageUpload({
         </div>
       </div>
 
+      {/* Library picker. A `capture` attribute here would force mobile
+          browsers straight to the camera and make the photo roll unreachable,
+          so this input must never carry one — the camera path has its own
+          input below. */}
       <input
         ref={fileRef}
         id={inputId}
         data-testid="image-upload-input"
         type="file"
         accept={ACCEPT_ATTR}
-        capture="environment"
+        className="sr-only"
+        onChange={(e) => void handleFiles(e.target.files)}
+      />
+      <input
+        ref={cameraRef}
+        data-testid="image-upload-camera-input"
+        type="file"
+        accept={ACCEPT_ATTR}
+        capture={round ? "user" : "environment"}
+        aria-hidden="true"
+        tabIndex={-1}
         className="sr-only"
         onChange={(e) => void handleFiles(e.target.files)}
       />
