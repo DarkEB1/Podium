@@ -231,6 +231,18 @@
   --lime-tint-2: #E9F5C4;
   --baseline: #C9CBCA;
   color-scheme: light;
+
+  /* Landing build spec v3 §2.1 — type + grid system (scoped to the landing).
+     The vh cap keeps three 0.92-leading lines + 24px CTA clearance above the
+     72vh baseline on short/wide viewports (QA gate 6). */
+  --display-xl: min(clamp(64px, 10.5vw, 176px), 16vh);
+  --display-l: min(clamp(44px, 5.5vw, 96px), 11vh);
+  --display-m: clamp(22px, 1.9vw, 30px);
+  --title-size: clamp(18px, 1.4vw, 22px);
+  --body-size: clamp(15px, 1.2vw, 18px);
+  --ui-size: clamp(14px, 1.05vw, 16px);
+  --margin-x: 5vw;
+  --col: 7.666vw; /* column pitch: col N left edge = 5vw + (N-1) * 7.666vw */
 }
 
 @layer base {

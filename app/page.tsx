@@ -1,9 +1,6 @@
-import HorizontalTrack from '@/components/landing/horizontal-track'
-import HeroPanel from '@/components/landing/panels/hero-panel'
-import MarketPanel from '@/components/landing/panels/market-panel'
-import WhatWeDoPanel from '@/components/landing/panels/what-we-do-panel'
-import RolesPanel from '@/components/landing/panels/roles-panel'
-import BuildPanel from '@/components/landing/panels/build-panel'
+import Stage from '@/components/landing/stage/stage'
+import PanelHero from '@/components/landing/stage/panel-hero'
+import PanelStub from '@/components/landing/stage/panel-stub'
 import { siteUrl } from './sitemap'
 
 // M-1: per-route metadata. This page is public and indexable — see app/sitemap.ts.
@@ -33,30 +30,25 @@ export const metadata = {
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ market?: string }>
+  searchParams: Promise<{ variant?: string }>
 }) {
-  // Two marketplace variants ship to staging; the winner is chosen in
-  // implementation review and the loser deleted (spec: page structure).
-  const { market } = await searchParams
-  const variant = market === 'rally' ? 'rally' : 'skyline'
+  // Marketplace panel ships two variants (spec v3 §3 P02); skyline is default.
+  const { variant } = await searchParams
+  const marketVariant = variant === 'rally' ? 'rally' : 'skyline'
   return (
-    // landing-light: this page is art-directed light-only (locked palette);
-    // the scope re-declares the light tokens so a system-dark visitor still
-    // sees the approved cold-white design. App dashboards keep dark mode.
+    // landing-light: this page is art-directed light-only (spec amendment);
+    // system dark mode must not restyle it.
     <main className="landing-light bg-background text-foreground">
-      <a
-        href="#hero-heading"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-[10px] focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground"
-      >
-        Skip to content
-      </a>
-      <HorizontalTrack>
-        <HeroPanel />
-        <MarketPanel variant={variant} />
-        <WhatWeDoPanel />
-        <RolesPanel />
-        <BuildPanel />
-      </HorizontalTrack>
+      <Stage>
+        <PanelHero />
+        <PanelStub
+          kicker="02 · MARKETPLACE"
+          lines={marketVariant === 'rally' ? ['Sponsorship', 'is a rally.'] : ['Every profile', 'is a podium.']}
+        />
+        <PanelStub kicker="03 · WHAT WE DO" lines={['From profile to paid.']} id="what-we-do" />
+        <PanelStub kicker="04 · WHO’S ON THE PODIUM" lines={['Made for the', 'whole podium.']} />
+        <PanelStub kicker="05 · YOUR SPOT" lines={['The podium', 'has room', 'for you.']} />
+      </Stage>
     </main>
   )
 }
