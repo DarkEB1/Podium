@@ -9,7 +9,7 @@ export default function HeroPanel() {
       className="flex h-full items-end justify-between gap-14 px-6 pb-[30vh] pt-24 md:px-16"
     >
       <div className="max-w-xl">
-        <p className="mb-4 font-mono text-small uppercase tracking-[.15em] text-primary">
+        <p className="mb-4 font-mono text-small uppercase tracking-[.15em] text-muted-foreground">
           SPONSORSHIP MARKETPLACE
         </p>
         <h1 id="hero-heading" className="font-heading text-display font-extrabold tracking-tight text-foreground">
