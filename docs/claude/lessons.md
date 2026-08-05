@@ -11,3 +11,13 @@
 - **RLS policy must exist before any code queries a new table**: A table without RLS exposes all rows to all authenticated users. Write the policy in the same migration file as the table creation — not as a follow-up.
 
 - **Presigned URLs expire — generate at request time, never cache**: Supabase Storage presigned URLs have a short TTL. Always generate fresh in `app/api/upload/route.ts` per request. Never store a presigned URL in the DB or localStorage.
+
+- **One DB column, one UI owner — a second surface writing the same enum column will drift**: Onboarding step 3 kept a legacy "I am seeking" chip set whose five values predated the `seeking_type` NIL migration; every chip was an invalid enum value, so any selection failed the whole PATCH with the generic "could not save" message. When a migration redefines an enum, grep every component that writes that column, not just the one the spec section names.
+
+- **base-ui `Select.Value` renders the raw value string — always pass `items` to `Select` (the root)**: Unlike Radix, the collapsed trigger does not mirror the selected item's label. Without `items={OPTIONS}` users see raw enum values like `available_now`.
+
+- **Never put `capture` on a file input that is also the library picker**: `capture` forces mobile browsers straight to the camera and makes the photo roll unreachable. Camera and library need two separate inputs.
+
+- **Email addresses in code must use podiumsponsorship.com — podium.com belongs to a third party**: Any `@podium.com` address routes user mail (including privacy/legal requests) to a domain we do not control. `CONTROLLER` in `lib/legal/versions.ts` is the single source of truth.
+
+- **Hosted Supabase auth config is code now**: `supabase/config.toml` has `[remotes.staging]` overrides; `npx supabase config push` applies base+override to the LINKED project, so any base value not overridden will overwrite what was set in the dashboard. Check the printed diff line by line before confirming, and add overrides for values the hosted project must keep.

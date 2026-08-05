@@ -432,3 +432,42 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 # declarative_schema_path = "./database"
 # JSON string passed through to pg-delta SQL formatting.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":80,\"commaStyle\":\"trailing\"}"
+
+# ── Hosted-environment overrides ─────────────────────────────────────────────
+# `supabase config push` applies base config merged with the [remotes.*] block
+# whose project_id matches the LINKED project. Base values above are tuned for
+# local `supabase start`; every value that must differ on a hosted project is
+# overridden here. Staging first; production only on an explicit human decision
+# (see CLAUDE.md "Boundaries for agents").
+
+[remotes.staging]
+project_id = "cltvgjsmzujsrnmnfues"
+
+[remotes.staging.auth]
+site_url = "https://podium-git-staging-podium6.vercel.app"
+additional_redirect_urls = ["https://podium-git-staging-podium6.vercel.app/**"]
+
+[remotes.staging.auth.email]
+# Users must verify their address before signing in. With this off, no
+# verification email was ever sent and unverified sign-in worked.
+enable_confirmations = true
+# The hosted project ran 8-char OTPs and a 1-minute resend floor before config
+# push took over; the base block's local-dev values are weaker, so pin these.
+otp_length = 8
+max_frequency = "1m0s"
+
+[remotes.staging.auth.email.smtp]
+# Supabase's built-in mailer is capped at a couple of emails an hour and is
+# best-effort only — auth email goes through Resend like all other app email.
+enabled = true
+host = "smtp.resend.com"
+port = 465
+user = "resend"
+pass = "env(RESEND_API_KEY)"
+admin_email = "no-reply@podiumsponsorship.com"
+sender_name = "Podium"
+
+[remotes.staging.auth.rate_limit]
+# The base value (2/hour) mirrors the built-in mailer cap; with real SMTP the
+# platform cap can be meaningful without throttling legitimate signups.
+email_sent = 100
