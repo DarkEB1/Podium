@@ -52,6 +52,14 @@ The landing page is one horizontal track travelled left→right by normal vertic
 4. **Who's on the podium** — athlete, team, brand cards at podium-step heights. Reworks `role-panels.tsx` content.
 5. **Build your profile** — closing ask: ink-field banner with "Build your profile" CTA, pricing link, footer links row. No FAQ section (decision 2026-08-05); `faq.tsx` and its FAQPage schema are removed from the landing page. Cookie banner overlays as today.
 
+## Amendments (2026-08-05, Nicholas, during visual QA — govern over anything conflicting below)
+
+- **Full presentation rebuild from scratch**: the first implementation was rejected on production quality. All visual components are rewritten new; only the token system, the pure engines (track math, rally engine, fixtures), and the root-cause fixes (font wiring, light-scope) carry over.
+- **3D dominoes**: the hero's three podium steps are real 3D pieces with a glossy plastic material (react-three-fiber), not flat CSS bars. The flat/no-gradient rule applies to UI surfaces only.
+- **Scroll-locked intro**: the page pins on the hero; scroll scrubs the domino cascade, and horizontal travel begins only once the last domino has tipped and its top reaches the right viewport edge.
+- **Fixed navbar**: the nav is pinned to the top at all times.
+- The landing page is art-directed light-only via a `.landing-light` token scope; system dark mode must not restyle it.
+
 ## Scroll model and the baseline
 
 - **The anchorline is "the baseline":** a continuous 1.5px hairline ground line at a fixed ~72% of viewport height, running the entire length of the track. Every panel's key elements stand ON it: the hero podium steps, the falling dominoes, the marketplace selector, the "what we do" slabs, the role cards, and the closing ink banner. It is the court baseline the whole page travels along, and it is what makes five different panels read as one continuous world instead of five slides.
