@@ -7,6 +7,11 @@ import { copy } from '@/lib/copy'
 const toastSuccess = vi.fn()
 vi.mock('sonner', () => ({ toast: { success: (...a: unknown[]) => toastSuccess(...a), error: vi.fn() } }))
 
+async function selectPayType(label: RegExp) {
+  await userEvent.click(screen.getByRole('combobox', { name: /pay type/i }))
+  await userEvent.click(await screen.findByRole('option', { name: label }))
+}
+
 describe('ProposalForm', () => {
   beforeEach(() => {
     toastSuccess.mockClear()
@@ -32,6 +37,7 @@ describe('ProposalForm', () => {
     render(<ProposalForm matchId="match-1" onSent={() => {}} />)
     await userEvent.type(screen.getByLabelText(/title/i), 'Summer Deal')
     await userEvent.type(screen.getByLabelText(/amount/i), '5000')
+    await selectPayType(/^Flat fee$/)
     await userEvent.click(screen.getByRole('button', { name: /send proposal/i }))
     await waitFor(() =>
       expect(fetch).toHaveBeenCalledWith('/api/deals/proposals', expect.objectContaining({ method: 'POST' }))
@@ -42,7 +48,30 @@ describe('ProposalForm', () => {
     render(<ProposalForm matchId="match-1" onSent={() => {}} />)
     await userEvent.type(screen.getByLabelText(/title/i), 'Summer Deal')
     await userEvent.type(screen.getByLabelText(/amount/i), '5000')
+    await selectPayType(/^Flat fee$/)
     await userEvent.click(screen.getByRole('button', { name: /send proposal/i }))
     await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith(copy.toasts.proposalSent))
+  })
+
+  // POST /api/deals/proposals rejects a missing pay_type with its own internal
+  // string ("match_id, title, pay_amount, and pay_type are required"), which was
+  // shown to the user as a toast. Catch it inline instead.
+  it('asks for a pay type inline instead of posting without one', async () => {
+    render(<ProposalForm matchId="match-1" onSent={() => {}} />)
+    await userEvent.type(screen.getByLabelText(/title/i), 'Summer Deal')
+    await userEvent.type(screen.getByLabelText(/amount/i), '5000')
+    await userEvent.click(screen.getByRole('button', { name: /send proposal/i }))
+    expect(await screen.findByText(/select a pay type/i)).toBeInTheDocument()
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  // base-ui renders the raw value in the collapsed trigger unless the Select
+  // root is given the value→label map.
+  it('shows the human label for the selected pay type, not the raw enum', async () => {
+    render(<ProposalForm matchId="match-1" onSent={() => {}} />)
+    await selectPayType(/^Monthly retainer$/)
+    const trigger = screen.getByRole('combobox', { name: /pay type/i })
+    expect(trigger).toHaveTextContent('Monthly retainer')
+    expect(trigger).not.toHaveTextContent(/monthly_retainer/)
   })
 })

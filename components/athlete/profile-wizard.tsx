@@ -360,7 +360,9 @@ function Step2({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
         <FormField control={form.control} name="level" render={({ field }) => (
           <FormItem>
             <FormLabel>Level</FormLabel>
-            <Select onValueChange={field.onChange} defaultValue={field.value}>
+            {/* base-ui renders the raw value in the collapsed trigger unless it
+                is given the value→label map (§3A.4: never show the enum). */}
+            <Select items={LEVEL_OPTIONS} onValueChange={field.onChange} defaultValue={field.value}>
               <FormControl>
                 <SelectTrigger><SelectValue placeholder="Select level" /></SelectTrigger>
               </FormControl>
@@ -397,7 +399,9 @@ function Step2({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
             <FormField control={form.control} name="highest_level" render={({ field }) => (
               <FormItem>
                 <FormLabel htmlFor="highest_level">Highest level played outside university?</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                {/* base-ui renders the raw value in the collapsed trigger unless
+                    it is given the value→label map (§3A.4). */}
+                <Select items={HIGHEST_LEVEL_OPTIONS} onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger id="highest_level" aria-label="Highest level played outside university?">
                       <SelectValue placeholder="Select level" />

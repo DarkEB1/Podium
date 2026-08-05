@@ -13,9 +13,18 @@ export default function NotificationBell() {
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    // /api/notifications answers 401 (an expired session in another tab is
+    // enough) and 500 with an `{ error }` OBJECT. Storing that made the next
+    // render call .filter on a non-array, which threw and dropped every page
+    // rendering the bell into its route error boundary. A failed fetch leaves
+    // the list empty: the bell is ambient, never worth taking a page down for.
     fetch('/api/notifications')
-      .then((r) => r.json())
-      .then((data: NotificationRow[]) => setNotifications(data))
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: unknown) => {
+        // as NotificationRow[]: the array shape is confirmed at runtime above,
+        // but the row type cannot be proven from an untyped JSON body.
+        if (Array.isArray(data)) setNotifications(data as NotificationRow[])
+      })
       .catch(() => {})
   }, [])
 

@@ -110,6 +110,27 @@ describe('ProfileWizard', () => {
     expect(body).toHaveProperty('highest_level')
   })
 
+  // Same base-ui constraint as the availability trigger below: the collapsed
+  // trigger shows the raw enum unless the Select root is given the label map.
+  it('step 2: the level trigger shows the human label for a saved level', () => {
+    const profile = { user_id: 'u1', is_under_18: false, status: 'draft', level: 'semi_professional' }
+    render(<ProfileWizard step={2} profile={profile as never} />)
+    const trigger = screen.getByRole('combobox', { name: /^level$/i })
+    expect(trigger).toHaveTextContent('Semi-Professional')
+    expect(trigger).not.toHaveTextContent(/semi_professional/)
+  })
+
+  it('step 2: the highest-level trigger shows the human label for a saved level', () => {
+    const profile = {
+      user_id: 'u1', is_under_18: false, status: 'draft',
+      level: 'university_bucs', highest_level: 'semi_professional',
+    }
+    render(<ProfileWizard step={2} profile={profile as never} />)
+    const trigger = screen.getByRole('combobox', { name: /highest level played outside university/i })
+    expect(trigger).toHaveTextContent('Semi-Professional')
+    expect(trigger).not.toHaveTextContent(/semi_professional/)
+  })
+
   // spec §3A.4: clean human-readable availability labels; selecting "Available
   // From" reveals an inline date picker (otherwise hidden).
   it('step 3: availability options use clean human-readable labels', async () => {

@@ -19,7 +19,12 @@ type ProposalRow = Database['public']['Tables']['proposals']['Row']
 const schema = z.object({
   title: z.string().min(1, 'Title is required').max(200),
   pay_amount: z.coerce.number().positive('Amount must be positive'),
-  pay_type: z.enum(['flat_fee', 'monthly_retainer', 'per_post', 'revenue_share'] as const).optional(),
+  // Required: POST /api/deals/proposals rejects a missing pay_type with its own
+  // internal string ("match_id, title, pay_amount, and pay_type are required"),
+  // which surfaced to the user as a toast. Catch it inline, in their words.
+  pay_type: z.enum(['flat_fee', 'monthly_retainer', 'per_post', 'revenue_share'] as const, {
+    message: 'Select a pay type',
+  }),
   pay_currency: z.string().length(3),
   timeline_start: z.string().optional(),
   timeline_end: z.string().optional(),
@@ -100,7 +105,9 @@ export default function ProposalForm({ matchId, onSent }: Props) {
           <FormField control={form.control} name="pay_type" render={({ field }) => (
             <FormItem>
               <FormLabel>Pay type</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              {/* base-ui renders the raw value in the collapsed trigger unless
+                  the root is given the value→label map. */}
+              <Select items={PAY_TYPE_OPTIONS} onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
                   <SelectTrigger><SelectValue placeholder="Select pay type" /></SelectTrigger>
                 </FormControl>

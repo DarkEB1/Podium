@@ -31,6 +31,34 @@ describe('NotificationBell', () => {
     expect(screen.getByRole('status')).toHaveTextContent('2')
   })
 
+  // /api/notifications answers 401 (an expired session in another tab is enough)
+  // and 500 with an `{ error }` OBJECT. Storing that made the next render call
+  // .filter on a non-array, which threw and unmounted every page with the bell.
+  it('ignores a 401 response and keeps the bell rendered', async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: async () => ({ error: { code: 'UNAUTHENTICATED', message: 'Authentication required' } }),
+    } as Response)
+    render(<NotificationBell />)
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/notifications'))
+    expect(screen.getByRole('button', { name: /notifications/i })).toBeInTheDocument()
+    expect(screen.queryByRole('status')).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: /notifications/i }))
+    expect(screen.getByText(/no notifications yet/i)).toBeInTheDocument()
+  })
+
+  it('ignores a 200 body that is not an array', async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: async () => ({ error: { code: 'UNKNOWN', message: 'Something went wrong' } }),
+    } as Response)
+    render(<NotificationBell />)
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/notifications'))
+    expect(screen.getByRole('button', { name: /notifications/i })).toBeInTheDocument()
+    expect(screen.queryByRole('status')).toBeNull()
+  })
+
   it('opens dropdown on click and shows notification titles', async () => {
     vi.mocked(fetch).mockResolvedValue({
       ok: true,
