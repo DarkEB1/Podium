@@ -15,7 +15,7 @@ All commands via `npm run` — see `package.json` scripts
 
 - Vercel project `podium` on team `podium6`, **Hobby plan**. Once the GitHub repo is connected: push to `main` = production deploy, push to `staging` = preview deploy. Until then deploys are CLI-only, and the permission layer requires the human to run `vercel deploy --prod`.
 - **`main` is live.** Do feature work on `staging` (or a branch off it); merge to `main` only after `npm run check` is green and the change was seen working on the staging URL.
-- **Migrations**: `supabase link` points at PRODUCTION (`wchvidibjhjhchorjsup`) — a bare `supabase db push` hits the live DB. Apply to staging first (`npx supabase link --project-ref cltvgjsmzujsrnmnfues && npx supabase db push`), verify, then relink to production and push. Always leave the link on production afterwards.
+- **Migrations**: never auto-applied by any deploy — see "Schema Changes" below for the mandatory sequence.
 - **Secrets** live in `.env.local` (gitignored) and in Vercel env vars — never in committed files. Production and Preview have separate values; Preview's Supabase keys point at staging, and its 2FA/cron/unsubscribe secrets are distinct from production's on purpose.
 - **Crons**: Hobby allows 2 daily cron slots. `/api/cron/daily` runs every job via `lib/cron/daily-jobs.ts`; a second slot re-runs data-export. A new cron job = new route + entry in `DAILY_CRON_JOBS`, NOT a new `vercel.json` schedule (`vercel.crons.test.ts` enforces this).
 - **Email**: Resend, domain podiumsponsorship.com (region eu-west-1), sender `no-reply@podiumsponsorship.com`.
@@ -61,8 +61,21 @@ app/api/upload/      → presigned URL generation
 middleware.ts        → auth + role-based route protection
 ```
 
+## Schema Changes (Supabase) — mandatory sequence
+Two databases exist; nothing migrates them automatically. Refs: production `wchvidibjhjhchorjsup` · staging `cltvgjsmzujsrnmnfues`. The resting state of `supabase link` is PRODUCTION, so a bare `npx supabase db push` hits the LIVE database — always check first: `cat supabase/.temp/project-ref`.
+
+For every schema change, in this order:
+1. Write the migration file in `supabase/migrations/` (never dashboard-only edits).
+2. Apply to staging: `npx supabase link --project-ref cltvgjsmzujsrnmnfues` then `npx supabase db push`.
+3. Build and test the code against staging (push branch → preview URL; Preview env talks to staging DB).
+4. Apply to production BEFORE the code merges to `main`: `npx supabase link --project-ref wchvidibjhjhchorjsup` then `npx supabase db push`. Migrations therefore must be backward compatible with the code currently live.
+5. Merge `staging` → `main` (code auto-deploys; schema is already in place).
+6. Leave the link on production (step 4 does this; never leave it on staging).
+
+DB passwords: `SUPABASE_DB_PASSWORD` (production) and `SUPABASE_STAGING_DB_PASSWORD` in `.env.local`; `db push` reads `SUPABASE_DB_PASSWORD` from the environment, so export the right one for the linked project (`SUPABASE_DB_PASSWORD="$SUPABASE_STAGING_DB_PASSWORD" npx supabase db push` for staging).
+
 ## Supabase Rules
-- Schema change → migration file → `supabase db push` → then code. Never dashboard-only.
+- Schema change → migration file → staged rollout per "Schema Changes" above → then code. Never dashboard-only.
 - RLS required on every new table — no exceptions
 - Store DateTime as UTC ISO 8601 string
 - Service role key: Server Components and route handlers only — never in `"use client"` files
