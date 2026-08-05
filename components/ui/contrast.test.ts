@@ -84,6 +84,14 @@ describe.each([
     expect(Number(ratio.toFixed(2)), `${themeName}: ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5)
   })
 
+  it('lime-foreground clears 4.5:1 on the lime fill (the one full-saturation lime element per panel)', () => {
+    const ratio = contrast(t['--lime-foreground'] as string, t['--lime'] as string)
+    expect(
+      Number(ratio.toFixed(2)),
+      `${themeName}: --lime-foreground (${t['--lime-foreground']}) on --lime (${t['--lime']}) = ${ratio.toFixed(2)}:1`
+    ).toBeGreaterThanOrEqual(4.5)
+  })
+
   it('accent/secondary/card foregrounds clear 4.5:1 on their own surface', () => {
     const pairs: [string, string][] = [
       ['--accent-foreground', '--accent'],

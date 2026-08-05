@@ -3,6 +3,7 @@ import PodiumMark from '@/components/brand/podium-mark'
 
 const FOOTER_LINKS = [
   { label: 'Pricing', href: '/pricing' },
+  { label: 'Contact', href: '/contact' },
   { label: 'Terms', href: '/terms' },
   { label: 'Privacy', href: '/privacy' },
   { label: 'Cookies', href: '/cookies' },

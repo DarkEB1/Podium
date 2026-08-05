@@ -39,6 +39,11 @@
   --color-lime: var(--lime);
   --color-lime-tint-1: var(--lime-tint-1);
   --color-lime-tint-2: var(--lime-tint-2);
+  /* Ink for the panel's one full-saturation lime element — lime itself is
+     never a text colour (1.2:1 on page), but text sitting ON the lime fill
+     needs its own token so it stays legible when other foregrounds shift
+     between themes (C1). */
+  --color-lime-foreground: var(--lime-foreground);
   --color-baseline: var(--baseline);
 
   /* Border colour utility (border-border-ink): now the soft grey border. */
@@ -123,6 +128,7 @@
   --lime: #C1EC2F;
   --lime-tint-1: #DDF0A8;
   --lime-tint-2: #E9F5C4;
+  --lime-foreground: #17181A; /* ink on lime; 12.95:1 — lime is theme-invariant, so this holds in both themes */
   --baseline: #C9CBCA;     /* the anchorline hairline */
 
   /* Radius & soft layered shadows (C1 — clean Airbnb) */
@@ -179,6 +185,7 @@
   --lime: #C1EC2F;
   --lime-tint-1: #46521B;      /* tints darken in dark mode so panels stay quiet */
   --lime-tint-2: #2E360F;
+  --lime-foreground: #17181A; /* lime itself doesn't change in dark, so neither does its ink */
   --baseline: #46474C;
 
   /* Shadows read as flat mush on dark surfaces — deepen them and lean on borders. */

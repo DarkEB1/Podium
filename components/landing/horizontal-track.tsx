@@ -43,6 +43,26 @@ export default function HorizontalTrack({ children }: { children: ReactNode }) {
   // second snap on top of it (spec: scroll model).
   const isSnapping = useRef(false)
 
+  // Shared by the anchor-click interceptor and the focus-tracking listener
+  // below: animate window.scrollTo to the boundary of the given panel index,
+  // reusing the same soft-snap machinery as the scroll-settle snap.
+  const scrollToPanel = useCallback((index: number) => {
+    const el = trackRef.current
+    if (!el) return
+    const range = el.offsetHeight - window.innerHeight
+    const targetScroll = el.offsetTop + index * (range / (PANEL_COUNT - 1))
+    snapAnim.current?.stop()
+    isSnapping.current = true
+    snapAnim.current = animate(window.scrollY, targetScroll, {
+      duration: 0.35,
+      ease: 'easeOut',
+      onUpdate: (v) => window.scrollTo(0, v),
+      onComplete: () => {
+        isSnapping.current = false
+      },
+    })
+  }, [])
+
   // In track mode a panel's position is a CSS transform, not a scroll offset,
   // so a native in-page anchor (e.g. the hero's "How it works" link) has
   // nowhere on the document to scroll to. Intercept it, find which panel
@@ -60,23 +80,32 @@ export default function HorizontalTrack({ children }: { children: ReactNode }) {
     if (!id) return
     const dest = document.getElementById(id)
     const panelEl = dest?.closest('[data-panel-index]') as HTMLElement | null
-    const el = trackRef.current
-    if (!panelEl || !el) return
+    if (!panelEl) return
     const panelIndex = Number(panelEl.dataset.panelIndex)
     e.preventDefault()
+    scrollToPanel(panelIndex)
+  }, [scrollToPanel])
+
+  // Tab focus must pull the track along with it — otherwise a keyboard user
+  // tabbing into e.g. panel 3's link stays visually on whatever panel is
+  // currently in the viewport (spec: focus tracking). Only act when focus
+  // actually lands in a different panel than the one currently in view.
+  const onFocusIn = useCallback((e: FocusEvent) => {
+    const el = trackRef.current
+    if (!el) return
+    const target = e.target as Element | null
+    const panelEl = target?.closest('[data-panel-index]') as HTMLElement | null
+    if (!panelEl) return
+    const panelIndex = Number(panelEl.dataset.panelIndex)
     const range = el.offsetHeight - window.innerHeight
-    const targetScroll = el.offsetTop + panelIndex * (range / (PANEL_COUNT - 1))
-    snapAnim.current?.stop()
-    isSnapping.current = true
-    snapAnim.current = animate(window.scrollY, targetScroll, {
-      duration: 0.35,
-      ease: 'easeOut',
-      onUpdate: (v) => window.scrollTo(0, v),
-      onComplete: () => {
-        isSnapping.current = false
-      },
-    })
-  }, [])
+    const localY = window.scrollY - el.offsetTop
+    const currentIndex =
+      range > 0
+        ? Math.min(Math.max(Math.round((localY / range) * (PANEL_COUNT - 1)), 0), PANEL_COUNT - 1)
+        : 0
+    if (panelIndex === currentIndex) return
+    scrollToPanel(panelIndex)
+  }, [scrollToPanel])
 
   const onScroll = useCallback(() => {
     const el = trackRef.current
@@ -126,16 +155,18 @@ export default function HorizontalTrack({ children }: { children: ReactNode }) {
     window.addEventListener('wheel', onInterrupt, { passive: true })
     window.addEventListener('touchstart', onInterrupt, { passive: true })
     window.addEventListener('click', onAnchorClick)
+    window.addEventListener('focusin', onFocusIn)
     onScroll()
     return () => {
       window.removeEventListener('scroll', onScroll)
       window.removeEventListener('wheel', onInterrupt)
       window.removeEventListener('touchstart', onInterrupt)
       window.removeEventListener('click', onAnchorClick)
+      window.removeEventListener('focusin', onFocusIn)
       snapAnim.current?.stop()
       if (settleTimer.current) clearTimeout(settleTimer.current)
     }
-  }, [wide, reduced, onScroll, onAnchorClick])
+  }, [wide, reduced, onScroll, onAnchorClick, onFocusIn])
 
   // Keyboard: arrows/PageDown move one panel (spec: scroll model).
   useEffect(() => {
@@ -145,8 +176,17 @@ export default function HorizontalTrack({ children }: { children: ReactNode }) {
       if (!el) return
       const range = el.offsetHeight - window.innerHeight
       const step = range / (PANEL_COUNT - 1) // scroll distance per panel
-      if (['ArrowRight', 'PageDown'].includes(e.key)) window.scrollBy({ top: step, behavior: 'smooth' })
-      if (['ArrowLeft', 'PageUp'].includes(e.key)) window.scrollBy({ top: -step, behavior: 'smooth' })
+      if (['ArrowRight', 'PageDown'].includes(e.key)) {
+        // Without this, native paging (PageDown scrolls a viewport height,
+        // ArrowRight can scroll a focused element) fires alongside our own
+        // scrollBy and double-steps the track.
+        e.preventDefault()
+        window.scrollBy({ top: step, behavior: 'smooth' })
+      }
+      if (['ArrowLeft', 'PageUp'].includes(e.key)) {
+        e.preventDefault()
+        window.scrollBy({ top: -step, behavior: 'smooth' })
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)

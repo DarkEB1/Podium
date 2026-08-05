@@ -11,20 +11,37 @@ export default function WhatWeDoPanel() {
         Three steps up
       </h2>
       <ol className="max-w-2xl space-y-4">
-        {STEPS.map((s, i) => (
-          <li
-            key={s.n}
-            // Fallen-domino slabs: widths step up like the podium on its side.
-            className="flex items-center gap-5 rounded-[4px_4px_4px_16px] bg-lime-tint-1 px-6 py-4 last:bg-lime"
-            style={{ width: `${70 + i * 15}%` }}
-          >
-            <span className="font-mono text-small uppercase tracking-[.15em] text-foreground">{s.n}</span>
-            <span>
-              <span className="block text-medium font-bold text-foreground">{s.title}</span>
-              <span className="block text-small font-light text-muted-foreground">{s.copy}</span>
-            </span>
-          </li>
-        ))}
+        {STEPS.map((s, i) => {
+          // The last slab is the panel's one full-saturation lime element
+          // (the others are tints) — its text needs the dedicated
+          // lime-foreground ink, not text-foreground, because tints darken in
+          // dark mode while foreground lightens (see components/ui/contrast.test.ts).
+          const isLast = i === STEPS.length - 1
+          return (
+            <li
+              key={s.n}
+              // Fallen-domino slabs: widths step up like the podium on its side.
+              className="flex items-center gap-5 rounded-[4px_4px_4px_16px] bg-lime-tint-1 px-6 py-4 last:bg-lime"
+              style={{ width: `${70 + i * 15}%` }}
+            >
+              <span
+                className={`font-mono text-small uppercase tracking-[.15em] ${isLast ? 'text-lime-foreground' : 'text-foreground'}`}
+              >
+                {s.n}
+              </span>
+              <span>
+                <span className={`block text-medium font-bold ${isLast ? 'text-lime-foreground' : 'text-foreground'}`}>
+                  {s.title}
+                </span>
+                <span
+                  className={`block text-small font-light ${isLast ? 'text-lime-foreground' : 'text-muted-foreground'}`}
+                >
+                  {s.copy}
+                </span>
+              </span>
+            </li>
+          )
+        })}
       </ol>
     </section>
   )

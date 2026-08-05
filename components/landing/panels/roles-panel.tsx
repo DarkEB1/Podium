@@ -6,7 +6,7 @@ const ROLES = [
 
 export default function RolesPanel() {
   return (
-    <section aria-labelledby="roles-heading" className="flex h-full flex-col justify-end px-6 pb-[26vh] pt-24 md:px-16">
+    <section id="who" aria-labelledby="roles-heading" className="flex h-full flex-col justify-end px-6 pb-[26vh] pt-24 md:px-16">
       <h2 id="roles-heading" className="mb-8 font-heading text-large font-extrabold text-foreground">
         Who&rsquo;s on the podium
       </h2>

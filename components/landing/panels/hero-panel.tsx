@@ -48,6 +48,12 @@ export default function HeroPanel() {
       <div className="hidden md:block">
         <DominoSteps />
       </div>
+      {/* Wayfinding: track mode has no scrollbar and no native paging cue, so
+          spell out where the user is and how far there is to go (spec:
+          wayfinding). Hidden on mobile — stack mode has no track to page through. */}
+      <span className="absolute bottom-10 left-6 hidden font-mono text-small uppercase tracking-[.15em] text-muted-foreground lg:block md:left-16">
+        SCROLL → 01 / 05
+      </span>
     </section>
   )
 }

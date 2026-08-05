@@ -5,16 +5,15 @@ import { CONTROLLER } from '@/lib/legal/versions'
 
 /**
  * Every href below has been verified to resolve to a real route or to an
- * anchor that exists on the landing page (`id="about" | "how" | "who" | "faq"`
- * in components/landing/*). The previous `/#trust` link pointed at a section
- * that does not exist and has been removed. Do not add a link here before
- * confirming its target renders.
+ * anchor that exists on the landing page (`id="what-we-do" | "who"` in
+ * components/landing/panels/*). The previous `/#trust` link pointed at a
+ * section that does not exist and has been removed, and so did `/#about` and
+ * `/#faq` — there is no About content and FAQ was cut by locked decision.
+ * Do not add a link here before confirming its target renders.
  */
 const PRODUCT_LINKS = [
-  { label: 'How it works', href: '/#how' },
+  { label: 'How it works', href: '/#what-we-do' },
   { label: 'Who it’s for', href: '/#who' },
-  { label: 'About', href: '/#about' },
-  { label: 'FAQ', href: '/#faq' },
 ]
 
 const ACCOUNT_LINKS = [

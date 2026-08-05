@@ -25,7 +25,7 @@ export default function RotatingWord({
     <>
       <span
         aria-hidden="true"
-        className="inline-block rounded-xl bg-lime px-3 text-foreground transition-all duration-300 motion-reduce:transition-none"
+        className="inline-block rounded-xl bg-lime px-3 text-lime-foreground transition-all duration-300 motion-reduce:transition-none"
       >
         {words[index]}
       </span>

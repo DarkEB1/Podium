@@ -126,6 +126,55 @@ describe('HorizontalTrack', () => {
     scrollToSpy.mockRestore()
   })
 
+  it('pulls the track to the panel that receives keyboard focus', () => {
+    stubMedia({ wide: true, reduced: false })
+    const focusPanels = [
+      <section key="P1">P1</section>,
+      <section key="P2">P2</section>,
+      <section key="P3">
+        <a href="/somewhere">Focusable link in panel 3</a>
+      </section>,
+      <section key="P4">P4</section>,
+      <section key="P5">P5</section>,
+    ]
+    render(<HorizontalTrack>{focusPanels}</HorizontalTrack>)
+    const wrapper = screen.getByTestId('track-wrapper')
+    Object.defineProperty(wrapper, 'offsetHeight', { value: 4000, configurable: true })
+    Object.defineProperty(wrapper, 'offsetTop', { value: 0, configurable: true })
+    Object.defineProperty(window, 'scrollY', { value: 0, configurable: true, writable: true })
+    const scrollToSpy = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+
+    fireEvent.focusIn(screen.getByText('Focusable link in panel 3'))
+
+    const expectedTarget = 2 * ((4000 - window.innerHeight) / (PANEL_COUNT - 1))
+    expect(scrollToSpy).toHaveBeenCalledWith(0, expectedTarget)
+    scrollToSpy.mockRestore()
+  })
+
+  it('does not re-scroll when focus lands in the panel already in view', () => {
+    stubMedia({ wide: true, reduced: false })
+    const focusPanels = [
+      <section key="P1">
+        <a href="/somewhere">Focusable link in panel 1</a>
+      </section>,
+      <section key="P2">P2</section>,
+      <section key="P3">P3</section>,
+      <section key="P4">P4</section>,
+      <section key="P5">P5</section>,
+    ]
+    render(<HorizontalTrack>{focusPanels}</HorizontalTrack>)
+    const wrapper = screen.getByTestId('track-wrapper')
+    Object.defineProperty(wrapper, 'offsetHeight', { value: 4000, configurable: true })
+    Object.defineProperty(wrapper, 'offsetTop', { value: 0, configurable: true })
+    Object.defineProperty(window, 'scrollY', { value: 0, configurable: true, writable: true })
+    const scrollToSpy = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+
+    fireEvent.focusIn(screen.getByText('Focusable link in panel 1'))
+
+    expect(scrollToSpy).not.toHaveBeenCalled()
+    scrollToSpy.mockRestore()
+  })
+
   it('lets modified clicks (e.g. ctrl+click to open in a new tab) bypass track interception', () => {
     stubMedia({ wide: true, reduced: false })
     const anchoredPanels = [

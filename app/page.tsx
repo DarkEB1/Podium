@@ -41,6 +41,12 @@ export default async function Home({
   const variant = market === 'rally' ? 'rally' : 'skyline'
   return (
     <main>
+      <a
+        href="#hero-heading"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-[10px] focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground"
+      >
+        Skip to content
+      </a>
       <HorizontalTrack>
         <HeroPanel />
         <MarketPanel variant={variant} />

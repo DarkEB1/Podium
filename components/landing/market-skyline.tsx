@@ -34,6 +34,7 @@ export default function MarketSkyline() {
             key={f}
             type="button"
             onClick={() => setFilter(f)}
+            aria-pressed={filter === f}
             className={`rounded-[10px] px-4 py-2 text-small font-bold transition-colors ${
               filter === f
                 ? 'bg-primary text-primary-foreground'
@@ -62,7 +63,7 @@ export default function MarketSkyline() {
                 // assistive tech).
                 <div
                   style={{ height, borderRadius: radius }}
-                  className="flex w-full flex-col justify-between overflow-hidden bg-lime p-3 text-left text-foreground transition-all duration-300 motion-reduce:transition-none"
+                  className="flex w-full flex-col justify-between overflow-hidden bg-lime p-3 text-left text-lime-foreground transition-all duration-300 motion-reduce:transition-none"
                 >
                   <span>
                     <span className="block font-heading text-medium font-extrabold">{p.name}</span>
@@ -81,7 +82,6 @@ export default function MarketSkyline() {
                 <button
                   type="button"
                   onClick={() => setFocusId(p.id)}
-                  aria-expanded={false}
                   style={{ height, borderRadius: radius }}
                   className="block w-full overflow-hidden bg-lime-tint-1 p-3 text-left align-bottom transition-all duration-300 hover:bg-lime-tint-2 motion-reduce:transition-none"
                 >
