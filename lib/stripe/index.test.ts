@@ -30,6 +30,7 @@ vi.mock('stripe', () => ({
 import {
   createCheckoutSession,
   createPaymentIntent,
+  toMinorUnits,
   cancelSubscription,
   constructWebhookEvent,
   retrieveSubscription,
@@ -234,6 +235,28 @@ describe('createCheckoutSession', () => {
 // createPaymentIntent
 // ---------------------------------------------------------------------------
 
+// ST-6: proposals.pay_amount is MAJOR units; Stripe bills in minor. Passing the
+// major figure through charged every deal at 1/100th of its agreed value.
+describe('toMinorUnits', () => {
+  it('converts pounds to pence', () => {
+    expect(toMinorUnits(5000)).toBe(500_000)
+    expect(toMinorUnits(1)).toBe(100)
+  })
+
+  // 4.35 * 100 is 434.99999999999994 in IEEE 754, so truncating bills a penny
+  // short. Stripe rejects a non-integer amount outright.
+  it('rounds rather than truncates', () => {
+    expect(Math.trunc(4.35 * 100)).toBe(434)
+    expect(toMinorUnits(4.35)).toBe(435)
+    expect(toMinorUnits(49.99)).toBe(4999)
+    expect(Number.isInteger(toMinorUnits(1234.56))).toBe(true)
+  })
+
+  it('handles zero', () => {
+    expect(toMinorUnits(0)).toBe(0)
+  })
+})
+
 describe('createPaymentIntent', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -244,7 +267,7 @@ describe('createPaymentIntent', () => {
     contractId: CONTRACT_ID,
     payerId: PAYER_ID,
     payeeId: PAYEE_ID,
-    amount: 50000,
+    amountMinor: 5_000_000,
     currency: 'gbp',
     customerId: 'cus_brand',
   }
@@ -282,13 +305,15 @@ describe('createPaymentIntent', () => {
     expect((call?.[1] as Record<string, unknown>)?.['idempotencyKey']).toBe(`pi_${CONTRACT_ID}`)
   })
 
-  it('passes amount, currency, and customerId to Stripe', async () => {
+  // ST-6: the parameter is minor units and is named for it. The caller converts
+  // with toMinorUnits; this function must not convert again.
+  it('passes amountMinor straight through as Stripe amount, with currency and customerId', async () => {
     mockPaymentIntentsCreate.mockResolvedValueOnce(PAYMENT_INTENT)
 
-    await createPaymentIntent({ ...baseIntent, amount: 75000, currency: 'usd', customerId: 'cus_xyz' })
+    await createPaymentIntent({ ...baseIntent, amountMinor: 7_500_000, currency: 'usd', customerId: 'cus_xyz' })
 
     const params = mockPaymentIntentsCreate.mock.calls[0]?.[0] as Record<string, unknown>
-    expect(params['amount']).toBe(75000)
+    expect(params['amount']).toBe(7_500_000)
     expect(params['currency']).toBe('usd')
     expect(params['customer']).toBe('cus_xyz')
   })

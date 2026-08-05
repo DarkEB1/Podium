@@ -4,7 +4,7 @@ import { Receipt } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getPaymentHistory } from '@/lib/supabase/payments'
-import PaymentForm from '@/components/brand/payment-form'
+import { formatMinorAmount } from '@/lib/money'
 import { EmptyState } from '@/components/ui/empty-state'
 import { cn } from '@/lib/utils'
 import type { Database } from '@/types/database'
@@ -35,16 +35,29 @@ export default async function BrandPaymentsPage() {
       <header className="space-y-3">
         <h1 className="text-display">Payments</h1>
         <p className="text-medium text-muted-foreground">
-          Initiate payments from signed deals and review your full history.
+          Review your payment history.
         </p>
       </header>
 
-      <section className="space-y-6">
-        <h2 className="text-large">Initiate a payment</h2>
+      {/*
+        ST-8: this section used to offer an "Initiate payment" form. It created
+        a Stripe PaymentIntent, threw away the clientSecret it got back, and
+        told the brand "payment intent created" — but no card entry step exists
+        anywhere in the app (no Stripe Elements, and the publishable key is
+        documented as unused), so the charge could never be completed. It left
+        an unconfirmed intent at Stripe and a permanently pending payments row,
+        while both parties believed a payment was under way.
+
+        Saying nothing is better than saying something false. The section
+        returns when card entry actually exists.
+      */}
+      <section className="space-y-4">
+        <h2 className="text-large">Paying a deal</h2>
         <p className="text-medium text-muted-foreground">
-          Enter the contract ID from a fully signed deal to initiate a Stripe payment to the athlete or team.
+          In-app card payments are not switched on yet. Settle signed deals
+          directly with the athlete or team for now, and get in touch if you
+          need a hand.
         </p>
-        <PaymentForm />
       </section>
 
       <section className="space-y-6">
@@ -66,7 +79,9 @@ export default async function BrandPaymentsPage() {
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="font-semibold text-foreground">{p.currency} {p.amount.toLocaleString()}</p>
+                  {/* payments.amount is Stripe MINOR units, so it must never
+                      be rendered raw: a £50,000 deal read "GBP 5000000". */}
+                  <p className="font-semibold text-foreground">{formatMinorAmount(p.amount, p.currency)}</p>
                   <span className={cn(
                     'text-small rounded-full border px-2 py-0.5',
                     p.status === 'succeeded' ? 'border-success/30 bg-success/15 text-success' :

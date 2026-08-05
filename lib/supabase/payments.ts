@@ -283,6 +283,38 @@ export async function getPaymentByIntentId(
   return data as PaymentRow
 }
 
+/**
+ * ST-7 — the payment for `contractId` that is still in play, if any.
+ *
+ * `failed` and `refunded` are terminal, so a contract in either of those states
+ * may legitimately be paid again; `pending`, `processing` and `succeeded` mean
+ * a second intent would double-charge or strand the first.
+ *
+ * Ordered and limited rather than `.single()` on purpose: `.single()` errors on
+ * multiple rows, which is exactly the corruption this guard exists to stop, so
+ * it must not itself break on already-duplicated data.
+ */
+export async function getLivePaymentForContract(
+  supabase: SupabaseClient<Database>,
+  contractId: string
+): Promise<PaymentRow | null> {
+  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
+  const { data, error } = await (supabase as SupabaseClient)
+    .from('payments')
+    .select('*')
+    .eq('contract_id', contractId)
+    .in('status', ['pending', 'processing', 'succeeded'])
+    .order('created_at', { ascending: false })
+    .limit(1)
+
+  if (error) {
+    throw new PaymentsError('PAYMENT_FETCH_FAILED', (error as { message: string }).message)
+  }
+
+  const rows = (data ?? []) as PaymentRow[]
+  return rows[0] ?? null
+}
+
 export async function getPaymentHistory(
   supabase: SupabaseClient<Database>,
   userId: string

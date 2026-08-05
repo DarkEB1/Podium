@@ -5,9 +5,10 @@ import {
   getContractForPayment,
   getSubscriptionForUser,
   createPaymentRecord,
+  getLivePaymentForContract,
   PaymentsError,
 } from '@/lib/supabase/payments'
-import { createPaymentIntent } from '@/lib/stripe'
+import { createPaymentIntent, toMinorUnits } from '@/lib/stripe'
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
@@ -73,22 +74,46 @@ export async function POST(request: NextRequest) {
   const payerId = user.id
   const payeeId = contract.athlete_or_team_id
 
+  const adminSupabase = createAdminClient()
+
+  // ST-7: without this, a second POST for the same contract inserted a SECOND
+  // payments row. Stripe's idempotency key returns the same intent id, so two
+  // rows then shared one `stripe_payment_intent_id`, and `getPaymentByIntentId`
+  // uses `.single()`, which errors on multiple rows and is read as "not found".
+  // The webhook then marked the settlement unprocessable and answered 200, so
+  // Stripe never retried and a charged payment was stranded 'pending' forever.
+  // A unique index (20260805000200) is the backstop; this is the friendly path.
+  const live = await getLivePaymentForContract(adminSupabase, contractId)
+  if (live) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'PAYMENT_ALREADY_STARTED',
+          message: 'A payment for this contract has already been started.',
+        },
+      },
+      { status: 409 }
+    )
+  }
+
+  // ST-6: pay_amount is MAJOR units; Stripe and payments.amount are MINOR.
+  const amountMinor = toMinorUnits(contract.pay_amount)
+
   const { clientSecret, paymentIntentId } = await createPaymentIntent({
     contractId,
     payerId,
     payeeId,
-    amount: contract.pay_amount,
+    amountMinor,
     currency: contract.pay_currency.toLowerCase(),
     customerId: subscription.stripe_customer_id,
   })
 
-  const adminSupabase = createAdminClient()
   const payment = await createPaymentRecord(adminSupabase, {
     contract_id: contractId,
     payer_id: payerId,
     payee_id: payeeId,
     stripe_payment_intent_id: paymentIntentId,
-    amount: contract.pay_amount,
+    amount: amountMinor,
     currency: contract.pay_currency,
   })
 

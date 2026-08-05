@@ -13,6 +13,7 @@ vi.mock('@/lib/supabase/payments', async (importOriginal) => {
     getContractForPayment: vi.fn(),
     getSubscriptionForUser: vi.fn(),
     createPaymentRecord: vi.fn(),
+    getLivePaymentForContract: vi.fn(),
   }
 })
 vi.mock('@/lib/stripe', async (importOriginal) => {
@@ -22,7 +23,12 @@ vi.mock('@/lib/stripe', async (importOriginal) => {
 
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
-import { getContractForPayment, getSubscriptionForUser, createPaymentRecord } from '@/lib/supabase/payments'
+import {
+  getContractForPayment,
+  getSubscriptionForUser,
+  createPaymentRecord,
+  getLivePaymentForContract,
+} from '@/lib/supabase/payments'
 import { createPaymentIntent } from '@/lib/stripe'
 import { POST } from './route'
 import { PaymentsError } from '@/lib/supabase/payments'
@@ -44,6 +50,8 @@ describe('POST /api/payments/intents', () => {
   beforeEach(() => {
     vi.mocked(createClient).mockResolvedValue({} as never)
     vi.mocked(createAdminClient).mockReturnValue({} as never)
+    // No payment in play unless a test says otherwise.
+    vi.mocked(getLivePaymentForContract).mockResolvedValue(null)
   })
 
   it('returns 401 when not authenticated', async () => {
@@ -104,6 +112,56 @@ describe('POST /api/payments/intents', () => {
     expect(json.clientSecret).toBe('pi_secret')
     expect(json.paymentIntentId).toBe('pi_abc')
     expect(json.paymentId).toBe('pay-1')
+  })
+
+  // ST-6: proposals.pay_amount is MAJOR units (50000 = £50,000) while Stripe
+  // and payments.amount are MINOR. Passing it through unconverted charged
+  // 1/100th of every deal.
+  it('converts the major-unit pay_amount to minor units for Stripe', async () => {
+    vi.mocked(getUser).mockResolvedValue(brandUser as never)
+    vi.mocked(getContractForPayment).mockResolvedValue(fakeContract)
+    vi.mocked(getSubscriptionForUser).mockResolvedValue(fakeSub as never)
+    vi.mocked(createPaymentIntent).mockResolvedValue({ clientSecret: 'pi_secret', paymentIntentId: 'pi_abc' })
+    vi.mocked(createPaymentRecord).mockResolvedValue(fakePayment as never)
+
+    await POST(makeRequest({ contractId: 'contract-1' }))
+
+    expect(vi.mocked(createPaymentIntent)).toHaveBeenCalledWith(
+      expect.objectContaining({ amountMinor: 5_000_000 })
+    )
+  })
+
+  // payments.amount is what the webhook later overwrites with pi.amount and
+  // what formatAmount divides by 100 for the receipt email, so the row this
+  // route writes must already be in minor units or the two disagree.
+  it('writes the payments row in the same minor units the webhook uses', async () => {
+    vi.mocked(getUser).mockResolvedValue(brandUser as never)
+    vi.mocked(getContractForPayment).mockResolvedValue(fakeContract)
+    vi.mocked(getSubscriptionForUser).mockResolvedValue(fakeSub as never)
+    vi.mocked(createPaymentIntent).mockResolvedValue({ clientSecret: 'pi_secret', paymentIntentId: 'pi_abc' })
+    vi.mocked(createPaymentRecord).mockResolvedValue(fakePayment as never)
+
+    await POST(makeRequest({ contractId: 'contract-1' }))
+
+    expect(vi.mocked(createPaymentRecord).mock.calls.at(-1)?.[1].amount).toBe(5_000_000)
+  })
+
+  // ST-7: a repeat POST returns the same Stripe intent (idempotency key), so a
+  // second payments row would share one intent id and strand the settlement.
+  it('returns 409 when a live payment already exists for the contract', async () => {
+    vi.mocked(getUser).mockResolvedValue(brandUser as never)
+    vi.mocked(getContractForPayment).mockResolvedValue(fakeContract)
+    vi.mocked(getSubscriptionForUser).mockResolvedValue(fakeSub as never)
+    vi.mocked(getLivePaymentForContract).mockResolvedValue({ id: 'pay-existing' } as never)
+    vi.mocked(createPaymentIntent).mockClear()
+    vi.mocked(createPaymentRecord).mockClear()
+
+    const res = await POST(makeRequest({ contractId: 'contract-1' }))
+
+    expect(res.status).toBe(409)
+    expect((await res.json()).error.code).toBe('PAYMENT_ALREADY_STARTED')
+    expect(createPaymentIntent).not.toHaveBeenCalled()
+    expect(createPaymentRecord).not.toHaveBeenCalled()
   })
 
   // ST-5: the webhook reads payerId/payeeId from intent metadata, so this

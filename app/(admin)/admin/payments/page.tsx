@@ -4,6 +4,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getRevenueOverview } from '@/lib/supabase/admin-insights'
 import StatGrid from '@/components/admin/stat-grid'
+import { formatMinorAmount } from '@/lib/money'
 import { ROUTES } from '@/lib/routes'
 
 export const metadata: Metadata = { title: 'Payments & revenue · Podium Admin', robots: { index: false } }
@@ -15,7 +16,10 @@ export default async function AdminPaymentsPage() {
   if (user.role !== 'admin') redirect(ROUTES.forbidden)
 
   const r = await getRevenueOverview(createAdminClient())
-  const money = (n: number) => `£${n.toLocaleString()}`
+  // ST-6: getRevenueOverview sums payments.amount / net_amount, which are
+  // Stripe MINOR units. Printing them as pounds inflated every figure on this
+  // dashboard by 100x.
+  const money = (minor: number) => formatMinorAmount(minor, 'GBP')
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-10 md:px-16">
@@ -46,7 +50,7 @@ export default async function AdminPaymentsPage() {
         {r.recent.map((p) => (
           <li key={p.id} className="flex items-center justify-between gap-3 px-4 py-3 text-medium">
             <span className="text-foreground">
-              {p.currency} {Number(p.amount).toLocaleString()}
+              {formatMinorAmount(Number(p.amount), p.currency)}
             </span>
             <span className="text-small text-muted-foreground">
               {p.status} · {new Date(p.created_at).toLocaleDateString()}

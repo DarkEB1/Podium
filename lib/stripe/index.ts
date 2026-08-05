@@ -297,21 +297,39 @@ export function isStripeResourceMissing(err: unknown): boolean {
 // Payment intents
 // ---------------------------------------------------------------------------
 
+/**
+ * Convert a MAJOR-unit amount (`proposals.pay_amount`, e.g. 5000 meaning
+ * £5,000) to the minor units Stripe bills in.
+ *
+ * ST-6: `proposals.pay_amount` is major units, documented at
+ * `lib/supabase/guardian.ts` and rendered without division by every deal
+ * surface, while `payments.amount` and Stripe's `amount` are minor units (the
+ * webhook stores `pi.amount` and `lib/email/notify.ts formatAmount` divides by
+ * 100). The intents route passed the major figure straight through, so every
+ * deal was charged at 1/100th of the agreed value.
+ *
+ * Rounded, not truncated: 49.99 * 100 is 4998.999... in IEEE 754.
+ */
+export function toMinorUnits(amountMajor: number): number {
+  return Math.round(amountMajor * 100)
+}
+
 export async function createPaymentIntent(params: {
   contractId: string
   /** users.id of the paying brand user. */
   payerId: string
   /** users.id of the athlete/team being paid. */
   payeeId: string
-  amount: number
+  /** Stripe's smallest currency unit. Convert with `toMinorUnits` at the call site. */
+  amountMinor: number
   currency: string
   customerId: string
 }): Promise<{ clientSecret: string; paymentIntentId: string }> {
-  const { contractId, payerId, payeeId, amount, currency, customerId } = params
+  const { contractId, payerId, payeeId, amountMinor, currency, customerId } = params
 
   const intent = await client().paymentIntents.create(
     {
-      amount,
+      amount: amountMinor,
       currency,
       customer: customerId,
       metadata: buildPaymentMetadata({ contractId, payerId, payeeId }),
