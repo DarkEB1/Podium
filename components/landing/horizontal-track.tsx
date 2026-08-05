@@ -49,6 +49,10 @@ export default function HorizontalTrack({ children }: { children: ReactNode }) {
   // wrapper owns the target, and drive window.scrollTo to that panel's
   // boundary instead (spec: anchor navigation inside the track).
   const onAnchorClick = useCallback((e: MouseEvent) => {
+    // Modified clicks (open-in-new-tab, open-in-new-window, non-primary
+    // button) must keep their native behaviour — only a plain left click is
+    // ours to intercept (spec: anchor navigation inside the track).
+    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
     const target = e.target as Element | null
     const anchor = target?.closest('a[href^="#"]') as HTMLAnchorElement | null
     if (!anchor) return

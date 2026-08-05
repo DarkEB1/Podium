@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, it, expect, vi, afterEach } from 'vitest'
+import { animate } from 'motion'
 import HorizontalTrack from './horizontal-track'
 import { PANEL_COUNT } from '@/lib/landing/track-math'
 
@@ -122,6 +123,36 @@ describe('HorizontalTrack', () => {
 
     const expectedTarget = 200 + 1 * ((4000 - window.innerHeight) / (PANEL_COUNT - 1))
     expect(scrollToSpy).toHaveBeenCalledWith(0, expectedTarget)
+    scrollToSpy.mockRestore()
+  })
+
+  it('lets modified clicks (e.g. ctrl+click to open in a new tab) bypass track interception', () => {
+    stubMedia({ wide: true, reduced: false })
+    const anchoredPanels = [
+      <section key="P1">P1</section>,
+      <section key="P2">
+        <div id="t2" />
+        <a href="#t2">Jump to panel 2</a>
+      </section>,
+      <section key="P3">P3</section>,
+      <section key="P4">P4</section>,
+      <section key="P5">P5</section>,
+    ]
+    render(<HorizontalTrack>{anchoredPanels}</HorizontalTrack>)
+    const wrapper = screen.getByTestId('track-wrapper')
+    Object.defineProperty(wrapper, 'offsetHeight', { value: 4000, configurable: true })
+    Object.defineProperty(wrapper, 'offsetTop', { value: 200, configurable: true })
+    const scrollToSpy = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+    vi.mocked(animate).mockClear()
+
+    // fireEvent returns false only when preventDefault() was called on the
+    // dispatched event — a plain assertion that native "open in new tab"
+    // behaviour was left alone.
+    const notPrevented = fireEvent.click(screen.getByText('Jump to panel 2'), { ctrlKey: true })
+
+    expect(notPrevented).toBe(true)
+    expect(animate).not.toHaveBeenCalled()
+    expect(scrollToSpy).not.toHaveBeenCalled()
     scrollToSpy.mockRestore()
   })
 })
