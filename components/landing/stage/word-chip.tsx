@@ -9,8 +9,9 @@ import { useStage } from './stage'
 // counter rolls in sync. On the visitor's first scroll the cycle fast-rolls
 // to "you" and locks: the real dominoes take the metaphor from there.
 const WORDS = ['athletes', 'teams', 'brands', 'you'] as const
-const CADENCE_MS = 2600
-const YOU_HOLD_MS = 3600
+// Founder-tuned cadence (2026-08-05): quick flips, a longer beat on "you".
+const CADENCE_MS = 800
+const YOU_HOLD_MS = 1200
 
 export default function WordChip() {
   const stage = useStage()

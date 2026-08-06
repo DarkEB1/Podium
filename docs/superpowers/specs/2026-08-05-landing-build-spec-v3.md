@@ -168,7 +168,7 @@ Settled by 1.7s. Scrolling mid-load fast-forwards everything to end state instan
 
 ### 4.2 Rotating word
 
-Miniature domino: perspective 800px on the chip wrapper. Outgoing word rotates X 0° → 90° about its bottom edge, 240ms `gravity`; incoming enters -90° → 0° spring-settle with 4° overshoot, starting 60ms before the outgoing finishes. Chip width springs to the measured width (spring-snap) starting 80ms early. Counter `01/04` rolls in sync. Cadence 2600ms; `you` holds 3600ms with one 1 → 1.03 → 1 scale (spring-loose). On first scroll input: fast roll to `you` in 240ms, then the cycle locks for the session. The real dominoes take the metaphor from here.
+Miniature domino: perspective 800px on the chip wrapper. Outgoing word rotates X 0° → 90° about its bottom edge, 240ms `gravity`; incoming enters -90° → 0° spring-settle with 4° overshoot, starting 60ms before the outgoing finishes. Chip width springs to the measured width (spring-snap) starting 80ms early. Counter `01/04` rolls in sync. Cadence 800ms (founder amendment 2026-08-05, was 2600); `you` holds 1200ms with one 1 → 1.03 → 1 scale (spring-loose). On first scroll input: fast roll to `you` in 240ms, then the cycle locks for the session. The real dominoes take the metaphor from here.
 
 ### 4.3 Domino cascade (scrub, P 0.000 to 0.150)
 
