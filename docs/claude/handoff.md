@@ -12,6 +12,9 @@ Session ended at context limit mid build-step 3/4 of the landing rebuild. Read t
 - `lib/landing/motion-map.ts` (+35 passing tests): trackX piecewise map with real bezier solving, dominoTheta cascade curves incl settle tails, rest/snap/dwell helpers. Stage and scene still use inline v0 placeholder maps: SWAP them to import motion-map (interfaces match by design).
 - Build step 3 (3D stage) WIP in `components/landing/stage/scene.tsx`: camera/world mapping (1 unit = 10vh, floor y=0 at 72vh, fov 28 at dist 5/tan(14°), camera x couples to trackX), extruded podium-glyph geometry with fillet, MeshPhysicalMaterial lime plastic per spec, RoomEnvironment PMREM (no network), RectAreaLight rig, ContactShadows, un-fall load animation, cascade scrub wiring.
 
+## BLOCKER STATUS UPDATE (this supersedes the section below)
+On a fresh tab + fresh serve after the context-to-prop fix, the 3D canvas children DO mount (red debug box renders). Word chip cycle also built and verified (commit 18464f9). Next: hard-reload verify the three plastic dominoes render standing (un-fall), fix the frozen-clock risk (drive un-fall from performance.now()), remove ALL debug artifacts (red DOM dot, red 3D box, __sceneDebug, [scene] log, data-scene-version, dashed placeholder volumes in panel-hero once registration matches), then continue the build order. The section below is kept for history in case the mount flakiness returns.
+
 ## THE BLOCKER (fix first)
 r3f Canvas children do not mount on current builds: canvas element exists, `SceneInner` never runs (no `[scene] SceneInner mounted` log, `window.__sceneDebug` stays undefined, no meshes). ONE earlier dev build DID render all three glossy plastic pieces with shadows (visually verified screenshot), so geometry/material/camera/lighting are correct. Fixes already applied:
 - `next/dynamic({ssr:false})` silently never loaded the chunk: replaced with static import + mount gate. After this the DOM wrapper + red debug dot rendered.
