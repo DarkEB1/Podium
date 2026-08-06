@@ -265,16 +265,29 @@
   }
 }
 
-/* Landing hero: the rotating word rises into the lime block. */
-@keyframes rw-rise {
-  from { transform: translateY(110%); }
-  to { transform: translateY(0); }
+/* Landing hero word chip (spec §4.2): a miniature domino. The outgoing word
+   tips forward about its bottom edge; the incoming one rises from behind
+   with a slight overshoot. */
+@keyframes chip-out {
+  from { transform: rotateX(0deg); opacity: 1; }
+  to { transform: rotateX(-92deg); opacity: 0; }
 }
-.rw-word {
-  animation: rw-rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+@keyframes chip-in {
+  0% { transform: rotateX(88deg); }
+  75% { transform: rotateX(-4deg); }
+  100% { transform: rotateX(0deg); }
+}
+.chip-out {
+  transform-origin: bottom center;
+  animation: chip-out 240ms cubic-bezier(0.55, 0, 1, 0.45) forwards;
+}
+.chip-in {
+  transform-origin: bottom center;
+  animation: chip-in 420ms cubic-bezier(0.22, 1, 0.36, 1) 60ms backwards;
 }
 @media (prefers-reduced-motion: reduce) {
-  .rw-word { animation: none; }
+  .chip-out { animation: none; opacity: 0; }
+  .chip-in { animation: none; }
 }
 
 /* Motion utilities (C1) — gentle Airbnb-style feedback; degrades under reduced motion. */

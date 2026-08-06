@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import WordChip from './word-chip'
 
 // Panel 01 · Hero (build spec v3 §3). Static composition first (build step 1):
 // the chip is static, the domino volumes are dashed placeholders that the 3D
@@ -42,19 +43,7 @@ export default function PanelHero() {
           has room
         </span>
         <span className="block">
-          for{' '}
-          <span
-            className="inline-block bg-lime px-[0.18em] leading-[1.02] text-lime-foreground"
-            style={{
-              borderRadius: 'min(0.6em, 28px) 0.12em 0.12em 0.12em',
-            }}
-          >
-            athletes
-          </span>
-          .
-          <span className="ml-3 align-super font-mono text-[12px] font-normal tracking-[.15em] text-muted-foreground">
-            01/04
-          </span>
+          for <WordChip />
         </span>
       </h1>
 
