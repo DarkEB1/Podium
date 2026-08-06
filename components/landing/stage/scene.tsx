@@ -137,13 +137,6 @@ function HeroDominoes({ stage, vpW, vpH }: { stage: StageApi; vpW: number; vpH: 
     // Load un-fall (spec §4.1): pieces rotate from fallen to standing unless
     // the visitor already scrolled (fast-forward rule).
     if (loadT.current === null) loadT.current = state.clock.elapsedTime
-    // DEBUG — remove after un-fall verified
-    ;(window as unknown as Record<string, unknown>).__sceneDebug = {
-      clock: state.clock.elapsedTime,
-      loadT: loadT.current,
-      p,
-      theta0: groups.current[0]?.rotation.z,
-    }
     const sinceLoad = state.clock.elapsedTime - (loadT.current ?? 0)
     groups.current.forEach((g, i) => {
       if (!g) return
@@ -218,17 +211,8 @@ function SceneInner({ stage, vpW, vpH }: { stage: StageApi; vpW: number; vpH: nu
     }
   }, [gl, scene])
 
-  useEffect(() => {
-    console.log('[scene] SceneInner mounted')
-  }, [])
-
   return (
     <>
-      {/* DEBUG: pipeline probe — remove after registration passes */}
-      <mesh position={[0, 2.2, 0]}>
-        <boxGeometry args={[1.5, 1.5, 1.5]} />
-        <meshBasicMaterial color="#ff0044" />
-      </mesh>
       <Rig stage={stage} vpW={vpW} vpH={vpH} />
       <KeyLight />
       <directionalLight position={[5, 3, 4]} intensity={0.6} />
@@ -258,9 +242,7 @@ export default function LandingScene() {
   }, [])
   if (!vp) return null
   return (
-    <div aria-hidden="true" data-scene-version="debug-2" className="pointer-events-none absolute inset-0 z-0">
-      {/* DEBUG: staleness marker — remove after pipeline verified */}
-      <div className="absolute left-1/2 top-4 z-50 h-6 w-6 rounded-full bg-[#ff0044]" />
+    <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0">
       <Canvas
         frameloop="always"
         dpr={[1, 1.75]}
