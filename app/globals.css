@@ -247,6 +247,17 @@
   --col: 7.666vw; /* column pitch: col N left edge = 5vw + (N-1) * 7.666vw */
 }
 
+/* The finale's reserved slot breathes so the empty spot reads as waiting. */
+@keyframes slot-pulse {
+  0%,
+  100% {
+    border-color: rgba(23, 24, 26, 0.3);
+  }
+  50% {
+    border-color: rgba(23, 24, 26, 0.7);
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

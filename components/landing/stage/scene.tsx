@@ -8,6 +8,7 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js'
 import { useStage, type StageApi } from './stage'
 import { PIECES, candidateTheta, trackXVw } from './track-map'
+import { panelHover } from './hover-store'
 
 // ————————————————————————————————————————————————————————————————————————
 // The 3D stage (build spec v3 §2.6): one transparent canvas behind the DOM.
@@ -220,6 +221,122 @@ function HeroDominoes({ stage, vpW, vpH }: { stage: StageApi; vpW: number; vpH: 
   )
 }
 
+// ——— panel set pieces ————————————————————————————————————————————————————
+// The corridor is one continuous 3D stage: every panel has plastic furniture
+// standing on the same floor, passed by the same camera. Positions are in
+// panel-local vw (panel index n starts at track x = n·100vw).
+type SetPiece = {
+  id?: string
+  panel: number
+  centerVw: number
+  wVw: number
+  hVh: number
+  window: [number, number]
+  entrance: 'unfall' | 'grow'
+  tone: 'lime' | 'tint1' | 'tint2'
+  bobPhase?: number
+}
+
+const SET_PIECES: SetPiece[] = [
+  // 03 What we do — three steps tip up into standing, palest to full lime.
+  { id: 'what-0', panel: 2, centerVw: 20, wVw: 16, hVh: 26, window: [0.36, 0.4], entrance: 'unfall', tone: 'tint2' },
+  { id: 'what-1', panel: 2, centerVw: 45, wVw: 16, hVh: 32, window: [0.375, 0.415], entrance: 'unfall', tone: 'tint1' },
+  { id: 'what-2', panel: 2, centerVw: 70, wVw: 16, hVh: 38, window: [0.39, 0.43], entrance: 'unfall', tone: 'lime' },
+  // 04 Who's on the podium — the podium grows out of the floor, 1st in lime.
+  { id: 'role-2', panel: 3, centerVw: 78, wVw: 16, hVh: 24, window: [0.54, 0.57], entrance: 'grow', tone: 'tint2' },
+  { id: 'role-0', panel: 3, centerVw: 42, wVw: 16, hVh: 30, window: [0.548, 0.578], entrance: 'grow', tone: 'tint1' },
+  { id: 'role-1', panel: 3, centerVw: 60, wVw: 16, hVh: 38, window: [0.556, 0.586], entrance: 'grow', tone: 'lime' },
+  // 05 Your spot — a filling podium crowd, gently alive, one gap at 76vw
+  // (the DOM draws the reserved slot there).
+  { panel: 4, centerVw: 52, wVw: 6.5, hVh: 22, window: [0.8, 0.835], entrance: 'grow', tone: 'lime', bobPhase: 0 },
+  { panel: 4, centerVw: 60, wVw: 6.5, hVh: 34, window: [0.81, 0.845], entrance: 'grow', tone: 'lime', bobPhase: 1.3 },
+  { panel: 4, centerVw: 68, wVw: 6.5, hVh: 28, window: [0.82, 0.855], entrance: 'grow', tone: 'lime', bobPhase: 2.6 },
+  { panel: 4, centerVw: 84, wVw: 6.5, hVh: 26, window: [0.815, 0.85], entrance: 'grow', tone: 'lime', bobPhase: 3.9 },
+  { panel: 4, centerVw: 92, wVw: 6.5, hVh: 31, window: [0.825, 0.86], entrance: 'grow', tone: 'lime', bobPhase: 5.2 },
+]
+
+function easeOutCubic(u: number): number {
+  return 1 - Math.pow(1 - u, 3)
+}
+function easeOutBack(u: number): number {
+  const c1 = 1.70158
+  return 1 + (c1 + 1) * Math.pow(u - 1, 3) + c1 * Math.pow(u - 1, 2)
+}
+
+const TONES = { lime: '#C1EC2F', tint1: '#DDF0A8', tint2: '#E9F5C4' } as const
+
+function SetPieces({ stage, vpW, vpH }: { stage: StageApi; vpW: number; vpH: number }) {
+  const aspect = vpW / vpH
+  const unitsPerVw = (10 * aspect) / 100
+  const groups = useRef<(THREE.Group | null)[]>([])
+  const lifts = useRef<number[]>(SET_PIECES.map(() => 0))
+
+  const materials = useMemo(() => {
+    const make = (hex: string) =>
+      new THREE.MeshPhysicalMaterial({
+        color: new THREE.Color(hex),
+        metalness: 0,
+        roughness: 0.3,
+        clearcoat: 1.0,
+        clearcoatRoughness: 0.12,
+        ior: 1.45,
+        specularIntensity: 0.55,
+      })
+    return { lime: make(TONES.lime), tint1: make(TONES.tint1), tint2: make(TONES.tint2) }
+  }, [])
+
+  const built = useMemo(
+    () =>
+      SET_PIECES.map((sp) => {
+        const w = sp.wVw * unitsPerVw
+        const h = sp.hVh * 0.1
+        return {
+          sp,
+          w,
+          h,
+          pivotX: (sp.panel * 100 + sp.centerVw - 50) * unitsPerVw + w / 2,
+          geo: glyphGeometry(w, h),
+        }
+      }),
+    [unitsPerVw]
+  )
+  useEffect(() => () => built.forEach((b) => b.geo.dispose()), [built])
+
+  useFrame((state, delta) => {
+    const p = stage.getP()
+    const k = 1 - Math.exp(-Math.min(delta, 1 / 30) / 0.08)
+    built.forEach((b, i) => {
+      const g = groups.current[i]
+      if (!g) return
+      const [s, e] = b.sp.window
+      const u = Math.min(Math.max((p - s) / (e - s), 0), 1)
+      if (b.sp.entrance === 'unfall') {
+        g.rotation.z = -((14 * Math.PI) / 180) * (1 - easeOutBack(u))
+        g.scale.y = 1
+      } else {
+        g.scale.y = Math.max(0.001, easeOutCubic(u))
+      }
+      const target = b.sp.id && panelHover.id === b.sp.id ? 0.22 : 0
+      lifts.current[i] = lifts.current[i]! + (target - lifts.current[i]!) * k
+      const bob =
+        b.sp.bobPhase !== undefined && u >= 1
+          ? 0.04 * (1 + Math.sin(state.clock.elapsedTime * 1.1 + b.sp.bobPhase))
+          : 0
+      g.position.y = lifts.current[i]! + bob
+    })
+  })
+
+  return (
+    <>
+      {built.map((b, i) => (
+        <group key={i} ref={(el) => { groups.current[i] = el }} position={[b.pivotX, 0, 0]}>
+          <mesh geometry={b.geo} material={materials[b.sp.tone]} position={[-b.w, 0, 0]} castShadow />
+        </group>
+      ))}
+    </>
+  )
+}
+
 function Rig({ stage, vpW, vpH }: { stage: StageApi; vpW: number; vpH: number }) {
   const { camera } = useThree()
   const aspect = vpW / vpH
@@ -283,18 +400,29 @@ function SceneInner({
   return (
     <>
       <Rig stage={stage} vpW={vpW} vpH={vpH} />
-      <KeyLight />
       <directionalLight position={[5, 3, 4]} intensity={0.5} />
       <HeroDominoes stage={stage} vpW={vpW} vpH={vpH} />
-      <ContactShadows
-        position={[0, 0, 0]}
-        opacity={0.3}
-        blur={2.2}
-        scale={24}
-        resolution={512}
-        frames={Infinity}
-      />
+      <SetPieces stage={stage} vpW={vpW} vpH={vpH} />
+      <FloorShadows stage={stage} vpW={vpW} vpH={vpH} />
     </>
+  )
+}
+
+// The shadow catcher travels with the camera so every panel's furniture
+// grounds on the floor line, not just the hero's.
+function FloorShadows({ stage, vpW, vpH }: { stage: StageApi; vpW: number; vpH: number }) {
+  const ref = useRef<THREE.Group>(null)
+  const aspect = vpW / vpH
+  const unitsPerVw = (10 * aspect) / 100
+  const vhPerVw = vpH / vpW
+  useFrame(() => {
+    if (ref.current) ref.current.position.x = -trackXVw(stage.getP(), vhPerVw) * unitsPerVw
+  })
+  return (
+    <group ref={ref}>
+      <KeyLight />
+      <ContactShadows position={[0, 0, 0]} opacity={0.3} blur={2.2} scale={24} resolution={512} frames={Infinity} />
+    </group>
   )
 }
 

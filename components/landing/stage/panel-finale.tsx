@@ -19,7 +19,8 @@ const RISE_PX = 12
 // 60% of bar width, the rest 12% (spec §2.1).
 const BAR_W_VW = 7
 const BAR_H_VH = 40
-const BAR_CENTER_VW = 78
+// Centered in the gap the 3D podium crowd leaves open (scene.tsx SET_PIECES).
+const BAR_CENTER_VW = 76
 
 export default function PanelFinale() {
   const stage = useStage()
@@ -116,11 +117,11 @@ export default function PanelFinale() {
           </a>
         </div>
         <p className="text-[13.5px] font-light text-muted-foreground">
-          Free for athletes and clubs. No card required.
+          Founding spots are open. Free for athletes and clubs. No card required.
         </p>
       </div>
 
-      {/* the empty bar: your spot, standing on the floor line */}
+      {/* the one empty bar in the crowd: your spot, pulsing on the floor line */}
       <div
         aria-hidden="true"
         className="absolute -translate-x-1/2 border-[1.5px] border-dashed border-foreground transition-colors duration-200 hover:border-solid hover:bg-lime/20"
@@ -130,8 +131,16 @@ export default function PanelFinale() {
           width: `${BAR_W_VW}vw`,
           height: `${BAR_H_VH}vh`,
           borderRadius: `${BAR_W_VW * 0.6}vw ${BAR_W_VW * 0.12}vw ${BAR_W_VW * 0.12}vw ${BAR_W_VW * 0.12}vw`,
+          animation: 'slot-pulse 2.4s ease-in-out infinite',
         }}
       />
+      <span
+        aria-hidden="true"
+        className="absolute -translate-x-1/2 font-mono text-[10.5px] uppercase tracking-[.15em] text-foreground/60"
+        style={{ left: `${BAR_CENTER_VW}vw`, top: `calc(var(--floor-y) - ${BAR_H_VH}vh - 4.5vh)` }}
+      >
+        STILL OPEN
+      </span>
 
       {/* floor caption (sub-baseline) */}
       <span
