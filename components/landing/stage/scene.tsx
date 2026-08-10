@@ -155,6 +155,9 @@ const POP_DUR = 0.42
 const WOBBLE_DEG = 3.4
 const WOBBLE_HZ = 4.2
 const WOBBLE_DECAY = 4.6
+// The idle rock that invites the first push.
+const IDLE_PERIOD = 3.4
+const IDLE_LEAN_DEG = 4.5
 
 function HeroDominoes({ stage, vpW, vpH }: { stage: StageApi; vpW: number; vpH: number }) {
   const material = useLimePlastic()
@@ -220,7 +223,15 @@ function HeroDominoes({ stage, vpW, vpH }: { stage: StageApi; vpW: number; vpH: 
             Math.exp(-WOBBLE_DECAY * e) *
             Math.sin(2 * Math.PI * WOBBLE_HZ * e)
           : 0
-      g.rotation.z = -(s[i]! + wobble)
+      // Idle invitation: until the visitor scrolls, the front piece rocks
+      // toward its neighbour every few seconds. It says "these fall" far more
+      // directly than any label can.
+      let idle = 0
+      if (i === 0 && p < 0.004 && e > 1.6) {
+        const phase = ((e - 1.6) % IDLE_PERIOD) / IDLE_PERIOD
+        if (phase < 0.3) idle = ((IDLE_LEAN_DEG * Math.PI) / 180) * Math.sin((phase / 0.3) * Math.PI)
+      }
+      g.rotation.z = -(s[i]! + wobble + idle)
     })
   })
 
@@ -267,12 +278,13 @@ const SET_PIECES: SetPiece[] = [
   { id: 'what-2', panel: 2, centerVw: 70, wVw: 16, hVh: 38, window: [...ASSEMBLY_WINDOWS[2]!] as [number, number], entrance: 'assemble', tilt: 0.11, tone: 'lime' },
   // 04 Who's on the podium — the podium grows out of the floor, 1st in lime.
   // 04 Your spot — a filling podium crowd, gently alive, one gap at 76vw
-  // (the DOM draws the reserved slot there).
-  { panel: 3, centerVw: 52, wVw: 6.5, hVh: 22, window: [0.78, 0.82], entrance: 'grow', tone: 'lime', bobPhase: 0 },
-  { panel: 3, centerVw: 60, wVw: 6.5, hVh: 34, window: [0.79, 0.83], entrance: 'grow', tone: 'lime', bobPhase: 1.3 },
-  { panel: 3, centerVw: 68, wVw: 6.5, hVh: 28, window: [0.8, 0.84], entrance: 'grow', tone: 'lime', bobPhase: 2.6 },
-  { panel: 3, centerVw: 84, wVw: 6.5, hVh: 26, window: [0.795, 0.835], entrance: 'grow', tone: 'lime', bobPhase: 3.9 },
-  { panel: 3, centerVw: 92, wVw: 6.5, hVh: 31, window: [0.805, 0.845], entrance: 'grow', tone: 'lime', bobPhase: 5.2 },
+  // (the DOM draws the reserved slot there). All standing by 0.97, before the
+  // 1.0 rest that ends the page.
+  { panel: 3, centerVw: 52, wVw: 6.5, hVh: 22, window: [0.87, 0.92], entrance: 'grow', tone: 'lime', bobPhase: 0 },
+  { panel: 3, centerVw: 60, wVw: 6.5, hVh: 34, window: [0.885, 0.935], entrance: 'grow', tone: 'lime', bobPhase: 1.3 },
+  { panel: 3, centerVw: 68, wVw: 6.5, hVh: 28, window: [0.9, 0.95], entrance: 'grow', tone: 'lime', bobPhase: 2.6 },
+  { panel: 3, centerVw: 84, wVw: 6.5, hVh: 26, window: [0.893, 0.943], entrance: 'grow', tone: 'lime', bobPhase: 3.9 },
+  { panel: 3, centerVw: 92, wVw: 6.5, hVh: 31, window: [0.907, 0.957], entrance: 'grow', tone: 'lime', bobPhase: 5.2 },
 ]
 
 function easeOutCubic(u: number): number {

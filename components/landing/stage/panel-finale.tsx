@@ -11,9 +11,9 @@ import Chip from './chip'
 // The headline lines rise into place as P approaches the dwell at 0.86 —
 // written imperatively through stage.subscribe refs, never per-frame setState.
 const HEADLINE_LINES = ['The podium', 'has room', 'for'] as const
-const RISE_START = 0.8
-const RISE_STAGGER = 0.012
-const RISE_SPAN = 0.036
+const RISE_START = 0.88
+const RISE_STAGGER = 0.015
+const RISE_SPAN = 0.05
 const RISE_PX = 12
 
 // Empty bar: D3's silhouette (7vw x 40vh) with podium-bar radii — top-left

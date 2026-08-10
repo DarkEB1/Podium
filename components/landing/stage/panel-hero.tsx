@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import WordChip from './word-chip'
 import ScrollCue from './scroll-cue'
+import ScrollHint from './scroll-hint'
 
 // Panel 01 · Hero (build spec v3 §3, recomposed 2026-08-10). Reading order is
 // a single left rail: kicker → headline → one primary action. Nothing rests on
@@ -48,7 +49,7 @@ export default function PanelHero() {
       {/* one clear action: primary → quiet secondary → small print */}
       <div
         className="absolute flex flex-col gap-4"
-        style={{ left: 'var(--margin-x)', bottom: '26vh' }}
+        style={{ left: 'var(--margin-x)', bottom: '30vh' }}
       >
         <div className="flex items-center gap-7">
           <Link
@@ -63,6 +64,8 @@ export default function PanelHero() {
           Offers listed, deals signed, money paid, all in one place. Free for athletes and clubs.
         </p>
       </div>
+
+      <ScrollHint />
 
       {/* FIG annotation */}
       <p

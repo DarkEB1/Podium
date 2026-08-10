@@ -248,6 +248,30 @@
   --col: 7.666vw; /* column pitch: col N left edge = 5vw + (N-1) * 7.666vw */
 }
 
+/* The scroll invitation: an arrow that keeps nudging downward and a rule that
+   travels, so the cue reads as motion even before the visitor moves. */
+@keyframes hint-arrow {
+  0%, 100% { transform: translateY(-2px); opacity: 0.55; }
+  50% { transform: translateY(3px); opacity: 1; }
+}
+@keyframes hint-rule {
+  0% { transform: scaleX(0.2); transform-origin: left; opacity: 0.2; }
+  60% { transform: scaleX(1); transform-origin: left; opacity: 0.5; }
+  100% { transform: scaleX(1); transform-origin: right; opacity: 0; }
+}
+.scroll-hint-arrow {
+  animation: hint-arrow 1.5s ease-in-out infinite;
+}
+.scroll-hint-rule {
+  animation: hint-rule 2.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .scroll-hint-arrow,
+  .scroll-hint-rule {
+    animation: none;
+  }
+}
+
 /* The finale's reserved slot breathes so the empty spot reads as waiting. */
 @keyframes slot-pulse {
   0%,

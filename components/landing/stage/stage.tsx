@@ -14,19 +14,19 @@ import LandingScene from './scene'
 import { REST_POINTS, CASCADE_END, panelIndex, trackXVw } from './track-map'
 
 // ————————————————————————————————————————————————————————————————————————
-// The stage: one 1000vh scroll fabric driving a fixed 400vw corridor
+// The stage: one 440vh scroll fabric driving a fixed 400vw corridor
 // (build spec v3 §2.5). The smoothed progress value P (0..1) is written
 // imperatively every frame to the CSS custom property `--p` on the stage
 // root and pushed to JS subscribers — React state only changes on discrete
 // events (panel index, nav solidity), so travel never re-renders the tree.
 // ————————————————————————————————————————————————————————————————————————
 
-// The fabric is sized for the one stretch the visitor scrubs by hand: the
-// domino cascade, which wants roughly one good flick (about 0.15 of P, so
-// ~0.75 of a viewport) rather than a dozen notches. Everything after the
-// cascade is covered by the directional snap, whose threshold is in pixels,
-// so panel travel does not get twitchier as this number comes down.
-export const TRAVEL_VIEWPORTS = 5 // 600vh body = 100vh viewport + 500vh travel
+// Sized so every stretch costs about the same effort: the cascade is roughly
+// one firm flick (~0.15 of P), and each panel after it is a little under a
+// viewport of scrolling. The corridor now moves continuously across every gap
+// (see trackXVw), so this number sets the pace everywhere rather than only in
+// the few narrow segments that used to do all the travelling.
+export const TRAVEL_VIEWPORTS = 3.4 // 440vh body = 100vh viewport + 340vh travel
 
 export type StageApi = {
   getP: () => number
@@ -51,7 +51,7 @@ const SNAP_IDLE_MS = 150
 // a flick feels the same everywhere and does not drift when the fabric length
 // changes. Tuned for trackpads, where a gentle two-finger push easily travels
 // a few hundred pixels and should not necessarily change panel.
-const COMMIT_PX = 420
+const COMMIT_PX = 340
 
 export default function Stage({ children }: { children: ReactNode }) {
   const rootRef = useRef<HTMLDivElement>(null)
@@ -220,7 +220,7 @@ export default function Stage({ children }: { children: ReactNode }) {
         apply(p)
         const idx = panelIndex(p)
         setPanelIdx((prev) => (prev === idx ? prev : idx))
-        setIntroDone((prev) => prev || p >= 0.225)
+        setIntroDone((prev) => prev || p >= CASCADE_END)
       }
       setNavSolid((prev) => {
         const next = window.scrollY > 40
@@ -340,7 +340,7 @@ export default function Stage({ children }: { children: ReactNode }) {
           style={{ left: 'var(--margin-x)', top: 'calc(var(--floor-y) + 12px)' }}
           aria-hidden="true"
         >
-          {introDone ? `${PANEL_LABELS[panelIdx]} / 04` : 'SCROLL ↓ TO TIP THE FIRST DOMINO'}
+          {`${PANEL_LABELS[panelIdx]} / 04`}
         </div>
         {!introDone && (
           <button
