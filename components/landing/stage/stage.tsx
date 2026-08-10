@@ -26,7 +26,7 @@ export const TRAVEL_VIEWPORTS = 9 // 1000vh body = 100vh viewport + 900vh travel
 export type StageApi = {
   getP: () => number
   subscribe: (fn: (p: number) => void) => () => void
-  jumpTo: (p: number) => void
+  jumpTo: (p: number, durationMs?: number) => void
 }
 
 export const StageContext = createContext<StageApi | null>(null)
@@ -103,11 +103,11 @@ export default function Stage({ children }: { children: ReactNode }) {
 
   // Programmatic travel: the corridor rushes past (spec §5.4) — the spring is
   // bypassed (we drive springPos directly) then re-engaged on arrival.
-  const jumpTo = useCallback((targetP: number) => {
+  const jumpTo = useCallback((targetP: number, durationMs?: number) => {
     const startP = pRef.current
     const travel = window.innerHeight * TRAVEL_VIEWPORTS
     const t0 = performance.now()
-    const D = 1100
+    const D = durationMs ?? 1100
     const inoutCirc = (t: number) =>
       t < 0.5
         ? (1 - Math.sqrt(1 - Math.pow(2 * t, 2))) / 2

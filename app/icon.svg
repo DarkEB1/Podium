@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- The podium mark: three bars, brand rounding (60% / 12% of bar width),
+       tallest bar lime. Geometry mirrors components/brand/podium-mark.tsx. -->
+  <g transform="translate(11 14)">
+    <path fill="#17181A" d="M 0 96.4 L 0 80 Q 0 62 18 62 L 26.4 62 Q 30 62 30 65.6 L 30 96.4 Q 30 100 26.4 100 L 3.6 100 Q 0 100 0 96.4 Z"/>
+    <path fill="#17181A" d="M 38 96.4 L 38 54 Q 38 36 56 36 L 64.4 36 Q 68 36 68 39.6 L 68 96.4 Q 68 100 64.4 100 L 41.6 100 Q 38 100 38 96.4 Z"/>
+    <path fill="#C1EC2F" d="M 76 96.4 L 76 18 Q 76 0 94 0 L 102.4 0 Q 106 0 106 3.6 L 106 96.4 Q 106 100 102.4 100 L 79.6 100 Q 76 100 76 96.4 Z"/>
+  </g>
+</svg>

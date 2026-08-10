@@ -90,24 +90,23 @@ function clampTheta(
   return lo
 }
 
-// ——— materials ——————————————————————————————————————————————————————————
-// Injection-moulded plastic, two colourways: ink for the two short bars,
-// full-saturation lime for the tall one — exactly the logo.
-function usePlastics(): { ink: THREE.MeshPhysicalMaterial; lime: THREE.MeshPhysicalMaterial } {
-  return useMemo(() => {
-    const base = {
-      metalness: 0,
-      roughness: 0.3,
-      clearcoat: 1.0,
-      clearcoatRoughness: 0.12,
-      ior: 1.45,
-      specularIntensity: 0.55,
-    }
-    return {
-      ink: new THREE.MeshPhysicalMaterial({ ...base, color: new THREE.Color('#17181A'), roughness: 0.34 }),
-      lime: new THREE.MeshPhysicalMaterial({ ...base, color: new THREE.Color('#C1EC2F') }),
-    }
-  }, [])
+// ——— material ———————————————————————————————————————————————————————————
+// Injection-moulded lime plastic, one shared material for the whole trio
+// (founder direction 2026-08-10: all bars lime).
+function useLimePlastic(): THREE.MeshPhysicalMaterial {
+  return useMemo(
+    () =>
+      new THREE.MeshPhysicalMaterial({
+        color: new THREE.Color('#C1EC2F'),
+        metalness: 0,
+        roughness: 0.3,
+        clearcoat: 1.0,
+        clearcoatRoughness: 0.12,
+        ior: 1.45,
+        specularIntensity: 0.55,
+      }),
+    []
+  )
 }
 
 // Podium-glyph cross-section: big top-left radius (60% of width), 12% others,
@@ -146,9 +145,12 @@ const UNFALL_DELAY = [0.5, 0.75, 1.0]
 const UNFALL_DUR = 0.9
 
 function HeroDominoes({ stage, vpW, vpH }: { stage: StageApi; vpW: number; vpH: number }) {
-  const { ink, lime } = usePlastics()
+  const material = useLimePlastic()
   const groups = useRef<(THREE.Group | null)[]>([])
   const loadT = useRef<number | null>(null)
+  // Displayed angles, smoothed: the contact clamp is discontinuous at the
+  // moment a corner slips off the next piece's edge, so the raw solve pops.
+  const shown = useRef<[number, number, number]>([0, 0, 0])
 
   const aspect = vpW / vpH
   const unitsPerVw = (10 * aspect) / 100
@@ -168,7 +170,7 @@ function HeroDominoes({ stage, vpW, vpH }: { stage: StageApi; vpW: number; vpH: 
   const geometries = useMemo(() => pieces.map((p) => glyphGeometry(p.w, p.h)), [pieces])
   useEffect(() => () => geometries.forEach((g) => g.dispose()), [geometries])
 
-  useFrame(() => {
+  useFrame((_, delta) => {
     const p = stage.getP()
     if (loadT.current === null) loadT.current = performance.now() / 1000
     const sinceLoad = performance.now() / 1000 - loadT.current
@@ -183,14 +185,22 @@ function HeroDominoes({ stage, vpW, vpH }: { stage: StageApi; vpW: number; vpH: 
       return Math.min(Math.max(scrub, unfall), HALF_PI)
     })
 
-    // Rigid resolve, back to front: each piece rests where it meets the next.
-    const theta: number[] = [0, 0, 0]
-    theta[2] = cand[2]!
-    theta[1] = clampTheta(pieces[1]!, samples[1]!, cand[1]!, pieces[2]!, theta[2])
-    theta[0] = clampTheta(pieces[0]!, samples[0]!, cand[0]!, pieces[1]!, theta[1])
+    // Rigid resolve, back to front. The last piece stays analytic so the
+    // corner-push track coupling and camera never desync. The others clamp
+    // against their neighbour's DISPLAYED angle, then approach the result on
+    // a short exponential so a corner slipping off an edge releases as an
+    // accelerating slide instead of a pop; the hard min() keeps rigidity when
+    // the neighbour rises back underneath.
+    const s = shown.current
+    const k = 1 - Math.exp(-Math.min(delta, 1 / 30) / 0.06)
+    s[2] = cand[2]!
+    for (const i of [1, 0] as const) {
+      const clampMax = clampTheta(pieces[i]!, samples[i]!, cand[i]!, pieces[i + 1]!, s[i + 1]!)
+      s[i] = Math.min(s[i]! + (clampMax - s[i]!) * k, clampMax)
+    }
 
     groups.current.forEach((g, i) => {
-      if (g) g.rotation.z = -theta[i]!
+      if (g) g.rotation.z = -s[i]!
     })
   })
 
@@ -200,7 +210,7 @@ function HeroDominoes({ stage, vpW, vpH }: { stage: StageApi; vpW: number; vpH: 
         <group key={i} ref={(el) => { groups.current[i] = el }} position={[p.pivotX, 0, 0]}>
           <mesh
             geometry={geometries[i]!}
-            material={i === 2 ? lime : ink}
+            material={material}
             position={[-p.w, 0, 0]}
             castShadow
           />

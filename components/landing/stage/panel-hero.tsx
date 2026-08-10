@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import WordChip from './word-chip'
+import ScrollCue from './scroll-cue'
 
 // Panel 01 · Hero (build spec v3 §3, recomposed 2026-08-10). Reading order is
 // a single left rail: kicker → headline → one primary action. Nothing rests on
@@ -59,12 +60,7 @@ export default function PanelHero() {
           >
             Get on the podium
           </Link>
-          <a
-            href="#what-we-do"
-            className="text-[16px] font-medium text-primary underline-offset-4 hover:underline"
-          >
-            See how it works <span aria-hidden="true">▸</span>
-          </a>
+          <ScrollCue />
         </div>
         <p className="text-[13.5px] font-light text-muted-foreground">
           Free for athletes and clubs. Brands pay when they sponsor.

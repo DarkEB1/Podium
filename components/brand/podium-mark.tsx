@@ -50,7 +50,7 @@ export default function PodiumMark({
         <path
           key={i}
           d={barPath(i * (BAR_W + GAP), ratio * totalH, totalH)}
-          fill={limeTop && i === 2 ? 'var(--lime)' : 'currentColor'}
+          fill={limeTop && i === 2 ? '#C1EC2F' : 'currentColor'}
         />
       ))}
     </svg>
