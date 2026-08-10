@@ -24,7 +24,7 @@ export default function PanelHero() {
         style={{ left: 'var(--margin-x)', top: '12vh' }}
       >
         <span aria-hidden="true" className="inline-block h-[3px] w-5 bg-lime" />
-        PODIUM · SPORTS SPONSORSHIP MARKETPLACE · PRE-LAUNCH
+        PODIUM · SPORTS SPONSORSHIP MARKETPLACE
       </p>
 
       {/* stepped headline */}
@@ -39,9 +39,9 @@ export default function PanelHero() {
           letterSpacing: '-0.035em',
         }}
       >
-        <span className="block">The podium</span>
+        <span className="block">Sponsorship deals,</span>
         <span className="block" style={{ marginLeft: 'var(--col)' }}>
-          has room
+          signed and paid,
         </span>
         <span className="block">
           for <WordChip />
@@ -73,7 +73,7 @@ export default function PanelHero() {
         className="absolute font-mono text-[10.5px] uppercase tracking-[.15em] text-foreground/60"
         style={{ left: '76vw', top: '13vh' }}
       >
-        FIG. 01 · THE CASCADE
+        FIG. 01 · STEPS TO SUCCESS
       </p>
 
       {/* floor captions (sub-baseline) */}
