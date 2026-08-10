@@ -1,6 +1,9 @@
 import Stage from '@/components/landing/stage/stage'
 import PanelHero from '@/components/landing/stage/panel-hero'
-import PanelStub from '@/components/landing/stage/panel-stub'
+import PanelMarket from '@/components/landing/stage/panel-market'
+import PanelWhat from '@/components/landing/stage/panel-what'
+import PanelRoles from '@/components/landing/stage/panel-roles'
+import PanelFinale from '@/components/landing/stage/panel-finale'
 import { siteUrl } from './sitemap'
 
 // M-1: per-route metadata. This page is public and indexable — see app/sitemap.ts.
@@ -41,13 +44,10 @@ export default async function Home({
     <main className="landing-light bg-background text-foreground">
       <Stage>
         <PanelHero />
-        <PanelStub
-          kicker="02 · MARKETPLACE"
-          lines={marketVariant === 'rally' ? ['Sponsorship', 'is a rally.'] : ['Every profile', 'is a podium.']}
-        />
-        <PanelStub kicker="03 · WHAT WE DO" lines={['From profile to paid.']} id="what-we-do" />
-        <PanelStub kicker="04 · WHO’S ON THE PODIUM" lines={['Made for the', 'whole podium.']} />
-        <PanelStub kicker="05 · YOUR SPOT" lines={['The podium', 'has room', 'for you.']} />
+        <PanelMarket variant={marketVariant} />
+        <PanelWhat />
+        <PanelRoles />
+        <PanelFinale />
       </Stage>
     </main>
   )
