@@ -21,11 +21,20 @@ export default function WordChip() {
   const [width, setWidth] = useState<number | null>(null)
   const rulers = useRef<(HTMLSpanElement | null)[]>([])
   const lockedRef = useRef(false)
+  const indexRef = useRef(0)
+  indexRef.current = index
 
-  // Measure the current word (ruler includes the chip's own padding).
+  // Measure the current word (ruler includes the chip's own padding). The
+  // late re-measures cover web-font swaps and post-hydration layout shifts.
   useEffect(() => {
-    const el = rulers.current[index]
-    if (el) setWidth(el.offsetWidth)
+    const measure = () => {
+      const el = rulers.current[index]
+      if (el) setWidth(el.offsetWidth)
+    }
+    measure()
+    const t = setTimeout(measure, 400)
+    document.fonts?.ready.then(measure).catch(() => {})
+    return () => clearTimeout(t)
   }, [index])
 
   // Cycle with per-word cadence; "you" holds longer.
@@ -45,10 +54,9 @@ export default function WordChip() {
       stage.subscribe((p) => {
         if (!lockedRef.current && p > 0.004) {
           lockedRef.current = true
-          setIndex((cur) => {
-            if (cur !== 3) setPrev(cur)
-            return 3
-          })
+          const cur = indexRef.current
+          if (cur !== 3) setPrev(cur)
+          setIndex(3)
           setLocked(true)
         }
       }),
@@ -89,7 +97,7 @@ export default function WordChip() {
         </span>
       </span>
       <span aria-hidden="true">.</span>
-      <span className="ml-3 inline-block align-super font-mono text-[12px] font-normal tracking-[.15em] text-muted-foreground">
+      <span className="ml-3 inline-block align-super font-mono text-[12px] font-normal tracking-[.15em] text-primary">
         {String(index + 1).padStart(2, '0')}/04
       </span>
       <span className="sr-only">athletes, teams, brands and you</span>

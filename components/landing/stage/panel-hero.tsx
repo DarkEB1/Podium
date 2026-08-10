@@ -1,9 +1,9 @@
 import Link from 'next/link'
 import WordChip from './word-chip'
 
-// Panel 01 · Hero (build spec v3 §3). Static composition first (build step 1):
-// the chip is static, the domino volumes are dashed placeholders that the 3D
-// pieces replace in build step 4. Everything "standing" bottoms out at 72vh.
+// Panel 01 · Hero (build spec v3 §3, recomposed 2026-08-10). Reading order is
+// a single left rail: kicker → headline → one primary action. Nothing rests on
+// the floor line except the dominoes; the CTA block keeps 6vh of air above it.
 const DOMINOES = [
   { center: 54, w: 6, h: 20, caption: 'PROFILE', n: '3' },
   { center: 67, w: 6.5, h: 29, caption: 'OFFER', n: '2' },
@@ -32,7 +32,7 @@ export default function PanelHero() {
         className="absolute font-heading font-extrabold text-foreground"
         style={{
           left: 'var(--margin-x)',
-          top: '17vh',
+          top: '16vh',
           fontSize: 'var(--display-xl)',
           lineHeight: 0.92,
           letterSpacing: '-0.035em',
@@ -47,47 +47,29 @@ export default function PanelHero() {
         </span>
       </h1>
 
-      {/* CTA row standing on the baseline */}
+      {/* one clear action: primary → quiet secondary → small print */}
       <div
-        className="absolute flex items-center gap-6"
-        style={{ left: 'var(--margin-x)', bottom: '28vh' }}
+        className="absolute flex flex-col gap-4"
+        style={{ left: 'var(--margin-x)', bottom: '26vh' }}
       >
-        <Link
-          href="/role-select"
-          className="flex h-14 items-center rounded-xl bg-foreground px-7 text-[16px] font-medium text-background"
-        >
-          Get on the podium
-        </Link>
-        <a href="#what-we-do" className="text-[16px] font-medium text-primary">
-          See how it works <span aria-hidden="true">▸</span>
-        </a>
-        <p
-          className="max-w-[30ch] font-light text-muted-foreground"
-          style={{ fontSize: 'var(--body-size)', lineHeight: 1.55 }}
-        >
+        <div className="flex items-center gap-7">
+          <Link
+            href="/role-select"
+            className="flex h-14 items-center rounded-xl bg-primary px-8 text-[16px] font-medium text-primary-foreground transition-colors duration-150 hover:bg-[#1F35C8]"
+          >
+            Get on the podium
+          </Link>
+          <a
+            href="#what-we-do"
+            className="text-[16px] font-medium text-primary underline-offset-4 hover:underline"
+          >
+            See how it works <span aria-hidden="true">▸</span>
+          </a>
+        </div>
+        <p className="text-[13.5px] font-light text-muted-foreground">
           Free for athletes and clubs. Brands pay when they sponsor.
         </p>
       </div>
-
-      {/* 3D domino volumes — dashed placeholders until the canvas lands */}
-      {DOMINOES.map((d) => (
-        <div
-          key={d.n}
-          aria-hidden="true"
-          className="absolute border-[1.5px] border-dashed border-foreground/20"
-          style={{
-            left: `${d.center - d.w / 2}vw`,
-            width: `${d.w}vw`,
-            height: `${d.h}vh`,
-            bottom: '28vh',
-            borderRadius: `calc(${d.w}vw * 0.6) calc(${d.w}vw * 0.12) calc(${d.w}vw * 0.12) calc(${d.w}vw * 0.12)`,
-          }}
-        >
-          <span className="absolute bottom-2 right-2 font-mono text-[10.5px] text-foreground/30">
-            {d.n}
-          </span>
-        </div>
-      ))}
 
       {/* FIG annotation */}
       <p
@@ -104,7 +86,7 @@ export default function PanelHero() {
           key={d.caption}
           aria-hidden="true"
           className="absolute -translate-x-1/2 font-mono text-[10.5px] uppercase tracking-[.15em] text-foreground/40"
-          style={{ left: `${d.center}vw`, top: 'calc(72vh + 12px)' }}
+          style={{ left: `${d.center}vw`, top: 'calc(var(--floor-y) + 12px)' }}
         >
           {d.caption}
         </span>

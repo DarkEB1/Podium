@@ -11,6 +11,7 @@ import {
 } from 'react'
 import StageNav from './stage-nav'
 import LandingScene from './scene'
+import { REST_POINTS, panelIndex, trackXVw } from './track-map'
 
 // ————————————————————————————————————————————————————————————————————————
 // The stage: one 1000vh scroll fabric driving a fixed 500vw corridor
@@ -35,33 +36,7 @@ export function useStage(): StageApi {
   return api
 }
 
-// Placeholder travel map until lib/landing/motion-map.ts lands (build step 2
-// swaps this for the tested module; interface identical).
-export const REST_POINTS = [0, 0.27, 0.42, 0.59, 0.86]
-const SEGMENTS: [number, number, number, number][] = [
-  [0.145, 0.225, 0, -100],
-  [0.32, 0.38, -100, -200],
-  [0.47, 0.53, -200, -300],
-  [0.65, 0.71, -300, -400],
-]
-function trackXv0(p: number): number {
-  let x = 0
-  for (const [s, e, from, to] of SEGMENTS) {
-    if (p >= e) x = to
-    else if (p > s) {
-      const u = (p - s) / (e - s)
-      x = from + (to - from) * (u * u * (3 - 2 * u))
-    }
-  }
-  return x
-}
-function panelIndexV0(p: number): number {
-  let best = 0
-  REST_POINTS.forEach((r, i) => {
-    if (Math.abs(p - r) < Math.abs(p - REST_POINTS[best]!)) best = i
-  })
-  return best
-}
+export { REST_POINTS }
 
 const PANEL_LABELS = ['01', '02', '03', '04', '05']
 
@@ -80,7 +55,10 @@ export default function Stage({ children }: { children: ReactNode }) {
   const apply = useCallback((p: number) => {
     pRef.current = p
     if (rootRef.current) rootRef.current.style.setProperty('--p', String(p))
-    if (trackRef.current) trackRef.current.style.transform = `translate3d(${trackXv0(p) }vw, 0, 0)`
+    if (trackRef.current) {
+      const vhPerVw = window.innerHeight / window.innerWidth
+      trackRef.current.style.transform = `translate3d(${trackXVw(p, vhPerVw)}vw, 0, 0)`
+    }
     listeners.current.forEach((fn) => fn(p))
   }, [])
 
@@ -109,7 +87,7 @@ export default function Stage({ children }: { children: ReactNode }) {
       const p = Math.min(Math.max(springPos.current, 0), 1)
       if (p !== pRef.current) {
         apply(p)
-        const idx = panelIndexV0(p)
+        const idx = panelIndex(p)
         setPanelIdx((prev) => (prev === idx ? prev : idx))
         setIntroDone((prev) => prev || p >= 0.225)
       }
@@ -155,12 +133,12 @@ export default function Stage({ children }: { children: ReactNode }) {
     const onKey = (e: KeyboardEvent) => {
       if (['ArrowRight', 'PageDown'].includes(e.key)) {
         e.preventDefault()
-        const i = Math.min(panelIndexV0(pRef.current) + 1, REST_POINTS.length - 1)
+        const i = Math.min(panelIndex(pRef.current) + 1, REST_POINTS.length - 1)
         jumpTo(REST_POINTS[i]!)
       }
       if (['ArrowLeft', 'PageUp'].includes(e.key)) {
         e.preventDefault()
-        const i = Math.max(panelIndexV0(pRef.current) - 1, 0)
+        const i = Math.max(panelIndex(pRef.current) - 1, 0)
         jumpTo(REST_POINTS[i]!)
       }
     }
@@ -201,13 +179,13 @@ export default function Stage({ children }: { children: ReactNode }) {
           data-testid="baseline"
           aria-hidden="true"
           className="absolute inset-x-0 z-10 border-t-[1.5px] border-foreground"
-          style={{ top: '72vh' }}
+          style={{ top: 'var(--floor-y)' }}
         />
         <StageNav solid={navSolid} activePanel={panelIdx} onNavigate={jumpTo} />
         {/* wayfinding (spec §2.4) */}
         <div
           className="absolute z-20 font-mono text-[10.5px] uppercase tracking-[.15em] text-muted-foreground"
-          style={{ left: 'var(--margin-x)', top: 'calc(72vh + 12px)' }}
+          style={{ left: 'var(--margin-x)', top: 'calc(var(--floor-y) + 12px)' }}
           aria-hidden="true"
         >
           {introDone ? `${PANEL_LABELS[panelIdx]} / 05` : 'SCROLL ↓ TO TIP THE FIRST DOMINO'}
@@ -217,7 +195,7 @@ export default function Stage({ children }: { children: ReactNode }) {
             type="button"
             onClick={() => jumpTo(REST_POINTS[1]!)}
             className="absolute z-20 font-mono text-[10.5px] uppercase tracking-[.15em] text-primary"
-            style={{ right: 'var(--margin-x)', top: 'calc(72vh + 12px)' }}
+            style={{ right: 'var(--margin-x)', top: 'calc(var(--floor-y) + 12px)' }}
           >
             SKIP INTRO →
           </button>
@@ -235,7 +213,7 @@ function TickTape() {
   for (let vw = 0; vw <= 500; vw += 10) {
     const origin = vw % 100 === 0
     marks.push(
-      <div key={vw} className="absolute" style={{ left: `${vw}vw`, top: '72vh' }}>
+      <div key={vw} className="absolute" style={{ left: `${vw}vw`, top: 'var(--floor-y)' }}>
         <div
           className="w-px bg-foreground/25"
           style={{ height: origin ? 16 : 12 }}

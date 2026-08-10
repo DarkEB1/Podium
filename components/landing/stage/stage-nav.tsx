@@ -67,7 +67,7 @@ export default function StageNav({
         </Link>
         <Link
           href="/role-select"
-          className="flex h-10 items-center rounded-xl bg-foreground px-5 text-[14px] font-medium text-background"
+          className="flex h-10 items-center rounded-xl bg-primary px-5 text-[14px] font-medium text-primary-foreground transition-colors duration-150 hover:bg-[#1F35C8]"
         >
           Join free
         </Link>

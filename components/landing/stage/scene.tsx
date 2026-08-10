@@ -7,65 +7,106 @@ import * as THREE from 'three'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js'
 import { useStage, type StageApi } from './stage'
+import { PIECES, candidateTheta, trackXVw } from './track-map'
 
 // ————————————————————————————————————————————————————————————————————————
 // The 3D stage (build spec v3 §2.6): one transparent canvas behind the DOM.
-// World convention: 1 unit = 10vh; floor y=0 projects to screen 72vh; the
-// camera x-couples 1:1 with the track so pieces are passed by like DOM panels.
+// World convention: 1 unit = 10vh; floor y=0 projects to the DOM floor line
+// (var(--floor-y), 80vh); the camera x-couples 1:1 with the corridor track.
+// The trio is the logo made physical: two ink bars and the tall lime one.
 // ————————————————————————————————————————————————————————————————————————
 
-// Hero domino plan (spec §3 P01): centers/widths in vw, heights in vh.
-const PIECES = [
-  { centerVw: 54, wVw: 6, hVh: 20 },
-  { centerVw: 67, wVw: 6.5, hVh: 29 },
-  { centerVw: 81.5, wVw: 7, hVh: 40 },
-] as const
+const ROUND_MAJOR = 0.6 // top-left radius = 60% of width (brand glyph rule)
 
-// Cascade curves (spec §4.3) — inline until lib/landing/motion-map.ts lands.
-const WINDOWS: [number, number, number, number][] = [
-  // [start, end, thetaMaxDeg, k]
-  [0.0, 0.06, 96, 1.8],
-  [0.035, 0.105, 94, 1.7],
-  [0.07, 0.15, 90, 1.5],
-]
-function cascadeTheta(p: number, i: 0 | 1 | 2): number {
-  const [s, e, max, k] = WINDOWS[i]!
-  const u = Math.min(Math.max((p - s) / (e - s), 0), 1)
-  return max * Math.pow(u, k)
+// ——— rigid-body contact ————————————————————————————————————————————————
+// Dominoes are rigid: piece i may rotate (clockwise, about its bottom-right
+// ground edge) only until its leading boundary touches piece i+1. We solve
+// quasi-statically each frame: clamp each candidate angle by bisection
+// against the next piece's cross-section, back to front. The floor caps
+// everything at 90 degrees.
+type Piece2D = { pivotX: number; w: number; h: number }
+
+/** Local → world for a piece rotated clockwise by theta about its pivot. */
+function worldPoint(piece: Piece2D, theta: number, lx: number, ly: number): [number, number] {
+  const c = Math.cos(theta)
+  const s = Math.sin(theta)
+  return [piece.pivotX + lx * c + ly * s, -lx * s + ly * c]
 }
 
-// Track x in vw for camera coupling — placeholder mirror of stage's map.
-const SEGMENTS: [number, number, number, number][] = [
-  [0.145, 0.225, 0, -100],
-  [0.32, 0.38, -100, -200],
-  [0.47, 0.53, -200, -300],
-  [0.65, 0.71, -300, -400],
-]
-function trackXVw(p: number): number {
-  let x = 0
-  for (const [s, e, from, to] of SEGMENTS) {
-    if (p >= e) x = to
-    else if (p > s) {
-      const u = (p - s) / (e - s)
-      x = from + (to - from) * (u * u * (3 - 2 * u))
-    }
+/** Sample points along a piece's leading (right + top) boundary, in local coords. */
+function leadingSamples(piece: Piece2D): [number, number][] {
+  const { w, h } = piece
+  const rMaj = w * ROUND_MAJOR
+  const pts: [number, number][] = []
+  for (let t = 1; t <= 10; t++) pts.push([0, (t / 10) * h]) // right face
+  for (let t = 1; t <= 4; t++) pts.push([-(t / 4) * (w - rMaj), h]) // top edge
+  for (let a = 100; a <= 180; a += 20) {
+    // top-left arc (the big brand radius)
+    const phi = (a * Math.PI) / 180
+    pts.push([-(w - rMaj) + rMaj * Math.cos(phi), h - rMaj + rMaj * Math.sin(phi)])
   }
-  return x
+  return pts
 }
 
-// Injection-moulded lime plastic (spec §2.6). One material, shared.
-function useLimePlastic(): THREE.MeshPhysicalMaterial {
+/** Does piece a at thetaA penetrate piece b at thetaB? */
+function penetrates(
+  a: Piece2D,
+  thetaA: number,
+  samplesA: [number, number][],
+  b: Piece2D,
+  thetaB: number
+): boolean {
+  const c = Math.cos(thetaB)
+  const s = Math.sin(thetaB)
+  const inset = 0.005
+  for (const [lx, ly] of samplesA) {
+    const [wx, wy] = worldPoint(a, thetaA, lx, ly)
+    const dx = wx - b.pivotX
+    const dy = wy
+    // inverse of the clockwise rotation
+    const bx = dx * c - dy * s
+    const by = dx * s + dy * c
+    if (bx > -b.w + inset && bx < -inset && by > inset && by < b.h - inset) return true
+  }
+  return false
+}
+
+/** Largest angle ≤ candidate at which piece a does not penetrate piece b. */
+function clampTheta(
+  a: Piece2D,
+  samplesA: [number, number][],
+  candidate: number,
+  b: Piece2D,
+  thetaB: number
+): number {
+  if (!penetrates(a, candidate, samplesA, b, thetaB)) return candidate
+  let lo = 0
+  let hi = candidate
+  for (let i = 0; i < 24; i++) {
+    const mid = (lo + hi) / 2
+    if (penetrates(a, mid, samplesA, b, thetaB)) hi = mid
+    else lo = mid
+  }
+  return lo
+}
+
+// ——— materials ——————————————————————————————————————————————————————————
+// Injection-moulded plastic, two colourways: ink for the two short bars,
+// full-saturation lime for the tall one — exactly the logo.
+function usePlastics(): { ink: THREE.MeshPhysicalMaterial; lime: THREE.MeshPhysicalMaterial } {
   return useMemo(() => {
-    const m = new THREE.MeshPhysicalMaterial({
-      color: new THREE.Color('#C1EC2F'),
-      roughness: 0.32,
+    const base = {
       metalness: 0,
+      roughness: 0.3,
       clearcoat: 1.0,
       clearcoatRoughness: 0.12,
       ior: 1.45,
-      specularIntensity: 0.9,
-    })
-    return m
+      specularIntensity: 0.55,
+    }
+    return {
+      ink: new THREE.MeshPhysicalMaterial({ ...base, color: new THREE.Color('#17181A'), roughness: 0.34 }),
+      lime: new THREE.MeshPhysicalMaterial({ ...base, color: new THREE.Color('#C1EC2F') }),
+    }
   }, [])
 }
 
@@ -73,11 +114,10 @@ function useLimePlastic(): THREE.MeshPhysicalMaterial {
 // extruded to 0.55 × width with a 3%-width fillet so the clearcoat draws a
 // highlight line along every edge.
 function glyphGeometry(w: number, h: number): THREE.ExtrudeGeometry {
-  const rMaj = w * 0.6
+  const rMaj = w * ROUND_MAJOR
   const rMin = w * 0.12
   const fillet = w * 0.03
   const shape = new THREE.Shape()
-  // Path drawn CCW starting after the bottom-left corner arc, in XY plane.
   shape.moveTo(rMin, 0)
   shape.lineTo(w - rMin, 0)
   shape.absarc(w - rMin, rMin, rMin, -Math.PI / 2, 0, false)
@@ -96,61 +136,61 @@ function glyphGeometry(w: number, h: number): THREE.ExtrudeGeometry {
     bevelSegments: 3,
     curveSegments: 24,
   })
-  // Center on z so the piece sits symmetric around the ground line's plane.
   geo.translate(0, 0, -depth / 2)
   return geo
 }
 
-function HeroDominoes({ stage, vpW, vpH }: { stage: StageApi; vpW: number; vpH: number }) {
-  const material = useLimePlastic()
-  const groups = useRef<(THREE.Group | null)[]>([])
-  const pRef = useRef(0)
-  const loadT = useRef<number | null>(null)
-  const { invalidate } = useThree()
+// Load choreography: the stack starts fallen and un-falls to standing, front
+// to back. Driven by performance.now so a paused r3f clock can never freeze it.
+const UNFALL_DELAY = [0.5, 0.75, 1.0]
+const UNFALL_DUR = 0.9
 
-  useEffect(() => stage.subscribe(() => invalidate()), [stage, invalidate])
+function HeroDominoes({ stage, vpW, vpH }: { stage: StageApi; vpW: number; vpH: number }) {
+  const { ink, lime } = usePlastics()
+  const groups = useRef<(THREE.Group | null)[]>([])
+  const loadT = useRef<number | null>(null)
 
   const aspect = vpW / vpH
   const unitsPerVw = (10 * aspect) / 100
   const unitsPerVh = 0.1
 
-  const pieces = useMemo(
+  const pieces: Piece2D[] = useMemo(
     () =>
       PIECES.map((p) => ({
         w: p.wVw * unitsPerVw,
         h: p.hVh * unitsPerVh,
-        // pivot at the piece's bottom-RIGHT ground edge (fall axis)
         pivotX: (p.centerVw - 50) * unitsPerVw + (p.wVw * unitsPerVw) / 2,
       })),
     [unitsPerVw, unitsPerVh]
   )
+  const samples = useMemo(() => pieces.map(leadingSamples), [pieces])
 
-  const geometries = useMemo(
-    () => pieces.map((p) => glyphGeometry(p.w, p.h)),
-    [pieces]
-  )
+  const geometries = useMemo(() => pieces.map((p) => glyphGeometry(p.w, p.h)), [pieces])
   useEffect(() => () => geometries.forEach((g) => g.dispose()), [geometries])
 
-  useFrame((state) => {
+  useFrame(() => {
     const p = stage.getP()
-    pRef.current = p
-    // Load un-fall (spec §4.1): pieces rotate from fallen to standing unless
-    // the visitor already scrolled (fast-forward rule).
-    if (loadT.current === null) loadT.current = state.clock.elapsedTime
-    const sinceLoad = state.clock.elapsedTime - (loadT.current ?? 0)
+    if (loadT.current === null) loadT.current = performance.now() / 1000
+    const sinceLoad = performance.now() / 1000 - loadT.current
+
+    // Candidate angles: scroll scrub vs the un-fall intro, whichever is larger.
+    const HALF_PI = Math.PI / 2
+    const cand = [0, 1, 2].map((i) => {
+      const scrub = (candidateTheta(p, i as 0 | 1 | 2) * Math.PI) / 180
+      const t = Math.min(Math.max((sinceLoad - UNFALL_DELAY[i]!) / UNFALL_DUR, 0), 1)
+      const settle = 1 - Math.pow(1 - t, 3)
+      const unfall = HALF_PI * (1 - settle)
+      return Math.min(Math.max(scrub, unfall), HALF_PI)
+    })
+
+    // Rigid resolve, back to front: each piece rests where it meets the next.
+    const theta: number[] = [0, 0, 0]
+    theta[2] = cand[2]!
+    theta[1] = clampTheta(pieces[1]!, samples[1]!, cand[1]!, pieces[2]!, theta[2])
+    theta[0] = clampTheta(pieces[0]!, samples[0]!, cand[0]!, pieces[1]!, theta[1])
+
     groups.current.forEach((g, i) => {
-      if (!g) return
-      const scrub = cascadeTheta(p, i as 0 | 1 | 2)
-      let theta = scrub
-      if (p < 0.001) {
-        const delay = 0.6 + i * 0.12
-        const t = Math.min(Math.max((sinceLoad - delay) / 0.9, 0), 1)
-        const settle = 1 - Math.pow(1 - t, 3)
-        const from = [96, 94, 90][i]!
-        theta = Math.max(from * (1 - settle), scrub)
-        if (t < 1) invalidate()
-      }
-      g.rotation.z = -THREE.MathUtils.degToRad(theta)
+      if (g) g.rotation.z = -theta[i]!
     })
   })
 
@@ -160,7 +200,7 @@ function HeroDominoes({ stage, vpW, vpH }: { stage: StageApi; vpW: number; vpH: 
         <group key={i} ref={(el) => { groups.current[i] = el }} position={[p.pivotX, 0, 0]}>
           <mesh
             geometry={geometries[i]!}
-            material={material}
+            material={i === 2 ? lime : ink}
             position={[-p.w, 0, 0]}
             castShadow
           />
@@ -171,19 +211,20 @@ function HeroDominoes({ stage, vpW, vpH }: { stage: StageApi; vpW: number; vpH: 
 }
 
 function Rig({ stage, vpW, vpH }: { stage: StageApi; vpW: number; vpH: number }) {
-  const { camera, invalidate } = useThree()
+  const { camera } = useThree()
   const aspect = vpW / vpH
   const unitsPerVw = (10 * aspect) / 100
-
-  useEffect(() => stage.subscribe(() => invalidate()), [stage, invalidate])
+  const vhPerVw = vpH / vpW
 
   useFrame(() => {
     const p = stage.getP()
-    // Screen center is 50vh; floor (y=0) must project to 72vh → camera looks
-    // straight ahead from y = 2.2 units. fov 28 → distance so 10 units fill 100vh.
+    // Screen center is 50vh; the floor (y=0) must project to 80vh → the camera
+    // looks straight ahead from y = 3.0 units. fov 28 → distance so 10 units
+    // fill 100vh.
     const dist = 5 / Math.tan(THREE.MathUtils.degToRad(14))
-    camera.position.set(-trackXVw(p) * unitsPerVw, 2.2, dist)
-    camera.lookAt(-trackXVw(p) * unitsPerVw, 2.2, 0)
+    const x = -trackXVw(p, vhPerVw) * unitsPerVw
+    camera.position.set(x, 3.0, dist)
+    camera.lookAt(x, 3.0, 0)
   })
   return null
 }
@@ -193,18 +234,36 @@ function KeyLight() {
   useEffect(() => {
     ref.current?.lookAt(0, 1, 0)
   }, [])
-  return <rectAreaLight ref={ref} position={[-6, 7, 6]} width={4} height={4} intensity={3.2} />
+  return <rectAreaLight ref={ref} position={[-6, 7, 6]} width={4} height={4} intensity={2.4} />
 }
 
-function SceneInner({ stage, vpW, vpH }: { stage: StageApi; vpW: number; vpH: number }) {
+function SceneInner({
+  stage,
+  vpW,
+  vpH,
+  onAlive,
+}: {
+  stage: StageApi
+  vpW: number
+  vpH: number
+  onAlive: () => void
+}) {
   const { gl, scene } = useThree()
+  // First frame = children mounted AND the loop is running.
+  const signalled = useRef(false)
+  useFrame(() => {
+    if (!signalled.current) {
+      signalled.current = true
+      onAlive()
+    }
+  })
   // Neutral procedural studio environment — no network fetch (CSP-safe).
   useEffect(() => {
     RectAreaLightUniformsLib.init()
     const pmrem = new THREE.PMREMGenerator(gl)
     const env = pmrem.fromScene(new RoomEnvironment(), 0.04).texture
     scene.environment = env
-    scene.environmentIntensity = 0.9
+    scene.environmentIntensity = 0.5
     return () => {
       pmrem.dispose()
       env.dispose()
@@ -215,13 +274,13 @@ function SceneInner({ stage, vpW, vpH }: { stage: StageApi; vpW: number; vpH: nu
     <>
       <Rig stage={stage} vpW={vpW} vpH={vpH} />
       <KeyLight />
-      <directionalLight position={[5, 3, 4]} intensity={0.6} />
+      <directionalLight position={[5, 3, 4]} intensity={0.5} />
       <HeroDominoes stage={stage} vpW={vpW} vpH={vpH} />
       <ContactShadows
         position={[0, 0, 0]}
-        opacity={0.24}
-        blur={2.4}
-        scale={20}
+        opacity={0.3}
+        blur={2.2}
+        scale={24}
         resolution={512}
         frames={Infinity}
       />
@@ -240,16 +299,39 @@ export default function LandingScene() {
     window.addEventListener('resize', measure)
     return () => window.removeEventListener('resize', measure)
   }, [])
+  // Cold-load watchdog: rarely the Canvas's internal root renders nothing
+  // (canvas + GL context exist, first frame never runs — the inner render can
+  // be starved during heavy hydration). ONE patient remount after 4s recovers
+  // it; a shorter fuse is worse than the disease, because remounting during
+  // the PMREM environment bake leaves a half-lit scene.
+  const [epoch, setEpoch] = useState(0)
+  const alive = useRef(false)
+  useEffect(() => {
+    if (!vp) return
+    alive.current = false
+    const t = setTimeout(() => {
+      if (!alive.current && epoch < 1) setEpoch((e) => e + 1)
+    }, 4000)
+    return () => clearTimeout(t)
+  }, [vp, epoch])
   if (!vp) return null
   return (
     <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0">
       <Canvas
+        key={epoch}
         frameloop="always"
         dpr={[1, 1.75]}
         gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.0 }}
         camera={{ fov: 28, near: 0.1, far: 100 }}
       >
-        <SceneInner stage={stage} vpW={vp.w} vpH={vp.h} />
+        <SceneInner
+          stage={stage}
+          vpW={vp.w}
+          vpH={vp.h}
+          onAlive={() => {
+            alive.current = true
+          }}
+        />
       </Canvas>
     </div>
   )
