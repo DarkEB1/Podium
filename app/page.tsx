@@ -2,7 +2,6 @@ import Stage from '@/components/landing/stage/stage'
 import PanelHero from '@/components/landing/stage/panel-hero'
 import PanelMarket from '@/components/landing/stage/panel-market'
 import PanelWhat from '@/components/landing/stage/panel-what'
-import PanelRoles from '@/components/landing/stage/panel-roles'
 import PanelFinale from '@/components/landing/stage/panel-finale'
 import { siteUrl } from './sitemap'
 
@@ -39,7 +38,6 @@ export default function Home() {
         <PanelHero />
         <PanelMarket />
         <PanelWhat />
-        <PanelRoles />
         <PanelFinale />
       </Stage>
     </main>

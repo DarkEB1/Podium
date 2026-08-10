@@ -9,7 +9,9 @@
 // motion is cosine there), so the hand-off into the panel shove is C1 smooth
 // without explicit velocity matching.
 
-export const REST_POINTS = [0, 0.27, 0.42, 0.59, 0.86]
+// Four panels since the roles panel was cut on founder review (2026-08-10):
+// hero, marketplace, what we do, your spot.
+export const REST_POINTS = [0, 0.27, 0.52, 0.86]
 
 // Hero pieces (build spec v3 §3 P01): centers/widths in vw, heights in vh.
 export const PIECES = [
@@ -33,12 +35,12 @@ export const SHOVE_END = 0.225
 // Panel 03 assembly: each part drops into its footprint and clicks home.
 // Shared by the 3D parts (scene.tsx) and the DOM copy riding on them
 // (panel-what.tsx) so the text lands on exactly the frame the part does.
-// All three are home by 0.412, comfortably before this panel's 0.42 rest, so
+// All three are home by 0.502, comfortably before this panel's 0.52 rest, so
 // the visitor never arrives to a half-built set.
 export const ASSEMBLY_WINDOWS: readonly (readonly [number, number])[] = [
-  [0.338, 0.376],
-  [0.357, 0.394],
-  [0.375, 0.412],
+  [0.436, 0.472],
+  [0.452, 0.487],
+  [0.467, 0.502],
 ]
 
 /** 0..1 placement progress of assembly part i at progress p. */
@@ -65,9 +67,8 @@ export function lastTipVw(p: number, vhPerVw: number): number {
 }
 
 const SEGMENTS: [number, number, number, number][] = [
-  [0.32, 0.38, -100, -200],
-  [0.47, 0.53, -200, -300],
-  [0.65, 0.71, -300, -400],
+  [0.34, 0.43, -100, -200],
+  [0.62, 0.72, -200, -300],
 ]
 
 function smooth(u: number): number {

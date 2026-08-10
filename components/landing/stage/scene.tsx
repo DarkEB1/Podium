@@ -260,16 +260,13 @@ const SET_PIECES: SetPiece[] = [
   { id: 'what-1', panel: 2, centerVw: 45, wVw: 16, hVh: 32, window: [...ASSEMBLY_WINDOWS[1]!] as [number, number], entrance: 'assemble', tilt: -0.13, tone: 'tint1' },
   { id: 'what-2', panel: 2, centerVw: 70, wVw: 16, hVh: 38, window: [...ASSEMBLY_WINDOWS[2]!] as [number, number], entrance: 'assemble', tilt: 0.11, tone: 'lime' },
   // 04 Who's on the podium — the podium grows out of the floor, 1st in lime.
-  { id: 'role-2', panel: 3, centerVw: 78, wVw: 16, hVh: 24, window: [0.54, 0.57], entrance: 'grow', tone: 'tint2' },
-  { id: 'role-0', panel: 3, centerVw: 42, wVw: 16, hVh: 30, window: [0.548, 0.578], entrance: 'grow', tone: 'tint1' },
-  { id: 'role-1', panel: 3, centerVw: 60, wVw: 16, hVh: 38, window: [0.556, 0.586], entrance: 'grow', tone: 'lime' },
-  // 05 Your spot — a filling podium crowd, gently alive, one gap at 76vw
+  // 04 Your spot — a filling podium crowd, gently alive, one gap at 76vw
   // (the DOM draws the reserved slot there).
-  { panel: 4, centerVw: 52, wVw: 6.5, hVh: 22, window: [0.8, 0.835], entrance: 'grow', tone: 'lime', bobPhase: 0 },
-  { panel: 4, centerVw: 60, wVw: 6.5, hVh: 34, window: [0.81, 0.845], entrance: 'grow', tone: 'lime', bobPhase: 1.3 },
-  { panel: 4, centerVw: 68, wVw: 6.5, hVh: 28, window: [0.82, 0.855], entrance: 'grow', tone: 'lime', bobPhase: 2.6 },
-  { panel: 4, centerVw: 84, wVw: 6.5, hVh: 26, window: [0.815, 0.85], entrance: 'grow', tone: 'lime', bobPhase: 3.9 },
-  { panel: 4, centerVw: 92, wVw: 6.5, hVh: 31, window: [0.825, 0.86], entrance: 'grow', tone: 'lime', bobPhase: 5.2 },
+  { panel: 3, centerVw: 52, wVw: 6.5, hVh: 22, window: [0.78, 0.82], entrance: 'grow', tone: 'lime', bobPhase: 0 },
+  { panel: 3, centerVw: 60, wVw: 6.5, hVh: 34, window: [0.79, 0.83], entrance: 'grow', tone: 'lime', bobPhase: 1.3 },
+  { panel: 3, centerVw: 68, wVw: 6.5, hVh: 28, window: [0.8, 0.84], entrance: 'grow', tone: 'lime', bobPhase: 2.6 },
+  { panel: 3, centerVw: 84, wVw: 6.5, hVh: 26, window: [0.795, 0.835], entrance: 'grow', tone: 'lime', bobPhase: 3.9 },
+  { panel: 3, centerVw: 92, wVw: 6.5, hVh: 31, window: [0.805, 0.845], entrance: 'grow', tone: 'lime', bobPhase: 5.2 },
 ]
 
 function easeOutCubic(u: number): number {

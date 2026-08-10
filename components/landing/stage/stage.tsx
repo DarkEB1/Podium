@@ -14,14 +14,14 @@ import LandingScene from './scene'
 import { REST_POINTS, SHOVE_END, panelIndex, trackXVw } from './track-map'
 
 // ————————————————————————————————————————————————————————————————————————
-// The stage: one 1000vh scroll fabric driving a fixed 500vw corridor
+// The stage: one 800vh scroll fabric driving a fixed 400vw corridor
 // (build spec v3 §2.5). The smoothed progress value P (0..1) is written
 // imperatively every frame to the CSS custom property `--p` on the stage
 // root and pushed to JS subscribers — React state only changes on discrete
 // events (panel index, nav solidity), so travel never re-renders the tree.
 // ————————————————————————————————————————————————————————————————————————
 
-export const TRAVEL_VIEWPORTS = 9 // 1000vh body = 100vh viewport + 900vh travel
+export const TRAVEL_VIEWPORTS = 7 // 800vh body = 100vh viewport + 700vh travel
 
 export type StageApi = {
   getP: () => number
@@ -38,7 +38,7 @@ export function useStage(): StageApi {
 
 export { REST_POINTS }
 
-const PANEL_LABELS = ['01', '02', '03', '04', '05']
+const PANEL_LABELS = ['01', '02', '03', '04']
 // Quiet time after the last scroll input before the corridor settles itself.
 const SNAP_IDLE_MS = 190
 
@@ -230,7 +230,7 @@ export default function Stage({ children }: { children: ReactNode }) {
           ref={trackRef}
           data-testid="stage-track"
           className="absolute inset-y-0 left-0 z-10 flex will-change-transform"
-          style={{ width: '500vw' }}
+          style={{ width: '400vw' }}
         >
           {children}
           {/* tick tape: travels with the track (spec §2.2) */}
@@ -250,7 +250,7 @@ export default function Stage({ children }: { children: ReactNode }) {
           style={{ left: 'var(--margin-x)', top: 'calc(var(--floor-y) + 12px)' }}
           aria-hidden="true"
         >
-          {introDone ? `${PANEL_LABELS[panelIdx]} / 05` : 'SCROLL ↓ TO TIP THE FIRST DOMINO'}
+          {introDone ? `${PANEL_LABELS[panelIdx]} / 04` : 'SCROLL ↓ TO TIP THE FIRST DOMINO'}
         </div>
         {!introDone && (
           <button
@@ -267,12 +267,12 @@ export default function Stage({ children }: { children: ReactNode }) {
   )
 }
 
-// 500vw of measuring tape under the baseline: 12px ticks every 10vw, 16px at
-// panel origins with mono coordinates (000..400). Micro 2vw ticks arrive with
+// 400vw of measuring tape under the baseline: 12px ticks every 10vw, 16px at
+// panel origins with mono coordinates (000..300). Micro 2vw ticks arrive with
 // the polish pass if they earn their render cost.
 function TickTape() {
   const marks: ReactNode[] = []
-  for (let vw = 0; vw <= 500; vw += 10) {
+  for (let vw = 0; vw <= 400; vw += 10) {
     const origin = vw % 100 === 0
     marks.push(
       <div key={vw} className="absolute" style={{ left: `${vw}vw`, top: 'var(--floor-y)' }}>
@@ -280,7 +280,7 @@ function TickTape() {
           className="w-px bg-foreground/25"
           style={{ height: origin ? 16 : 12 }}
         />
-        {origin && vw < 500 && (
+        {origin && vw < 400 && (
           <span className="absolute left-2 top-1 font-mono text-[10.5px] tracking-[.15em] text-foreground/40">
             {String(vw).padStart(3, '0')}
           </span>

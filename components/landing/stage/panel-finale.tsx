@@ -48,7 +48,7 @@ export default function PanelFinale() {
     <section
       aria-labelledby="finale-heading"
       className="relative h-screen w-screen shrink-0"
-      data-panel="05"
+      data-panel="04"
     >
       {/* kicker */}
       <p
@@ -56,7 +56,7 @@ export default function PanelFinale() {
         style={{ left: 'var(--margin-x)', top: '12vh' }}
       >
         <span aria-hidden="true" className="inline-block h-[3px] w-5 bg-lime" />
-        05 · YOUR SPOT
+        04 · YOUR SPOT
       </p>
 
       {/* stepped headline: the hero sentence, resolved */}

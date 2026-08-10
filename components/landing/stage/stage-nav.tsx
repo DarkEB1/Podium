@@ -7,7 +7,7 @@ import PodiumMark from '@/components/brand/podium-mark'
 // white with a hairline after 40px of scroll. Never translucent, never blurred.
 const SECTIONS: { label: string; p: number }[] = [
   { label: 'Marketplace', p: 0.27 },
-  { label: 'How it works', p: 0.42 },
+  { label: 'How it works', p: 0.52 },
 ]
 
 export default function StageNav({
