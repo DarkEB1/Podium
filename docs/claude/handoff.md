@@ -1,38 +1,28 @@
-# Handoff: landing rebuild, 3D hero in progress (2026-08-05)
+# Handoff: landing rebuild, hero + all panels live on staging branch (2026-08-10)
 
-Session ended at context limit mid build-step 3/4 of the landing rebuild. Read this fully, then continue. Branch: `staging`. A concurrent session (EB1) is also committing to this checkout: stage/commit by explicit path only, never `git add -A`. (Previous Phase-5 handoff was stale-complete and replaced by this one.)
+Branch: `staging`. A concurrent session (EB1) also commits to this checkout: stage/commit by explicit path only, never `git add -A`.
 
-## Governing documents (read in this order)
-1. `docs/superpowers/specs/2026-08-05-landing-build-spec-v3.md` — THE build spec (geometry, motion score with exact timings, both marketplace variants, QA gates, 12-step build order). Build exactly this.
-2. `docs/superpowers/specs/2026-08-05-landing-redesign-design.md` — original spec + amendments section.
-3. Memory: `podium-landing-quality-bar.md` — Nicholas's standing rules (Awwwards bar, 3D r3f language, verify EVERY change visually via claude-in-chrome screenshots on localhost:3000, unlimited subagents/ultracode, compress context at 70%, no em dashes in copy).
+## Governing documents
+1. `docs/superpowers/specs/2026-08-05-landing-build-spec-v3.md` — THE build spec.
+2. Memory `podium-landing-quality-bar.md` — Nicholas's standing rules (Awwwards bar, verify EVERY change visually, unlimited subagents, no em dashes).
+3. Memory `podium-landing-redesign.md` — current state + verification protocol.
 
-## Where the build stands (commits 134de60, ee3dee4, 8f764c6)
-- Build steps 1-2 DONE and visually verified: stage scroll fabric (1000vh, damped spring writing `--p` + imperative track transform, snap, keyboard jumps, skip), fixed nav with active marker, fixed baseline + travelling tick tape, poster hero DOM (stepped display-xl with 16vh cap, static lime chip, CTA row on baseline, dashed domino placeholder volumes), stub panels 02-05. Travel/dwell verified in browser.
-- `lib/landing/motion-map.ts` (+35 passing tests): trackX piecewise map with real bezier solving, dominoTheta cascade curves incl settle tails, rest/snap/dwell helpers. Stage and scene still use inline v0 placeholder maps: SWAP them to import motion-map (interfaces match by design).
-- Build step 3 (3D stage) WIP in `components/landing/stage/scene.tsx`: camera/world mapping (1 unit = 10vh, floor y=0 at 72vh, fov 28 at dist 5/tan(14°), camera x couples to trackX), extruded podium-glyph geometry with fillet, MeshPhysicalMaterial lime plastic per spec, RoomEnvironment PMREM (no network), RectAreaLight rig, ContactShadows, un-fall load animation, cascade scrub wiring.
+## State (commits 5a54304 hero, a18d3ee panels)
+- Hero: 3D rigid dominoes (logo colours ink/ink/lime), contact solve, corner-push scroll coupling via shared `components/landing/stage/track-map.ts`, floor at 80vh (`--floor-y`), blue primary CTA, un-fall intro on performance.now, one-shot 4s canvas watchdog. All verified in browser.
+- Panels 02-05 real content (marketplace skyline + `?variant=rally`, what-we-do, roles, finale) wired in `app/page.tsx`, panel-stub deleted. Verified headless at every dwell.
+- Founder round-2 feedback list (2026-08-10): ALL SIX items done.
 
-## BLOCKER STATUS UPDATE (this supersedes the section below)
-On a fresh tab + fresh serve after the context-to-prop fix, the 3D canvas children DO mount (red debug box renders). Word chip cycle also built and verified (commit 18464f9). Next: hard-reload verify the three plastic dominoes render standing (un-fall), fix the frozen-clock risk (drive un-fall from performance.now()), remove ALL debug artifacts (red DOM dot, red 3D box, __sceneDebug, [scene] log, data-scene-version, dashed placeholder volumes in panel-hero once registration matches), then continue the build order. The section below is kept for history in case the mount flakiness returns.
+## Verification protocol (do not relearn this the hard way)
+- claude-in-chrome screenshots of a BACKGROUNDED tab show frozen stale paint (Chrome pauses rAF). Click the page first to focus, or use headless Playwright (script must sit in repo root for `import 'playwright'` to resolve; delete after).
+- Dev cold hydration takes 10-20s (three.js dev chunk ~10MB). Invisible dominoes + static word chip = not hydrated yet, NOT a bug. Wipe `.next` only for genuinely stale bundles.
+- Dev server: launch DETACHED so the harness can't reap it:
+  `Start-Process -FilePath "cmd.exe" -ArgumentList "/c","npm run dev" -WorkingDirectory "C:\Users\nicho\Documents\Podium\Podium" -WindowStyle Hidden`
 
-## THE BLOCKER (fix first)
-r3f Canvas children do not mount on current builds: canvas element exists, `SceneInner` never runs (no `[scene] SceneInner mounted` log, `window.__sceneDebug` stays undefined, no meshes). ONE earlier dev build DID render all three glossy plastic pieces with shadows (visually verified screenshot), so geometry/material/camera/lighting are correct. Fixes already applied:
-- `next/dynamic({ssr:false})` silently never loaded the chunk: replaced with static import + mount gate. After this the DOM wrapper + red debug dot rendered.
-- Suspected React context read inside the r3f renderer (useStage in canvas children) suspending the internal Suspense: stage API now passed as PROP into SceneInner/Rig/HeroDominoes. Still not mounting after this change on the last fresh build.
-- Dev toolchain was repeatedly serving stale/mixed bundles (edits invisible until server restart + hard reload; root cause suspicion: stray `C:\Users\nicho\package-lock.json` made Next infer the home dir as workspace root and broke watching; `outputFileTracingRoot` now pinned in next.config.ts). Because of this, DISTRUST any single dev observation.
+## Next (in order)
+1. Polish pass on the four new panels against the spec (they were scoped down; each agent's scope-downs are listed in its final report, e.g. skyline has no pan/filters, rally has no cursor racket). Art-direct in browser.
+2. R5: mobile ≤900px stack, reduced-motion sweep, no-WebGL posters (spec §6-7).
+3. R6: QA gates + screenshot matrix (spec §8), rewrite stale `e2e/landing.spec.ts` + `e2e/auth.spec.ts` landing assertions, `npm run check`, review workflow, then push staging remote for Nicholas (skyline vs rally decision).
 
-Next debugging steps, in order:
-1. `npm run build && npm run start` (production build on :3000, kill dev first) — eliminates every dev-server ghost. If pieces render in prod, the scene is DONE and the issue is purely dev-HMR; continue building and only restart dev when stale. (Attempted at session end: the background task was reaped mid-build, worker exit 0xC0000142; re-run it first thing, in the foreground if background tasks keep dying.)
-2. If prod also fails: bisect SceneInner children (start with bare `<mesh><boxGeometry/><meshBasicMaterial/></mesh>` directly inside Canvas, add back Rig, HeroDominoes, environment effect, ContactShadows one at a time, hard reload each). Suspects in order: SceneInner's PMREM/RoomEnvironment effect, drei ContactShadows, RectAreaLightUniformsLib.
-3. Known secondary bug once mounting works: in the one build where pieces rendered they were stuck FALLEN (~90°): if frameloop was 'demand' at that point r3f pauses the clock so the un-fall never advanced. Canvas is currently frameloop='always'. Later, per spec, restore demand-with-invalidate but drive the un-fall from performance.now() rather than state.clock so it cannot freeze.
-4. Remove debug artifacts when verified: red DOM dot + `data-scene-version` in scene.tsx, red 3D box, `__sceneDebug`, `[scene]` log.
-
-## Then continue the spec build order (step 4 onward)
-Word-flip chip cycle, cascade scrub + type exits + chip detach (motion-map has the curves), scroll-locked intro (spec amendment: page pins until D3 tip crosses right viewport edge ~P 0.118; cascade owns P 0-0.15 with track x=0 so the map already accommodates), shove velocity match, then panels: skyline (spec §3 P02A + §5.1), rally (§3 P02B + §5.2, `?variant=rally`, page.tsx already reads it), panels 3/4/5 (§3), mobile stack + reduced motion + posters (§6-7), QA gates + screenshot matrix (§8), rewrite stale `e2e/landing.spec.ts` and `e2e/auth.spec.ts` landing assertions for the new DOM, full `npm run check`, push staging.
-Use subagents freely for panels once the 3D pipeline is stable; keep the browser verification loop yourself. Fan out an ultracode review workflow before pushing.
-
-## Environment notes
-- Dev server: background task, `npm run dev` from repo root; after editing scene/stage files, if changes do not appear: restart server AND ctrl+shift+r (watcher unreliability may persist).
-- Chrome tab 532371252 is the working tab (claude-in-chrome); viewport 1512x795, vh=795.
-- The visual companion mockups (aesthetic references Nicholas approved) live in `.superpowers/brainstorm/33237-1785930672/content/` — `locked-hero.html` is the approved hero look pre-3D.
-- Nicholas's system is dark mode: `.landing-light` scope must keep the landing light. Fonts: DM Sans vars are on `<html>` (do not move back to body).
+## Known bugs out of scope
+- /403 missing from PUBLIC_PATHS in middleware.ts.
+- Auth signup e2e strict-mode locator collision.
