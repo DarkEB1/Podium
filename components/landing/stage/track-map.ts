@@ -30,6 +30,24 @@ export const WINDOWS: readonly [number, number, number][] = [
 export const CASCADE_END = 0.15
 export const SHOVE_END = 0.225
 
+// Panel 03 assembly: each part drops into its footprint and clicks home.
+// Shared by the 3D parts (scene.tsx) and the DOM copy riding on them
+// (panel-what.tsx) so the text lands on exactly the frame the part does.
+// All three are home by 0.412, comfortably before this panel's 0.42 rest, so
+// the visitor never arrives to a half-built set.
+export const ASSEMBLY_WINDOWS: readonly (readonly [number, number])[] = [
+  [0.338, 0.376],
+  [0.357, 0.394],
+  [0.375, 0.412],
+]
+
+/** 0..1 placement progress of assembly part i at progress p. */
+export function assemblyU(p: number, i: number): number {
+  const w = ASSEMBLY_WINDOWS[i]
+  if (!w) return 0
+  return Math.min(Math.max((p - w[0]) / (w[1] - w[0]), 0), 1)
+}
+
 /** Candidate fall angle for piece i in degrees (0 standing, 90 flat). */
 export function candidateTheta(p: number, i: 0 | 1 | 2): number {
   const [s, e, k] = WINDOWS[i]!

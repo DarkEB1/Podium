@@ -7,7 +7,7 @@ import * as THREE from 'three'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js'
 import { useStage, type StageApi } from './stage'
-import { PIECES, candidateTheta, trackXVw } from './track-map'
+import { PIECES, ASSEMBLY_WINDOWS, candidateTheta, trackXVw } from './track-map'
 import { panelHover } from './hover-store'
 
 // ————————————————————————————————————————————————————————————————————————
@@ -245,16 +245,20 @@ type SetPiece = {
   wVw: number
   hVh: number
   window: [number, number]
-  entrance: 'unfall' | 'grow'
+  entrance: 'assemble' | 'grow'
+  /** assembly parts only: which side the part swings in from */
+  tilt?: number
   tone: 'lime' | 'tint1' | 'tint2'
   bobPhase?: number
 }
 
 const SET_PIECES: SetPiece[] = [
-  // 03 What we do — three steps tip up into standing, palest to full lime.
-  { id: 'what-0', panel: 2, centerVw: 20, wVw: 16, hVh: 26, window: [0.36, 0.4], entrance: 'unfall', tone: 'tint2' },
-  { id: 'what-1', panel: 2, centerVw: 45, wVw: 16, hVh: 32, window: [0.375, 0.415], entrance: 'unfall', tone: 'tint1' },
-  { id: 'what-2', panel: 2, centerVw: 70, wVw: 16, hVh: 38, window: [0.39, 0.43], entrance: 'unfall', tone: 'lime' },
+  // 03 What we do — three parts drop into their footprints and click home,
+  // palest to full lime. Windows come from track-map so the DOM copy riding
+  // on each part lands on the same frame.
+  { id: 'what-0', panel: 2, centerVw: 20, wVw: 16, hVh: 26, window: [...ASSEMBLY_WINDOWS[0]!] as [number, number], entrance: 'assemble', tilt: 0.16, tone: 'tint2' },
+  { id: 'what-1', panel: 2, centerVw: 45, wVw: 16, hVh: 32, window: [...ASSEMBLY_WINDOWS[1]!] as [number, number], entrance: 'assemble', tilt: -0.13, tone: 'tint1' },
+  { id: 'what-2', panel: 2, centerVw: 70, wVw: 16, hVh: 38, window: [...ASSEMBLY_WINDOWS[2]!] as [number, number], entrance: 'assemble', tilt: 0.11, tone: 'lime' },
   // 04 Who's on the podium — the podium grows out of the floor, 1st in lime.
   { id: 'role-2', panel: 3, centerVw: 78, wVw: 16, hVh: 24, window: [0.54, 0.57], entrance: 'grow', tone: 'tint2' },
   { id: 'role-0', panel: 3, centerVw: 42, wVw: 16, hVh: 30, window: [0.548, 0.578], entrance: 'grow', tone: 'tint1' },
@@ -323,9 +327,14 @@ function SetPieces({ stage, vpW, vpH }: { stage: StageApi; vpW: number; vpH: num
       if (!g) return
       const [s, e] = b.sp.window
       const u = Math.min(Math.max((p - s) / (e - s), 0), 1)
-      if (b.sp.entrance === 'unfall') {
-        g.rotation.z = -((14 * Math.PI) / 180) * (1 - easeOutBack(u))
-        g.scale.y = 1
+      let drop = 0
+      if (b.sp.entrance === 'assemble') {
+        // Drops into its footprint with an overshoot, swinging level as it
+        // lands: parts being fitted together, not furniture growing.
+        const eased = easeOutBack(u)
+        drop = (1 - eased) * 1.15
+        g.rotation.z = (1 - eased) * (b.sp.tilt ?? 0.14)
+        g.scale.setScalar(0.93 + 0.07 * Math.min(1, u * 1.6))
       } else {
         g.scale.y = Math.max(0.001, easeOutCubic(u))
       }
@@ -335,7 +344,7 @@ function SetPieces({ stage, vpW, vpH }: { stage: StageApi; vpW: number; vpH: num
         b.sp.bobPhase !== undefined && u >= 1
           ? 0.04 * (1 + Math.sin(state.clock.elapsedTime * 1.1 + b.sp.bobPhase))
           : 0
-      g.position.y = lifts.current[i]! + bob
+      g.position.y = lifts.current[i]! + bob + drop
     })
   })
 
