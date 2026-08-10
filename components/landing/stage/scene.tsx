@@ -104,7 +104,10 @@ function useLimePlastic(): THREE.MeshPhysicalMaterial {
         clearcoat: 1.0,
         clearcoatRoughness: 0.12,
         ior: 1.45,
-        specularIntensity: 0.55,
+        // Sheen is white, so it lifts the blue channel of a saturated green
+        // fastest. Kept low so the moulded face reads as the same #C1EC2F the
+        // headline chip is painted with (verified by sampling the render).
+        specularIntensity: 0.3,
       }),
     []
   )
@@ -136,7 +139,10 @@ function glyphGeometry(w: number, h: number): THREE.ExtrudeGeometry {
     bevelSegments: 3,
     curveSegments: 24,
   })
-  geo.translate(0, 0, -depth / 2)
+  // The bevel grows the shape outward on every side, so the piece's true
+  // bottom sits at -fillet. Lift it so the moulded edge lands ON the floor
+  // line rather than a few pixels under it.
+  geo.translate(0, fillet, -depth / 2)
   return geo
 }
 
@@ -277,7 +283,10 @@ function easeOutBack(u: number): number {
   return 1 + (c1 + 1) * Math.pow(u - 1, 3) + c1 * Math.pow(u - 1, 2)
 }
 
-const TONES = { lime: '#C1EC2F', tint1: '#DDF0A8', tint2: '#E9F5C4' } as const
+// A progression toward the brand green, not a fade to white: without tone
+// mapping the old pale tints rendered almost colourless. Each step still reads
+// as the same plastic, just less concentrated.
+const TONES = { lime: '#C1EC2F', tint1: '#CFEF6B', tint2: '#DCF29B' } as const
 
 function SetPieces({ stage, vpW, vpH }: { stage: StageApi; vpW: number; vpH: number }) {
   const aspect = vpW / vpH
@@ -478,7 +487,10 @@ export default function LandingScene() {
         key={epoch}
         frameloop="always"
         dpr={[1, 1.75]}
-        gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.0 }}
+        // No tone mapping: ACES desaturates and lightens a saturated lime, so
+        // the moulded bars drifted away from the brand green used by the
+        // headline chip. Straight output keeps the two the same colour.
+        gl={{ antialias: true, toneMapping: THREE.NoToneMapping }}
         camera={{ fov: 28, near: 0.1, far: 100 }}
       >
         <SceneInner

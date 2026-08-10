@@ -39,10 +39,7 @@ export default function PanelHero() {
           letterSpacing: '-0.035em',
         }}
       >
-        <span className="block">Sponsorship deals,</span>
-        <span className="block" style={{ marginLeft: 'var(--col)' }}>
-          signed and paid,
-        </span>
+        <span className="block">Sponsorship</span>
         <span className="block">
           for <WordChip />
         </span>
@@ -62,8 +59,8 @@ export default function PanelHero() {
           </Link>
           <ScrollCue />
         </div>
-        <p className="text-[13.5px] font-light text-muted-foreground">
-          Free for athletes and clubs. Brands pay when they sponsor.
+        <p className="max-w-[34ch] text-[14px] font-light text-muted-foreground">
+          Offers listed, deals signed, money paid, all in one place. Free for athletes and clubs.
         </p>
       </div>
 

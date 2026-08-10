@@ -1,11 +1,16 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { CHIP_LEADING, CHIP_PAD, CHIP_RADIUS, CHIP_SHADOW } from './chip'
 
 // The hero's fill-in-the-blank chip (build spec v3 §4.2): a miniature domino.
 // The outgoing word tips forward about its bottom edge, the incoming one
-// rises from behind, and the lime block glides to each word's width. The
-// cycle loops forever (founder direction 2026-08-10: no counter, no lock).
+// rises from behind, and the lime tile glides to each word's width. The cycle
+// loops forever (founder direction 2026-08-10: no counter, no lock).
+//
+// Every layer carries the same padding and line-height so the word sits on the
+// sentence's baseline: the in-flow ruler sets the box, the animated copies are
+// absolutely placed over it with identical metrics.
 const WORDS = ['athletes', 'teams', 'brands', 'you'] as const
 // Founder-tuned cadence (2026-08-05): quick flips, a longer beat on "you".
 const CADENCE_MS = 800
@@ -17,7 +22,7 @@ export default function WordChip() {
   const [width, setWidth] = useState<number | null>(null)
   const rulers = useRef<(HTMLSpanElement | null)[]>([])
 
-  // Measure the current word (ruler includes the chip's own padding). The
+  // Measure the current word (the ruler includes the chip's own padding). The
   // late re-measures cover web-font swaps and post-hydration layout shifts.
   useEffect(() => {
     const measure = () => {
@@ -44,9 +49,11 @@ export default function WordChip() {
     <>
       <span
         aria-hidden="true"
-        className="chip-wrap relative inline-block overflow-hidden whitespace-nowrap bg-lime align-baseline leading-[1.02] text-lime-foreground"
+        className="chip-wrap relative inline-block overflow-hidden whitespace-nowrap bg-lime align-baseline text-lime-foreground"
         style={{
-          borderRadius: 'min(0.6em, 28px) 0.12em 0.12em 0.12em',
+          borderRadius: CHIP_RADIUS,
+          lineHeight: CHIP_LEADING,
+          boxShadow: CHIP_SHADOW,
           width: width !== null ? `${width}px` : undefined,
           transition: 'width 300ms cubic-bezier(0.22, 1, 0.36, 1)',
           perspective: '800px',
@@ -59,17 +66,23 @@ export default function WordChip() {
             ref={(el) => {
               rulers.current[i] = el
             }}
-            className={`px-[0.18em] ${i === 0 ? 'invisible inline-block' : 'invisible absolute left-0 top-0 inline-block'}`}
+            className={`${CHIP_PAD} ${i === 0 ? 'invisible inline-block' : 'invisible absolute left-0 top-0 inline-block'}`}
           >
             {w}
           </span>
         ))}
         {prev !== null && (
-          <span key={`out-${prev}-${index}`} className="chip-out absolute inset-x-0 top-0 inline-block px-[0.18em]">
+          <span
+            key={`out-${prev}-${index}`}
+            className={`chip-out absolute inset-x-0 top-0 inline-block ${CHIP_PAD}`}
+          >
             {WORDS[prev]}
           </span>
         )}
-        <span key={`in-${index}`} className={`absolute inset-x-0 top-0 inline-block px-[0.18em] ${prev !== null ? 'chip-in' : ''}`}>
+        <span
+          key={`in-${index}`}
+          className={`absolute inset-x-0 top-0 inline-block ${CHIP_PAD} ${prev !== null ? 'chip-in' : ''}`}
+        >
           {WORDS[index]}
         </span>
       </span>

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { useStage } from './stage'
+import Chip from './chip'
 import { panelHover } from './hover-store'
 import { assemblyU } from './track-map'
 
@@ -104,7 +105,9 @@ export default function PanelWhat() {
         }}
       >
         <span className="block">Help you from</span>
-        <span className="block">profile to paid.</span>
+        <span className="block">
+          profile to <Chip>paid</Chip>.
+        </span>
       </h2>
 
       {/* assembly rail: draws along the floor as parts click home */}

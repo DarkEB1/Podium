@@ -237,7 +237,8 @@
      the dominoes stands ON it; DOM content keeps at least 6vh of air above.
      The vh cap keeps three 0.92-leading lines + the CTA block inside that. */
   --floor-y: 80vh;
-  --display-xl: min(clamp(64px, 10.5vw, 176px), 15vh);
+  /* The hero sentence lives in the left half; the 3D podium owns the right. */
+  --display-xl: min(clamp(56px, 9vw, 150px), 13vh);
   --display-l: min(clamp(44px, 5.5vw, 96px), 11vh);
   --display-m: clamp(22px, 1.9vw, 30px);
   --title-size: clamp(18px, 1.4vw, 22px);

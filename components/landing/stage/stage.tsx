@@ -137,14 +137,55 @@ export default function Stage({ children }: { children: ReactNode }) {
       if (performance.now() < programmaticUntil.current) return
       arm()
     }
-    const opts = { passive: true } as const
-    window.addEventListener('wheel', arm, opts)
-    window.addEventListener('touchmove', arm, opts)
-    window.addEventListener('touchend', arm, opts)
-    window.addEventListener('scroll', onScroll, opts)
+    // The corridor runs sideways, so a sideways gesture should drive it. A
+    // horizontal trackpad swipe carries no vertical delta and the page has no
+    // horizontal overflow for the browser to consume, so we fold deltaX into
+    // the scroll position ourselves.
+    const onWheel = (e: WheelEvent) => {
+      arm()
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY) && e.deltaX !== 0) {
+        window.scrollBy(0, e.deltaX)
+      }
+    }
+    // Touch: a horizontal drag pages the corridor. Only claimed once the
+    // gesture is clearly sideways, so vertical scrolling and the browser's
+    // own edge-swipe gestures are left alone.
+    let touchX = 0
+    let touchY = 0
+    let axis: 'none' | 'x' | 'y' = 'none'
+    const onTouchStart = (e: TouchEvent) => {
+      const t = e.touches[0]
+      if (!t) return
+      touchX = t.clientX
+      touchY = t.clientY
+      axis = 'none'
+    }
+    const onTouchMove = (e: TouchEvent) => {
+      const t = e.touches[0]
+      if (!t) return
+      const dx = touchX - t.clientX
+      const dy = touchY - t.clientY
+      if (axis === 'none' && Math.abs(dx) + Math.abs(dy) > 10) {
+        axis = Math.abs(dx) > Math.abs(dy) * 1.3 ? 'x' : 'y'
+      }
+      if (axis === 'x') {
+        if (e.cancelable) e.preventDefault()
+        window.scrollBy(0, dx)
+        touchX = t.clientX
+        touchY = t.clientY
+      }
+      arm()
+    }
+    const passive = { passive: true } as const
+    window.addEventListener('wheel', onWheel, passive)
+    window.addEventListener('touchstart', onTouchStart, passive)
+    window.addEventListener('touchmove', onTouchMove, { passive: false })
+    window.addEventListener('touchend', arm, passive)
+    window.addEventListener('scroll', onScroll, passive)
     return () => {
-      window.removeEventListener('wheel', arm)
-      window.removeEventListener('touchmove', arm)
+      window.removeEventListener('wheel', onWheel)
+      window.removeEventListener('touchstart', onTouchStart)
+      window.removeEventListener('touchmove', onTouchMove)
       window.removeEventListener('touchend', arm)
       window.removeEventListener('scroll', onScroll)
     }

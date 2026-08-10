@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useRef } from 'react'
 import { useStage } from './stage'
+import Chip from './chip'
 
 // Panel 05 · Your spot (build spec v3 §3 P05). The bookend to the hero: the
 // same stepped headline resolves with a static lime chip on "you", one empty
@@ -84,13 +85,9 @@ export default function PanelFinale() {
             {i === 2 && (
               <>
                 {' '}
-                <span
-                  className="inline-block whitespace-nowrap bg-lime px-[0.18em] align-baseline leading-[1.02] text-lime-foreground"
-                  style={{ borderRadius: 'min(0.6em, 28px) 0.12em 0.12em 0.12em' }}
-                >
-                  you
-                </span>
-                .
+                {/* the last screen keeps the hero's lime: the sentence closes
+                    where it opened */}
+                <Chip tone="lime">you</Chip>.
               </>
             )}
           </span>

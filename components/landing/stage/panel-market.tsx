@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useStage } from './stage'
+import Chip from './chip'
 import { FIXTURES, type MarketFixture } from './market-fixtures'
 
 // Panel 02 · Marketplace (build spec v3 §3 P02, §5.1): the skyline. A row of
@@ -42,7 +43,9 @@ export default function PanelMarket() {
         }}
       >
         <span className="block">Every profile</span>
-        <span className="block">is a podium.</span>
+        <span className="block">
+          is a <Chip>podium</Chip>.
+        </span>
       </h2>
 
       <Skyline />
