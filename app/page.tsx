@@ -30,21 +30,14 @@ export const metadata = {
   },
 }
 
-export default async function Home({
-  searchParams,
-}: {
-  searchParams: Promise<{ variant?: string }>
-}) {
-  // Marketplace panel ships two variants (spec v3 §3 P02); skyline is default.
-  const { variant } = await searchParams
-  const marketVariant = variant === 'rally' ? 'rally' : 'skyline'
+export default function Home() {
   return (
     // landing-light: this page is art-directed light-only (spec amendment);
     // system dark mode must not restyle it.
     <main className="landing-light bg-background text-foreground">
       <Stage>
         <PanelHero />
-        <PanelMarket variant={marketVariant} />
+        <PanelMarket />
         <PanelWhat />
         <PanelRoles />
         <PanelFinale />
