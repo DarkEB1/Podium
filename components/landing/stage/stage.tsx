@@ -11,17 +11,22 @@ import {
 } from 'react'
 import StageNav from './stage-nav'
 import LandingScene from './scene'
-import { REST_POINTS, SHOVE_END, panelIndex, trackXVw } from './track-map'
+import { REST_POINTS, CASCADE_END, panelIndex, trackXVw } from './track-map'
 
 // ————————————————————————————————————————————————————————————————————————
-// The stage: one 800vh scroll fabric driving a fixed 400vw corridor
+// The stage: one 1000vh scroll fabric driving a fixed 400vw corridor
 // (build spec v3 §2.5). The smoothed progress value P (0..1) is written
 // imperatively every frame to the CSS custom property `--p` on the stage
 // root and pushed to JS subscribers — React state only changes on discrete
 // events (panel index, nav solidity), so travel never re-renders the tree.
 // ————————————————————————————————————————————————————————————————————————
 
-export const TRAVEL_VIEWPORTS = 7 // 800vh body = 100vh viewport + 700vh travel
+// The fabric is sized for the one stretch the visitor scrubs by hand: the
+// domino cascade, which wants roughly one good flick (about 0.15 of P, so
+// ~0.75 of a viewport) rather than a dozen notches. Everything after the
+// cascade is covered by the directional snap, whose threshold is in pixels,
+// so panel travel does not get twitchier as this number comes down.
+export const TRAVEL_VIEWPORTS = 5 // 600vh body = 100vh viewport + 500vh travel
 
 export type StageApi = {
   getP: () => number
@@ -40,7 +45,12 @@ export { REST_POINTS }
 
 const PANEL_LABELS = ['01', '02', '03', '04']
 // Quiet time after the last scroll input before the corridor settles itself.
-const SNAP_IDLE_MS = 190
+const SNAP_IDLE_MS = 150
+// How far a gesture must carry before it counts as "going to the next panel"
+// rather than a twitch. In pixels, not a fraction of the gap, so the weight of
+// a flick feels the same everywhere and does not drift when the fabric length
+// changes. About two and a half wheel notches.
+const COMMIT_PX = 240
 
 export default function Stage({ children }: { children: ReactNode }) {
   const rootRef = useRef<HTMLDivElement>(null)
@@ -56,6 +66,9 @@ export default function Stage({ children }: { children: ReactNode }) {
   const lastInputAt = useRef(0)
   const snapArmed = useRef(false)
   const programmaticUntil = useRef(0)
+  // The panel the corridor last came to rest on: the origin every gesture is
+  // measured from.
+  const settledRest = useRef(0)
   const [panelIdx, setPanelIdx] = useState(0)
   const [navSolid, setNavSolid] = useState(false)
   const [introDone, setIntroDone] = useState(false)
@@ -79,6 +92,9 @@ export default function Stage({ children }: { children: ReactNode }) {
     const t0 = performance.now()
     const D = durationMs ?? 1100
     programmaticUntil.current = t0 + D + 160
+    // Nav clicks and keyboard jumps re-anchor the gesture origin; the hero's
+    // scroll nudge does not, because it stops short of a rest on purpose.
+    if (REST_POINTS.includes(targetP)) settledRest.current = targetP
     const inoutCirc = (t: number) =>
       t < 0.5
         ? (1 - Math.sqrt(1 - Math.pow(2 * t, 2))) / 2
@@ -158,9 +174,6 @@ export default function Stage({ children }: { children: ReactNode }) {
         const next = window.scrollY > 40
         return prev === next ? prev : next
       })
-      // Settle to the nearest panel once the visitor stops pushing. Never
-      // during the intro cascade (P below the shove end): there the visitor
-      // is hand-tipping the dominoes and any pull would fight them.
       // Settle on the raw scroll position, not the smoothed one: the spring is
       // still catching up when the visitor lets go, and snapping to a
       // mid-flight value would land the corridor in the wrong place.
@@ -172,16 +185,42 @@ export default function Stage({ children }: { children: ReactNode }) {
         snapArmed.current &&
         jumpAnim.current === null &&
         now - stableSince > SNAP_IDLE_MS &&
-        now - lastInputAt.current > SNAP_IDLE_MS &&
-        target > SHOVE_END
+        now - lastInputAt.current > SNAP_IDLE_MS
       ) {
-        const rest = REST_POINTS.reduce((best, r) =>
-          Math.abs(target - r) < Math.abs(target - best) ? r : best
-        )
-        const gap = Math.abs(target - rest)
-        snapArmed.current = false
-        if (gap > 0.004) {
-          jumpTo(rest, Math.min(900, Math.max(420, gap * 5200)))
+        // Directional commit, not nearest-neighbour. A short push in one
+        // direction takes you a whole panel: the gesture decides where you
+        // are going, the corridor covers the distance. Anything less than the
+        // commit threshold falls back to the panel you came from, so a stray
+        // wheel tick never strands you between two panels.
+        const from = settledRest.current
+        const dir = target > from ? 1 : -1
+        const i = REST_POINTS.indexOf(from)
+        const next = REST_POINTS[Math.min(Math.max(i + dir, 0), REST_POINTS.length - 1)] ?? from
+        // The intro cascade is hand-driven: while the dominoes are still
+        // falling, nothing pulls at the page. The moment the last one lands
+        // (CASCADE_END) that freedom ends, so the shove into panel 02 is
+        // never a state you can be left stranded in.
+        const tippingDominoes = from === 0 && dir === 1 && target < CASCADE_END
+        if (!tippingDominoes) {
+          const span = next - from
+          const frac = span === 0 ? 0 : (target - from) / span
+          const movedPx = Math.abs(target - from) * travel
+          const goTo =
+            frac >= 1
+              ? // Carried past the next panel entirely (scrollbar drag, End
+                // key, a long trackpad sweep): honour how far they actually
+                // went instead of insisting on one panel per gesture.
+                REST_POINTS.reduce((best, r) =>
+                  Math.abs(target - r) < Math.abs(target - best) ? r : best
+                )
+              : frac > 0 && movedPx > COMMIT_PX
+                ? next
+                : from
+          snapArmed.current = false
+          settledRest.current = goTo
+          if (Math.abs(target - goTo) > 0.002) {
+            jumpTo(goTo, Math.min(760, Math.max(420, 380 + Math.abs(target - goTo) * 900)))
+          }
         }
       }
       raf = requestAnimationFrame(loop)

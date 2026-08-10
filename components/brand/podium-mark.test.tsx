@@ -23,7 +23,9 @@ describe('PodiumMark', () => {
     const { container } = render(<PodiumMark height={40} limeTop />)
     const fills = Array.from(container.querySelectorAll('path')).map((p) => p.getAttribute('fill'))
     expect(fills[0]).toBe('currentColor')
-    expect(fills[2]).toBe('var(--lime)')
+    // Literal hex, not var(--lime): the mark renders in contexts that do not
+    // carry the landing's token scope, and the brand lime must never drop out.
+    expect(fills[2]).toBe('#C1EC2F')
   })
 
   it('is decorative by default (aria-hidden)', () => {

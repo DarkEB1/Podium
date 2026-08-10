@@ -25,19 +25,24 @@ vi.mock('@/components/ui/sonner', () => ({
 import RootLayout from './layout'
 
 describe('T1 RootLayout', () => {
-  it('applies the DM Sans and Geist Mono font variable classes to <body>', () => {
+  // The font variables live on <html>, not <body>: globals.css applies
+  // `font-sans` at the html level, so variables declared lower down are not in
+  // scope when that rule resolves and the page falls back to a serif.
+  it('applies the DM Sans and Geist Mono font variable classes to <html>', () => {
     // RootLayout renders the document <html><body>; jsdom can't nest those in a
-    // container, so render to static markup and assert the <body> class wiring.
+    // container, so render to static markup and assert the class wiring.
     const html = renderToStaticMarkup(
       <RootLayout>
         <div>child</div>
       </RootLayout>,
     )
+    const htmlTag = html.match(/<html[^>]*class="([^"]*)"/)
+    expect(htmlTag).not.toBeNull()
+    const htmlClass = htmlTag?.[1] ?? ''
+    expect(htmlClass).toContain('font-dm-sans-var')
+    expect(htmlClass).toContain('font-geist-mono-var')
+
     const bodyTag = html.match(/<body[^>]*class="([^"]*)"/)
-    expect(bodyTag).not.toBeNull()
-    const bodyClass = bodyTag?.[1] ?? ''
-    expect(bodyClass).toContain('font-dm-sans-var')
-    expect(bodyClass).toContain('font-geist-mono-var')
-    expect(bodyClass).toContain('antialiased')
+    expect(bodyTag?.[1] ?? '').toContain('antialiased')
   })
 })
