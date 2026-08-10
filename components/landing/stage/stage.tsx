@@ -11,7 +11,7 @@ import {
 } from 'react'
 import StageNav from './stage-nav'
 import LandingScene from './scene'
-import { REST_POINTS, panelIndex, trackXVw } from './track-map'
+import { REST_POINTS, SHOVE_END, panelIndex, trackXVw } from './track-map'
 
 // ————————————————————————————————————————————————————————————————————————
 // The stage: one 1000vh scroll fabric driving a fixed 500vw corridor
@@ -39,6 +39,8 @@ export function useStage(): StageApi {
 export { REST_POINTS }
 
 const PANEL_LABELS = ['01', '02', '03', '04', '05']
+// Quiet time after the last scroll input before the corridor settles itself.
+const SNAP_IDLE_MS = 190
 
 export default function Stage({ children }: { children: ReactNode }) {
   const rootRef = useRef<HTMLDivElement>(null)
@@ -48,6 +50,12 @@ export default function Stage({ children }: { children: ReactNode }) {
   const springPos = useRef(0)
   const springVel = useRef(0)
   const jumpAnim = useRef<number | null>(null)
+  // Snap-to-panel bookkeeping: when scroll input stops, the corridor finishes
+  // the journey to the nearest panel so nobody is left in a half-travelled
+  // limbo (founder direction 2026-08-10).
+  const lastInputAt = useRef(0)
+  const snapArmed = useRef(false)
+  const programmaticUntil = useRef(0)
   const [panelIdx, setPanelIdx] = useState(0)
   const [navSolid, setNavSolid] = useState(false)
   const [introDone, setIntroDone] = useState(false)
@@ -62,10 +70,65 @@ export default function Stage({ children }: { children: ReactNode }) {
     listeners.current.forEach((fn) => fn(p))
   }, [])
 
+  // Programmatic travel: the corridor rushes past (spec §5.4) — the spring is
+  // bypassed (we drive springPos directly) then re-engaged on arrival. Scroll
+  // events it emits must not read as visitor input, hence programmaticUntil.
+  const jumpTo = useCallback((targetP: number, durationMs?: number) => {
+    const startP = pRef.current
+    const travel = window.innerHeight * TRAVEL_VIEWPORTS
+    const t0 = performance.now()
+    const D = durationMs ?? 1100
+    programmaticUntil.current = t0 + D + 160
+    const inoutCirc = (t: number) =>
+      t < 0.5
+        ? (1 - Math.sqrt(1 - Math.pow(2 * t, 2))) / 2
+        : (Math.sqrt(1 - Math.pow(-2 * t + 2, 2)) + 1) / 2
+    if (jumpAnim.current !== null) cancelAnimationFrame(jumpAnim.current)
+    const step = (now: number) => {
+      const u = Math.min((now - t0) / D, 1)
+      const p = startP + (targetP - startP) * inoutCirc(u)
+      springPos.current = p
+      springVel.current = 0
+      window.scrollTo(0, p * travel)
+      if (u < 1) {
+        jumpAnim.current = requestAnimationFrame(step)
+      } else {
+        jumpAnim.current = null
+        programmaticUntil.current = performance.now() + 160
+      }
+    }
+    jumpAnim.current = requestAnimationFrame(step)
+  }, [])
+
+  // Visitor input arms the snap; a jump's own scroll events do not.
+  useEffect(() => {
+    const arm = () => {
+      lastInputAt.current = performance.now()
+      snapArmed.current = true
+    }
+    const onScroll = () => {
+      if (performance.now() < programmaticUntil.current) return
+      arm()
+    }
+    const opts = { passive: true } as const
+    window.addEventListener('wheel', arm, opts)
+    window.addEventListener('touchmove', arm, opts)
+    window.addEventListener('touchend', arm, opts)
+    window.addEventListener('scroll', onScroll, opts)
+    return () => {
+      window.removeEventListener('wheel', arm)
+      window.removeEventListener('touchmove', arm)
+      window.removeEventListener('touchend', arm)
+      window.removeEventListener('scroll', onScroll)
+    }
+  }, [])
+
   // Critically damped spring (k 170, c 26, m 1) between raw scroll and P.
   useEffect(() => {
     let raf = 0
     let last = performance.now()
+    let lastY = -1
+    let stableSince = last
     const loop = (now: number) => {
       const dt = Math.min((now - last) / 1000, 1 / 30)
       last = now
@@ -95,38 +158,37 @@ export default function Stage({ children }: { children: ReactNode }) {
         const next = window.scrollY > 40
         return prev === next ? prev : next
       })
+      // Settle to the nearest panel once the visitor stops pushing. Never
+      // during the intro cascade (P below the shove end): there the visitor
+      // is hand-tipping the dominoes and any pull would fight them.
+      // Settle on the raw scroll position, not the smoothed one: the spring is
+      // still catching up when the visitor lets go, and snapping to a
+      // mid-flight value would land the corridor in the wrong place.
+      if (window.scrollY !== lastY) {
+        lastY = window.scrollY
+        stableSince = now
+      }
+      if (
+        snapArmed.current &&
+        jumpAnim.current === null &&
+        now - stableSince > SNAP_IDLE_MS &&
+        now - lastInputAt.current > SNAP_IDLE_MS &&
+        target > SHOVE_END
+      ) {
+        const rest = REST_POINTS.reduce((best, r) =>
+          Math.abs(target - r) < Math.abs(target - best) ? r : best
+        )
+        const gap = Math.abs(target - rest)
+        snapArmed.current = false
+        if (gap > 0.004) {
+          jumpTo(rest, Math.min(900, Math.max(420, gap * 5200)))
+        }
+      }
       raf = requestAnimationFrame(loop)
     }
     raf = requestAnimationFrame(loop)
     return () => cancelAnimationFrame(raf)
-  }, [apply])
-
-  // Programmatic travel: the corridor rushes past (spec §5.4) — the spring is
-  // bypassed (we drive springPos directly) then re-engaged on arrival.
-  const jumpTo = useCallback((targetP: number, durationMs?: number) => {
-    const startP = pRef.current
-    const travel = window.innerHeight * TRAVEL_VIEWPORTS
-    const t0 = performance.now()
-    const D = durationMs ?? 1100
-    const inoutCirc = (t: number) =>
-      t < 0.5
-        ? (1 - Math.sqrt(1 - Math.pow(2 * t, 2))) / 2
-        : (Math.sqrt(1 - Math.pow(-2 * t + 2, 2)) + 1) / 2
-    if (jumpAnim.current !== null) cancelAnimationFrame(jumpAnim.current)
-    const step = (now: number) => {
-      const u = Math.min((now - t0) / D, 1)
-      const p = startP + (targetP - startP) * inoutCirc(u)
-      springPos.current = p
-      springVel.current = 0
-      window.scrollTo(0, p * travel)
-      if (u < 1) {
-        jumpAnim.current = requestAnimationFrame(step)
-      } else {
-        jumpAnim.current = null
-      }
-    }
-    jumpAnim.current = requestAnimationFrame(step)
-  }, [])
+  }, [apply, jumpTo])
 
   // Keyboard: rest-point jumps (spec §4.5).
   useEffect(() => {

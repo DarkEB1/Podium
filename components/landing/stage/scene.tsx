@@ -140,10 +140,15 @@ function glyphGeometry(w: number, h: number): THREE.ExtrudeGeometry {
   return geo
 }
 
-// Load choreography: the stack starts fallen and un-falls to standing, front
-// to back. Driven by performance.now so a paused r3f clock can never freeze it.
-const UNFALL_DELAY = [0.5, 0.75, 1.0]
-const UNFALL_DUR = 0.9
+// Load choreography (founder direction 2026-08-10): the bars APPEAR — they
+// pop into place from nothing and wobble a moment on their base, the way a
+// dropped plastic block settles. Nothing rises from the floor. Driven by
+// performance.now so a paused r3f clock can never freeze it.
+const POP_DELAY = [0.15, 0.32, 0.49]
+const POP_DUR = 0.42
+const WOBBLE_DEG = 3.4
+const WOBBLE_HZ = 4.2
+const WOBBLE_DECAY = 4.6
 
 function HeroDominoes({ stage, vpW, vpH }: { stage: StageApi; vpW: number; vpH: number }) {
   const material = useLimePlastic()
@@ -174,17 +179,13 @@ function HeroDominoes({ stage, vpW, vpH }: { stage: StageApi; vpW: number; vpH: 
   useFrame((_, delta) => {
     const p = stage.getP()
     if (loadT.current === null) loadT.current = performance.now() / 1000
-    const sinceLoad = performance.now() / 1000 - loadT.current
 
-    // Candidate angles: scroll scrub vs the un-fall intro, whichever is larger.
+    // Candidate angles come from the scroll scrub alone; the load entrance is
+    // a scale pop plus a decaying wobble applied on top (see below).
     const HALF_PI = Math.PI / 2
-    const cand = [0, 1, 2].map((i) => {
-      const scrub = (candidateTheta(p, i as 0 | 1 | 2) * Math.PI) / 180
-      const t = Math.min(Math.max((sinceLoad - UNFALL_DELAY[i]!) / UNFALL_DUR, 0), 1)
-      const settle = 1 - Math.pow(1 - t, 3)
-      const unfall = HALF_PI * (1 - settle)
-      return Math.min(Math.max(scrub, unfall), HALF_PI)
-    })
+    const cand = [0, 1, 2].map((i) =>
+      Math.min((candidateTheta(p, i as 0 | 1 | 2) * Math.PI) / 180, HALF_PI)
+    )
 
     // Rigid resolve, back to front. The last piece stays analytic so the
     // corner-push track coupling and camera never desync. The others clamp
@@ -201,14 +202,26 @@ function HeroDominoes({ stage, vpW, vpH }: { stage: StageApi; vpW: number; vpH: 
     }
 
     groups.current.forEach((g, i) => {
-      if (g) g.rotation.z = -s[i]!
+      if (!g) return
+      // Entrance: scale pop about the ground pivot, then a damped wobble that
+      // dies out. Both are pure decoration on top of the contact solve.
+      const e = (performance.now() / 1000 - loadT.current!) - POP_DELAY[i]!
+      const t = Math.min(Math.max(e / POP_DUR, 0), 1)
+      g.scale.setScalar(Math.max(0.0001, easeOutBack(t)))
+      const wobble =
+        e > 0 && e < 2.4
+          ? ((WOBBLE_DEG * Math.PI) / 180) *
+            Math.exp(-WOBBLE_DECAY * e) *
+            Math.sin(2 * Math.PI * WOBBLE_HZ * e)
+          : 0
+      g.rotation.z = -(s[i]! + wobble)
     })
   })
 
   return (
     <>
       {pieces.map((p, i) => (
-        <group key={i} ref={(el) => { groups.current[i] = el }} position={[p.pivotX, 0, 0]}>
+        <group key={i} ref={(el) => { groups.current[i] = el }} position={[p.pivotX, 0, 0]} scale={0.0001}>
           <mesh
             geometry={geometries[i]!}
             material={material}
