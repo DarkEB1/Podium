@@ -49,8 +49,9 @@ const SNAP_IDLE_MS = 150
 // How far a gesture must carry before it counts as "going to the next panel"
 // rather than a twitch. In pixels, not a fraction of the gap, so the weight of
 // a flick feels the same everywhere and does not drift when the fabric length
-// changes. About two and a half wheel notches.
-const COMMIT_PX = 240
+// changes. Tuned for trackpads, where a gentle two-finger push easily travels
+// a few hundred pixels and should not necessarily change panel.
+const COMMIT_PX = 420
 
 export default function Stage({ children }: { children: ReactNode }) {
   const rootRef = useRef<HTMLDivElement>(null)
@@ -86,15 +87,15 @@ export default function Stage({ children }: { children: ReactNode }) {
   // Programmatic travel: the corridor rushes past (spec §5.4) — the spring is
   // bypassed (we drive springPos directly) then re-engaged on arrival. Scroll
   // events it emits must not read as visitor input, hence programmaticUntil.
+  // The origin for the next gesture is only re-anchored when a jump actually
+  // ARRIVES: a jump the visitor interrupts must leave the origin where it was,
+  // or the next gesture would be measured from a panel they never reached.
   const jumpTo = useCallback((targetP: number, durationMs?: number) => {
     const startP = pRef.current
     const travel = window.innerHeight * TRAVEL_VIEWPORTS
     const t0 = performance.now()
     const D = durationMs ?? 1100
     programmaticUntil.current = t0 + D + 160
-    // Nav clicks and keyboard jumps re-anchor the gesture origin; the hero's
-    // scroll nudge does not, because it stops short of a rest on purpose.
-    if (REST_POINTS.includes(targetP)) settledRest.current = targetP
     const inoutCirc = (t: number) =>
       t < 0.5
         ? (1 - Math.sqrt(1 - Math.pow(2 * t, 2))) / 2
@@ -111,16 +112,26 @@ export default function Stage({ children }: { children: ReactNode }) {
       } else {
         jumpAnim.current = null
         programmaticUntil.current = performance.now() + 160
+        if (REST_POINTS.includes(targetP)) settledRest.current = targetP
       }
     }
     jumpAnim.current = requestAnimationFrame(step)
   }, [])
 
-  // Visitor input arms the snap; a jump's own scroll events do not.
+  // Visitor input arms the snap; a jump's own scroll events do not. Real input
+  // also ABORTS a settle in progress: the visitor's hand outranks the
+  // animation, so a long swipe keeps travelling instead of being swallowed and
+  // forcing them to lift off and start again.
   useEffect(() => {
     const arm = () => {
       lastInputAt.current = performance.now()
       snapArmed.current = true
+      if (jumpAnim.current !== null) {
+        cancelAnimationFrame(jumpAnim.current)
+        jumpAnim.current = null
+        programmaticUntil.current = 0
+        springVel.current = 0
+      }
     }
     const onScroll = () => {
       if (performance.now() < programmaticUntil.current) return
@@ -217,7 +228,6 @@ export default function Stage({ children }: { children: ReactNode }) {
                 ? next
                 : from
           snapArmed.current = false
-          settledRest.current = goTo
           if (Math.abs(target - goTo) > 0.002) {
             jumpTo(goTo, Math.min(760, Math.max(420, 380 + Math.abs(target - goTo) * 900)))
           }
