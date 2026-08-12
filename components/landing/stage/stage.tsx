@@ -46,8 +46,13 @@ export function useStage(): StageApi {
 export { REST_POINTS }
 
 const PANEL_LABELS = ['01', '02', '03', '04']
-// Quiet time after the last scroll input before the corridor settles itself.
-const SNAP_IDLE_MS = 150
+// How long the corridor waits, after the very last scroll movement has died
+// away, before it settles you onto a panel. Deliberately long (founder
+// direction 2026-08-12: the assist must be far more subtle and only step in
+// when you have really stopped). Trackpad inertia keeps resetting this timer
+// while it runs, so the clock only starts once the page is truly still — a
+// pause to reposition your fingers and carry on never triggers it.
+const SNAP_IDLE_MS = 850
 // How far a gesture must carry before it counts as "going to the next panel"
 // rather than a twitch. In pixels, not a fraction of the gap, so the weight of
 // a flick feels the same everywhere and does not drift when the fabric length
@@ -68,6 +73,16 @@ const settleEase = (t: number) => t * t * t * (t * (t * 6 - 15) + 10)
 const PANEL_SPAN = (REST_POINTS[1] ?? 1 / 3) - (REST_POINTS[0] ?? 0)
 const settleMs = (delta: number) =>
   Math.min(1500, Math.max(620, 620 + (Math.abs(delta) / PANEL_SPAN) * 780))
+// The rescue snap moves slower than a nav jump: it should read as the page
+// quietly drifting into place under you, never a pull. Even a tiny correction
+// takes most of a second, so it always feels gentle rather than snatched.
+const snapMs = (delta: number) =>
+  Math.min(1700, Math.max(900, 900 + (Math.abs(delta) / PANEL_SPAN) * 700))
+// How near a panel counts as "already there". A stop inside this band is
+// treated as a choice, not a stranding, so the corridor leaves it alone
+// instead of nudging you the last little way. Only a stop out in the open
+// between panels gets rescued.
+const SNAP_DEADZONE = 0.08 // fraction of a slide
 
 export default function Stage({ children }: { children: ReactNode }) {
   const rootRef = useRef<HTMLDivElement>(null)
@@ -265,7 +280,14 @@ export default function Stage({ children }: { children: ReactNode }) {
         // (CASCADE_END) that freedom ends, so the shove into panel 02 is
         // never a state you can be left stranded in.
         const tippingDominoes = from === 0 && dir === 1 && target < CASCADE_END
-        if (!tippingDominoes) {
+        // Already sitting close to a panel: leave it. Stopping near a rest is a
+        // choice, and the last thing this assist should do is twitch you the
+        // final few percent when you were happy where you were.
+        const nearestRest = REST_POINTS.reduce((best, r) =>
+          Math.abs(target - r) < Math.abs(target - best) ? r : best
+        )
+        const parked = Math.abs(target - nearestRest) < SNAP_DEADZONE * PANEL_SPAN
+        if (!tippingDominoes && !parked) {
           const span = next - from
           const frac = span === 0 ? 0 : (target - from) / span
           const movedPx = Math.abs(target - from) * travel
@@ -274,16 +296,19 @@ export default function Stage({ children }: { children: ReactNode }) {
               ? // Carried past the next panel entirely (scrollbar drag, End
                 // key, a long trackpad sweep): honour how far they actually
                 // went instead of insisting on one panel per gesture.
-                REST_POINTS.reduce((best, r) =>
-                  Math.abs(target - r) < Math.abs(target - best) ? r : best
-                )
+                nearestRest
               : frac > 0 && movedPx > COMMIT_PX
                 ? next
                 : from
           snapArmed.current = false
           if (Math.abs(target - goTo) > 0.002) {
-            jumpTo(goTo)
+            jumpTo(goTo, snapMs(target - goTo))
           }
+        } else if (parked) {
+          // Disarm without moving, and re-anchor the origin to the panel we are
+          // resting beside so the next gesture is measured from here.
+          snapArmed.current = false
+          settledRest.current = nearestRest
         }
       }
       raf = requestAnimationFrame(loop)
