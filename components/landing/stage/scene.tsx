@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { ContactShadows } from '@react-three/drei'
 import * as THREE from 'three'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js'
@@ -146,107 +145,6 @@ function glyphGeometry(w: number, h: number): THREE.ExtrudeGeometry {
   return geo
 }
 
-// ——— cast shadows ——————————————————————————————————————————————————————
-// The floor shadow alone cannot do this job. The camera looks dead level, so
-// the floor is crushed to a hairline where the pieces stand: drei's
-// <ContactShadows> is working, but all it can draw is a thin line pinned to
-// the baseline, which cannot visibly follow anything (founder report
-// 2026-08-12: "the shadow on the podium dominoes doesn't move as we scroll").
-//
-// So each piece also casts a soft shape onto the page behind it, offset down
-// and to the right, exactly the way the headline chips do in CSS. It is drawn
-// rather than shadow-mapped so it can be placed by hand: it rides the piece's
-// own angle, which means it swings through the whole cascade.
-const SHADOW_INK = '#1B1D20'
-const SHADOW_OFFSET = 0.06 // of the piece's height, down and to the right
-
-function useBlobTexture(): THREE.Texture {
-  const tex = useMemo(() => {
-    // A blurred silhouette of the piece itself, not a round blob: the bar has
-    // a shape and its shadow has to have the same one, or the halo reads as a
-    // glow. Inset so the blur has room, then the quad is scaled back up by the
-    // same factor to land the hard edge exactly on the piece's outline.
-    const size = 256
-    const inset = size * 0.1875
-    const c = document.createElement('canvas')
-    c.width = size
-    c.height = size
-    const ctx = c.getContext('2d')!
-    const w = size - inset * 2
-    const rMaj = w * ROUND_MAJOR
-    const rMin = w * 0.12
-    ctx.filter = 'blur(24px)'
-    ctx.fillStyle = '#000'
-    ctx.beginPath()
-    ctx.moveTo(inset + rMin, inset)
-    ctx.lineTo(size - inset - rMin, inset)
-    ctx.quadraticCurveTo(size - inset, inset, size - inset, inset + rMin)
-    ctx.lineTo(size - inset, size - inset - rMin)
-    ctx.quadraticCurveTo(size - inset, size - inset, size - inset - rMin, size - inset)
-    ctx.lineTo(inset + rMaj, size - inset)
-    ctx.quadraticCurveTo(inset, size - inset, inset, size - inset - rMaj)
-    ctx.closePath()
-    ctx.fill()
-    return new THREE.CanvasTexture(c)
-  }, [])
-  useEffect(() => () => tex.dispose(), [tex])
-  return tex
-}
-
-// The texture's silhouette fills 62.5% of the quad; the rest is blur margin.
-const SHADOW_QUAD = 1 / 0.625
-
-/** One soft shape, facing the camera; its transform is written per frame. */
-function CastShadow({
-  blob,
-  meshRef,
-}: {
-  blob: THREE.Texture
-  meshRef: (m: THREE.Mesh | null) => void
-}) {
-  return (
-    <mesh ref={meshRef} renderOrder={-1}>
-      <planeGeometry args={[1, 1]} />
-      <meshBasicMaterial
-        map={blob}
-        color={SHADOW_INK}
-        transparent
-        depthWrite={false}
-        opacity={0}
-      />
-    </mesh>
-  )
-}
-
-/**
- * Put a piece's cast shadow behind it. The piece stands with its bottom-right
- * corner at pivotX and tips clockwise by theta about that corner, so its middle
- * swings out along the arc below; the shadow follows, tilts with it, and fades
- * as the piece goes over and presents less of itself to the light.
- */
-function placeCastShadow(
-  m: THREE.Mesh,
-  pivotX: number,
-  w: number,
-  h: number,
-  depth: number,
-  theta: number,
-  strength: number
-) {
-  const sin = Math.sin(theta)
-  const cos = Math.cos(theta)
-  const off = h * SHADOW_OFFSET
-  m.position.set(
-    pivotX - (w / 2) * cos + (h / 2) * sin + off,
-    (w / 2) * sin + (h / 2) * cos - off * 0.85,
-    -depth / 2 - 0.02
-  )
-  m.rotation.z = -theta
-  m.scale.set(w * SHADOW_QUAD, h * SHADOW_QUAD, 1)
-  const mat = m.material as THREE.MeshBasicMaterial
-  mat.opacity = strength * (0.34 - 0.1 * sin)
-}
-
 // Load choreography (founder direction 2026-08-10): the bars APPEAR — they
 // pop into place from nothing and wobble a moment on their base, the way a
 // dropped plastic block settles. Nothing rises from the floor. Driven by
@@ -262,9 +160,7 @@ const IDLE_LEAN_DEG = 4.5
 
 function HeroDominoes({ stage, vpW, vpH }: { stage: StageApi; vpW: number; vpH: number }) {
   const material = useLimePlastic()
-  const blob = useBlobTexture()
   const groups = useRef<(THREE.Group | null)[]>([])
-  const shadows = useRef<(THREE.Mesh | null)[]>([])
   const loadT = useRef<number | null>(null)
   // Displayed angles, smoothed: the contact clamp is discontinuous at the
   // moment a corner slips off the next piece's edge, so the raw solve pops.
@@ -334,27 +230,12 @@ function HeroDominoes({ stage, vpW, vpH }: { stage: StageApi; vpW: number; vpH: 
         const phase = ((e - 1.6) % IDLE_PERIOD) / IDLE_PERIOD
         if (phase < 0.3) idle = ((IDLE_LEAN_DEG * Math.PI) / 180) * Math.sin((phase / 0.3) * Math.PI)
       }
-      const theta = s[i]! + wobble + idle
-      g.rotation.z = -theta
-      // The shadow lives outside the piece's group, in world space, because it
-      // must not rotate with it: it lies on the floor while the piece tips.
-      const sh = shadows.current[i]
-      const piece = pieces[i]!
-      if (sh) placeCastShadow(sh, piece.pivotX, piece.w, piece.h, piece.w * 0.55, theta, t)
+      g.rotation.z = -(s[i]! + wobble + idle)
     })
   })
 
   return (
     <>
-      {pieces.map((p, i) => (
-        <CastShadow
-          key={`shadow-${i}`}
-          blob={blob}
-          meshRef={(m) => {
-            shadows.current[i] = m
-          }}
-        />
-      ))}
       {pieces.map((p, i) => (
         <group key={i} ref={(el) => { groups.current[i] = el }} position={[p.pivotX, 0, 0]} scale={0.0001}>
           <mesh geometry={geometries[i]!} material={material} position={[-p.w, 0, 0]} />
@@ -419,9 +300,7 @@ const TONES = { lime: '#C1EC2F', tint1: '#CFEF6B', tint2: '#DCF29B' } as const
 function SetPieces({ stage, vpW, vpH }: { stage: StageApi; vpW: number; vpH: number }) {
   const aspect = vpW / vpH
   const unitsPerVw = (10 * aspect) / 100
-  const blob = useBlobTexture()
   const groups = useRef<(THREE.Group | null)[]>([])
-  const shadows = useRef<(THREE.Mesh | null)[]>([])
   const lifts = useRef<number[]>(SET_PIECES.map(() => 0))
 
   const materials = useMemo(() => {
@@ -481,27 +360,11 @@ function SetPieces({ stage, vpW, vpH }: { stage: StageApi; vpW: number; vpH: num
           ? 0.04 * (1 + Math.sin(state.clock.elapsedTime * 1.1 + b.sp.bobPhase))
           : 0
       g.position.y = lifts.current[i]! + bob + drop
-      const sh = shadows.current[i]
-      if (sh) {
-        // These stay upright, so the shadow just rides along with the piece as
-        // it drops into its footprint, hovers, or bobs.
-        placeCastShadow(sh, b.pivotX, b.w, b.h * g.scale.y, b.w * 0.55, 0, Math.min(1, u * 2))
-        sh.position.y += g.position.y
-      }
     })
   })
 
   return (
     <>
-      {built.map((b, i) => (
-        <CastShadow
-          key={`shadow-${i}`}
-          blob={blob}
-          meshRef={(m) => {
-            shadows.current[i] = m
-          }}
-        />
-      ))}
       {built.map((b, i) => (
         <group key={i} ref={(el) => { groups.current[i] = el }} position={[b.pivotX, 0, 0]}>
           <mesh geometry={b.geo} material={materials[b.sp.tone]} position={[-b.w, 0, 0]} />
@@ -577,15 +440,15 @@ function SceneInner({
       <directionalLight position={[5, 3, 4]} intensity={0.5} />
       <HeroDominoes stage={stage} vpW={vpW} vpH={vpH} />
       <SetPieces stage={stage} vpW={vpW} vpH={vpH} />
-      <FloorShadows stage={stage} vpW={vpW} vpH={vpH} />
+      <TravellingKey stage={stage} vpW={vpW} vpH={vpH} />
     </>
   )
 }
 
 // The key light travels with the camera so every panel's furniture is lit the
-// same way. Grounding is handled by the drawn blobs (see GroundShadow); this
-// used to also carry a drei <ContactShadows> that rendered nothing.
-function FloorShadows({ stage, vpW, vpH }: { stage: StageApi; vpW: number; vpH: number }) {
+// same way. The pieces cast no shadow (founder direction 2026-08-12: preferred
+// with none at all) — the clearcoat and env light do the grounding.
+function TravellingKey({ stage, vpW, vpH }: { stage: StageApi; vpW: number; vpH: number }) {
   const ref = useRef<THREE.Group>(null)
   const aspect = vpW / vpH
   const unitsPerVw = (10 * aspect) / 100
@@ -596,8 +459,6 @@ function FloorShadows({ stage, vpW, vpH }: { stage: StageApi; vpW: number; vpH: 
   return (
     <group ref={ref}>
       <KeyLight />
-      {/* the contact line where each piece meets the floor */}
-      <ContactShadows position={[0, 0, 0]} opacity={0.42} blur={1.4} scale={24} resolution={1024} frames={Infinity} />
     </group>
   )
 }
