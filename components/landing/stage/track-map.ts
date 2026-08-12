@@ -12,13 +12,27 @@
 // Four panels since the roles panel was cut on founder review (2026-08-10):
 // hero, marketplace, what we do, your spot.
 //
-// Evenly spaced after the intro, and the last one is the end of the page, so
-// there is no dead scroll anywhere: every panel costs the same effort to reach
-// and the page finishes exactly when the corridor does.
-// The cascade owns 0..0.20; the three panel crossings split the rest evenly at
-// ~0.267 each, so every crossing costs the same scrolling. Unequal gaps were
-// what made the shove into panel 02 feel like a lurch next to the others.
-export const REST_POINTS = [0, 0.467, 0.733, 1]
+// EXACT thirds. The previous map reserved the cascade's scroll on top of the
+// first crossing, so reaching the marketplace cost 1429px where the other two
+// panels cost 817px each — nearly double, which is what made the page feel
+// heavy at the start and quick later (founder diagnosis 2026-08-12: "each
+// slide is a different scroll length"). Now every slide costs the same, and
+// the cascade is paid for out of the first slide's budget rather than added
+// to it.
+export const REST_POINTS = [0, 1 / 3, 2 / 3, 1]
+
+/**
+ * Progress at fraction u of the way from rest i to rest i + 1.
+ *
+ * Panel-local timings are written through this rather than as bare numbers, so
+ * retiming the corridor can never again leave an animation stranded in the
+ * wrong stretch of scroll.
+ */
+export function atSeg(i: number, u: number): number {
+  const a = REST_POINTS[i] ?? 0
+  const b = REST_POINTS[i + 1] ?? 1
+  return a + (b - a) * u
+}
 
 // Hero pieces (build spec v3 §3 P01): centers/widths in vw, heights in vh.
 export const PIECES = [
@@ -30,26 +44,31 @@ export const PIECES = [
 // Scroll windows for each piece's fall candidate (start, end, k). The curve
 // drives an UNCONSTRAINED candidate angle 0..90; rigid contact in the scene
 // decides where each piece actually rests.
+// The falls overlap heavily: the last piece is already leaning before the
+// first has landed. That is what a real run of dominoes does, and it also
+// brings the moment its corner reaches the screen edge forward, leaving most
+// of the first slide for the shove itself.
 export const WINDOWS: readonly [number, number, number][] = [
-  [0.0, 0.08, 1.8],
-  [0.047, 0.14, 1.7],
-  [0.093, 0.2, 1.5],
+  [0.0, 0.069, 1.8],
+  [0.03, 0.114, 1.7],
+  [0.055, 0.16, 1.4],
 ]
 
-// The hand-scrubbed stretch. Long enough that one flick does not skip the
-// whole cascade: the dominoes are the signature moment, so tipping them is
-// meant to take a deliberate push (~600px at the fabric length below).
-export const CASCADE_END = 0.2
+// The hand-scrubbed stretch, and the first slide's opening beat. Deliberately
+// longer than a typical trackpad flick (~410px against ~380px), so one careless
+// swipe cannot blow through the dominoes: they are the signature moment and
+// they are meant to cost a real push.
+export const CASCADE_END = 0.16
 
 // Panel 03 assembly: each part drops into its footprint and clicks home.
 // Shared by the 3D parts (scene.tsx) and the DOM copy riding on them
 // (panel-what.tsx) so the text lands on exactly the frame the part does.
-// All three are home by 0.72, before this panel's 0.733 rest, so the visitor
-// never arrives to a half-built set.
+// Written as fractions of the second crossing so all three are home before the
+// visitor arrives at the rest, whatever the corridor is retimed to.
 export const ASSEMBLY_WINDOWS: readonly (readonly [number, number])[] = [
-  [0.645, 0.69],
-  [0.663, 0.706],
-  [0.68, 0.72],
+  [atSeg(1, 0.67), atSeg(1, 0.84)],
+  [atSeg(1, 0.74), atSeg(1, 0.9)],
+  [atSeg(1, 0.8), atSeg(1, 0.95)],
 ]
 
 /** 0..1 placement progress of assembly part i at progress p. */
@@ -75,34 +94,54 @@ export function lastTipVw(p: number, vhPerVw: number): number {
   return LAST_PIVOT_VW + LAST.hVh * vhPerVw * Math.sin((theta * Math.PI) / 180)
 }
 
-function smooth(u: number): number {
-  return u * u * (3 - 2 * u)
+// The shove starts just before the last piece lands, not after it. The corner's
+// own push decelerates to nothing as the piece goes flat (its tip travels on a
+// cosine), so waiting for the landing left a dead patch where scrolling barely
+// moved anything and then the shove snapped in. Overlapping the two means the
+// screen picks up the momentum of the impact while the piece is still coming
+// down, and the rate never dips.
+const CROSS_START = CASCADE_END * 0.85
+
+// The shove's velocity profile: rate ramps up over the first quarter and then
+// holds flat, so the whole stretch is one steady speed rather than a swell.
+// Peaks at 1.14x its own average.
+const RAMP = 0.25
+function rampedLinear(u: number): number {
+  if (u <= 0) return 0
+  if (u >= 1) return 1
+  const norm = 1 - RAMP / 2
+  return (u < RAMP ? (u * u) / (2 * RAMP) : RAMP / 2 + (u - RAMP)) / norm
 }
 
 /**
  * Corridor x offset in vw for progress p.
  *
- * Every stretch of scroll moves the corridor. The old map spent most of each
- * gap parked between narrow travel segments, so scrolling felt heavy where
- * nothing moved and then far too quick when a segment finally fired. Here the
- * rests are evenly spaced and each gap is interpolated across its whole width,
- * which makes the rate of travel the same wherever the visitor is.
+ * Rate, not just distance, is what the hand feels. Every crossing is the same
+ * width and covers the same 100vw, and the mapping inside it is LINEAR, so the
+ * corridor moves at one constant rate from the moment the first domino's
+ * corner bites until the page ends. The eased gaps this replaced had zero rate
+ * at both ends of every crossing, which is why scrolling away from a panel felt
+ * like pushing through treacle and the middle then went by in a rush.
+ *
+ * The one stretch that runs faster is the shove out of the hero: it has to
+ * clear a whole viewport in what is left of the first slide once the dominoes
+ * have fallen. That is the impact, and it is meant to be felt.
  */
 export function trackXVw(p: number, vhPerVw: number): number {
-  // The last domino's corner shoves the screen once it crosses the right edge.
-  if (p <= CASCADE_END) return -Math.max(0, lastTipVw(p, vhPerVw) - 100)
-
   const firstRest = REST_POINTS[1]!
   if (p <= firstRest) {
-    // Carry on from wherever the corner left the corridor into panel 02.
+    // Two things move the corridor across the first slide and they add up: the
+    // corner welded to the screen edge, which moves it exactly as far as the
+    // tip overshoots, and the shove that the impact sets off.
+    const push = Math.max(0, lastTipVw(Math.min(p, CASCADE_END), vhPerVw) - 100)
     const pushAtEnd = Math.max(0, lastTipVw(CASCADE_END, vhPerVw) - 100)
-    const u = (p - CASCADE_END) / (firstRest - CASCADE_END)
-    return -pushAtEnd + (-100 + pushAtEnd) * smooth(u)
+    const u = (p - CROSS_START) / (firstRest - CROSS_START)
+    return -(push + (100 - pushAtEnd) * rampedLinear(u))
   }
   for (let i = 1; i < REST_POINTS.length - 1; i++) {
     const a = REST_POINTS[i]!
     const b = REST_POINTS[i + 1]!
-    if (p <= b) return -100 * i - 100 * smooth((p - a) / (b - a))
+    if (p <= b) return -100 * i - 100 * ((p - a) / (b - a))
   }
   return -100 * (REST_POINTS.length - 1)
 }

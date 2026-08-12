@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useStage } from './stage'
+import { REST_POINTS } from './track-map'
 import Chip from './chip'
 import { FIXTURES, type MarketFixture } from './market-fixtures'
 
@@ -11,7 +12,7 @@ import { FIXTURES, type MarketFixture } from './market-fixtures'
 // All per-frame animation is imperative (refs + rAF or CSS transitions);
 // React state changes only on discrete events.
 
-const DWELL_P = 0.467 // panel 02 rest point (track-map REST_POINTS[1])
+const DWELL_P = REST_POINTS[1]! // panel 02 rest point
 
 export default function PanelMarket() {
   return (

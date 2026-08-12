@@ -14,19 +14,17 @@ import LandingScene from './scene'
 import { REST_POINTS, CASCADE_END, panelIndex, trackXVw } from './track-map'
 
 // ————————————————————————————————————————————————————————————————————————
-// The stage: one 440vh scroll fabric driving a fixed 400vw corridor
+// The stage: one 385vh scroll fabric driving a fixed 400vw corridor
 // (build spec v3 §2.5). The smoothed progress value P (0..1) is written
 // imperatively every frame to the CSS custom property `--p` on the stage
 // root and pushed to JS subscribers — React state only changes on discrete
 // events (panel index, nav solidity), so travel never re-renders the tree.
 // ————————————————————————————————————————————————————————————————————————
 
-// Sized so every stretch costs about the same effort: the cascade is roughly
-// one firm flick (~0.15 of P), and each panel after it is a little under a
-// viewport of scrolling. The corridor now moves continuously across every gap
-// (see trackXVw), so this number sets the pace everywhere rather than only in
-// the few narrow segments that used to do all the travelling.
-export const TRAVEL_VIEWPORTS = 3.4 // 440vh body = 100vh viewport + 340vh travel
+// Fabric length. Three equal slides at ~0.95 of a viewport each: long enough
+// that a slide takes a real gesture, short enough that the page never reads as
+// a chore. 385vh body = 100vh viewport + 285vh travel.
+export const TRAVEL_VIEWPORTS = 2.85
 
 export type StageApi = {
   getP: () => number
@@ -58,10 +56,11 @@ const COMMIT_PX = 340
 // 2026-08-12: "autoscroll is too fast") had an infinite-slope midpoint, so the
 // corridor whipped past however long the animation nominally ran.
 const settleEase = (t: number) => t * t * t * (t * (t * 6 - 15) + 10)
-// Length of the settle, scaled by how far it has to carry. A full panel takes
+// Length of the settle, scaled by how far it has to carry. A full slide takes
 // a shade under 1.2s, roughly twice what it used to; the short recoveries back
-// to the panel you came from finish sooner but never feel snatched.
-const PANEL_SPAN = 0.267 // even gap between rests after the cascade
+// to the slide you came from finish sooner but never feel snatched.
+// Every gap between rests is the same width, so one of them defines the span.
+const PANEL_SPAN = (REST_POINTS[1] ?? 1 / 3) - (REST_POINTS[0] ?? 0)
 const settleMs = (delta: number) =>
   Math.min(1250, Math.max(560, 560 + (Math.abs(delta) / PANEL_SPAN) * 620))
 

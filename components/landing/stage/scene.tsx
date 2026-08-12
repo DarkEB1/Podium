@@ -7,7 +7,7 @@ import * as THREE from 'three'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js'
 import { useStage, type StageApi } from './stage'
-import { PIECES, ASSEMBLY_WINDOWS, candidateTheta, trackXVw } from './track-map'
+import { PIECES, ASSEMBLY_WINDOWS, atSeg, candidateTheta, trackXVw } from './track-map'
 import { panelHover } from './hover-store'
 
 // ————————————————————————————————————————————————————————————————————————
@@ -278,13 +278,13 @@ const SET_PIECES: SetPiece[] = [
   { id: 'what-2', panel: 2, centerVw: 70, wVw: 16, hVh: 38, window: [...ASSEMBLY_WINDOWS[2]!] as [number, number], entrance: 'assemble', tilt: 0.11, tone: 'lime' },
   // 04 Who's on the podium — the podium grows out of the floor, 1st in lime.
   // 04 Your spot — a filling podium crowd, gently alive, one gap at 76vw
-  // (the DOM draws the reserved slot there). All standing by 0.97, before the
-  // 1.0 rest that ends the page.
-  { panel: 3, centerVw: 52, wVw: 6.5, hVh: 22, window: [0.87, 0.92], entrance: 'grow', tone: 'lime', bobPhase: 0 },
-  { panel: 3, centerVw: 60, wVw: 6.5, hVh: 34, window: [0.885, 0.935], entrance: 'grow', tone: 'lime', bobPhase: 1.3 },
-  { panel: 3, centerVw: 68, wVw: 6.5, hVh: 28, window: [0.9, 0.95], entrance: 'grow', tone: 'lime', bobPhase: 2.6 },
-  { panel: 3, centerVw: 84, wVw: 6.5, hVh: 26, window: [0.893, 0.943], entrance: 'grow', tone: 'lime', bobPhase: 3.9 },
-  { panel: 3, centerVw: 92, wVw: 6.5, hVh: 31, window: [0.907, 0.957], entrance: 'grow', tone: 'lime', bobPhase: 5.2 },
+  // (the DOM draws the reserved slot there). Timed as fractions of the last
+  // crossing (atSeg) so they all stand well before the rest that ends the page.
+  { panel: 3, centerVw: 52, wVw: 6.5, hVh: 22, window: [atSeg(2, 0.51), atSeg(2, 0.7)], entrance: 'grow', tone: 'lime', bobPhase: 0 },
+  { panel: 3, centerVw: 60, wVw: 6.5, hVh: 34, window: [atSeg(2, 0.57), atSeg(2, 0.76)], entrance: 'grow', tone: 'lime', bobPhase: 1.3 },
+  { panel: 3, centerVw: 68, wVw: 6.5, hVh: 28, window: [atSeg(2, 0.63), atSeg(2, 0.81)], entrance: 'grow', tone: 'lime', bobPhase: 2.6 },
+  { panel: 3, centerVw: 84, wVw: 6.5, hVh: 26, window: [atSeg(2, 0.6), atSeg(2, 0.79)], entrance: 'grow', tone: 'lime', bobPhase: 3.9 },
+  { panel: 3, centerVw: 92, wVw: 6.5, hVh: 31, window: [atSeg(2, 0.65), atSeg(2, 0.84)], entrance: 'grow', tone: 'lime', bobPhase: 5.2 },
 ]
 
 function easeOutCubic(u: number): number {

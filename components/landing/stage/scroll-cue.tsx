@@ -11,7 +11,7 @@ export default function ScrollCue() {
   return (
     <button
       type="button"
-      onClick={() => stage.jumpTo(0.032, 900)}
+      onClick={() => stage.jumpTo(0.024, 900)}
       className="group flex items-center gap-2 text-[16px] font-medium text-primary"
     >
       See how it works

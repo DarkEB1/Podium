@@ -4,16 +4,19 @@ import Link from 'next/link'
 import { useEffect, useRef } from 'react'
 import { useStage } from './stage'
 import Chip from './chip'
+import { atSeg } from './track-map'
 
 // Panel 05 · Your spot (build spec v3 §3 P05). The bookend to the hero: the
 // same stepped headline resolves with a static lime chip on "you", one empty
 // dashed bar waits on the floor line, and the footer closes the corridor.
-// The headline lines rise into place as P approaches the dwell at 0.86 —
+// The headline lines rise into place over the back half of the last crossing,
 // written imperatively through stage.subscribe refs, never per-frame setState.
+// Expressed as fractions of that crossing so a retimed corridor cannot strand
+// them (track-map atSeg).
 const HEADLINE_LINES = ['The podium', 'has room', 'for'] as const
-const RISE_START = 0.88
-const RISE_STAGGER = 0.015
-const RISE_SPAN = 0.05
+const RISE_START = atSeg(2, 0.55)
+const RISE_STAGGER = (atSeg(2, 1) - atSeg(2, 0)) * 0.056
+const RISE_SPAN = (atSeg(2, 1) - atSeg(2, 0)) * 0.19
 const RISE_PX = 12
 
 // Empty bar: D3's silhouette (7vw x 40vh) with podium-bar radii — top-left
@@ -28,7 +31,7 @@ export default function PanelFinale() {
   const lineRefs = useRef<(HTMLSpanElement | null)[]>([])
 
   // Scroll beat: each line fades and rises 12px into place across a staggered
-  // window inside P 0.80..0.86. Static under prefers-reduced-motion.
+  // window inside the final crossing. Static under prefers-reduced-motion.
   useEffect(() => {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
     const apply = (p: number) => {

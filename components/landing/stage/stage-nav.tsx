@@ -2,12 +2,13 @@
 
 import Link from 'next/link'
 import PodiumMark from '@/components/brand/podium-mark'
+import { REST_POINTS } from './track-map'
 
 // Fixed 72px nav (build spec v3 §2.3). Transparent over the hero, solid page
 // white with a hairline after 40px of scroll. Never translucent, never blurred.
 const SECTIONS: { label: string; p: number }[] = [
-  { label: 'Marketplace', p: 0.467 },
-  { label: 'How it works', p: 0.733 },
+  { label: 'Marketplace', p: REST_POINTS[1]! },
+  { label: 'How it works', p: REST_POINTS[2]! },
 ]
 
 export default function StageNav({
