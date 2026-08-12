@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   REST_POINTS,
   CASCADE_END,
+  TRAVEL_VIEWPORTS,
   ASSEMBLY_WINDOWS,
   assemblyU,
   candidateTheta,
@@ -10,6 +11,10 @@ import {
 
 // 16:9-ish desktop, the shape the corridor is authored against.
 const VH_PER_VW = 900 / 1512
+const SCROLL_PX = TRAVEL_VIEWPORTS * 900 // the whole fabric, in scroll pixels
+const VW_PX = 1512 / 100
+// What an ordinary trackpad flick carries. The cascade has to outlast one.
+const FLICK_PX = 380
 
 describe('corridor map', () => {
   it('parks each panel exactly on its 100vw boundary', () => {
@@ -33,10 +38,19 @@ describe('corridor map', () => {
   // real push without leaving the shove no room to finish. Both halves of that
   // are load-bearing: too short and one flick skips the dominoes, too long and
   // the screen has to lurch sideways to catch up.
-  it('splits the first slide between the cascade and the shove', () => {
-    const share = CASCADE_END / REST_POINTS[1]!
-    expect(share).toBeGreaterThan(0.4)
-    expect(share).toBeLessThan(0.6)
+  it('makes the cascade outlast a flick without eating the first slide', () => {
+    const cascadePx = CASCADE_END * SCROLL_PX
+    expect(cascadePx).toBeGreaterThan(FLICK_PX)
+    expect(CASCADE_END / REST_POINTS[1]!).toBeLessThan(0.4)
+  })
+
+  // The complaint this answers (founder, 2026-08-12): "the animation of that
+  // slide as I scroll is too fast". The corridor is geared to the hand, and
+  // anything much above 1:1 reads as the page running away from the gesture
+  // driving it.
+  it('never moves the corridor much faster than the hand driving it', () => {
+    const crossing = (100 * VW_PX) / ((REST_POINTS[2]! - REST_POINTS[1]!) * SCROLL_PX)
+    expect(crossing).toBeLessThan(1.25)
   })
 
   it('never travels backwards as the visitor scrolls forward', () => {
@@ -76,10 +90,10 @@ describe('corridor map', () => {
     const mean = rates.reduce((a, b) => a + b, 0) / rates.length
     // Crossings run at one flat rate, so the only stretch above the average is
     // the shove out of the hero: it clears a whole viewport in what is left of
-    // the first slide once the dominoes have fallen. Measured at 1.76x a
+    // the first slide once the dominoes have fallen. Measured at 1.47x a
     // crossing, which reads as impact; this cap is what keeps it from becoming
     // a lurch.
-    expect(peak / mean).toBeLessThan(1.8)
+    expect(peak / mean).toBeLessThan(1.5)
   })
 
   it('tips all three dominoes within the hand-scrubbed stretch', () => {

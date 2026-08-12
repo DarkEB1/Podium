@@ -21,6 +21,15 @@
 // to it.
 export const REST_POINTS = [0, 1 / 3, 2 / 3, 1]
 
+// How much scrolling the whole corridor costs, in viewport heights. This is
+// the gearing between hand and page: the corridor is 300vw wide, so at 4.2
+// viewports a slide costs 1260px of scrolling to move 1512px sideways, near
+// enough one to one. It used to be geared at 1.77 corridor pixels per scroll
+// pixel, which is why a slide went past faster than the hand driving it
+// (founder feedback 2026-08-12: "the animation of that slide as I scroll is
+// too fast"). Raising this slows the page down without touching the map.
+export const TRAVEL_VIEWPORTS = 4.2
+
 /**
  * Progress at fraction u of the way from rest i to rest i + 1.
  *
@@ -49,16 +58,18 @@ export const PIECES = [
 // brings the moment its corner reaches the screen edge forward, leaving most
 // of the first slide for the shove itself.
 export const WINDOWS: readonly [number, number, number][] = [
-  [0.0, 0.069, 1.8],
-  [0.03, 0.114, 1.7],
-  [0.055, 0.16, 1.4],
+  [0.0, 0.05, 1.8],
+  [0.022, 0.082, 1.7],
+  [0.04, 0.115, 1.4],
 ]
 
 // The hand-scrubbed stretch, and the first slide's opening beat. Deliberately
-// longer than a typical trackpad flick (~410px against ~380px), so one careless
+// longer than a typical trackpad flick (~435px against ~380px), so one careless
 // swipe cannot blow through the dominoes: they are the signature moment and
-// they are meant to cost a real push.
-export const CASCADE_END = 0.16
+// they are meant to cost a real push. Kept as small a share of the first slide
+// as that allows, because whatever it takes is taken from the shove, which has
+// to clear a whole viewport in what is left.
+export const CASCADE_END = 0.115
 
 // Panel 03 assembly: each part drops into its footprint and clicks home.
 // Shared by the 3D parts (scene.tsx) and the DOM copy riding on them
