@@ -52,6 +52,18 @@ const SNAP_IDLE_MS = 150
 // changes. Tuned for trackpads, where a gentle two-finger push easily travels
 // a few hundred pixels and should not necessarily change panel.
 const COMMIT_PX = 340
+// The settle curve. Quintic smootherstep: gentle away from the last frame the
+// visitor drove, a moderate middle, a soft landing. It peaks at 1.875x the
+// average rate, where the circular ease this replaced (founder feedback
+// 2026-08-12: "autoscroll is too fast") had an infinite-slope midpoint, so the
+// corridor whipped past however long the animation nominally ran.
+const settleEase = (t: number) => t * t * t * (t * (t * 6 - 15) + 10)
+// Length of the settle, scaled by how far it has to carry. A full panel takes
+// a shade under 1.2s, roughly twice what it used to; the short recoveries back
+// to the panel you came from finish sooner but never feel snatched.
+const PANEL_SPAN = 0.267 // even gap between rests after the cascade
+const settleMs = (delta: number) =>
+  Math.min(1250, Math.max(560, 560 + (Math.abs(delta) / PANEL_SPAN) * 620))
 
 export default function Stage({ children }: { children: ReactNode }) {
   const rootRef = useRef<HTMLDivElement>(null)
@@ -94,16 +106,12 @@ export default function Stage({ children }: { children: ReactNode }) {
     const startP = pRef.current
     const travel = window.innerHeight * TRAVEL_VIEWPORTS
     const t0 = performance.now()
-    const D = durationMs ?? 1100
+    const D = durationMs ?? settleMs(targetP - startP)
     programmaticUntil.current = t0 + D + 160
-    const inoutCirc = (t: number) =>
-      t < 0.5
-        ? (1 - Math.sqrt(1 - Math.pow(2 * t, 2))) / 2
-        : (Math.sqrt(1 - Math.pow(-2 * t + 2, 2)) + 1) / 2
     if (jumpAnim.current !== null) cancelAnimationFrame(jumpAnim.current)
     const step = (now: number) => {
       const u = Math.min((now - t0) / D, 1)
-      const p = startP + (targetP - startP) * inoutCirc(u)
+      const p = startP + (targetP - startP) * settleEase(u)
       springPos.current = p
       springVel.current = 0
       window.scrollTo(0, p * travel)
@@ -270,7 +278,7 @@ export default function Stage({ children }: { children: ReactNode }) {
                 : from
           snapArmed.current = false
           if (Math.abs(target - goTo) > 0.002) {
-            jumpTo(goTo, Math.min(760, Math.max(420, 380 + Math.abs(target - goTo) * 900)))
+            jumpTo(goTo)
           }
         }
       }
