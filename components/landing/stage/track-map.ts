@@ -22,13 +22,13 @@
 export const REST_POINTS = [0, 1 / 3, 2 / 3, 1]
 
 // How much scrolling the whole corridor costs, in viewport heights. This is
-// the gearing between hand and page: the corridor is 300vw wide, so at 4.2
-// viewports a slide costs 1260px of scrolling to move 1512px sideways, near
-// enough one to one. It used to be geared at 1.77 corridor pixels per scroll
-// pixel, which is why a slide went past faster than the hand driving it
-// (founder feedback 2026-08-12: "the animation of that slide as I scroll is
-// too fast"). Raising this slows the page down without touching the map.
-export const TRAVEL_VIEWPORTS = 4.2
+// the gearing between hand and page, and the single knob for how sensitive the
+// scroll feels: the corridor is 300vw wide, so at 5 viewports a slide costs
+// 1500px of scrolling to move 1512px sideways — dead level, one to one. It was
+// geared at 1.20 (founder feedback 2026-08-13: "a bit too sensitive across the
+// site") and, before that, 1.77 ("too fast"). Raising this makes the whole
+// site less sensitive without touching the map; nothing else changes pace.
+export const TRAVEL_VIEWPORTS = 5.0
 
 /**
  * Progress at fraction u of the way from rest i to rest i + 1.
