@@ -6,6 +6,7 @@ import { getUser } from '@/lib/supabase/auth'
 import { getIncomingConnectionRequests, getSenderDisplayNames } from '@/lib/supabase/connections'
 import { captureException } from '@/lib/observability'
 import RequestsList from '@/components/discovery/requests-list'
+import { AccentHeading } from '@/components/ui/accent-heading'
 import TrackInboxView from './track-inbox-view'
 import { ROUTES } from '@/lib/routes'
 import type { ConnectionRequestRow } from '@/lib/supabase/connections'
@@ -58,9 +59,9 @@ export default async function BrandRequestsPage() {
     <div className="mx-auto max-w-3xl space-y-10 px-6 py-12 md:px-16 md:py-16">
       <TrackInboxView role="brand" pending={requests.length} />
       <div>
-        <h1 className="font-heading text-display tracking-tight text-foreground">
+        <AccentHeading as="h1" className="text-display">
           Connection requests
-        </h1>
+        </AccentHeading>
         <p className="mt-3 text-medium text-muted-foreground">
           {requests.length} pending
         </p>

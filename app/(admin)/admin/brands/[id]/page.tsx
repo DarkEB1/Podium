@@ -7,6 +7,7 @@ import { getBrandProfileById } from '@/lib/supabase/admin'
 import StatusBadge from '@/components/admin/status-badge'
 import ApproveRejectButtons from '@/components/admin/approve-reject-buttons'
 import { buttonVariants } from '@/components/ui/button'
+import { AccentHeading } from '@/components/ui/accent-heading'
 import { cn } from '@/lib/utils'
 
 export default async function AdminBrandDetailPage({
@@ -24,7 +25,7 @@ export default async function AdminBrandDetailPage({
   if (!brand) notFound()
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8 space-y-6">
+    <div className="mx-auto max-w-3xl px-6 py-12 space-y-12 md:px-8">
       <div className="flex items-center justify-between">
         <Link href="/admin/brands" className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }))}>
           ← Brands
@@ -32,9 +33,10 @@ export default async function AdminBrandDetailPage({
         <StatusBadge status={brand.status} />
       </div>
 
-      <div className="space-y-1">
-        <h1 className="text-2xl font-bold">{brand.company_name ?? 'Unnamed brand'}</h1>
-        {brand.trading_name && <p className="text-muted-foreground">Trading as: {brand.trading_name}</p>}
+      <div className="space-y-3">
+        <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Admin · Brand</p>
+        <AccentHeading as="h1" className="text-display">{brand.company_name ?? 'Unnamed brand'}</AccentHeading>
+        {brand.trading_name && <p className="max-w-[46ch] text-medium text-muted-foreground">Trading as: {brand.trading_name}</p>}
       </div>
 
       <div className="rounded-xl border p-4 space-y-3">

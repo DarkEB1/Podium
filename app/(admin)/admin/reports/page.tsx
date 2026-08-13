@@ -4,6 +4,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getReports } from '@/lib/supabase/admin'
 import ReportResolveButtons from '@/components/admin/report-resolve-buttons'
+import { AccentHeading } from '@/components/ui/accent-heading'
 import { ROUTES } from '@/lib/routes'
 
 export const metadata: Metadata = { title: 'Trust & safety · Podium Admin', robots: { index: false } }
@@ -19,8 +20,11 @@ export default async function AdminReportsPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-10 md:px-16">
-      <h1 className="font-heading text-display font-extrabold tracking-tight text-foreground">Trust & safety</h1>
-      <p className="mt-3 text-medium text-muted-foreground">{reports.length} reports awaiting review.</p>
+      <div className="space-y-3">
+        <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Admin · Reports</p>
+        <AccentHeading as="h1" className="text-display">Trust & safety</AccentHeading>
+        <p className="max-w-[46ch] text-medium text-muted-foreground">{reports.length} reports awaiting review.</p>
+      </div>
 
       {reports.length === 0 ? (
         <p className="mt-8 text-medium text-muted-foreground">No open reports.</p>

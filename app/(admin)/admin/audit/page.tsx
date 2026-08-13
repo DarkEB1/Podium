@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getAuditLogs } from '@/lib/supabase/admin'
+import { AccentHeading } from '@/components/ui/accent-heading'
 import { ROUTES } from '@/lib/routes'
 
 export const metadata: Metadata = { title: 'Audit log · Podium Admin', robots: { index: false } }
@@ -18,8 +19,11 @@ export default async function AdminAuditPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-10 md:px-16">
-      <h1 className="font-heading text-display font-extrabold tracking-tight text-foreground">Audit log</h1>
-      <p className="mt-3 text-medium text-muted-foreground">The 100 most recent admin and system actions.</p>
+      <div className="space-y-3">
+        <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Admin · Audit log</p>
+        <AccentHeading as="h1" className="text-display">Audit log</AccentHeading>
+        <p className="max-w-[46ch] text-medium text-muted-foreground">The 100 most recent admin and system actions.</p>
+      </div>
 
       {logs.length === 0 ? (
         <p className="mt-8 text-medium text-muted-foreground">No audit entries yet.</p>

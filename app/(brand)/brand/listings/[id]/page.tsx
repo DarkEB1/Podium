@@ -5,6 +5,7 @@ import { getUser } from '@/lib/supabase/auth'
 import { getOwnProfile } from '@/lib/supabase/profiles'
 import { getListing } from '@/lib/supabase/discovery'
 import ListingForm from '@/components/brand/listing-form'
+import { AccentHeading } from '@/components/ui/accent-heading'
 import type { Database } from '@/types/database'
 
 /**
@@ -48,9 +49,9 @@ export default async function EditListingPage({
 
   return (
     <div className="mx-auto max-w-3xl space-y-10 px-6 py-12 md:px-16 md:py-16">
-      <h1 className="font-heading text-display font-extrabold tracking-tight text-foreground">
+      <AccentHeading as="h1" className="text-display">
         Edit listing
-      </h1>
+      </AccentHeading>
       <ListingForm listing={listing} />
     </div>
   )

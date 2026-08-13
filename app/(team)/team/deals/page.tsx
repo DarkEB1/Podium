@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getProposalsForUser } from '@/lib/supabase/deals'
 import ProposalCard from '@/components/deals/proposal-card'
+import { AccentHeading } from '@/components/ui/accent-heading'
 import { ROUTES } from '@/lib/routes'
 
 export const metadata = {
@@ -22,10 +23,10 @@ export default async function TeamDealsPage() {
   const history = received.filter((p) => p.status !== 'pending')
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8 space-y-8">
+    <div className="mx-auto max-w-3xl px-6 py-12 space-y-12 md:px-8">
       <div>
-        <h1 className="text-2xl font-bold">Deals</h1>
-        <p className="text-muted-foreground">Proposals and contracts from brands</p>
+        <AccentHeading as="h1" className="text-display">Deals</AccentHeading>
+        <p className="mt-3 text-medium text-muted-foreground">Proposals and contracts from brands</p>
       </div>
 
       <section className="space-y-3">

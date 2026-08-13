@@ -29,7 +29,7 @@ function AccentHeading({
       <span
         data-slot="accent-dot"
         aria-hidden="true"
-        className="size-1.5 shrink-0 rounded-full bg-accent"
+        className="size-1.5 shrink-0 rounded-full bg-lime"
       />
       <span>{children}</span>
     </Tag>

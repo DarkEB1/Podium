@@ -27,7 +27,9 @@ describe("AccentHeading", () => {
     const dot = container.querySelector('[data-slot="accent-dot"]') as HTMLElement
     expect(dot).not.toBeNull()
     expect(dot.getAttribute("aria-hidden")).toBe("true")
-    expect(dot.getAttribute("class") ?? "").toContain("bg-accent")
+    // Brand lime accent dot (landing-feel sweep 2026-08): the section-heading
+    // marker carries the lime brand accent, not the old neutral grey.
+    expect(dot.getAttribute("class") ?? "").toContain("bg-lime")
     expect(container.querySelector('[data-slot="accent-swipe"]')).toBeNull()
   })
 

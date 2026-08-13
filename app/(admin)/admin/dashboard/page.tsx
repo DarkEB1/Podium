@@ -6,6 +6,8 @@ import { getUser } from '@/lib/supabase/auth'
 import { getPendingCount, getAllAthleteProfiles, getAllBrandProfiles, getAllUsers } from '@/lib/supabase/admin'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { buttonVariants } from '@/components/ui/button'
+import { AccentHeading } from '@/components/ui/accent-heading'
+import { SectionDivider } from '@/components/ui/section-divider'
 import { cn } from '@/lib/utils'
 
 export default async function AdminDashboardPage() {
@@ -25,15 +27,16 @@ export default async function AdminDashboardPage() {
   const totalPending = pending.athletes + pending.brands
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8 space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-        <p className="text-muted-foreground">Platform overview and pending approvals</p>
+    <div className="mx-auto max-w-5xl px-6 py-12 space-y-12 md:px-8">
+      <div className="space-y-3">
+        <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Admin · Overview</p>
+        <AccentHeading as="h1" className="text-display">Dashboard</AccentHeading>
+        <p className="max-w-[46ch] text-medium text-muted-foreground">Platform overview and pending approvals.</p>
       </div>
 
       {totalPending > 0 && (
-        <div className="rounded-xl border border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-900/20 p-4">
-          <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-200">
+        <div className="rounded-xl border border-warning/30 bg-warning/10 p-4">
+          <p className="text-sm font-semibold text-warning">
             {totalPending} profile{totalPending !== 1 ? 's' : ''} awaiting approval
           </p>
           <div className="mt-2 flex gap-3">
@@ -50,6 +53,8 @@ export default async function AdminDashboardPage() {
           </div>
         </div>
       )}
+
+      <SectionDivider label="At a glance" />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
@@ -91,6 +96,8 @@ export default async function AdminDashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      <SectionDivider label="Manage" />
 
       <div className="grid gap-4 sm:grid-cols-3">
         <Link href="/admin/athletes" className={cn(buttonVariants({ variant: 'outline' }), 'h-auto py-4 flex-col gap-1')}>

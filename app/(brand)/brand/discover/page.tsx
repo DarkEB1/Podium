@@ -9,6 +9,7 @@ import { getSubscriptionForUser } from '@/lib/supabase/payments'
 import AthletesBrowser from '@/components/discovery/athletes-browser'
 import DiscoverySwitch from '@/components/brand/discovery-switch'
 import LoadMore from '@/components/discovery/load-more'
+import { AccentHeading } from '@/components/ui/accent-heading'
 import { parseShowParam } from '@/lib/pagination'
 import { ROUTES } from '@/lib/routes'
 
@@ -61,9 +62,9 @@ export default async function BrandDiscoverPage({
       <div className="space-y-5">
         <DiscoverySwitch active="athletes" />
         <div>
-          <h1 className="font-heading text-display font-extrabold tracking-tight text-foreground">
+          <AccentHeading as="h1" className="text-display">
             Discover athletes
-          </h1>
+          </AccentHeading>
           <p className="mt-3 text-medium text-muted-foreground">
             {athletes.length}
             {hasMore ? '+' : ''} active athletes on Podium

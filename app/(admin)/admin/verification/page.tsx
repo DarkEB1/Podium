@@ -4,6 +4,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { listPendingVerifications } from '@/lib/supabase/verification'
 import VerificationReviewButtons from '@/components/admin/verification-review-buttons'
+import { AccentHeading } from '@/components/ui/accent-heading'
 import { ROUTES } from '@/lib/routes'
 
 export const metadata: Metadata = {
@@ -22,10 +23,11 @@ export default async function AdminVerificationPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-10 md:px-16">
-      <h1 className="font-heading text-display font-extrabold tracking-tight text-foreground">
-        Verification queue
-      </h1>
-      <p className="mt-3 text-medium text-muted-foreground">{pending.length} awaiting review</p>
+      <div className="space-y-3">
+        <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Admin · Verification</p>
+        <AccentHeading as="h1" className="text-display">Verification queue</AccentHeading>
+        <p className="max-w-[46ch] text-medium text-muted-foreground">{pending.length} awaiting review</p>
+      </div>
 
       {pending.length === 0 ? (
         <p className="mt-8 text-medium text-muted-foreground">Nothing to review right now.</p>

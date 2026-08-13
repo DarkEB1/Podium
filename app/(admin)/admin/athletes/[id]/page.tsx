@@ -7,6 +7,7 @@ import { getAthleteProfileById } from '@/lib/supabase/admin'
 import StatusBadge from '@/components/admin/status-badge'
 import ApproveRejectButtons from '@/components/admin/approve-reject-buttons'
 import { buttonVariants } from '@/components/ui/button'
+import { AccentHeading } from '@/components/ui/accent-heading'
 import { cn } from '@/lib/utils'
 
 export default async function AdminAthleteDetailPage({
@@ -24,7 +25,7 @@ export default async function AdminAthleteDetailPage({
   if (!athlete) notFound()
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8 space-y-6">
+    <div className="mx-auto max-w-3xl px-6 py-12 space-y-12 md:px-8">
       <div className="flex items-center justify-between">
         <Link href="/admin/athletes" className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }))}>
           ← Athletes
@@ -32,9 +33,10 @@ export default async function AdminAthleteDetailPage({
         <StatusBadge status={athlete.status} />
       </div>
 
-      <div className="space-y-1">
-        <h1 className="text-2xl font-bold">{athlete.display_name ?? athlete.full_legal_name ?? 'Unnamed athlete'}</h1>
-        <p className="text-muted-foreground">
+      <div className="space-y-3">
+        <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Admin · Athlete</p>
+        <AccentHeading as="h1" className="text-display">{athlete.display_name ?? athlete.full_legal_name ?? 'Unnamed athlete'}</AccentHeading>
+        <p className="max-w-[46ch] text-medium text-muted-foreground">
           {[athlete.primary_sport, athlete.level?.replace(/_/g, ' '), athlete.home_city, athlete.home_country]
             .filter(Boolean)
             .join(' · ')}

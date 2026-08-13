@@ -16,6 +16,7 @@ import {
 } from '@/lib/nav/config'
 import NotificationBell from './notification-bell'
 import ThemeToggle from './theme-toggle'
+import PodiumMark from '@/components/brand/podium-mark'
 
 interface NavShellProps {
   role: NavRole
@@ -45,8 +46,9 @@ export default function NavShell({ role, children }: NavShellProps) {
         <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-6 md:px-16">
           <Link
             href={home}
-            className="mr-6 font-heading text-xl font-extrabold tracking-tight text-foreground"
+            className="mr-6 inline-flex items-center gap-2 font-heading text-xl font-extrabold tracking-tight text-foreground"
           >
+            <PodiumMark height={20} limeTop className="text-foreground" />
             Podium
           </Link>
           <nav

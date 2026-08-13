@@ -6,6 +6,7 @@ import { getOwnProfile } from '@/lib/supabase/profiles'
 import { getActiveListingsPage, LISTING_PAGE_SIZE } from '@/lib/supabase/discovery'
 import ListingsBrowser from '@/components/discovery/listings-browser'
 import LoadMore from '@/components/discovery/load-more'
+import { AccentHeading } from '@/components/ui/accent-heading'
 import { parseShowParam } from '@/lib/pagination'
 import { ROUTES } from '@/lib/routes'
 import type { Database } from '@/types/database'
@@ -51,7 +52,7 @@ export default async function TeamDiscoverPage({
       className="mx-auto max-w-6xl space-y-12 px-6 py-12 md:px-16 md:py-16"
     >
       <div>
-        <h1 className="text-display text-foreground">Find sponsors</h1>
+        <AccentHeading as="h1" className="text-display">Find sponsors</AccentHeading>
         <p className="mt-3 text-medium text-muted-foreground">
           {listings.length}
           {hasMore ? '+' : ''} active sponsorship{' '}

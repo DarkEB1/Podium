@@ -75,9 +75,9 @@ export default async function BrandDashboardPage() {
     <div className="mx-auto max-w-5xl space-y-12 px-6 py-12 md:px-16 md:py-16">
       <div>
         <p className="text-medium font-medium text-muted-foreground">Welcome back</p>
-        <h1 className="mt-2 font-heading text-display font-extrabold tracking-tight text-foreground">
+        <AccentHeading as="h1" className="mt-2 text-display">
           {companyName}
-        </h1>
+        </AccentHeading>
         <p className="mt-3 max-w-[52ch] text-medium text-muted-foreground">{statusMessage}</p>
       </div>
 

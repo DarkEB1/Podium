@@ -6,6 +6,7 @@ import { getUser } from '@/lib/supabase/auth'
 import { getAllBrandProfiles } from '@/lib/supabase/admin'
 import StatusBadge from '@/components/admin/status-badge'
 import { buttonVariants } from '@/components/ui/button'
+import { AccentHeading } from '@/components/ui/accent-heading'
 import { cn } from '@/lib/utils'
 import type { Database } from '@/types/database'
 
@@ -39,10 +40,11 @@ export default async function AdminBrandsPage({
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Brands</h1>
-        <p className="text-muted-foreground">{brands.length} profiles</p>
+    <div className="mx-auto max-w-5xl px-6 py-12 space-y-12 md:px-8">
+      <div className="space-y-3">
+        <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Admin · Brands</p>
+        <AccentHeading as="h1" className="text-display">Brands</AccentHeading>
+        <p className="max-w-[46ch] text-medium text-muted-foreground">{brands.length} profiles</p>
       </div>
 
       <div className="flex flex-wrap gap-2">

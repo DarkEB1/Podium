@@ -5,6 +5,7 @@ import { getUser } from '@/lib/supabase/auth'
 import { getOwnProfile } from '@/lib/supabase/profiles'
 import { getSettings } from '@/lib/supabase/settings'
 import AgentSettingsForm from '@/components/agent/agent-settings-form'
+import { AccentHeading } from '@/components/ui/accent-heading'
 import type { Database } from '@/types/database'
 
 /**
@@ -39,9 +40,9 @@ export default async function AgentSettingsPage() {
   return (
     <div className="mx-auto max-w-7xl px-6 py-12 md:px-16 md:py-16">
       <header className="mb-10">
-        <h1 className="font-heading text-display font-extrabold leading-[1.02] tracking-tight text-foreground">
+        <AccentHeading as="h1" className="text-display">
           Settings
-        </h1>
+        </AccentHeading>
         <p className="mt-4 max-w-[48ch] text-medium text-muted-foreground">
           Manage your agency profile, visibility, and notifications.
         </p>

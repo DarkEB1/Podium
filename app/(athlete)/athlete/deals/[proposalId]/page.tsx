@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import ContractSignButton from '@/components/deals/contract-sign-button'
 import ProposalRespondButtons from '@/components/deals/proposal-respond-buttons'
+import { AccentHeading } from '@/components/ui/accent-heading'
 import type { Database } from '@/types/database'
 
 type ContractRow = Database['public']['Tables']['contracts']['Row']
@@ -53,7 +54,7 @@ export default async function AthleteProposalDetailPage({
   }).format(proposal.pay_amount)
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8 space-y-6">
+    <div className="mx-auto max-w-2xl px-6 py-12 space-y-12 md:px-8">
       <div className="flex items-center gap-3">
         <Link href="/athlete/deals" className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }))}>
           ← Back
@@ -62,7 +63,7 @@ export default async function AthleteProposalDetailPage({
 
       <div className="rounded-xl border bg-card p-6 space-y-4">
         <div className="flex items-start justify-between gap-3">
-          <h1 className="text-xl font-bold">{proposal.title}</h1>
+          <AccentHeading as="h1" className="text-large">{proposal.title}</AccentHeading>
           <span className="shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-muted text-muted-foreground capitalize">
             {proposal.status}
           </span>

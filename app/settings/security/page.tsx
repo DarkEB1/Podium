@@ -16,6 +16,7 @@ import DataExportSection from '@/components/settings/data-export-section'
 import AccountTwoFactorSection from '@/components/settings/account-two-factor-section'
 import VerificationSection from '@/components/settings/verification-section'
 import PushSection from '@/components/settings/push-section'
+import { AccentHeading } from '@/components/ui/accent-heading'
 import { ROUTES } from '@/lib/routes'
 
 export const metadata: Metadata = {
@@ -52,7 +53,7 @@ export default async function SecuritySettingsPage() {
   return (
     <main className="mx-auto max-w-2xl px-6 py-12 md:px-10 md:py-16">
       <header className="mb-8">
-        <h1 className="font-heading text-display font-extrabold tracking-tight text-foreground">Security</h1>
+        <AccentHeading as="h1" className="text-display">Security</AccentHeading>
         <p className="mt-3 text-medium text-muted-foreground">
           Devices signed in to your account, and recent sign-in activity.
         </p>

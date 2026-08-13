@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getOwnProfile } from '@/lib/supabase/profiles'
 import AgentProfileForm from '@/components/agent/agent-profile-form'
+import { AccentHeading } from '@/components/ui/accent-heading'
 import type { Database } from '@/types/database'
 import { applyForVerificationAction } from './actions'
 
@@ -39,9 +40,9 @@ export default async function AgentProfilePage() {
   return (
     <div className="mx-auto max-w-2xl px-6 py-12 md:px-16 md:py-16">
       <header className="mb-10 max-w-[20ch]">
-        <h1 className="font-heading text-display font-extrabold leading-[1.02] tracking-tight text-foreground">
+        <AccentHeading as="h1" className="text-display">
           Your agency profile
-        </h1>
+        </AccentHeading>
         <p className="mt-4 text-medium text-muted-foreground">
           How athletes and brands see your agency on Podium.
         </p>

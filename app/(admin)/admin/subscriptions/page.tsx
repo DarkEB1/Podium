@@ -4,6 +4,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getSubscriptionOverview } from '@/lib/supabase/admin-insights'
 import StatGrid from '@/components/admin/stat-grid'
+import { AccentHeading } from '@/components/ui/accent-heading'
 import { ROUTES } from '@/lib/routes'
 
 export const metadata: Metadata = { title: 'Subscriptions · Podium Admin', robots: { index: false } }
@@ -20,8 +21,11 @@ export default async function AdminSubscriptionsPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-10 md:px-16">
-      <h1 className="font-heading text-display font-extrabold tracking-tight text-foreground">Subscriptions</h1>
-      <p className="mt-3 text-medium text-muted-foreground">{s.total} subscriptions.</p>
+      <div className="space-y-3">
+        <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Admin · Subscriptions</p>
+        <AccentHeading as="h1" className="text-display">Subscriptions</AccentHeading>
+        <p className="max-w-[46ch] text-medium text-muted-foreground">{s.total} subscriptions.</p>
+      </div>
 
       <div className="mt-8">
         <StatGrid

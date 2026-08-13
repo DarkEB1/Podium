@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getAllUsers } from '@/lib/supabase/admin'
+import { AccentHeading } from '@/components/ui/accent-heading'
 
 export default async function AdminUsersPage() {
   const supabase = await createClient()
@@ -13,10 +14,11 @@ export default async function AdminUsersPage() {
   const users = await getAllUsers(adminClient)
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Users</h1>
-        <p className="text-muted-foreground">{users.length} accounts</p>
+    <div className="mx-auto max-w-5xl px-6 py-12 space-y-12 md:px-8">
+      <div className="space-y-3">
+        <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Admin · Users</p>
+        <AccentHeading as="h1" className="text-display">Users</AccentHeading>
+        <p className="max-w-[46ch] text-medium text-muted-foreground">{users.length} accounts</p>
       </div>
 
       <div className="rounded-xl border overflow-hidden">
@@ -35,7 +37,7 @@ export default async function AdminUsersPage() {
                 <td className="px-4 py-2 font-mono text-xs">{u.email}</td>
                 <td className="px-4 py-2 capitalize">{u.role ?? 'Not set'}</td>
                 <td className="px-4 py-2">
-                  <span className={u.email_verified ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}>
+                  <span className={u.email_verified ? 'text-success' : 'text-muted-foreground'}>
                     {u.email_verified ? 'Yes' : 'No'}
                   </span>
                 </td>

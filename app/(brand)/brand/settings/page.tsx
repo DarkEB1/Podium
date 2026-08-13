@@ -5,6 +5,7 @@ import { getUser } from '@/lib/supabase/auth'
 import { getOwnProfile } from '@/lib/supabase/profiles'
 import { getSubscriptionForUser } from '@/lib/supabase/payments'
 import BrandSettingsForm from '@/components/brand/brand-settings-form'
+import { AccentHeading } from '@/components/ui/accent-heading'
 import CancelSubscription from '@/components/brand/cancel-subscription'
 import type { Database } from '@/types/database'
 
@@ -43,7 +44,7 @@ export default async function BrandSettingsPage() {
   return (
     <div className="mx-auto max-w-2xl px-6 py-12 space-y-16 md:px-16 md:py-16">
       <header className="space-y-3">
-        <h1 className="text-display">Settings</h1>
+        <AccentHeading as="h1" className="text-display">Settings</AccentHeading>
         <p className="text-medium text-muted-foreground">
           Manage your company profile and subscription.
         </p>

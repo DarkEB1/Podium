@@ -7,6 +7,7 @@ import { captureException } from '@/lib/observability'
 import RequestsList from '@/components/discovery/requests-list'
 import { ROUTES } from '@/lib/routes'
 import type { ConnectionRequestRow } from '@/lib/supabase/connections'
+import { AccentHeading } from '@/components/ui/accent-heading'
 
 export const metadata: Metadata = {
   title: 'Connection requests · Podium',
@@ -39,7 +40,7 @@ export default async function AthleteRequestsPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-10 px-6 py-12 md:px-16 md:py-16">
       <div>
-        <h1 className="font-heading text-display tracking-tight text-foreground">Connection requests</h1>
+        <AccentHeading as="h1" className="text-display">Connection requests</AccentHeading>
         <p className="mt-3 text-medium text-muted-foreground">{requests.length} pending</p>
       </div>
       <RequestsList

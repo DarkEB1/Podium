@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getOwnProfile } from '@/lib/supabase/profiles'
 import { buttonVariants } from '@/components/ui/button'
+import { AccentHeading } from '@/components/ui/accent-heading'
 import { ROUTES } from '@/lib/routes'
 import type { Database } from '@/types/database'
 
@@ -49,9 +50,9 @@ export default async function BrandProfilePage() {
     <div className="mx-auto max-w-3xl space-y-12 px-6 py-12 md:px-16 md:py-16">
       <header className="flex flex-wrap items-start justify-between gap-6">
         <div className="min-w-0 space-y-3">
-          <h1 className="font-heading text-display font-extrabold tracking-tight text-foreground">
+          <AccentHeading as="h1" className="text-display">
             {profile.company_name}
-          </h1>
+          </AccentHeading>
           <p className="text-medium text-muted-foreground">
             {[profile.trading_name, profile.industry ? humanise(profile.industry) : null, location]
               .filter(Boolean)

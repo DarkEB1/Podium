@@ -4,6 +4,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getRevenueOverview } from '@/lib/supabase/admin-insights'
 import StatGrid from '@/components/admin/stat-grid'
+import { AccentHeading } from '@/components/ui/accent-heading'
 import { formatMinorAmount } from '@/lib/money'
 import { ROUTES } from '@/lib/routes'
 
@@ -23,8 +24,11 @@ export default async function AdminPaymentsPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-10 md:px-16">
-      <h1 className="font-heading text-display font-extrabold tracking-tight text-foreground">Payments & revenue</h1>
-      <p className="mt-3 text-medium text-muted-foreground">Recent payments (last 500).</p>
+      <div className="space-y-3">
+        <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Admin · Payments</p>
+        <AccentHeading as="h1" className="text-display">Payments & revenue</AccentHeading>
+        <p className="max-w-[46ch] text-medium text-muted-foreground">Recent payments (last 500).</p>
+      </div>
 
       <div className="mt-8">
         <StatGrid

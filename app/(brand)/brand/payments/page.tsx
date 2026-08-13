@@ -6,6 +6,7 @@ import { getUser } from '@/lib/supabase/auth'
 import { getPaymentHistory } from '@/lib/supabase/payments'
 import { formatMinorAmount } from '@/lib/money'
 import { EmptyState } from '@/components/ui/empty-state'
+import { AccentHeading } from '@/components/ui/accent-heading'
 import { cn } from '@/lib/utils'
 import type { Database } from '@/types/database'
 
@@ -33,7 +34,7 @@ export default async function BrandPaymentsPage() {
   return (
     <div className="mx-auto max-w-4xl px-6 py-12 space-y-16 md:px-16 md:py-16">
       <header className="space-y-3">
-        <h1 className="text-display">Payments</h1>
+        <AccentHeading as="h1" className="text-display">Payments</AccentHeading>
         <p className="text-medium text-muted-foreground">
           Review your payment history.
         </p>

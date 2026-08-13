@@ -13,6 +13,7 @@ import {
 import { getAgentClients } from '@/lib/supabase/agents'
 import { EmptyState } from '@/components/ui/empty-state'
 import { buttonVariants } from '@/components/ui/button'
+import { AccentHeading } from '@/components/ui/accent-heading'
 import { ROUTES } from '@/lib/routes'
 import type { Database } from '@/types/database'
 
@@ -88,9 +89,9 @@ export default async function AddAgentClientPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-10 px-6 py-12 md:px-16 md:py-16">
       <header className="space-y-3">
-        <h1 className="font-heading text-display font-extrabold tracking-tight text-foreground">
+        <AccentHeading as="h1" className="text-display">
           Add a client
-        </h1>
+        </AccentHeading>
         <p className="max-w-[52ch] text-medium text-muted-foreground">
           Send a representation request to a published athlete or team. They will see it on their
           profile and can accept or decline. Representation only starts once they accept.

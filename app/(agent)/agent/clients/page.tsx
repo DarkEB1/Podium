@@ -8,6 +8,7 @@ import { getOwnProfile } from '@/lib/supabase/profiles'
 import { getAgentClients, getAgentDealPipeline } from '@/lib/supabase/agents'
 import { resolveClientDisplays, UNKNOWN_CLIENT } from '@/lib/supabase/agent-clients'
 import { buttonVariants } from '@/components/ui/button'
+import { AccentHeading } from '@/components/ui/accent-heading'
 import type { AgentClientRow } from '@/components/agent/client-table'
 import { ROUTES } from '@/lib/routes'
 import type { Database } from '@/types/database'
@@ -76,9 +77,9 @@ export default async function AgentClientsPage() {
     <div className="mx-auto max-w-6xl space-y-10 px-6 py-12 md:px-16 md:py-16">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-heading text-display font-extrabold tracking-tight text-foreground">
+          <AccentHeading as="h1" className="text-display">
             Clients
-          </h1>
+          </AccentHeading>
           <p className="mt-3 text-medium text-muted-foreground">
             {clients.length} {clients.length === 1 ? 'client' : 'clients'} you represent
           </p>

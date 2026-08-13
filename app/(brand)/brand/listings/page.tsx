@@ -6,6 +6,7 @@ import { getOwnProfile } from '@/lib/supabase/profiles'
 import { getListings } from '@/lib/supabase/discovery'
 import { buttonVariants } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
+import { AccentHeading } from '@/components/ui/accent-heading'
 import ListingsManager from './listings-manager'
 import type { Database } from '@/types/database'
 
@@ -35,9 +36,9 @@ export default async function BrandListingsPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-12 px-6 py-12 md:px-16 md:py-16">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <h1 className="font-heading text-display font-extrabold tracking-tight text-foreground">
+        <AccentHeading as="h1" className="text-display">
           My listings
-        </h1>
+        </AccentHeading>
         <Link href="/brand/listings/new" className={buttonVariants()}>+ New listing</Link>
       </div>
 

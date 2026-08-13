@@ -1,16 +1,19 @@
 import { cn } from '@/lib/utils'
 
+// Semantic-token tints (mirrors components/ui/status-badges.tsx): success/
+// warning/destructive/primary each carry a dark counterpart in globals.css, so
+// no explicit dark: variants are needed and nothing fights the design tokens.
 const STATUS_STYLES: Record<string, string> = {
-  active: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-  pending_review: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
-  pending_approval: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
+  active: 'bg-success/15 text-success',
+  pending_review: 'bg-warning/15 text-warning',
+  pending_approval: 'bg-warning/15 text-warning',
   draft: 'bg-muted text-muted-foreground',
-  deactivated: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
-  rejected: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-  suspended: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-  paused: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
-  expired: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
-  filled: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+  deactivated: 'bg-muted text-muted-foreground',
+  rejected: 'bg-destructive/15 text-destructive',
+  suspended: 'bg-destructive/15 text-destructive',
+  paused: 'bg-warning/15 text-warning',
+  expired: 'bg-muted text-muted-foreground',
+  filled: 'bg-primary/10 text-primary',
 }
 
 interface StatusBadgeProps {

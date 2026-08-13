@@ -22,7 +22,7 @@ function SectionDivider({
       {label ? (
         <span
           data-slot="divider-label"
-          className="inline-flex shrink-0 items-center font-heading text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+          className="inline-flex shrink-0 items-center font-mono text-xs font-semibold tracking-widest text-muted-foreground uppercase"
         >
           {label}
         </span>

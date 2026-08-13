@@ -5,6 +5,7 @@ import { getUser } from '@/lib/supabase/auth'
 import { getNotificationMatrix, getSettings } from '@/lib/supabase/settings'
 import { ROUTES } from '@/lib/routes'
 import { EMAIL_EVENTS, type EmailEvent } from '@/lib/email/types'
+import { AccentHeading } from '@/components/ui/accent-heading'
 import NotificationPreferencesForm, {
   type NotificationPreferences,
 } from '@/components/settings/notification-preferences-form'
@@ -43,9 +44,9 @@ export default async function NotificationSettingsPage() {
   return (
     <main className="mx-auto max-w-2xl px-6 py-12 md:px-10 md:py-16">
       <header className="mb-8">
-        <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">
+        <AccentHeading as="h1" className="text-display">
           Email preferences
-        </h1>
+        </AccentHeading>
         <p className="mt-2 text-medium text-muted-foreground">
           Manage the emails Podium sends you.
         </p>

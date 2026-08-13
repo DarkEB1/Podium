@@ -6,6 +6,7 @@ import { getUser } from '@/lib/supabase/auth'
 import { getAllListings } from '@/lib/supabase/admin'
 import StatusBadge from '@/components/admin/status-badge'
 import { buttonVariants } from '@/components/ui/button'
+import { AccentHeading } from '@/components/ui/accent-heading'
 import { cn } from '@/lib/utils'
 import type { Database } from '@/types/database'
 
@@ -31,10 +32,11 @@ export default async function AdminListingsPage({
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Listings</h1>
-        <p className="text-muted-foreground">{listings.length} job listings</p>
+    <div className="mx-auto max-w-5xl px-6 py-12 space-y-12 md:px-8">
+      <div className="space-y-3">
+        <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Admin · Listings</p>
+        <AccentHeading as="h1" className="text-display">Listings</AccentHeading>
+        <p className="max-w-[46ch] text-medium text-muted-foreground">{listings.length} job listings</p>
       </div>
 
       <div className="flex flex-wrap gap-2">

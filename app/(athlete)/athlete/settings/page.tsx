@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getOwnProfile } from '@/lib/supabase/profiles'
 import SettingsForm from '@/components/athlete/settings-form'
+import { AccentHeading } from '@/components/ui/accent-heading'
 import type { Database } from '@/types/database'
 
 /**
@@ -30,8 +31,8 @@ export default async function AthleteSettingsPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-10 px-6 py-12 md:px-16 md:py-16">
       <header className="space-y-2">
-        <h1 className="text-display text-foreground">Settings</h1>
-        <p className="text-muted-foreground">Manage your profile, visibility, notifications and account.</p>
+        <AccentHeading as="h1" className="text-display">Settings</AccentHeading>
+        <p className="text-medium text-muted-foreground">Manage your profile, visibility, notifications and account.</p>
       </header>
       <SettingsForm profile={profile} />
     </div>

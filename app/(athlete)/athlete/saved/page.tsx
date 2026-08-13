@@ -6,6 +6,7 @@ import { getShortlist } from '@/lib/supabase/discovery'
 import { getPublicProfile } from '@/lib/supabase/profiles'
 import { EmptyState } from '@/components/ui/empty-state'
 import type { Database } from '@/types/database'
+import { AccentHeading } from '@/components/ui/accent-heading'
 
 type BrandRow = Database['public']['Tables']['brand_profiles']['Row']
 
@@ -32,7 +33,7 @@ export default async function AthleteSavedPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-10 px-6 py-12 md:px-16 md:py-16">
       <div>
-        <h1 className="font-heading text-display tracking-tight text-foreground">Saved brands</h1>
+        <AccentHeading as="h1" className="text-display">Saved brands</AccentHeading>
         <p className="mt-3 text-medium text-muted-foreground">{brands.length} saved</p>
       </div>
       {brands.length === 0 ? (
