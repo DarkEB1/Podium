@@ -20,7 +20,7 @@ All commands via `npm run` — see `package.json` scripts
 - **Crons**: Hobby allows 2 daily cron slots. `/api/cron/daily` runs every job via `lib/cron/daily-jobs.ts`; a second slot re-runs data-export. A new cron job = new route + entry in `DAILY_CRON_JOBS`, NOT a new `vercel.json` schedule (`vercel.crons.test.ts` enforces this).
 - **Email**: Resend, domain podiumsponsorship.com (region eu-west-1), sender `no-reply@podiumsponsorship.com`.
 - **DNS**: Cloudflare (free) manages the zone; the domain registration itself is at Turbify under a coworker's account. Record inventory and rationale: `docs/dns-podiumsponsorship.md`. Don't change nameservers.
-- **Stripe accounts**: the only real one is `acct_1U00dtRuiS086Bui` ("Podium"). Test-mode tier prices are placeholders (£99/£199/£399). Webhooks `/api/webhooks/stripe` + `/api/webhooks/stripe-connect` point at podium-lyart.vercel.app; signing secrets are in both Vercel envs.
+- **Stripe accounts**: the only real one is `acct_1U00dtRuiS086Bui` ("Podium"). Test-mode tier prices are £59/£149/£299 (Starter/Growth/Enterprise), each carrying `metadata.tier`. Live-mode prices pending per `docs/stripe-live-price-checklist.md`. Webhooks `/api/webhooks/stripe` + `/api/webhooks/stripe-connect` point at podium-lyart.vercel.app; signing secrets are in both Vercel envs.
 - **Boundaries for agents**: never `vercel deploy --prod`, `db push` to production, or change Production env vars without the human explicitly asking; never create live-mode Stripe objects; sessionless routes (webhooks, guardian consent, cron) must stay in `PUBLIC_PATHS` in `middleware.ts` — they self-authenticate.
 
 ## Task Routing (applied automatically — no explicit command needed)
