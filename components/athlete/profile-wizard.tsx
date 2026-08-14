@@ -815,7 +815,7 @@ export default function ProfileWizard({ step, profile: initialProfile }: Props) 
         </div>
         <div className="h-1.5 overflow-hidden rounded-full bg-muted">
           <div
-            className="h-full bg-foreground transition-all"
+            className="h-full bg-foreground transition-[width]"
             style={{ width: `${progressPct}%` }}
           />
         </div>

@@ -67,7 +67,7 @@ export function transitionClasses(
   variant: TransitionVariant,
   reduced: boolean = prefersReducedMotion(),
 ): string {
-  const base = `transition-all ease-out ${DURATION_CLASS[variant]} will-change-transform`
+  const base = `transition-[opacity,transform] ease-out ${DURATION_CLASS[variant]}`
   // Reduced motion: opacity-only, never translate/scale (§9.4).
   if (reduced) return `${base} opacity-0`
   return `${base} ${ENTER_FROM[variant]}`

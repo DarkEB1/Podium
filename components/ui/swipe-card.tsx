@@ -3,8 +3,17 @@
 import * as React from "react"
 import Image from "next/image"
 import { Check, X } from "lucide-react"
+import {
+  animate,
+  motion,
+  useMotionValue,
+  useMotionValueEvent,
+  useReducedMotion,
+  useTransform,
+} from "motion/react"
 
 import { cn } from "@/lib/utils"
+import { SPRING, PROJECTION_FACTOR } from "@/lib/motion/springs"
 import { solidBlurDataURL } from "@/lib/perf/blur-placeholder"
 import { EmptyState } from "@/components/ui/empty-state"
 import { MARKETPLACE_CARD_PLACEHOLDER } from "@/components/ui/marketplace-card"
@@ -20,7 +29,7 @@ export interface SwipeCardProps {
   seeking?: React.ReactNode
   availability?: React.ReactNode
   tags?: React.ReactNode
-  /** Fires once per gesture/keypress/button press. */
+  /** Fires once per gesture/keypress/button press, after the card has left. */
   onSwipe?: (direction: SwipeDirection) => void
   /** Copy for the two actions; also used as the buttons' accessible names. */
   passLabel?: string
@@ -29,8 +38,15 @@ export interface SwipeCardProps {
   className?: string
 }
 
-/** Horizontal travel (px) past which a drag counts as a swipe. */
-const SWIPE_THRESHOLD = 96
+/**
+ * Projected-endpoint (px) past which a release counts as a committed swipe.
+ * We decide by where the throw *lands* (position + velocity), not by the raw
+ * release position — a fast short flick still commits (apple-design audit H1 §6).
+ */
+const COMMIT_PROJECTION = 120
+
+/** Half-threshold that flips the live `data-intent` while dragging. */
+const INTENT_THRESHOLD = 48
 
 function isRemote(src: string): boolean {
   return /^https?:\/\//i.test(src)
@@ -39,10 +55,17 @@ function isRemote(src: string): boolean {
 /**
  * SwipeCard — PR-23, the presentational half of swipe browse mode.
  *
- * Pointer drag, keyboard (← / →) and two explicit buttons all funnel into the
- * same `onSwipe`. The buttons are not a fallback afterthought: a swipe-only
- * interface is unusable with a keyboard or a screen reader, so they are the
- * primary accessible path and the drag is the enhancement.
+ * Rebuilt on Framer Motion (audit H1): the card is a real, throwable object.
+ * A drag drives a `MotionValue` `x`; rotation and the like/pass badge opacity
+ * are *derived* from `x` so feedback is continuous, not stepwise. Releasing
+ * projects a landing point from the finger's velocity and, past the commit
+ * threshold, flings the card off-screen before `onSwipe` fires — so the
+ * parent's removal reads as the visible consequence of the throw.
+ *
+ * Pointer drag is the enhancement. The two buttons and the ← / → keys remain
+ * the primary accessible path: a swipe-only interface is unusable with a
+ * keyboard or a screen reader. Those paths route through the SAME commit, so a
+ * button press also throws the card out for visual consequence.
  *
  * The component owns no queue state — the parent decides what the next card is.
  */
@@ -60,53 +83,70 @@ export function SwipeCard({
   blurDataURL,
   className,
 }: SwipeCardProps) {
-  const [dragX, setDragX] = React.useState(0)
-  const startX = React.useRef<number | null>(null)
-  // Mirror of dragX for the pointerup handler: reading it from state would use
-  // whatever value that particular render closed over.
-  const dragXRef = React.useRef(0)
+  const prefersReducedMotion = useReducedMotion()
+  const articleRef = React.useRef<HTMLElement | null>(null)
+  // Guards against a second commit (double key press / button while flinging).
+  const committedRef = React.useRef(false)
 
-  const setDrag = React.useCallback((next: number) => {
-    dragXRef.current = next
-    setDragX(next)
-  }, [])
+  const x = useMotionValue(0)
+  const opacity = useMotionValue(1)
+  const rotate = useTransform(x, [-200, 200], [-12, 12])
+  // Continuous badge feedback derived straight from x (audit H1 §1).
+  const likeOpacity = useTransform(x, [40, 120], [0, 1])
+  const passOpacity = useTransform(x, [-120, -40], [1, 0])
+
+  // data-intent stays a discrete 'left' | 'right' | 'none' for styling, but is
+  // now driven live off the motion value rather than React drag state.
+  const [intent, setIntent] = React.useState<SwipeDirection | "none">("none")
+  useMotionValueEvent(x, "change", (latest) => {
+    const next: SwipeDirection | "none" =
+      latest > INTENT_THRESHOLD ? "right" : latest < -INTENT_THRESHOLD ? "left" : "none"
+    setIntent((prev) => (prev === next ? prev : next))
+  })
+
   const src = image && image.trim() !== "" ? image : MARKETPLACE_CARD_PLACEHOLDER
 
   const commit = React.useCallback(
-    (direction: SwipeDirection) => {
-      setDrag(0)
-      startX.current = null
-      onSwipe?.(direction)
+    (direction: SwipeDirection, velocity = 0) => {
+      if (committedRef.current) return
+      committedRef.current = true
+
+      // Meaningful, causal haptic reserved for the commit frame (audit H1 §13).
+      if (typeof navigator !== "undefined") navigator.vibrate?.(10)
+
+      if (prefersReducedMotion) {
+        // No throw: cross-fade the outgoing card out, then report (audit §14).
+        animate(opacity, 0, {
+          duration: 0.2,
+          onComplete: () => onSwipe?.(direction),
+        })
+        return
+      }
+
+      // Guarantee the card fully leaves regardless of viewport width.
+      const width = articleRef.current?.offsetWidth ?? 400
+      const offscreen = Math.max(width * 1.5, 600)
+      // Continue at the finger's release velocity — no seam (audit §5 handoff).
+      animate(x, direction === "right" ? offscreen : -offscreen, {
+        ...SPRING.momentum,
+        velocity,
+        onComplete: () => onSwipe?.(direction),
+      })
     },
-    [onSwipe, setDrag]
+    [onSwipe, opacity, prefersReducedMotion, x]
   )
 
-  function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
-    startX.current = e.clientX
-    try {
-      e.currentTarget.setPointerCapture?.(e.pointerId)
-    } catch {
-      // jsdom / unsupported pointer id — capture is an enhancement, not required.
-    }
+  function handleDragEnd(_event: unknown, info: { velocity: { x: number } }) {
+    // Decide by the PROJECTED endpoint (position + velocity), not release
+    // position — a fast short flick still commits (audit H1 §6).
+    const projected = x.get() + info.velocity.x * PROJECTION_FACTOR
+    if (projected > COMMIT_PROJECTION) commit("right", info.velocity.x)
+    else if (projected < -COMMIT_PROJECTION) commit("left", info.velocity.x)
+    else if (prefersReducedMotion) x.set(0) // settle instantly
+    else animate(x, 0, SPRING.default) // interruptible settle home
   }
 
-  function handlePointerMove(e: React.PointerEvent<HTMLDivElement>) {
-    if (startX.current === null) return
-    setDrag(e.clientX - startX.current)
-  }
-
-  function handlePointerUp() {
-    if (startX.current === null) return
-    const dx = dragXRef.current
-    if (dx > SWIPE_THRESHOLD) commit("right")
-    else if (dx < -SWIPE_THRESHOLD) commit("left")
-    else {
-      setDrag(0)
-      startX.current = null
-    }
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+  function handleKeyDown(e: React.KeyboardEvent<HTMLElement>) {
     if (e.key === "ArrowRight") {
       e.preventDefault()
       commit("right")
@@ -116,29 +156,25 @@ export function SwipeCard({
     }
   }
 
-  const intent: SwipeDirection | null =
-    dragX > SWIPE_THRESHOLD / 2 ? "right" : dragX < -SWIPE_THRESHOLD / 2 ? "left" : null
-
   return (
-    <article
+    <motion.article
+      ref={articleRef}
       data-slot="swipe-card"
       data-testid="swipe-card"
-      data-intent={intent ?? "none"}
+      data-intent={intent}
       aria-roledescription="Swipeable card"
       aria-label={title}
       tabIndex={0}
       onKeyDown={handleKeyDown}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
-      style={{
-        transform: dragX ? `translateX(${dragX}px) rotate(${dragX / 28}deg)` : undefined,
-      }}
+      drag="x"
+      dragElastic={0.5}
+      dragMomentum={false}
+      onDragEnd={handleDragEnd}
+      style={{ x, rotate, opacity }}
       className={cn(
         "relative flex w-full min-w-0 max-w-sm touch-pan-y flex-col overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-card select-none",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-        !dragX && "transition-transform duration-200 motion-reduce:transition-none",
+        "motion-reduce:transition-none",
         className
       )}
     >
@@ -159,19 +195,20 @@ export function SwipeCard({
           draggable={false}
           className="object-cover"
         />
-        {intent ? (
-          <span
-            aria-hidden="true"
-            className={cn(
-              "absolute top-4 rounded-lg border-2 px-3 py-1 text-medium font-semibold uppercase",
-              intent === "right"
-                ? "left-4 border-success text-success"
-                : "right-4 border-destructive text-destructive"
-            )}
-          >
-            {intent === "right" ? likeLabel : passLabel}
-          </span>
-        ) : null}
+        <motion.span
+          aria-hidden="true"
+          style={{ opacity: likeOpacity }}
+          className="absolute top-4 left-4 rounded-lg border-2 border-success px-3 py-1 text-medium font-semibold uppercase text-success"
+        >
+          {likeLabel}
+        </motion.span>
+        <motion.span
+          aria-hidden="true"
+          style={{ opacity: passOpacity }}
+          className="absolute top-4 right-4 rounded-lg border-2 border-destructive px-3 py-1 text-medium font-semibold uppercase text-destructive"
+        >
+          {passLabel}
+        </motion.span>
       </figure>
 
       <div className="flex min-w-0 flex-col gap-3 p-5">
@@ -216,7 +253,7 @@ export function SwipeCard({
           </button>
         </div>
       </div>
-    </article>
+    </motion.article>
   )
 }
 
@@ -260,7 +297,10 @@ export function SwipeDeck({ cards, onSwipe, empty, className }: SwipeDeckProps) 
         />
       ) : null}
       <div className="relative w-full max-w-sm">
-        <SwipeCard {...head} onSwipe={(direction) => onSwipe?.(head.id, direction)} />
+        {/* key by id: remount a fresh card per head so its drag MotionValue (x)
+            resets to centre — otherwise the next card inherits the flung
+            position/rotation of the one just thrown. */}
+        <SwipeCard key={head.id} {...head} onSwipe={(direction) => onSwipe?.(head.id, direction)} />
       </div>
     </div>
   )

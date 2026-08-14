@@ -1,10 +1,12 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { motion, useReducedMotion } from 'motion/react'
 import { Users } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { EmptyState } from '@/components/ui/empty-state'
+import { SPRING } from '@/lib/motion/springs'
 import TeamCard from './team-card'
 import type { TeamSummary } from '@/lib/supabase/profiles'
 import type { Database } from '@/types/database'
@@ -35,6 +37,23 @@ export default function TeamsGrid({ teams, savedUserIds = [], footer }: Props) {
   const [search, setSearch] = useState('')
   const [sport, setSport] = useState('')
   const [level, setLevel] = useState('')
+
+  // Entry-motion guard (UX audit M4): stagger cards in on FIRST mount only, then
+  // render statically so filter/search re-renders never replay the animation.
+  const reduced = useReducedMotion()
+  const firstMountRef = useRef(true)
+  const animateFirstMount = firstMountRef.current
+  useEffect(() => {
+    firstMountRef.current = false
+  }, [])
+  const cardMotion = (index: number) =>
+    animateFirstMount
+      ? {
+          initial: reduced ? { opacity: 0 } : { opacity: 0, y: 8 },
+          animate: { opacity: 1, y: 0 },
+          transition: { ...SPRING.default, delay: reduced ? 0 : Math.min(index, 8) * 0.04 },
+        }
+      : { initial: false as const }
 
   const savedSet = useMemo(() => new Set(savedUserIds), [savedUserIds])
 
@@ -117,8 +136,10 @@ export default function TeamsGrid({ teams, savedUserIds = [], footer }: Props) {
         />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((t) => (
-            <TeamCard key={t.id} team={t} initialSaved={savedSet.has(t.user_id)} />
+          {filtered.map((t, index) => (
+            <motion.div key={t.id} {...cardMotion(index)}>
+              <TeamCard team={t} initialSaved={savedSet.has(t.user_id)} />
+            </motion.div>
           ))}
         </div>
       )}

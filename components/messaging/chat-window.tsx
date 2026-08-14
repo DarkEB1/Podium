@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { motion, useReducedMotion } from 'motion/react'
 import { toast } from 'sonner'
 import { SendHorizonal } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -18,6 +19,7 @@ import {
 import { cn } from '@/lib/utils'
 import MessageBubble from './message-bubble'
 import ProposalCardMessage from './proposal-card-message'
+import { SPRING } from '@/lib/motion/springs'
 import type { Database } from '@/types/database'
 
 type MessageRow = Database['public']['Tables']['messages']['Row']
@@ -70,6 +72,26 @@ export default function ChatWindow({
   // Id of the last message the other participant has read (drives read ticks).
   const [lastReadByOther, setLastReadByOther] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
+
+  // Entry motion (UX audit M4): only messages that arrive AFTER first mount
+  // spring in from their sender's side. The ids present at mount are recorded
+  // once; anything not in that set is genuinely new. Existing bubbles never
+  // replay — Framer runs the enter animation on mount only, and keys are stable
+  // message ids, so re-renders (typing indicator, read receipts) never remount.
+  const reduced = useReducedMotion()
+  const initialIdsRef = useRef<Set<string>>(new Set(initialMessages.map((m) => m.id)))
+  const enterProps = (isMine: boolean, isNew: boolean) => {
+    if (!isNew) return { initial: false as const }
+    if (reduced) {
+      return { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: SPRING.default }
+    }
+    return {
+      initial: { opacity: 0, y: 8, scale: 0.98 },
+      animate: { opacity: 1, y: 0, scale: 1 },
+      transition: SPRING.default,
+      style: { transformOrigin: isMine ? 'right' : 'left' },
+    }
+  }
 
   const proposalMap = new Map(proposals.map((p) => [p.id, p]))
 
@@ -192,6 +214,8 @@ export default function ChatWindow({
           />
         ) : null}
         {messages.map((msg, i) => {
+          const isMine = msg.sender_id === currentUserId
+          const isNew = !initialIdsRef.current.has(msg.id)
           if (msg.content_type === 'proposal_card' || msg.content_type === 'payment_confirmation') {
             const meta = msg.metadata as { proposal_id?: string } | null
             const proposalId = meta?.proposal_id
@@ -199,13 +223,14 @@ export default function ChatWindow({
             if (!proposal) return null
             const isPayment = msg.content_type === 'payment_confirmation'
             return (
-              <div
+              <motion.div
                 key={msg.id}
-                className={cn('flex', msg.sender_id === currentUserId ? 'justify-end' : 'justify-start')}
+                {...enterProps(isMine, isNew)}
+                className={cn('flex', isMine ? 'justify-end' : 'justify-start')}
               >
                 <ProposalCardMessage
                   proposal={proposal}
-                  isMine={msg.sender_id === currentUserId}
+                  isMine={isMine}
                   viewerRole={viewerRole}
                   onResponded={() => {}}
                   paymentConfirmation={
@@ -214,17 +239,17 @@ export default function ChatWindow({
                       : undefined
                   }
                 />
-              </div>
+              </motion.div>
             )
           }
-          const isMine = msg.sender_id === currentUserId
           return (
-            <MessageBubble
-              key={msg.id}
-              message={msg}
-              isMine={isMine}
-              readByOther={isMine && i === lastMineIndex && lastReadByOther === msg.id}
-            />
+            <motion.div key={msg.id} {...enterProps(isMine, isNew)}>
+              <MessageBubble
+                message={msg}
+                isMine={isMine}
+                readByOther={isMine && i === lastMineIndex && lastReadByOther === msg.id}
+              />
+            </motion.div>
           )
         })}
         {otherTyping && <TypingIndicator />}

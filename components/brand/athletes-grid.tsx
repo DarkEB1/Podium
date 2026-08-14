@@ -1,11 +1,13 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { motion, useReducedMotion } from 'motion/react'
 import { SlidersHorizontal, Sparkles, Users } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { SPRING } from '@/lib/motion/springs'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ROUTES } from '@/lib/routes'
 import AthleteCard from './athlete-card'
@@ -76,6 +78,23 @@ export default function AthletesGrid({
   const [radiusKm, setRadiusKm] = useState('')
   const [minFollowing, setMinFollowing] = useState('')
   const [panelOpen, setPanelOpen] = useState(false)
+
+  // Entry-motion guard (UX audit M4): stagger cards in on FIRST mount only, then
+  // render statically so filter/search re-renders never replay the animation.
+  const reduced = useReducedMotion()
+  const firstMountRef = useRef(true)
+  const animateFirstMount = firstMountRef.current
+  useEffect(() => {
+    firstMountRef.current = false
+  }, [])
+  const cardMotion = (index: number) =>
+    animateFirstMount
+      ? {
+          initial: reduced ? { opacity: 0 } : { opacity: 0, y: 8 },
+          animate: { opacity: 1, y: 0 },
+          transition: { ...SPRING.default, delay: reduced ? 0 : Math.min(index, 8) * 0.04 },
+        }
+      : { initial: false as const }
 
   const savedSet = useMemo(() => new Set(savedUserIds), [savedUserIds])
   const verifiedSet = useMemo(() => new Set(verifiedUserIds), [verifiedUserIds])
@@ -252,13 +271,14 @@ export default function AthletesGrid({
         />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((a) => (
-            <AthleteCard
-              key={a.id}
-              athlete={a}
-              verified={verifiedSet.has(a.user_id)}
-              initialSaved={savedSet.has(a.user_id)}
-            />
+          {filtered.map((a, index) => (
+            <motion.div key={a.id} {...cardMotion(index)}>
+              <AthleteCard
+                athlete={a}
+                verified={verifiedSet.has(a.user_id)}
+                initialSaved={savedSet.has(a.user_id)}
+              />
+            </motion.div>
           ))}
         </div>
       )}

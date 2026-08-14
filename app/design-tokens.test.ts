@@ -95,8 +95,9 @@ describe('T1 design tokens (globals.css)', () => {
     // liftable: gentle -2px lift on the Y axis + soft hover shadow
     expect(css).toMatch(/translateY\(-2px\)/)
     expect(css).toMatch(/box-shadow:\s*var\(--shadow-card-hover\)/)
-    // pressable: subtle scale only, no hard 2px translate
-    expect(css).toMatch(/scale\(0?\.99\)/)
+    // pressable: subtle scale only, no hard 2px translate. Press deepened to
+    // 0.97 on a fast 100ms channel for felt feedback (UX audit M1, 2026-08-14).
+    expect(css).toMatch(/scale\(0?\.97\)/)
     expect(css).not.toMatch(/translate\(2px,\s*2px\)/)
   })
 

@@ -9,7 +9,7 @@ const buttonVariants = cva(
   // No heavy ink borders or hard offset/press shadows. Motion respects
   // prefers-reduced-motion (transform/lift suppressed when reduced motion is set).
   // Label keeps the heading font (font-heading + font-semibold).
-  "group/button inline-flex shrink-0 items-center justify-center rounded-[12px] bg-clip-padding font-sans text-sm font-semibold whitespace-nowrap shadow-sm transition-all duration-200 outline-none select-none hover:shadow-md active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 aria-invalid:ring-2 aria-invalid:ring-destructive/20 motion-safe:hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/button inline-flex shrink-0 items-center justify-center rounded-[12px] bg-clip-padding font-sans text-sm font-semibold whitespace-nowrap shadow-sm transition-[transform,box-shadow,background-color,color] duration-200 outline-none select-none hover:shadow-md active:scale-[0.97] active:duration-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 aria-invalid:ring-2 aria-invalid:ring-destructive/20 motion-safe:[@media(hover:hover)_and_(pointer:fine)]:hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {

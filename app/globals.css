@@ -84,6 +84,14 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* Motion easing tokens (UX audit 2026-08-14). Overriding Tailwind's built-in
+     --ease-out / --ease-in-out upgrades every existing ease-* utility in the
+     tree at once; --ease-drawer is a new iOS-style curve for edge panels.
+     Durations and reduced-motion behaviour are unchanged. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 :root {
@@ -340,13 +348,22 @@
   }
   html {
     @apply font-sans;
+    /* DM Sans is a variable font; optical sizing is free and lets the face
+       adjust at display vs body sizes (UX audit M2). */
+    font-optical-sizing: auto;
   }
   h1, h2, h3, h4, h5, h6 {
     /* Heading rhythm + typeface (plan §1.1, §1.2) */
     font-family: var(--font-heading);
     line-height: 1.18;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.01em; /* h3–h6 default */
   }
+  /* Size-specific tracking (UX audit M2): a single letter-spacing across a
+     3rem→0.8rem range is wrong at the extremes — larger runs tighter, the mono
+     micro-labels want positive tracking. Utilities (tracking-*) still override. */
+  h1, h2 { letter-spacing: -0.018em; }
+  .text-display { letter-spacing: -0.025em; line-height: 1.05; }
+  .font-mono { letter-spacing: 0.04em; }
 }
 
 /* Landing hero word chip (spec §4.2): a miniature domino. The outgoing word
@@ -379,16 +396,20 @@
   transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
 .pressable:active {
-  /* Subtle press: a small scale only, no hard offset translate. */
-  transform: scale(0.99);
+  /* Press feedback must feel instant and be felt (UX audit M1): deeper scale,
+     fast channel. Reduced-motion still suppresses the transform below. */
+  transform: scale(0.97);
+  transition: transform 0.1s ease-out;
 }
 .liftable {
   transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
-.liftable:hover {
-  /* Gentle lift on the Y axis + soft elevated shadow. */
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-card-hover);
+@media (hover: hover) and (pointer: fine) {
+  .liftable:hover {
+    /* Gentle lift on the Y axis + soft elevated shadow. */
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-card-hover);
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .pressable,
@@ -398,5 +419,28 @@
   .pressable:active,
   .liftable:hover {
     transform: none;
+  }
+}
+
+/* Materials accessibility (UX audit M6). Reduced-motion is not the only signal:
+   a user who asks for solid surfaces must not get translucency/blur, and a user
+   who asks for more contrast wants defined borders. Ships alongside the
+   translucent scrims (M3) so those effects degrade correctly. */
+@media (prefers-reduced-transparency: reduce) {
+  [data-slot="dialog-overlay"],
+  [data-slot="drawer-overlay"],
+  [data-slot="sheet-overlay"],
+  [data-slot="dialog-content"],
+  [data-slot="drawer-content"],
+  [data-slot="sheet-content"] {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+@media (prefers-contrast: more) {
+  [data-slot="dialog-content"],
+  [data-slot="drawer-content"],
+  [data-slot="sheet-content"] {
+    border-color: var(--foreground);
   }
 }

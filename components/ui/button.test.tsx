@@ -14,8 +14,9 @@ describe('Button re-skin (clean Airbnb)', () => {
     // soft rest shadow (no hard offset shadow)
     expect(btn.className).toMatch(/\bshadow-sm\b/)
     expect(btn.className).toMatch(/hover:shadow-md/)
-    // gentle hover lift, motion-safe only (respects prefers-reduced-motion)
-    expect(btn.className).toMatch(/motion-safe:hover:-translate-y-0\.5/)
+    // gentle hover lift, motion-safe AND pointer-gated so a touch tap can't leave
+    // a phantom lift on hybrid devices (UX audit review 2026-08-14).
+    expect(btn.className).toMatch(/motion-safe:\[@media\(hover:hover\)_and_\(pointer:fine\)\]:hover:-translate-y-0\.5/)
     // lightly-rounded squircle corners (12px)
     expect(btn.className).toMatch(/rounded-\[12px\]/)
     // no brutalist ink border, hard press shadow, or .pressable utility

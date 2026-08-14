@@ -32,7 +32,7 @@ describe("Tabs surface re-skin (C10 clean airbnb)", () => {
   it("keeps the active trigger transition intact", () => {
     renderTabs()
     const trigger = document.querySelector('[data-slot="tabs-trigger"]')
-    expect(trigger!.className).toContain("transition-all")
+    expect(trigger!.className).toContain("transition-[color,background-color,box-shadow]")
   })
 
   it("renders visible trigger labels", () => {

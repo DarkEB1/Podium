@@ -2,9 +2,11 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { motion, useReducedMotion } from 'motion/react'
 import { Search, SlidersHorizontal } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
+import { SPRING } from '@/lib/motion/springs'
 import { CardSkeleton } from '@/components/ui/card-skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { FilterGroup, useFilterDisclosure } from '@/components/ui/filter-group'
@@ -246,6 +248,25 @@ export default function ListingsGrid({ listings, loading = false, footer }: Prop
   })
   const [sort, setSort] = useState<SortKey>('relevance')
 
+  // Entry-motion guard (UX audit M4): stagger the cards in on the grid's FIRST
+  // mount only. `animateFirstMount` is read during render — true on the initial
+  // pass, then flipped off after commit — so filter/sort/load-more re-renders
+  // (which unmount and remount cards) render statically instead of replaying.
+  const reduced = useReducedMotion()
+  const firstMountRef = useRef(true)
+  const animateFirstMount = firstMountRef.current
+  useEffect(() => {
+    firstMountRef.current = false
+  }, [])
+  const cardMotion = (index: number) =>
+    animateFirstMount
+      ? {
+          initial: reduced ? { opacity: 0 } : { opacity: 0, y: 8 },
+          animate: { opacity: 1, y: 0 },
+          transition: { ...SPRING.default, delay: reduced ? 0 : Math.min(index, 8) * 0.04 },
+        }
+      : { initial: false as const }
+
   const sportOptions = useMemo(
     () => uniqueSorted(listings.map((l) => l.sport_required)).map((s) => ({ value: s, label: s })),
     [listings]
@@ -389,8 +410,10 @@ export default function ListingsGrid({ listings, loading = false, footer }: Prop
           data-testid="listings-grid"
           className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3"
         >
-          {filtered.map((l) => (
-            <ListingCard key={l.id} listing={l} />
+          {filtered.map((l, index) => (
+            <motion.div key={l.id} {...cardMotion(index)}>
+              <ListingCard listing={l} />
+            </motion.div>
           ))}
         </div>
       )}

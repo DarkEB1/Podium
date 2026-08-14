@@ -75,12 +75,16 @@ describe('NavShell', () => {
     const active = within(primary).getByRole('link', { name: 'Discover' })
     // Clean Airbnb: a soft primary fill + weight carry the active state; aria-current
     // keeps it from being colour-alone. No heavy ink border.
-    expect(active.className).toMatch(/bg-primary\/10/)
+    // H3: the soft primary fill is now a shared-layout indicator element
+    // (Framer `layoutId`) rendered only inside the active item, so it can slide
+    // between items — the tint is on that child span, not the link className.
+    expect(active.querySelector('.bg-primary\\/10')).not.toBeNull()
     expect(active.className).toMatch(/text-primary/)
     expect(active.className).toMatch(/font-semibold/)
     expect(active.className).not.toMatch(/border-border-ink/)
     const inactive = within(primary).getByRole('link', { name: 'Requests' })
     expect(inactive.className).not.toMatch(/bg-primary\/10/)
+    expect(inactive.querySelector('.bg-primary\\/10')).toBeNull()
   })
 
   it('renders a persistent role-appropriate top-right CTA', () => {

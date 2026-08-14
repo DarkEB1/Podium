@@ -91,7 +91,7 @@ export default function RoleSelectForm({ initialRole }: Props = {}) {
             aria-pressed={selected === role.id}
             onClick={() => setSelected(role.id)}
             className={cn(
-              'relative rounded-2xl border p-5 text-left transition-all',
+              'relative rounded-2xl border p-5 text-left transition-[color,background-color,border-color,box-shadow]',
               selected === role.id
                 ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
                 : 'border-border hover:border-foreground/50'

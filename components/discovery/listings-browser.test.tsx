@@ -87,7 +87,11 @@ describe('ListingsBrowser', () => {
     render(<ListingsBrowser listings={[listing()]} initialMode="swipe" />)
     await userEvent.click(screen.getByRole('button', { name: /skip/i }))
 
-    expect(screen.queryByTestId('swipe-card')).toBeNull()
+    // Commit is now async: the card flies off (Framer fling) and onSwipe fires
+    // on animation-complete, so the removal + empty state settle after a tick.
+    await waitFor(() => {
+      expect(screen.queryByTestId('swipe-card')).toBeNull()
+    })
     expect(screen.getByText(/that is every campaign for now/i)).toBeInTheDocument()
   })
 })

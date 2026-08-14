@@ -581,7 +581,7 @@ export default function BrandProfileForm({ step, profile: initialProfile }: Prop
           <span>{Math.round((step / TOTAL_STEPS) * 100)}%</span>
         </div>
         <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-          <div className="h-full bg-foreground transition-all" style={{ width: `${(step / TOTAL_STEPS) * 100}%` }} />
+          <div className="h-full bg-foreground transition-[width]" style={{ width: `${(step / TOTAL_STEPS) * 100}%` }} />
         </div>
       </div>
 

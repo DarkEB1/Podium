@@ -2,7 +2,9 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { motion, useReducedMotion } from 'motion/react'
 import { cn } from '@/lib/utils'
+import { SPRING } from '@/lib/motion/springs'
 import { buttonVariants } from '@/components/ui/button'
 import SignOutButton from '@/components/auth/sign-out-button'
 import { ROUTES } from '@/lib/routes'
@@ -37,6 +39,12 @@ export default function NavShell({ role, children }: NavShellProps) {
   const cta = ctaForRole(role)
   const crumbs = buildBreadcrumbs(pathname)
 
+  // H3: the active indicator is a shared-layout element (`layoutId`) so it
+  // physically slides between items. Reduced-motion users get the indicator
+  // without travel (duration 0 => Framer cross-fades in place, no slide).
+  const reduced = useReducedMotion()
+  const indicatorTransition = reduced ? { duration: 0 } : SPRING.snappy
+
   // The first nav item doubles as the role's home destination for the wordmark.
   const home = items[0]?.href ?? ROUTES.home
 
@@ -64,9 +72,17 @@ export default function NavShell({ role, children }: NavShellProps) {
                   aria-current={active ? 'page' : undefined}
                   className={cn(
                     buttonVariants({ variant: 'ghost', size: 'sm' }),
-                    active && 'bg-primary/10 font-semibold text-primary',
+                    'relative',
+                    active && 'font-semibold text-primary',
                   )}
                 >
+                  {active && (
+                    <motion.span
+                      layoutId="nav-active"
+                      className="absolute inset-0 -z-10 rounded-lg bg-primary/10"
+                      transition={indicatorTransition}
+                    />
+                  )}
                   {item.label}
                 </Link>
               )
@@ -129,12 +145,19 @@ export default function NavShell({ role, children }: NavShellProps) {
               href={item.href}
               aria-current={active ? 'page' : undefined}
               className={cn(
-                'flex flex-col items-center gap-1 py-2 text-small',
+                'relative flex flex-col items-center gap-1 py-2 text-small',
                 active
                   ? 'font-semibold text-primary'
                   : 'text-muted-foreground',
               )}
             >
+              {active && (
+                <motion.span
+                  layoutId="bottom-nav-active"
+                  className="absolute inset-x-4 top-0 h-0.5 rounded-full bg-primary"
+                  transition={indicatorTransition}
+                />
+              )}
               <Icon className="size-5" aria-hidden="true" />
               <span>{item.label}</span>
             </Link>

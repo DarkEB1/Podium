@@ -122,6 +122,44 @@ harness-verified light+dark; pages auth-gated) + full check green.
 ## Cleanup — DONE
 - Removed app/(public)/dev-preview/page.tsx and the middleware dev-path entry.
 
+## MOTION / UX PASS (2026-08-14, from the 3-lens audit)
+Full next-level pass (user-approved). Docs: docs/claude/ux-audit-{apple-design,
+improve-animations,find-animation-opportunities}.md.
+- Phase 1 foundation ✓: strong easing tokens in globals.css @theme
+  (--ease-out/-in-out/-drawer — upgrades every ease-* utility); lib/motion/springs.ts.
+- Phase 2 craft ✓ (subagent, Plans 002-007): killed all transition-all;
+  page-transition will-change/scope fix; Sheet ease-drawer curve; Accordion
+  reduced-motion guard; menu/dialog durations off the too-fast floor; hover-lift
+  touch-gated. + M1 press (scale .97 / 100ms) + M2 size-specific tracking +
+  optical-sizing. design-tokens.test updated for scale(.97).
+- H1 SwipeCard ✓ VERIFIED in harness (light): rebuilt on Framer drag —
+  velocity-projected commit, fling-off-before-commit, derived rotate + badge
+  cross-fade, reduced-motion fade, haptic. BUG the harness caught + fixed: added
+  key={head.id} in SwipeDeck so the next card resets to centre (was inheriting
+  the flung x). Tests 10/10.
+- H3 layoutId nav/tabs ✓ VERIFIED in harness: active pill/underline slides
+  between items via shared layoutId + SPRING.snappy; reduced-motion = no travel.
+  Tests 12/12.
+- M4 ✓ grid stagger + chat spring-in (first-mount ref for grids; initial-id set
+  for chat; both opacity-only under reduced-motion). 39/39 tests. Verified-by-
+  proxy + tests; consumer listings-browser.test wrapped in waitFor (commit is now
+  async via fling onComplete).
+- review-animations pass ✓ = APPROVE, no blockers. Closed its 2 should-fixes:
+  Button hover-lift now gated `[@media(hover:hover)_and_(pointer:fine)]`; tabs
+  `tab-underline` layoutId namespaced per instance via LayoutGroup+useId.
+- H2 ✓ (user said bring in Vaul): installed `vaul@1.1.2`; found the Base UI
+  `Sheet` is UNUSED in the app (no imports, no side=bottom), so added a new
+  Vaul-based `components/ui/drawer.tsx` (drag-to-dismiss, grab handle, deep
+  blurred scrim, Podium tokens) rather than graft onto Sheet. Smoke test +
+  VERIFIED in harness (open state: handle + blurred scrim). Sheet left as-is.
+- M3/M6 ✓ ("as needed"): dialog scrim deepened bg-black/25 + backdrop-blur-sm;
+  Drawer scrim bg-black/40 + blur; globals.css M6 gates for
+  prefers-reduced-transparency (drop backdrop-filter) + prefers-contrast
+  (foreground borders). Dialog scrim VERIFIED in harness. Nav scroll-edge mask
+  intentionally SKIPPED (already translucent; low ROI, auth-gated).
+- Harness re-created for Drawer/Dialog verify, then TORN DOWN. Full pass green
+  (258 files / 2451 tests). STILL UNCOMMITTED on staging.
+
 ## STATUS: sweep complete for the design language across all surfaces.
 Leaf components (messaging/discovery/individual forms) conform to the token
 system, compose harness-verified primitives, and pass all tests — not each
