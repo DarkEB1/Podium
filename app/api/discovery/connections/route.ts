@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
   if (!limited.allowed) return tooManyRequests(limited.retryAfter)
 
   // Entitlement gate: gated brands are capped on connection requests per
-  // billing period per their subscription tier (see lib/entitlements.ts).
+  // billing period per their subscription tier (see lib/supabase/entitlements.ts).
   const gate = await assertCanSendConnectionRequest(supabase, user.id, user.role)
   if (!gate.allowed) {
     return NextResponse.json(

@@ -111,6 +111,14 @@ describe('POST /api/discovery/connections', () => {
     expect(res.status).toBe(201)
     const json = await res.json()
     expect(json).toEqual(fakeRequest)
+    // Guards against arg-order regressions (e.g. swapping id/role or passing
+    // recipient_id instead of the caller's own id) that every other test's
+    // permissive mock would silently pass through.
+    expect(assertCanSendConnectionRequest).toHaveBeenCalledWith(
+      expect.anything(),
+      fakeUser.id,
+      fakeUser.role
+    )
   })
 
   it('emails the recipient a connection_request_received on success', async () => {
@@ -174,5 +182,8 @@ describe('POST /api/discovery/connections', () => {
     )
     const res = await POST(makeRequest({ recipient_id: 'u2', message: 'hi there friend' }))
     expect(res.status).not.toBe(402)
+    // Confirms the route actually reached the send path rather than failing
+    // for an unrelated reason (e.g. 500) that would also be `!== 402`.
+    expect(sendConnectionRequest).toHaveBeenCalled()
   })
 })
