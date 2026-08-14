@@ -10,10 +10,15 @@ vi.mock('@/lib/supabase/messaging', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/supabase/messaging')>()
   return { ...actual, getMessages: vi.fn(), sendMessage: vi.fn() }
 })
+vi.mock('@/lib/supabase/entitlements', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/supabase/entitlements')>()
+  return { ...actual, assertCanSendMessage: vi.fn() }
+})
 
 import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getMessages, sendMessage, MessagingError } from '@/lib/supabase/messaging'
+import { assertCanSendMessage } from '@/lib/supabase/entitlements'
 import { CHAT_MESSAGE_MAX } from '@/lib/limits'
 import { GET, POST } from './route'
 
@@ -91,6 +96,9 @@ describe('POST /api/messaging/matches/[matchId]/messages', () => {
     vi.mocked(createClient).mockResolvedValue(
       {} as unknown as Awaited<ReturnType<typeof createClient>>
     )
+    vi.mocked(assertCanSendMessage).mockResolvedValue({
+      allowed: true, gated: true, tier: 1, limit: 100, used: 0,
+    })
   })
 
   it('returns 401 when not authenticated', async () => {
@@ -182,6 +190,46 @@ describe('POST /api/messaging/matches/[matchId]/messages', () => {
     expect(res.status).toBe(201)
     const json = await res.json()
     expect(json).toEqual(fakeMsg)
+    // Guards against arg-order regressions (e.g. swapping id/role) that every
+    // other test's permissive default mock would silently pass through.
+    expect(assertCanSendMessage).toHaveBeenCalledWith(
+      expect.anything(),
+      fakeUser.id,
+      fakeUser.role
+    )
+  })
+
+  it('returns 402 when a Starter brand has hit its monthly message cap', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(assertCanSendMessage).mockResolvedValue({
+      allowed: false, gated: true, tier: 1, limit: 100, used: 100, reason: 'LIMIT_REACHED',
+    })
+    vi.mocked(sendMessage).mockClear()
+    const res = await POST(
+      makePostRequest({ content_type: 'text', text_content: 'hello' }),
+      { params }
+    )
+    expect(res.status).toBe(402)
+    const json = await res.json()
+    expect(json.error.code).toBe('LIMIT_REACHED')
+    expect(json.limit).toBe(100)
+    expect(json.used).toBe(100)
+    expect(json.tier).toBe(1)
+    expect(sendMessage).not.toHaveBeenCalled()
+  })
+
+  it('returns 402 with SUBSCRIPTION_REQUIRED when the brand has no active subscription', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(assertCanSendMessage).mockResolvedValue({
+      allowed: false, gated: true, tier: null, limit: null, used: 0, reason: 'NO_SUBSCRIPTION',
+    })
+    const res = await POST(
+      makePostRequest({ content_type: 'text', text_content: 'hello' }),
+      { params }
+    )
+    expect(res.status).toBe(402)
+    const json = await res.json()
+    expect(json.error.code).toBe('SUBSCRIPTION_REQUIRED')
   })
 
   it('calls sendMessage with matchId, userId, contentType, and payload', async () => {

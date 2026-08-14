@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getMessages, sendMessage, MessagingError } from '@/lib/supabase/messaging'
+import { assertCanSendMessage } from '@/lib/supabase/entitlements'
 import { RATE_LIMITS, consume, tooManyRequests, userKey } from '@/lib/rate-limit'
 import { CHAT_MESSAGE_MAX } from '@/lib/limits'
 import type { Database } from '@/types/database'
@@ -78,6 +79,27 @@ export async function POST(
   // longer lock the user out of sending a proposal.
   const limited = await consume(userKey('message_send', user.id), RATE_LIMITS.writeByUser)
   if (!limited.allowed) return tooManyRequests(limited.retryAfter)
+
+  // Entitlement gate: gated brands are capped on messages sent per billing
+  // period per their subscription tier (see lib/supabase/entitlements.ts).
+  const gate = await assertCanSendMessage(supabase, user.id, user.role)
+  if (!gate.allowed) {
+    return NextResponse.json(
+      {
+        error: {
+          code: gate.reason === 'NO_SUBSCRIPTION' ? 'SUBSCRIPTION_REQUIRED' : 'LIMIT_REACHED',
+          message:
+            gate.reason === 'NO_SUBSCRIPTION'
+              ? 'An active subscription is required to send messages.'
+              : `You have reached your plan's limit of ${gate.limit} messages this billing period. Upgrade for unlimited messaging.`,
+        },
+        limit: gate.limit,
+        used: gate.used,
+        tier: gate.tier,
+      },
+      { status: 402 }
+    )
+  }
 
   const body = (await request.json()) as {
     content_type?: string
