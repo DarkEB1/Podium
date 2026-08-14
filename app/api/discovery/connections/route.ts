@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { sendConnectionRequest, DiscoveryError } from '@/lib/supabase/discovery'
+import { assertCanSendConnectionRequest } from '@/lib/supabase/entitlements'
 import { RATE_LIMITS, consume, tooManyRequests, userKey } from '@/lib/rate-limit'
 import { sendTransactionalEmail } from '@/lib/email'
 import { absoluteUrl, nameOf, resolveDisplayNames, FALLBACK_OTHER_NAME } from '@/lib/email/notify'
@@ -23,6 +24,27 @@ export async function POST(request: NextRequest) {
   // messaging or proposals.
   const limited = await consume(userKey('connection_request', user.id), RATE_LIMITS.writeByUser)
   if (!limited.allowed) return tooManyRequests(limited.retryAfter)
+
+  // Entitlement gate: gated brands are capped on connection requests per
+  // billing period per their subscription tier (see lib/entitlements.ts).
+  const gate = await assertCanSendConnectionRequest(supabase, user.id, user.role)
+  if (!gate.allowed) {
+    return NextResponse.json(
+      {
+        error: {
+          code: gate.reason === 'NO_SUBSCRIPTION' ? 'SUBSCRIPTION_REQUIRED' : 'LIMIT_REACHED',
+          message:
+            gate.reason === 'NO_SUBSCRIPTION'
+              ? 'An active subscription is required to send connection requests.'
+              : `You have used all ${gate.limit} connection requests for this billing period. Upgrade your plan for more.`,
+        },
+        limit: gate.limit,
+        used: gate.used,
+        tier: gate.tier,
+      },
+      { status: 402 }
+    )
+  }
 
   let body: { recipient_id?: string; message?: string }
   try {

@@ -15,12 +15,17 @@ vi.mock('@/lib/email/notify', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/email/notify')>()
   return { ...actual, resolveDisplayNames: vi.fn() }
 })
+vi.mock('@/lib/supabase/entitlements', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/supabase/entitlements')>()
+  return { ...actual, assertCanSendConnectionRequest: vi.fn() }
+})
 
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { sendConnectionRequest, DiscoveryError } from '@/lib/supabase/discovery'
 import { sendTransactionalEmail } from '@/lib/email'
 import { resolveDisplayNames } from '@/lib/email/notify'
+import { assertCanSendConnectionRequest } from '@/lib/supabase/entitlements'
 import { POST } from './route'
 
 const fakeUser = {
@@ -50,6 +55,13 @@ describe('POST /api/discovery/connections', () => {
       status: 'sent',
       deliveryId: 'd1',
       providerId: 'p1',
+    })
+    vi.mocked(assertCanSendConnectionRequest).mockResolvedValue({
+      allowed: true,
+      gated: false,
+      tier: null,
+      limit: null,
+      used: 0,
     })
   })
 
@@ -129,5 +141,38 @@ describe('POST /api/discovery/connections', () => {
     const res = await POST(makeRequest({ recipient_id: 'u2', message: 'Hello' }))
     expect(res.status).toBe(409)
     expect(sendTransactionalEmail).not.toHaveBeenCalled()
+  })
+
+  it('returns 402 when the brand has hit its request cap', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(assertCanSendConnectionRequest).mockResolvedValue({
+      allowed: false,
+      gated: true,
+      tier: 1,
+      limit: 15,
+      used: 15,
+      reason: 'LIMIT_REACHED',
+    })
+    const res = await POST(makeRequest({ recipient_id: 'u2', message: 'hi there friend' }))
+    expect(res.status).toBe(402)
+    const json = await res.json()
+    expect(json.error.code).toBe('LIMIT_REACHED')
+  })
+
+  it('proceeds when under the cap', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(assertCanSendConnectionRequest).mockResolvedValue({
+      allowed: true,
+      gated: true,
+      tier: 1,
+      limit: 15,
+      used: 3,
+    })
+    // existing send mock resolves a row so we can assert we did NOT short-circuit at 402
+    vi.mocked(sendConnectionRequest).mockResolvedValue(
+      { id: 'cr1', sender_id: 'user-1', recipient_id: 'u2', message: 'hi there friend' } as never
+    )
+    const res = await POST(makeRequest({ recipient_id: 'u2', message: 'hi there friend' }))
+    expect(res.status).not.toBe(402)
   })
 })
