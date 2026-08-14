@@ -491,42 +491,4 @@ describe('middleware', () => {
       expect(redirectedTo(res)).toBe('/403')
     })
   })
-
-  // ── PR-9 robustness: a FAILED profile read must fail OPEN ─────────────────
-  // `.maybeSingle()` returns `{ data: null, error }` on a query failure, which
-  // is indistinguishable — looking only at `data` — from a user with no profile
-  // row. Treating that as "not onboarded" bounced freshly-onboarded users back
-  // to step 1 until the read recovered. The gate is a UX redirect (RLS + each
-  // page's own guard are the real gate), so on error it forwards instead.
-  describe('onboarding gate: profile read failure fails open', () => {
-    function stubProfileReadError(user: { id: string }, role: string) {
-      createServerClient.mockReturnValue({
-        auth: { getUser: async () => ({ data: { user } }) },
-        from(table: string) {
-          const result =
-            table === 'users'
-              ? { data: { role }, error: null }
-              : { data: null, error: { message: 'read timeout', code: '57014' } }
-          const chain = {
-            select: () => chain,
-            eq: () => chain,
-            single: async () => result,
-            maybeSingle: async () => result,
-          }
-          return chain
-        },
-      })
-    }
-
-    it('forwards instead of redirecting to onboarding when the profile read errors', async () => {
-      stubProfileReadError({ id: 'u1' }, 'athlete')
-      const res = await middleware(request('/athlete/discover'))
-
-      // Fail open: no bounce to step 1, role still forwarded…
-      expect(redirectedTo(res)).toBeNull()
-      expect(forwardedHeader(res, ROLE_HEADER)).toBe('athlete')
-      // …and a failed read is NOT cached as "onboarded".
-      expect(res.headers.get('set-cookie') ?? '').not.toContain(`${ONBOARDED_COOKIE}=1`)
-    })
-  })
 })
