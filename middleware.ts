@@ -314,11 +314,25 @@ export async function middleware(request: NextRequest) {
 
     // SB-9/FA-4: project only the columns the resume derivation reads instead
     // of `select('*')` — this runs on every authenticated navigation.
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from(PROFILE_TABLE[navRole])
       .select(ONBOARDING_PROGRESS_COLUMNS[navRole])
       .eq('user_id', userId)
       .maybeSingle()
+
+    // PR-9 robustness: a FAILED read returns `{ data: null, error }`, which is
+    // indistinguishable — if we only look at `data` — from a user who genuinely
+    // has no profile row. Treating a transient read failure (a timeout on the
+    // edge→DB-region hop, which widens under load right after publishing) as
+    // "not onboarded" bounced freshly-onboarded users back to onboarding step 1
+    // until the read recovered. This gate is a UX redirect, never a security
+    // decision (RLS is the real gate, and every destination page re-checks the
+    // profile with its own `if (!profile) redirect(...)`), so fail OPEN: forward
+    // the request and let the destination decide on a clean read, rather than
+    // restart a signed-in user's onboarding on an infrastructure blip.
+    if (profileError) {
+      return forward(role)
+    }
 
     // The row shape depends on the role table chosen at runtime, so the
     // generated per-table types cannot narrow it here; OnboardingProgress is
