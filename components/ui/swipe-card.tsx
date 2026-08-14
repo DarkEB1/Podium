@@ -10,6 +10,7 @@ import {
   useMotionValueEvent,
   useReducedMotion,
   useTransform,
+  type MotionValue,
 } from "motion/react"
 
 import { cn } from "@/lib/utils"
@@ -35,6 +36,9 @@ export interface SwipeCardProps {
   passLabel?: string
   likeLabel?: string
   blurDataURL?: string
+  /** L1: 0→1 drag magnitude the deck reads to grow the peek card toward the
+   *  outgoing one. Written by this card, owned by SwipeDeck. */
+  dragProgress?: MotionValue<number> | undefined
   className?: string
 }
 
@@ -81,6 +85,7 @@ export function SwipeCard({
   passLabel = "Pass",
   likeLabel = "Interested",
   blurDataURL,
+  dragProgress,
   className,
 }: SwipeCardProps) {
   const prefersReducedMotion = useReducedMotion()
@@ -102,6 +107,9 @@ export function SwipeCard({
     const next: SwipeDirection | "none" =
       latest > INTENT_THRESHOLD ? "right" : latest < -INTENT_THRESHOLD ? "left" : "none"
     setIntent((prev) => (prev === next ? prev : next))
+    // L1: feed drag magnitude to the deck so the peek card grows to meet the
+    // outgoing one as it leaves (audit §8 telegraph). Full-grown at ~120px.
+    dragProgress?.set(Math.min(Math.abs(latest) / 120, 1))
   })
 
   const src = image && image.trim() !== "" ? image : MARKETPLACE_CARD_PLACEHOLDER
@@ -273,6 +281,18 @@ export interface SwipeDeckProps {
 export function SwipeDeck({ cards, onSwipe, empty, className }: SwipeDeckProps) {
   const [head, next] = cards
 
+  // L1: the head card writes its drag magnitude here; the peek grows toward it.
+  // Hooks run before the early return (Rules of Hooks). Reset on head advance so
+  // each new peek starts small. Reduced motion keeps it static (baseline below).
+  const reducedMotion = useReducedMotion()
+  const peekProgress = useMotionValue(0)
+  const peekScale = useTransform(peekProgress, [0, 1], [0.95, 1])
+  const peekOpacity = useTransform(peekProgress, [0, 1], [0.6, 1])
+  const headId = head?.id
+  React.useEffect(() => {
+    peekProgress.set(0)
+  }, [headId, peekProgress])
+
   if (!head) {
     return (
       <div data-slot="swipe-deck" data-testid="swipe-deck" className={className}>
@@ -289,18 +309,26 @@ export function SwipeDeck({ cards, onSwipe, empty, className }: SwipeDeckProps) 
     >
       {next ? (
         /* Depth cue only. Rendering a second real SwipeCard here would put a
-           duplicate set of Pass/Interested buttons in the tab order. */
-        <div
+           duplicate set of Pass/Interested buttons in the tab order. The scale
+           and opacity are driven by the head card's drag (L1) so the peek rises
+           to meet the outgoing card. */
+        <motion.div
           aria-hidden="true"
           data-testid="swipe-deck-peek"
-          className="pointer-events-none absolute inset-x-0 top-2 mx-auto h-full w-full max-w-sm scale-95 rounded-2xl border border-border bg-card opacity-60 shadow-card"
+          style={{ scale: peekScale, opacity: peekOpacity }}
+          className="pointer-events-none absolute inset-x-0 top-2 mx-auto h-full w-full max-w-sm rounded-2xl border border-border bg-card shadow-card"
         />
       ) : null}
       <div className="relative w-full max-w-sm">
         {/* key by id: remount a fresh card per head so its drag MotionValue (x)
             resets to centre — otherwise the next card inherits the flung
             position/rotation of the one just thrown. */}
-        <SwipeCard key={head.id} {...head} onSwipe={(direction) => onSwipe?.(head.id, direction)} />
+        <SwipeCard
+          key={head.id}
+          {...head}
+          dragProgress={reducedMotion ? undefined : peekProgress}
+          onSwipe={(direction) => onSwipe?.(head.id, direction)}
+        />
       </div>
     </div>
   )

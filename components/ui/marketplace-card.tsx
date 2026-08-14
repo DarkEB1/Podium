@@ -80,9 +80,9 @@ export function MarketplaceCard({
         // Clean Airbnb surface: white card, generous rounding, a single light border and
         // a soft layered shadow (--shadow-card, now soft — globals.css §1).
         "group/marketplace-card relative flex min-w-0 flex-col overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-card",
-        // Gentle hover lift: translateY(-2px) → soft elevated shadow over ~180ms, degrades
-        // to shadow-only under prefers-reduced-motion. Centralised in globals.css §1.5.
-        "liftable",
+        // Larger surface → a slightly bigger hover lift (translateY(-4px)) than a
+        // small chip (L3), degrading to shadow-only under reduced motion. globals.css.
+        "liftable-lg",
         // Featured: marker class retained as a styling hook (ribbon rendered below).
         featured && "marketplace-card--featured"
       )}

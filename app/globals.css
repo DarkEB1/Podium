@@ -404,20 +404,31 @@
 .liftable {
   transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
+/* L3: larger surfaces read as thicker — a bigger card lifts more on hover than
+   a small chip. Same touch/reduced-motion gating as .liftable. */
+.liftable-lg {
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
 @media (hover: hover) and (pointer: fine) {
   .liftable:hover {
     /* Gentle lift on the Y axis + soft elevated shadow. */
     transform: translateY(-2px);
     box-shadow: var(--shadow-card-hover);
   }
+  .liftable-lg:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-card-hover);
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .pressable,
-  .liftable {
+  .liftable,
+  .liftable-lg {
     transition: box-shadow 0.12s ease;
   }
   .pressable:active,
-  .liftable:hover {
+  .liftable:hover,
+  .liftable-lg:hover {
     transform: none;
   }
 }
