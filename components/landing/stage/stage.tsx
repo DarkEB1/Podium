@@ -145,6 +145,22 @@ export default function Stage({ children }: { children: ReactNode }) {
     jumpAnim.current = requestAnimationFrame(step)
   }, [])
 
+  // Hash deep links (footer "How it works" → /#what-we-do). The panels live
+  // inside a fixed corridor, so the browser's native anchor scroll lands
+  // nowhere; translate the hash into the What panel's rest point instead.
+  // Instant, not animated: a visitor following a link expects to arrive, not
+  // to watch the corridor travel there.
+  useEffect(() => {
+    if (window.location.hash !== '#what-we-do') return
+    const p = REST_POINTS[2]!
+    const travel = window.innerHeight * TRAVEL_VIEWPORTS
+    springPos.current = p
+    springVel.current = 0
+    settledRest.current = p
+    programmaticUntil.current = performance.now() + 160
+    window.scrollTo(0, p * travel)
+  }, [])
+
   // Visitor input arms the snap; a jump's own scroll events do not. Real input
   // also ABORTS a settle in progress: the visitor's hand outranks the
   // animation, so a long swipe keeps travelling instead of being swallowed and

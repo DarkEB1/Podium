@@ -40,7 +40,7 @@ const STEPS = [
     h: 38,
     caption: 'DEAL',
     title: 'Sign and get paid',
-    lines: ['Agree and sign in one place.', 'The money moves through Podium.'],
+    lines: ['Agree and sign in one place.', 'Payments powered by Stripe.'],
   },
 ]
 

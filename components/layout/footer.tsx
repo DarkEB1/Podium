@@ -6,15 +6,15 @@ import { ROUTES } from '@/lib/routes'
 
 /**
  * Every href below has been verified to resolve to a real route or to an
- * anchor that exists on the landing page (`id="what-we-do" | "who"` in
- * components/landing/panels/*). The previous `/#trust` link pointed at a
- * section that does not exist and has been removed, and so did `/#about` and
- * `/#faq` — there is no About content and FAQ was cut by locked decision.
- * Do not add a link here before confirming its target renders.
+ * anchor that exists on the landing page (`id="what-we-do"` in
+ * components/landing/stage/panel-what.tsx, resolved by the hash handler in
+ * components/landing/stage/stage.tsx). The previous `/#trust`, `/#about`,
+ * `/#faq` and `/#who` links all pointed at sections that no longer exist and
+ * have been removed. Do not add a link here before confirming its target
+ * renders.
  */
 const PRODUCT_LINKS = [
-  { label: 'How it works', href: '/#what-we-do' },
-  { label: 'Who it’s for', href: '/#who' },
+  { label: 'How it works', href: ROUTES.landing.howItWorks },
   { label: 'Pricing', href: ROUTES.pricing },
 ]
 

@@ -60,17 +60,21 @@ export default function WordChip() {
           transition: 'width 300ms cubic-bezier(0.22, 1, 0.36, 1)',
         }}
       >
-        {/* the in-flow ruler: invisible, unclipped, and the only thing that
-            decides where this whole assembly sits on the sentence's baseline */}
-        <span className={`${CHIP_PAD} invisible inline-block`}>{WORDS[index]}</span>
-        {/* measurement rulers: every word, so a flip never reflows the line */}
+        {/* measurement rulers: every word, so a flip never reflows the line.
+            The current word's ruler sits in flow, unclipped, and is the only
+            thing that decides where this whole assembly sits on the sentence's
+            baseline; the rest are lifted out of flow. Hidden with an inline
+            style, not a class, so a no-CSS render (scrapers, reader modes)
+            never sees the word list spelled out four times over. */}
         {WORDS.map((w, i) => (
           <span
             key={w}
+            aria-hidden="true"
             ref={(el) => {
               rulers.current[i] = el
             }}
-            className={`${CHIP_PAD} invisible absolute left-0 top-0 inline-block`}
+            className={`${CHIP_PAD} inline-block ${i === index ? '' : 'absolute left-0 top-0'}`}
+            style={{ visibility: 'hidden' }}
           >
             {w}
           </span>

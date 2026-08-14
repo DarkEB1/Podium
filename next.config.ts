@@ -23,6 +23,19 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ["lucide-react", "@base-ui/react"],
   },
+  // Canonical host is www.podiumsponsorship.com (NEXT_PUBLIC_APP_URL agrees).
+  // 308 the bare apex onto it so the redirect and the canonical never argue,
+  // and every URL a crawler keeps points at exactly one host.
+  async redirects() {
+    return [
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "podiumsponsorship.com" }],
+        destination: "https://www.podiumsponsorship.com/:path*",
+        permanent: true,
+      },
+    ]
+  },
 }
 
 export default nextConfig
