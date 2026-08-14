@@ -4,7 +4,7 @@ interface Point {
 }
 
 /**
- * LineChart — hand-rolled SVG trend line (no chart library in the project).
+ * LineChart, a hand-rolled SVG trend line (no chart library in the project).
  * Renders a light horizontal gridline, a filled area under the trend, and a
  * `currentColor` polyline so it picks up `text-primary` from its wrapper.
  * Degrades gracefully to an empty (but valid) `<svg>` when `data` is empty.
@@ -29,7 +29,8 @@ export function LineChart({ data, height = 160 }: { data: Point[]; height?: numb
   return (
     <svg
       viewBox={`0 0 ${width} ${height}`}
-      className="h-40 w-full text-primary"
+      className="w-full text-primary"
+      style={{ height }}
       role="img"
       aria-label="Trend over the billing period"
     >

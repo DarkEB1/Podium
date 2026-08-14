@@ -10,7 +10,7 @@ interface Stage {
 }
 
 /**
- * FunnelBars — horizontal outreach funnel: requests sent -> accepted ->
+ * FunnelBars, a horizontal outreach funnel: requests sent -> accepted ->
  * messaged. Each bar's width is proportional to `requestsSent` (the top of
  * the funnel), with the raw count labelled on every stage.
  */

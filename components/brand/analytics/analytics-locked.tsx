@@ -7,7 +7,7 @@ import { ROUTES } from '@/lib/routes'
 import { cn } from '@/lib/utils'
 
 /**
- * AnalyticsLocked — upsell state shown in place of the analytics dashboard
+ * AnalyticsLocked, the upsell state shown in place of the analytics dashboard
  * for any brand that isn't on an active/trialing Enterprise subscription.
  */
 export function AnalyticsLocked() {

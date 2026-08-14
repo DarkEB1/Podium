@@ -15,7 +15,7 @@ function formatPercent(rate: number): string {
 }
 
 /**
- * AnalyticsDashboard — the Enterprise-only brand analytics view: headline
+ * AnalyticsDashboard, the Enterprise-only brand analytics view: headline
  * tiles, the outreach funnel, a daily trend line, and a CSV export link.
  * Purely presentational; the gate and data fetch live in the server page.
  */
