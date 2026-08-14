@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getOwnProfile } from '@/lib/supabase/profiles'
 import { createListing, getListings } from '@/lib/supabase/discovery'
+import { assertCanCreateListing } from '@/lib/supabase/entitlements'
 import { RATE_LIMITS, consume, tooManyRequests, userKey } from '@/lib/rate-limit'
 import { listingErrorResponse, readJsonBody } from '@/lib/api/errors'
 
@@ -56,6 +57,27 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { error: { code: 'BRAND_PROFILE_NOT_FOUND', message: 'Brand profile not found' } },
       { status: 404 }
+    )
+  }
+
+  // Entitlement gate: gated brands are capped on active listings per their
+  // subscription tier (see lib/supabase/entitlements.ts).
+  const gate = await assertCanCreateListing(supabase, user.id, user.role)
+  if (!gate.allowed) {
+    return NextResponse.json(
+      {
+        error: {
+          code: gate.reason === 'NO_SUBSCRIPTION' ? 'SUBSCRIPTION_REQUIRED' : 'LIMIT_REACHED',
+          message:
+            gate.reason === 'NO_SUBSCRIPTION'
+              ? 'An active subscription is required to create listings.'
+              : `Your plan allows ${gate.limit} active listings. Pause or upgrade to add more.`,
+        },
+        limit: gate.limit,
+        used: gate.used,
+        tier: gate.tier,
+      },
+      { status: 402 }
     )
   }
 
