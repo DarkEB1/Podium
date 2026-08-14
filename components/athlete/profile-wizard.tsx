@@ -66,6 +66,8 @@ const step2Schema = z.object({
   weight_kg: z.coerce.number().min(30).max(200).optional(),
   // Conditional secondary fields (§3A.3) — persisted to the B1 columns.
   university_team: z.string().optional(),
+  university_city: z.string().optional(),
+  university_country: z.string().optional(),
   highest_level: z.string().optional(),
   academy_club: z.string().optional(),
   national_programme: z.string().optional(),
@@ -322,6 +324,8 @@ function Step2({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
       height_cm: profile?.height_cm ?? undefined,
       weight_kg: profile?.weight_kg ?? undefined,
       university_team: profile?.university_team ?? '',
+      university_city: profile?.university_city ?? '',
+      university_country: profile?.university_country ?? '',
       highest_level: profile?.highest_level ?? '',
       academy_club: profile?.academy_club ?? '',
       national_programme: profile?.national_programme ?? '',
@@ -404,6 +408,30 @@ function Step2({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
                 <FormMessage />
               </FormItem>
             )} />
+            {/* Term-time location, separate from home (students live in two
+                places; discovery needs both). */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FormField control={form.control} name="university_city" render={({ field }) => (
+                <FormItem>
+                  <FormLabel htmlFor="university_city">University city</FormLabel>
+                  <FormControl><Input id="university_city" placeholder="Loughborough" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="university_country" render={({ field }) => (
+                <FormItem>
+                  <FormLabel htmlFor="university_country">University country</FormLabel>
+                  <FormControl>
+                    <CountrySelect
+                      id="university_country"
+                      value={field.value || null}
+                      onChange={(iso) => form.setValue('university_country', iso, { shouldValidate: true })}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
             <FormField control={form.control} name="highest_level" render={({ field }) => (
               <FormItem>
                 <FormLabel htmlFor="highest_level">Highest level played outside university?</FormLabel>
