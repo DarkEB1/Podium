@@ -18,6 +18,8 @@ import { CardSelectGroup } from '@/components/ui/card-select'
 import { RequiredKey } from '@/components/ui/required-key'
 import { cn } from '@/lib/utils'
 import { copy } from '@/lib/copy'
+import { parseSocialInput, socialHandle, type SocialPlatform } from '@/lib/social/handles'
+import { UK_UNIVERSITIES } from '@/lib/data/universities'
 import { track } from '@/lib/analytics'
 import { athleteResumeStep } from '@/lib/nav/config'
 import { OnboardingStepper } from '@/components/onboarding/onboarding-stepper'
@@ -75,11 +77,22 @@ const step3Schema = z.object({
   travel_radius_km: z.coerce.number().int().min(0).max(20000).optional(),
 })
 
+// Socials accept "@handle", a bare handle, or a profile URL; anything
+// parseSocialInput cannot read (including a URL on the wrong host) is invalid.
+// The canonical bare handle is what gets stored (lib/social/handles.ts).
+const socialField = (platform: SocialPlatform) =>
+  z
+    .string()
+    .optional()
+    .refine((v) => !v || parseSocialInput(platform, v) !== null, {
+      message: 'Enter a handle like @yourname or a link to your profile',
+    })
+
 const step4Schema = z.object({
-  instagram: z.string().url('Must be a valid URL').optional().or(z.literal('')),
-  tiktok: z.string().url('Must be a valid URL').optional().or(z.literal('')),
-  youtube: z.string().url('Must be a valid URL').optional().or(z.literal('')),
-  twitter: z.string().url('Must be a valid URL').optional().or(z.literal('')),
+  instagram: socialField('instagram'),
+  tiktok: socialField('tiktok'),
+  youtube: socialField('youtube'),
+  twitter: socialField('twitter'),
   notable_achievements: z.string().max(1000).optional(),
 })
 
@@ -116,20 +129,13 @@ const LEVEL_OPTIONS: { value: AthleteLevel; label: string }[] = [
   { value: 'national', label: 'National' },
 ]
 
-// UK university team options for the §3A.3 autocomplete. The Combobox runs in
-// allowCreate mode so athletes can type any team not listed here.
-const UNIVERSITY_TEAM_OPTIONS = [
-  { value: 'university-of-oxford', label: 'University of Oxford' },
-  { value: 'university-of-cambridge', label: 'University of Cambridge' },
-  { value: 'durham-university', label: 'Durham University' },
-  { value: 'loughborough-university', label: 'Loughborough University' },
-  { value: 'university-of-bath', label: 'University of Bath' },
-  { value: 'university-of-edinburgh', label: 'University of Edinburgh' },
-  { value: 'university-of-leeds', label: 'University of Leeds' },
-  { value: 'university-of-nottingham', label: 'University of Nottingham' },
-  { value: 'cardiff-university', label: 'Cardiff University' },
-  { value: 'university-of-birmingham', label: 'University of Birmingham' },
-]
+// UK university team options for the §3A.3 autocomplete, fed by the full
+// recognised-institution dataset. The Combobox runs in allowCreate mode so
+// athletes can still type any team not listed.
+const UNIVERSITY_TEAM_OPTIONS = UK_UNIVERSITIES.map((u) => ({
+  value: u.id,
+  label: u.name,
+}))
 
 // Levels offered in the "highest level played outside university" picker (§3A.3) —
 // the five standard tiers, never the university/academy/national tiers themselves.
@@ -566,7 +572,31 @@ function Step3({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
 
 // ─── Step 4 ──────────────────────────────────────────────────────────────────
 
-type SocialAccounts = { instagram?: string; tiktok?: string; youtube?: string; twitter?: string }
+type SocialAccounts = Record<string, unknown>
+
+/**
+ * Pre-fill value for a social input: the canonical "@handle" for any stored
+ * shape (bare handle, legacy URL, legacy { url } object), or the raw string
+ * when it cannot be parsed so the athlete can correct it.
+ */
+function storedSocialInput(platform: SocialPlatform, entry: unknown): string {
+  const raw =
+    typeof entry === 'string'
+      ? entry
+      : entry && typeof entry === 'object'
+        ? (entry as { url?: string }).url
+        : undefined
+  if (!raw) return ''
+  const handle = socialHandle(platform, raw)
+  return handle ? `@${handle}` : raw
+}
+
+const SOCIAL_FIELD_LABELS: Record<SocialPlatform, string> = {
+  instagram: 'Instagram',
+  tiktok: 'TikTok',
+  youtube: 'YouTube',
+  twitter: 'X / Twitter',
+}
 
 function Step4({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: AthleteRow) => void }) {
   const [loading, setLoading] = useState(false)
@@ -574,10 +604,10 @@ function Step4({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
   const form = useForm<Step4Values>({
     resolver: zodResolver(step4Schema),
     defaultValues: {
-      instagram: social.instagram ?? '',
-      tiktok: social.tiktok ?? '',
-      youtube: social.youtube ?? '',
-      twitter: social.twitter ?? '',
+      instagram: storedSocialInput('instagram', social.instagram),
+      tiktok: storedSocialInput('tiktok', social.tiktok),
+      youtube: storedSocialInput('youtube', social.youtube),
+      twitter: storedSocialInput('twitter', social.twitter),
       notable_achievements: profile?.notable_achievements ?? '',
     },
   })
@@ -585,11 +615,21 @@ function Step4({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
   async function onSubmit({ instagram, tiktok, youtube, twitter, notable_achievements }: Step4Values) {
     setLoading(true)
     try {
-      const social_accounts: SocialAccounts = {}
-      if (instagram) social_accounts.instagram = instagram
-      if (tiktok) social_accounts.tiktok = tiktok
-      if (youtube) social_accounts.youtube = youtube
-      if (twitter) social_accounts.twitter = twitter
+      // Storage contract (lib/social/handles.ts): the canonical bare handle
+      // per platform. Spread the existing record first so self-reported
+      // follower keys written from Settings survive a wizard re-run.
+      const social_accounts: SocialAccounts = { ...social }
+      const inputs: Record<SocialPlatform, string | undefined> = { instagram, tiktok, youtube, twitter }
+      for (const platform of Object.keys(inputs) as SocialPlatform[]) {
+        const value = inputs[platform]?.trim()
+        if (!value) {
+          delete social_accounts[platform]
+          continue
+        }
+        // The schema already validated this; parse again to canonicalise.
+        const parsed = parseSocialInput(platform, value)
+        if (parsed) social_accounts[platform] = parsed.handle
+      }
       const res = await fetch('/api/profiles/me', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -609,8 +649,8 @@ function Step4({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
         {(['instagram', 'tiktok', 'youtube', 'twitter'] as const).map((platform) => (
           <FormField key={platform} control={form.control} name={platform} render={({ field }) => (
             <FormItem>
-              <FormLabel className="capitalize">{platform} URL</FormLabel>
-              <FormControl><Input type="url" placeholder={`https://${platform}.com/yourhandle`} {...field} /></FormControl>
+              <FormLabel>{SOCIAL_FIELD_LABELS[platform]}</FormLabel>
+              <FormControl><Input type="text" placeholder="@yourhandle or profile link" {...field} /></FormControl>
               <FormMessage />
             </FormItem>
           )} />

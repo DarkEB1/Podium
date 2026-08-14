@@ -54,6 +54,7 @@ const makeProfile = (overrides: Partial<AthleteRow> = {}): AthleteRow => ({
   available_from_date: null,
   travel_radius_km: 50,
   seeking: ['paid_partnership'],
+  is_seeking: true,
   social_accounts: {},
   notable_achievements: null,
   is_under_18: false,
@@ -77,6 +78,8 @@ const makeProfile = (overrides: Partial<AthleteRow> = {}): AthleteRow => ({
   highlight_videos: [],
   national_programme: null,
   university_team: null,
+  university_city: null,
+  university_country: null,
   payout_account_holder: null,
   payout_account_last4: null,
   payout_bank_name: null,
@@ -550,6 +553,165 @@ describe('SettingsForm', () => {
     expect(confirmBtn).toBeEnabled()
     await userEvent.click(confirmBtn)
     await waitFor(() => expect(onDeleteAccount).toHaveBeenCalled())
+  })
+
+  // --- Onboarding-to-settings parity (Section 1) ---
+
+  function lastPatchBody(): Record<string, unknown> {
+    const mockFetch = fetch as unknown as { mock: { calls: [string, { body: string }][] } }
+    const call = mockFetch.mock.calls[mockFetch.mock.calls.length - 1]!
+    return JSON.parse(call[1].body) as Record<string, unknown>
+  }
+
+  it('renders the full legal name locked with support helper text', () => {
+    render(
+      <SettingsForm
+        profile={makeProfile({ full_legal_name: 'James Alexander Smith' })}
+        settings={makeSettings()}
+      />,
+    )
+    const input = screen.getByLabelText(/full legal name/i)
+    expect(input).toBeDisabled()
+    expect(input).toHaveValue('James Alexander Smith')
+    expect(
+      screen.getByText(/locked\. contact support to change your legal name/i),
+    ).toBeInTheDocument()
+  })
+
+  it('saves the onboarding-parity fields in the profile PATCH body', async () => {
+    render(
+      <SettingsForm
+        profile={makeProfile({
+          secondary_sport: 'Athletics',
+          position: 'Striker',
+          years_active: 4,
+          height_cm: 180,
+          weight_kg: 75,
+          date_of_birth: '1998-05-12',
+          phone: '+44 7700 900000',
+          home_city: 'London',
+        })}
+        settings={makeSettings()}
+      />,
+    )
+    fireEvent.change(screen.getByLabelText(/secondary sport/i), {
+      target: { value: 'Rowing' },
+    })
+    await userEvent.click(screen.getByRole('button', { name: /save profile/i }))
+    await waitFor(() => expect(fetch).toHaveBeenCalled())
+    expect(lastPatchBody()).toMatchObject({
+      secondary_sport: 'Rowing',
+      position: 'Striker',
+      years_active: 4,
+      height_cm: 180,
+      weight_kg: 75,
+      date_of_birth: '1998-05-12',
+      phone: '+44 7700 900000',
+      home_city: 'London',
+    })
+  })
+
+  it('shows the university fields only for University/BUCS athletes', () => {
+    const { unmount } = render(
+      <SettingsForm profile={makeProfile({ level: 'university_bucs' })} settings={makeSettings()} />,
+    )
+    expect(screen.getByLabelText(/university team/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/university city/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/university country/i)).toBeInTheDocument()
+    unmount()
+
+    render(<SettingsForm profile={makeProfile({ level: 'amateur' })} settings={makeSettings()} />)
+    expect(screen.queryByLabelText(/university team/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/university city/i)).not.toBeInTheDocument()
+  })
+
+  it('shows academy and national fields for their levels only', () => {
+    const { unmount } = render(
+      <SettingsForm profile={makeProfile({ level: 'academy' })} settings={makeSettings()} />,
+    )
+    expect(screen.getByLabelText(/academy \/ club/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/national programme/i)).not.toBeInTheDocument()
+    unmount()
+
+    render(<SettingsForm profile={makeProfile({ level: 'national' })} settings={makeSettings()} />)
+    expect(screen.getByLabelText(/national programme/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/academy \/ club/i)).not.toBeInTheDocument()
+  })
+
+  // --- Socials: canonical handles + self-reported follower counts ---
+
+  it('canonicalises social inputs to bare handles in social_accounts', async () => {
+    render(<SettingsForm profile={makeProfile()} settings={makeSettings()} />)
+    fireEvent.change(screen.getByLabelText('Instagram'), { target: { value: '@jane' } })
+    fireEvent.change(screen.getByLabelText('TikTok'), {
+      target: { value: 'https://tiktok.com/@bob' },
+    })
+    await userEvent.click(screen.getByRole('button', { name: /save profile/i }))
+    await waitFor(() => expect(fetch).toHaveBeenCalled())
+    const body = lastPatchBody()
+    expect(body.social_accounts).toMatchObject({ instagram: 'jane', tiktok: 'bob' })
+  })
+
+  it('writes self-reported follower counts to the canonical numeric keys, stripping commas', async () => {
+    render(<SettingsForm profile={makeProfile()} settings={makeSettings()} />)
+    fireEvent.change(screen.getByLabelText('Instagram'), { target: { value: '@jane' } })
+    fireEvent.change(screen.getByLabelText(/instagram followers/i), {
+      target: { value: '12,400' },
+    })
+    fireEvent.change(screen.getByLabelText('YouTube'), { target: { value: '@jane' } })
+    fireEvent.change(screen.getByLabelText(/youtube subscribers/i), {
+      target: { value: '3200' },
+    })
+    await userEvent.click(screen.getByRole('button', { name: /save profile/i }))
+    await waitFor(() => expect(fetch).toHaveBeenCalled())
+    const body = lastPatchBody()
+    expect(body.social_accounts).toMatchObject({
+      instagram_followers: 12400,
+      youtube_subscribers: 3200,
+    })
+    // Follower inputs are clearly labelled as self-reported.
+    expect(
+      screen.getAllByText(/self-reported\. shown on your profile/i).length,
+    ).toBeGreaterThan(0)
+  })
+
+  it('rejects an invalid social input and does not save', async () => {
+    render(<SettingsForm profile={makeProfile()} settings={makeSettings()} />)
+    fireEvent.change(screen.getByLabelText('Instagram'), {
+      target: { value: 'https://facebook.com/jane' },
+    })
+    await userEvent.click(screen.getByRole('button', { name: /save profile/i }))
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  // --- Seeking opportunities toggle (is_seeking) ---
+
+  it('persists the seeking toggle via the discovery PATCH', async () => {
+    render(<SettingsForm profile={makeProfile({ is_seeking: true })} settings={makeSettings()} />)
+    const region = screen.getByRole('region', { name: /visibility & discovery/i })
+    fireEvent.click(within(region).getByRole('switch', { name: /seeking opportunities/i }))
+    await userEvent.click(within(region).getByRole('button', { name: /save discovery/i }))
+    await waitFor(() => expect(fetch).toHaveBeenCalled())
+    expect(lastPatchBody()).toMatchObject({ is_seeking: false })
+  })
+
+  // --- Payout copy: optional framing, not a broken setup ---
+
+  it('frames an unstarted payout setup as optional, with no double negative', () => {
+    render(
+      <SettingsForm
+        profile={makeProfile({ stripe_connect_status: null, payout_method: null })}
+        settings={makeSettings()}
+      />,
+    )
+    const region = screen.getByRole('region', { name: /payments & financial/i })
+    expect(
+      within(region).getByText(/payouts are optional until you agree a paid deal/i),
+    ).toBeInTheDocument()
+    expect(within(region).queryByText(/no payout method set up yet/i)).not.toBeInTheDocument()
+    expect(within(region).queryByText(/not started/i)).not.toBeInTheDocument()
+    // The status chip is hidden entirely until setup begins.
+    expect(within(region).queryByText(/stripe connect:/i)).not.toBeInTheDocument()
   })
 
   it('shows an under-18 transition banner when the athlete is a minor', () => {

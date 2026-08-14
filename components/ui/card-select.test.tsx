@@ -132,6 +132,16 @@ describe("CardSelectGroup", () => {
     }
   })
 
+  it("lays tiles out on an intrinsic auto-fill grid, not viewport breakpoints", () => {
+    render(<CardSelectGroup options={options} value={[]} onChange={() => {}} />)
+    const group = screen.getByRole("group")
+    // Container-driven columns: viewport breakpoints lied inside narrow
+    // containers (e.g. the settings content column at tablet widths).
+    expect(group.className).toContain("auto-fill")
+    expect(group.className).not.toContain("sm:grid-cols-2")
+    expect(group.className).not.toContain("md:grid-cols-3")
+  })
+
   it("every tile is pressable (gentle micro-interaction, reduced-motion safe via global util)", () => {
     render(<CardSelectGroup options={options} value={[]} onChange={() => {}} />)
     for (const tile of screen.getAllByRole("button")) {

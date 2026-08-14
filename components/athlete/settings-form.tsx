@@ -8,11 +8,14 @@ import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Slider } from '@/components/ui/slider'
 import { Combobox } from '@/components/ui/combobox'
+import { CountrySelect } from '@/components/ui/country-select'
 import { CardSelectGroup } from '@/components/ui/card-select'
 import { ImageUpload } from '@/components/ui/image-upload'
 import { CharacterCounter } from '@/components/ui/character-counter'
 import SettingsShell from '@/components/layout/settings-shell'
 import { createClient } from '@/lib/supabase/client'
+import { parseSocialInput, socialHandle, type SocialPlatform } from '@/lib/social/handles'
+import { UK_UNIVERSITIES } from '@/lib/data/universities'
 import {
   updateSettings,
   requestDataExport,
@@ -63,6 +66,63 @@ const AVAILABILITY_LABELS: Record<AvailabilityStatus, string> = {
   not_available: 'Not Available',
 }
 
+// Mirrors the wizard's §3A.3 pickers: the full recognised-institution dataset
+// (allowCreate keeps free-text teams possible) and the five standard tiers for
+// "highest level played outside university".
+const UNIVERSITY_TEAM_OPTIONS = UK_UNIVERSITIES.map((u) => ({
+  value: u.id,
+  label: u.name,
+}))
+
+const HIGHEST_LEVEL_OPTIONS = LEVEL_OPTIONS.filter(
+  (o) => !['university_bucs', 'academy', 'national'].includes(o.value),
+)
+
+// Social platforms editable in Settings. Followers are self-reported and land
+// on the canonical numeric keys read by matching (lib/matching/score.ts) and
+// the profile tiles: <platform>_followers, youtube_subscribers for YouTube.
+const SOCIAL_PLATFORM_FIELDS: {
+  key: SocialPlatform
+  label: string
+  followerKey: string
+  followerLabel: string
+}[] = [
+  { key: 'instagram', label: 'Instagram', followerKey: 'instagram_followers', followerLabel: 'Instagram followers' },
+  { key: 'tiktok', label: 'TikTok', followerKey: 'tiktok_followers', followerLabel: 'TikTok followers' },
+  { key: 'youtube', label: 'YouTube', followerKey: 'youtube_subscribers', followerLabel: 'YouTube subscribers' },
+  { key: 'twitter', label: 'X / Twitter', followerKey: 'twitter_followers', followerLabel: 'X / Twitter followers' },
+]
+
+/** Pre-fill for a social input: canonical "@handle" for any stored shape. */
+function storedSocialInput(platform: SocialPlatform, entry: unknown): string {
+  const raw =
+    typeof entry === 'string'
+      ? entry
+      : entry && typeof entry === 'object'
+        ? (entry as { url?: string }).url
+        : undefined
+  if (!raw) return ''
+  const handle = socialHandle(platform, raw)
+  return handle ? `@${handle}` : raw
+}
+
+/** Pre-fill for a follower-count input from the stored numeric key. */
+function storedFollowerInput(value: unknown): string {
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value)
+  if (typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value))) {
+    return value.trim()
+  }
+  return ''
+}
+
+/** '' -> null, otherwise a finite number (commas stripped) or undefined when invalid. */
+function parseOptionalNumber(raw: string): number | null | undefined {
+  const cleaned = raw.replace(/,/g, '').trim()
+  if (cleaned === '') return null
+  const n = Number(cleaned)
+  return Number.isFinite(n) ? n : undefined
+}
+
 const SECTIONS = [
   { id: 'profile', label: 'Profile' },
   { id: 'visibility', label: 'Visibility & Discovery' },
@@ -104,7 +164,9 @@ const STRIPE_CONNECT_LABELS: Record<
   NonNullable<AthleteRow['stripe_connect_status']>,
   string
 > = {
-  not_started: 'Not started',
+  // Forward-looking: payouts are optional until a paid deal exists, so this
+  // must not read as a broken setup (the status line is hidden for it anyway).
+  not_started: 'Not set up',
   pending: 'Pending',
   restricted: 'Restricted',
   active: 'Active',
@@ -288,10 +350,48 @@ export default function SettingsForm({
   const [actionPhotos, setActionPhotos] = useState<string[]>(profile.action_photos ?? [])
   const [videos, setVideos] = useState<string[]>(profile.highlight_videos ?? [])
   const [primarySport, setPrimarySport] = useState(profile.primary_sport ?? '')
+  const [secondarySport, setSecondarySport] = useState(profile.secondary_sport ?? '')
   const [level, setLevel] = useState<string | null>(profile.level)
-  const [instagram, setInstagram] = useState(
-    ((profile.social_accounts as Record<string, string>)?.instagram as string) ?? '',
+  const [position, setPosition] = useState(profile.position ?? '')
+  const [yearsActive, setYearsActive] = useState(
+    profile.years_active != null ? String(profile.years_active) : '',
   )
+  const [heightCm, setHeightCm] = useState(
+    profile.height_cm != null ? String(profile.height_cm) : '',
+  )
+  const [weightKg, setWeightKg] = useState(
+    profile.weight_kg != null ? String(profile.weight_kg) : '',
+  )
+  const [dateOfBirth, setDateOfBirth] = useState(profile.date_of_birth ?? '')
+  const [phone, setPhone] = useState(profile.phone ?? '')
+  const [homeCity, setHomeCity] = useState(profile.home_city ?? '')
+  const [homeCountry, setHomeCountry] = useState<string | null>(profile.home_country)
+  // Conditional per-level fields, mirroring the wizard's §3A.3 gating.
+  const [universityTeam, setUniversityTeam] = useState<string | null>(profile.university_team)
+  // ?? null keeps this working against a DB the migration has not reached yet.
+  const [universityCity, setUniversityCity] = useState(profile.university_city ?? '')
+  const [universityCountry, setUniversityCountry] = useState<string | null>(
+    profile.university_country ?? null,
+  )
+  const [highestLevel, setHighestLevel] = useState<string | null>(profile.highest_level)
+  const [academyClub, setAcademyClub] = useState(profile.academy_club ?? '')
+  const [nationalProgramme, setNationalProgramme] = useState(profile.national_programme ?? '')
+  // Socials: canonical handle strings + self-reported follower counts, both
+  // living inside the social_accounts jsonb (storage contract in
+  // lib/social/handles.ts).
+  const socialRecord = (profile.social_accounts ?? {}) as Record<string, unknown>
+  const [socialHandles, setSocialHandles] = useState<Record<SocialPlatform, string>>({
+    instagram: storedSocialInput('instagram', socialRecord.instagram),
+    tiktok: storedSocialInput('tiktok', socialRecord.tiktok),
+    youtube: storedSocialInput('youtube', socialRecord.youtube),
+    twitter: storedSocialInput('twitter', socialRecord.twitter),
+  })
+  const [socialFollowers, setSocialFollowers] = useState<Record<SocialPlatform, string>>({
+    instagram: storedFollowerInput(socialRecord.instagram_followers),
+    tiktok: storedFollowerInput(socialRecord.tiktok_followers),
+    youtube: storedFollowerInput(socialRecord.youtube_subscribers),
+    twitter: storedFollowerInput(socialRecord.twitter_followers),
+  })
   const [statLabel, setStatLabel] = useState('')
   const [statValue, setStatValue] = useState('')
   const [stats, setStats] = useState<Record<string, string>>(
@@ -313,6 +413,9 @@ export default function SettingsForm({
   )
   const [availableFrom, setAvailableFrom] = useState(profile.available_from_date ?? '')
   const [uiMode, setUiMode] = useState<UiMode>(profile.discovery_ui_mode)
+  // ?? true keeps this working (and matches the column default) against a DB
+  // the is_seeking migration has not reached yet.
+  const [isSeeking, setIsSeeking] = useState<boolean>(profile.is_seeking ?? true)
   const [savingDiscovery, setSavingDiscovery] = useState(false)
 
   // Section 3 — Notifications (all persist to profile_settings via updateSettings).
@@ -508,7 +611,49 @@ export default function SettingsForm({
     return true
   }
 
+  /**
+   * Validates and canonicalises the social inputs into the social_accounts
+   * jsonb: bare handle strings per platform plus the numeric self-reported
+   * follower keys. Returns null (after a toast) when an input is invalid.
+   */
+  function buildSocialAccounts(): Record<string, unknown> | null {
+    const next: Record<string, unknown> = { ...socialRecord }
+    for (const { key, label, followerKey, followerLabel } of SOCIAL_PLATFORM_FIELDS) {
+      const handleInput = socialHandles[key].trim()
+      if (!handleInput) {
+        delete next[key]
+      } else {
+        const parsed = parseSocialInput(key, handleInput)
+        if (!parsed) {
+          toast.error(`Check your ${label} handle. Use @yourhandle or a profile link.`)
+          return null
+        }
+        next[key] = parsed.handle
+      }
+
+      const followers = parseOptionalNumber(socialFollowers[key])
+      if (followers === undefined || (followers !== null && followers < 0)) {
+        toast.error(`${followerLabel} must be a number.`)
+        return null
+      }
+      if (followers === null) delete next[followerKey]
+      else next[followerKey] = Math.round(followers)
+    }
+    return next
+  }
+
   async function saveProfile() {
+    const social_accounts = buildSocialAccounts()
+    if (!social_accounts) return
+
+    const years_active = parseOptionalNumber(yearsActive)
+    const height_cm = parseOptionalNumber(heightCm)
+    const weight_kg = parseOptionalNumber(weightKg)
+    if (years_active === undefined || height_cm === undefined || weight_kg === undefined) {
+      toast.error('Years active, height and weight must be numbers.')
+      return
+    }
+
     setSavingProfile(true)
     try {
       const ok = await patchProfile({
@@ -516,9 +661,24 @@ export default function SettingsForm({
         profile_photo_url: photoUrl,
         action_photos: actionPhotos,
         highlight_videos: videos,
+        date_of_birth: dateOfBirth || null,
+        phone: phone || null,
+        home_city: homeCity || null,
+        home_country: homeCountry,
         primary_sport: primarySport,
+        secondary_sport: secondarySport || null,
         level,
-        social_accounts: { ...(profile.social_accounts as object), instagram },
+        position: position || null,
+        years_active,
+        height_cm,
+        weight_kg,
+        university_team: universityTeam || null,
+        university_city: universityCity || null,
+        university_country: universityCountry,
+        highest_level: highestLevel || null,
+        academy_club: academyClub || null,
+        national_programme: nationalProgramme || null,
+        social_accounts,
         performance_stats: stats,
         notable_achievements: achievements,
       })
@@ -555,6 +715,7 @@ export default function SettingsForm({
     try {
       const ok = await patchProfile({
         seeking,
+        is_seeking: isSeeking,
         travel_radius_km: travelRadius,
         availability_status: availability,
         available_from_date: availability === 'available_from' ? availableFrom || null : null,
@@ -641,31 +802,243 @@ export default function SettingsForm({
             />
           </div>
 
-          {/* Sport + Level */}
-          <div className="grid gap-4 sm:grid-cols-2">
+          {/* Personal details (onboarding parity: wizard step 1) */}
+          <fieldset className="space-y-4">
+            <legend className="text-medium font-medium">Personal details</legend>
             <div>
-              <label htmlFor="primary_sport" className="mb-1 block text-medium font-medium">
-                Primary sport
+              <label htmlFor="full_legal_name" className="mb-1 block text-medium font-medium">
+                Full legal name
               </label>
               <Input
-                id="primary_sport"
-                value={primarySport}
-                onChange={(e) => setPrimarySport(e.target.value)}
+                id="full_legal_name"
+                value={profile.full_legal_name ?? ''}
+                disabled
+                aria-describedby="full_legal_name_help"
               />
+              <p id="full_legal_name_help" className="mt-1 text-small text-muted-foreground">
+                Locked. Contact support to change your legal name.
+              </p>
             </div>
-            <div>
-              <span className="mb-1 block text-medium font-medium" id="level-label">
-                Competition level
-              </span>
-              <Combobox
-                aria-label="Competition level"
-                options={LEVEL_OPTIONS}
-                value={level}
-                onChange={setLevel}
-                placeholder="Select level"
-              />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="date_of_birth" className="mb-1 block text-medium font-medium">
+                  Date of birth
+                </label>
+                <Input
+                  id="date_of_birth"
+                  type="date"
+                  value={dateOfBirth}
+                  onChange={(e) => setDateOfBirth(e.target.value)}
+                />
+              </div>
+              <div>
+                <label htmlFor="phone" className="mb-1 block text-medium font-medium">
+                  Phone
+                </label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder="+44 7700 900000"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                />
+              </div>
+              <div>
+                <label htmlFor="home_city" className="mb-1 block text-medium font-medium">
+                  City
+                </label>
+                <Input
+                  id="home_city"
+                  value={homeCity}
+                  onChange={(e) => setHomeCity(e.target.value)}
+                />
+              </div>
+              <div>
+                <label htmlFor="home_country" className="mb-1 block text-medium font-medium">
+                  Country
+                </label>
+                <CountrySelect
+                  id="home_country"
+                  aria-label="Country"
+                  value={homeCountry}
+                  onChange={setHomeCountry}
+                />
+              </div>
             </div>
-          </div>
+          </fieldset>
+
+          {/* Sport + Level (onboarding parity: wizard step 2) */}
+          <fieldset className="space-y-4">
+            <legend className="text-medium font-medium">Sport</legend>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="primary_sport" className="mb-1 block text-medium font-medium">
+                  Primary sport
+                </label>
+                <Input
+                  id="primary_sport"
+                  value={primarySport}
+                  onChange={(e) => setPrimarySport(e.target.value)}
+                />
+              </div>
+              <div>
+                <label htmlFor="secondary_sport" className="mb-1 block text-medium font-medium">
+                  Secondary sport
+                </label>
+                <Input
+                  id="secondary_sport"
+                  value={secondarySport}
+                  onChange={(e) => setSecondarySport(e.target.value)}
+                />
+              </div>
+              <div>
+                <span className="mb-1 block text-medium font-medium" id="level-label">
+                  Competition level
+                </span>
+                <Combobox
+                  aria-label="Competition level"
+                  options={LEVEL_OPTIONS}
+                  value={level}
+                  onChange={setLevel}
+                  placeholder="Select level"
+                />
+              </div>
+              <div>
+                <label htmlFor="position" className="mb-1 block text-medium font-medium">
+                  Position / discipline
+                </label>
+                <Input
+                  id="position"
+                  placeholder="Striker / Sprinter"
+                  value={position}
+                  onChange={(e) => setPosition(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Conditional per-level fields, mirroring the wizard (§3A.3). */}
+            {level === 'university_bucs' && (
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="university_team" className="mb-1 block text-medium font-medium">
+                    University team
+                  </label>
+                  <Combobox
+                    id="university_team"
+                    aria-label="University team"
+                    options={UNIVERSITY_TEAM_OPTIONS}
+                    value={universityTeam}
+                    onChange={setUniversityTeam}
+                    placeholder="Search your university team"
+                    allowCreate
+                  />
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="university_city" className="mb-1 block text-medium font-medium">
+                      University city
+                    </label>
+                    <Input
+                      id="university_city"
+                      value={universityCity}
+                      onChange={(e) => setUniversityCity(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="university_country" className="mb-1 block text-medium font-medium">
+                      University country
+                    </label>
+                    <CountrySelect
+                      id="university_country"
+                      aria-label="University country"
+                      value={universityCountry}
+                      onChange={setUniversityCountry}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <span className="mb-1 block text-medium font-medium" id="highest-level-label">
+                    Highest level played outside university
+                  </span>
+                  <Combobox
+                    aria-label="Highest level played outside university"
+                    options={HIGHEST_LEVEL_OPTIONS}
+                    value={highestLevel}
+                    onChange={setHighestLevel}
+                    placeholder="Select level"
+                  />
+                </div>
+              </div>
+            )}
+            {level === 'academy' && (
+              <div>
+                <label htmlFor="academy_club" className="mb-1 block text-medium font-medium">
+                  Academy / club
+                </label>
+                <Input
+                  id="academy_club"
+                  placeholder="e.g. Arsenal Academy"
+                  value={academyClub}
+                  onChange={(e) => setAcademyClub(e.target.value)}
+                />
+              </div>
+            )}
+            {level === 'national' && (
+              <div>
+                <label htmlFor="national_programme" className="mb-1 block text-medium font-medium">
+                  National programme
+                </label>
+                <Input
+                  id="national_programme"
+                  placeholder="e.g. British Athletics World Class Programme"
+                  value={nationalProgramme}
+                  onChange={(e) => setNationalProgramme(e.target.value)}
+                />
+              </div>
+            )}
+
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div>
+                <label htmlFor="years_active" className="mb-1 block text-medium font-medium">
+                  Years active
+                </label>
+                <Input
+                  id="years_active"
+                  type="number"
+                  min={0}
+                  max={50}
+                  value={yearsActive}
+                  onChange={(e) => setYearsActive(e.target.value)}
+                />
+              </div>
+              <div>
+                <label htmlFor="height_cm" className="mb-1 block text-medium font-medium">
+                  Height (cm)
+                </label>
+                <Input
+                  id="height_cm"
+                  type="number"
+                  min={100}
+                  max={250}
+                  value={heightCm}
+                  onChange={(e) => setHeightCm(e.target.value)}
+                />
+              </div>
+              <div>
+                <label htmlFor="weight_kg" className="mb-1 block text-medium font-medium">
+                  Weight (kg)
+                </label>
+                <Input
+                  id="weight_kg"
+                  type="number"
+                  min={30}
+                  max={200}
+                  value={weightKg}
+                  onChange={(e) => setWeightKg(e.target.value)}
+                />
+              </div>
+            </div>
+          </fieldset>
 
           {/* Action photos */}
           <div>
@@ -734,18 +1107,51 @@ export default function SettingsForm({
             )}
           </div>
 
-          {/* Socials */}
-          <div>
-            <label htmlFor="instagram" className="mb-1 block text-medium font-medium">
-              Instagram handle
-            </label>
-            <Input
-              id="instagram"
-              value={instagram}
-              onChange={(e) => setInstagram(e.target.value)}
-              placeholder="@yourhandle"
-            />
-          </div>
+          {/* Socials: canonical handles + self-reported follower counts. */}
+          <fieldset className="space-y-4">
+            <legend className="text-medium font-medium">Social accounts</legend>
+            {SOCIAL_PLATFORM_FIELDS.map(({ key, label, followerLabel }) => (
+              <div key={key} className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label htmlFor={`social_${key}`} className="mb-1 block text-medium font-medium">
+                    {label}
+                  </label>
+                  <Input
+                    id={`social_${key}`}
+                    value={socialHandles[key]}
+                    onChange={(e) =>
+                      setSocialHandles((prev) => ({ ...prev, [key]: e.target.value }))
+                    }
+                    placeholder="@yourhandle or profile link"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor={`followers_${key}`}
+                    className="mb-1 block text-medium font-medium"
+                  >
+                    {followerLabel}
+                  </label>
+                  <Input
+                    id={`followers_${key}`}
+                    inputMode="numeric"
+                    value={socialFollowers[key]}
+                    onChange={(e) =>
+                      setSocialFollowers((prev) => ({ ...prev, [key]: e.target.value }))
+                    }
+                    placeholder="e.g. 12,400"
+                    aria-describedby={`followers_${key}_help`}
+                  />
+                  <p
+                    id={`followers_${key}_help`}
+                    className="mt-1 text-small text-muted-foreground"
+                  >
+                    Self-reported. Shown on your profile with a self-reported label.
+                  </p>
+                </div>
+              </div>
+            ))}
+          </fieldset>
 
           {/* Performance stats */}
           <div>
@@ -865,6 +1271,24 @@ export default function SettingsForm({
             />
           </div>
 
+          {/* Seeking opportunities toggle (athlete_profiles.is_seeking) */}
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-medium font-medium" id="seeking-toggle-label">
+                Seeking opportunities
+              </p>
+              <p className="text-small text-muted-foreground">
+                When off, your profile shows you are not currently looking for new deals.
+              </p>
+            </div>
+            <Switch
+              aria-labelledby="seeking-toggle-label"
+              aria-label="Seeking opportunities"
+              checked={isSeeking}
+              onCheckedChange={setIsSeeking}
+            />
+          </div>
+
           {/* Discovery interests (seeking) */}
           <div>
             <p className="mb-2 text-medium font-medium">What you&apos;re seeking</p>
@@ -901,7 +1325,7 @@ export default function SettingsForm({
                 id="availability"
                 value={availability}
                 onChange={(e) => setAvailability(e.target.value as AvailabilityStatus)}
-                className="h-9 w-full rounded-[var(--radius)] border bg-card px-3 text-medium"
+                className="h-9 w-full rounded-[var(--radius)] border bg-card px-3 text-medium sm:w-64"
               >
                 {(Object.keys(AVAILABILITY_LABELS) as AvailabilityStatus[]).map((s) => (
                   <option key={s} value={s}>
@@ -1257,16 +1681,21 @@ export default function SettingsForm({
             )}
           </div>
 
-          {/* Payout / bank + Stripe Connect status */}
+          {/* Payout / bank + Stripe Connect status. Before anything is set up
+              this must read as optional and forward-looking, not broken: one
+              line, no "Not started" status, no double negative. Explicit
+              status wording stays for pending / restricted / active. */}
           <div className="space-y-2 rounded-[var(--radius)] border bg-card p-4 shadow-card">
             <div className="flex items-center justify-between gap-4">
               <p className="text-medium font-medium">Payout account</p>
-              <span className="text-small text-muted-foreground">
-                Stripe Connect:{' '}
-                <span className="text-foreground">
-                  {STRIPE_CONNECT_LABELS[profile.stripe_connect_status ?? 'not_started']}
+              {(profile.stripe_connect_status ?? 'not_started') !== 'not_started' && (
+                <span className="text-small text-muted-foreground">
+                  Stripe Connect:{' '}
+                  <span className="text-foreground">
+                    {STRIPE_CONNECT_LABELS[profile.stripe_connect_status ?? 'not_started']}
+                  </span>
                 </span>
-              </span>
+              )}
             </div>
             {profile.payout_method ? (
               <p className="text-small text-muted-foreground">
@@ -1280,7 +1709,7 @@ export default function SettingsForm({
               </p>
             ) : (
               <p className="text-small text-muted-foreground">
-                No payout method set up yet.
+                Payouts are optional until you agree a paid deal. You can set this up later.
               </p>
             )}
           </div>

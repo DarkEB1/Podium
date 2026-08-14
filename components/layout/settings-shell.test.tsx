@@ -65,8 +65,9 @@ describe('SettingsShell', () => {
     )
     const nav = screen.getByRole('navigation', { name: /settings sections/i })
     // Clean Airbnb: a single light divider between the columns on desktop.
-    expect(nav.className).toMatch(/md:border-r/)
-    expect(nav.className).toMatch(/md:border-border\b/)
+    // The split waits for lg so the 16rem rail never squeezes tablet widths.
+    expect(nav.className).toMatch(/lg:border-r/)
+    expect(nav.className).toMatch(/lg:border-border\b/)
     expect(nav.className).not.toMatch(/border-border-ink/)
   })
 

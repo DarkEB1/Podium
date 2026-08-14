@@ -60,7 +60,10 @@ export function CardSelectGroup({
 
   return (
     <div className={cn("flex flex-col gap-2", className)}>
-      <div role="group" className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3">
+      {/* Intrinsic (container-driven) columns: viewport breakpoints lied inside
+          narrow containers (e.g. the ~344px settings column at tablet widths),
+          forcing three squashed columns. auto-fill sizes to the actual row. */}
+      <div role="group" className="grid grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] gap-2">
         {options.map((option) => {
           const selected = value.includes(option.value)
           return (
