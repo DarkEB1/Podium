@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import StatStrip from '@/components/layout/stat-strip'
 import { cn } from '@/lib/utils'
-import { TIERS, TIER_NAMES, TIER_PRICE_GBP } from '@/lib/entitlements'
+import { TIERS, TIER_NAMES, TIER_PRICE_GBP, isTier } from '@/lib/entitlements'
 import type { Database } from '@/types/database'
 import type { BillingHistoryItem } from '@/lib/supabase/payments'
 
@@ -245,7 +245,10 @@ export default function BrandSettingsForm({ profile, stats, subscription, billin
 
           <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
             <p className="text-medium text-foreground">
-              Current plan: <span className="font-semibold">{currentTier?.name ?? `Tier ${subscription.tier}`}</span>
+              Current plan:{' '}
+              <span className="font-semibold">
+                {currentTier?.name ?? (isTier(subscription.tier) ? TIER_NAMES[subscription.tier] : 'Your plan')}
+              </span>
               {currentTier ? <span className="text-muted-foreground"> · £{currentTier.price}/mo</span> : null}
             </p>
 
