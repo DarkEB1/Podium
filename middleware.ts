@@ -68,6 +68,10 @@ const PUBLIC_PATHS = [
   ROUTES.api.auth.login,
   ROUTES.api.auth.callback,
   ROUTES.api.auth.passwordReset,
+  // TEMP (dev-only): component preview harness. Gated on NODE_ENV so the
+  // production (and test) path list is unchanged; the page itself also calls
+  // notFound() outside development. Remove together with app/(public)/dev-preview.
+  ...(process.env.NODE_ENV === 'development' ? ['/dev-preview'] : []),
 ]
 
 /**
