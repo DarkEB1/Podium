@@ -14,9 +14,9 @@ describe('SubscriptionTiers', () => {
   it('renders all 3 tiers side by side', () => {
     render(<SubscriptionTiers subscription={null} />)
     // each tier name appears in both its card and the comparison-table column header
-    expect(screen.getAllByText(/tier 1/i).length).toBeGreaterThanOrEqual(1)
-    expect(screen.getAllByText(/tier 2/i).length).toBeGreaterThanOrEqual(1)
-    expect(screen.getAllByText(/tier 3/i).length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText(/starter/i).length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText(/growth/i).length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText(/enterprise/i).length).toBeGreaterThanOrEqual(1)
   })
 
   it('highlights Tier 2 as Most Popular with a Sticker on a featured card', () => {
@@ -77,6 +77,6 @@ describe('SubscriptionTiers', () => {
     const sub = { id: '1', tier: 2, status: 'active' as const, stripe_subscription_id: 'sub_123', stripe_customer_id: 'cus_123', brand_id: 'b1', current_period_start: '', current_period_end: '', created_at: '', updated_at: '', canceled_at: null, cancellation_scheduled_at: null, trial_ends_at: null, seats_total: 5, seats_used: 1 }
     render(<SubscriptionTiers subscription={sub} />)
     expect(screen.getByText(/current plan/i)).toBeInTheDocument()
-    expect(screen.getByText(/tier 2/i)).toBeInTheDocument()
+    expect(screen.getByText(/growth/i)).toBeInTheDocument()
   })
 })

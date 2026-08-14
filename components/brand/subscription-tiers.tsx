@@ -8,6 +8,15 @@ import { Sticker } from '@/components/ui/sticker'
 import { cn } from '@/lib/utils'
 import { track } from '@/lib/analytics'
 import { CONTROLLER } from '@/lib/legal/versions'
+import {
+  TIERS as CONFIG_TIERS,
+  TIER_NAMES,
+  TIER_PRICE_DISPLAY,
+  TIER_TAGLINE,
+  POPULAR_TIER,
+  COMPARISON_ROWS,
+  type Tier as TierId,
+} from '@/lib/entitlements'
 import type { Database } from '@/types/database'
 
 type SubscriptionRow = Database['public']['Tables']['subscriptions']['Row']
@@ -15,8 +24,6 @@ type SubscriptionRow = Database['public']['Tables']['subscriptions']['Row']
 interface Props {
   subscription: SubscriptionRow | null
 }
-
-type TierId = 1 | 2 | 3
 
 interface Tier {
   tier: TierId
@@ -27,26 +34,17 @@ interface Tier {
   popular?: boolean
 }
 
-const TIERS: Tier[] = [
-  { tier: 1, name: 'Tier 1', price: '£99', cadence: '/mo', tagline: 'For brands getting started with athlete partnerships.' },
-  { tier: 2, name: 'Tier 2', price: '£249', cadence: '/mo', tagline: 'For growing brands running multiple campaigns.', popular: true },
-  { tier: 3, name: 'Tier 3', price: '£599', cadence: '/mo', tagline: 'For agencies and enterprises at scale.' },
-]
+const TIERS: Tier[] = CONFIG_TIERS.map((tier) => ({
+  tier,
+  name: TIER_NAMES[tier],
+  price: TIER_PRICE_DISPLAY[tier],
+  cadence: '/mo',
+  tagline: TIER_TAGLINE[tier],
+  popular: tier === POPULAR_TIER,
+}))
 
 // Feature comparison matrix. `value` is either a boolean (tick/cross) or a string (e.g. limits).
-interface FeatureRow {
-  label: string
-  values: Record<TierId, boolean | string>
-}
-
-const FEATURES: FeatureRow[] = [
-  { label: 'Connection requests / month', values: { 1: '50', 2: '200', 3: 'Unlimited' } },
-  { label: 'Search filters', values: { 1: 'Basic', 2: 'Advanced', 3: 'Full suite' } },
-  { label: 'Athlete messaging', values: { 1: '10 / mo', 2: 'Unlimited', 3: 'Unlimited' } },
-  { label: 'Priority support', values: { 1: false, 2: true, 3: true } },
-  { label: 'Dedicated account manager', values: { 1: false, 2: false, 3: true } },
-  { label: 'Analytics dashboard', values: { 1: false, 2: false, 3: true } },
-]
+const FEATURES = COMPARISON_ROWS
 
 function ValueCell({ value }: { value: boolean | string }) {
   if (value === true) {
