@@ -33,6 +33,8 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ROUTES } from '@/lib/routes'
+import { brandResumeStep } from '@/lib/nav/config'
+import { OnboardingStepper } from '@/components/onboarding/onboarding-stepper'
 import type { Database } from '@/types/database'
 
 type BrandRow = Database['public']['Tables']['brand_profiles']['Row']
@@ -572,17 +574,36 @@ export default function BrandProfileForm({ step, profile: initialProfile }: Prop
   }
 
   const TOTAL_STEPS = 4
+  const currentIndex = step - 1
+
+  // Stepper pills, one per step. Labels come from the same map as the header.
+  const stepperSteps = [1, 2, 3, 4].map((s) => ({ label: stepLabel(s) }))
+
+  // Furthest step the saved profile proves the brand reached — reuse the resume
+  // logic so they can jump back to any completed step. brandResumeStep returns a
+  // 1-based step; never below the current step (backward nav is always open).
+  const furthestIndex = brandResumeStep(profile) - 1
+  const maxReachable = Math.max(currentIndex, furthestIndex)
+
+  function handleNavigate(index: number) {
+    const targetStep = index + 1
+    if (targetStep === step) return
+    router.push(`/brand/onboarding/step/${targetStep}`)
+  }
 
   return (
     <div className="space-y-6">
-      <div>
-        <div className="flex justify-between text-small text-muted-foreground mb-1">
+      <div className="space-y-3">
+        <div className="flex justify-between text-small text-muted-foreground">
           <span>Step {step} of {TOTAL_STEPS}: {stepLabel(step)}</span>
           <span>{Math.round((step / TOTAL_STEPS) * 100)}%</span>
         </div>
-        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-          <div className="h-full bg-foreground transition-[width]" style={{ width: `${(step / TOTAL_STEPS) * 100}%` }} />
-        </div>
+        <OnboardingStepper
+          steps={stepperSteps}
+          current={currentIndex}
+          maxReachable={maxReachable}
+          onNavigate={handleNavigate}
+        />
       </div>
 
       {step === 1 && <Step1 profile={profile} onSaved={handleSaved} />}

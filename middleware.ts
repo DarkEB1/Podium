@@ -10,6 +10,11 @@ import {
   type OnboardingProgress,
 } from '@/lib/nav/config'
 import { ADMIN_2FA_COOKIE, verifyAdmin2faCookie } from '@/lib/auth/admin-2fa-cookie'
+import {
+  ONBOARDED_COOKIE,
+  isOnboardedCookieSet,
+  setOnboardedCookie,
+} from '@/lib/auth/onboarded-cookie'
 
 // 2.4: the admin 2FA challenge/enrollment page is under /admin but must be
 // reachable WITHOUT a passed challenge, or an un-verified admin could never
@@ -291,6 +296,22 @@ export async function middleware(request: NextRequest) {
     // The cast is safe: NAV_ROLE_SET holds exactly the NavRole literals.
     const navRole = role as NavRole
 
+    // PERF fast-path: onboarding, once finished, never un-finishes, so a user
+    // known-onboarded need not re-run the cross-Atlantic profile query on every
+    // navigation. If the cookie is present, skip the query and the redirect.
+    //
+    // SECURITY: this cookie may ONLY short-circuit the onboarding *UX redirect*.
+    // It is not consulted by the admin gate, either 2FA gate, the inbound-header
+    // strip, or any authorisation — all of which ran above and are byte-for-byte
+    // unchanged. The worst a forged `podium-onboarded=1` can do is let a
+    // not-yet-onboarded user reach an app page, where RLS still guards every row
+    // and the page's own `if (!profile) redirect('/onboarding')` still fires. No
+    // data is exposed, so the cookie is intentionally unsigned. See
+    // lib/auth/onboarded-cookie.ts.
+    if (isOnboardedCookieSet(request.cookies.get(ONBOARDED_COOKIE)?.value)) {
+      return forward(role)
+    }
+
     // SB-9/FA-4: project only the columns the resume derivation reads instead
     // of `select('*')` — this runs on every authenticated navigation.
     const { data: profile } = await supabase
@@ -314,6 +335,16 @@ export async function middleware(request: NextRequest) {
     if (!onboardingComplete && !pathname.startsWith(`/${navRole}/onboarding`)) {
       const resumePath = onboardingResumePath(navRole, progress)
       return redirectTo(resumePath.split('?')[0] ?? resumePath)
+    }
+
+    // Bonus: the query just proved this user is onboarded — cache that on the
+    // forwarded response so subsequent navigations take the fast-path above and
+    // skip the query entirely. (A user still mid-onboarding gets no cookie, so
+    // the gate keeps running for them until they finish.)
+    if (onboardingComplete) {
+      const response = forward(role)
+      setOnboardedCookie(response)
+      return response
     }
   }
 

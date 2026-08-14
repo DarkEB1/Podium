@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { clearSession } from '@/lib/supabase/sessions'
+import { clearOnboardedCookie } from '@/lib/auth/onboarded-cookie'
 import { ROUTES } from '@/lib/routes'
 
 /**
@@ -28,9 +29,13 @@ export async function POST() {
 
   const { error } = await supabase.auth.signOut()
 
-  return NextResponse.json({
+  const response = NextResponse.json({
     success: true,
     redirectTo: ROUTES.home,
     ...(error ? { warning: error.message } : {}),
   })
+  // Drop the onboarding fast-path cookie so it can never leak to a different
+  // user who signs in next on this browser. See lib/auth/onboarded-cookie.ts.
+  clearOnboardedCookie(response)
+  return response
 }

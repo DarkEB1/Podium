@@ -22,4 +22,12 @@ describe('POST /api/auth/logout', () => {
     const json = await res.json()
     expect(json.success).toBe(true)
   })
+
+  it('clears the onboarding fast-path cookie so it cannot leak to the next user', async () => {
+    const res = await POST()
+    const setCookie = res.headers.get('set-cookie') ?? ''
+    expect(setCookie).toContain('podium-onboarded=')
+    // Max-Age=0 is the delete instruction to the browser.
+    expect(setCookie).toContain('Max-Age=0')
+  })
 })
