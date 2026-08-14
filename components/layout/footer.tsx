@@ -2,6 +2,7 @@ import Link from 'next/link'
 import CookieBanner from '@/components/legal/cookie-banner'
 import CookiePreferencesButton from '@/components/legal/cookie-preferences-button'
 import { CONTROLLER } from '@/lib/legal/versions'
+import { ROUTES } from '@/lib/routes'
 
 /**
  * Every href below has been verified to resolve to a real route or to an
@@ -14,6 +15,7 @@ import { CONTROLLER } from '@/lib/legal/versions'
 const PRODUCT_LINKS = [
   { label: 'How it works', href: '/#what-we-do' },
   { label: 'Who it’s for', href: '/#who' },
+  { label: 'Pricing', href: ROUTES.pricing },
 ]
 
 const ACCOUNT_LINKS = [

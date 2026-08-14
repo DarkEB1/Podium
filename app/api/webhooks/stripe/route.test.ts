@@ -1051,7 +1051,7 @@ describe('POST /api/webhooks/stripe — email side effects', () => {
         event: 'subscription_started',
         userId: USER_ID,
         idempotencyKey: 'subscription_started:sub_abc',
-        data: expect.objectContaining({ tierName: 'Tier 2' }),
+        data: expect.objectContaining({ tierName: 'Growth' }),
       })
     )
   })

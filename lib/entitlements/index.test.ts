@@ -1,12 +1,24 @@
 import { describe, it, expect } from 'vitest'
 import {
-  ENTITLEMENTS, TIER_NAMES, TIER_PRICE_DISPLAY, isTier, featureBullets, COMPARISON_ROWS,
+  ENTITLEMENTS, TIER_NAMES, TIER_PRICE_GBP, TIER_PRICE_DISPLAY, isTier, featureBullets, COMPARISON_ROWS,
 } from './index'
 
 describe('entitlements config', () => {
   it('has the agreed names and prices', () => {
     expect(TIER_NAMES).toEqual({ 1: 'Starter', 2: 'Growth', 3: 'Enterprise' })
     expect(TIER_PRICE_DISPLAY).toEqual({ 1: '£59', 2: '£149', 3: '£299' })
+  })
+
+  it('has the agreed numeric GBP prices, the single source for the amount', () => {
+    expect(TIER_PRICE_GBP).toEqual({ 1: 59, 2: 149, 3: 299 })
+  })
+
+  it('derives TIER_PRICE_DISPLAY from TIER_PRICE_GBP', () => {
+    expect(TIER_PRICE_DISPLAY).toEqual({
+      1: `£${TIER_PRICE_GBP[1]}`,
+      2: `£${TIER_PRICE_GBP[2]}`,
+      3: `£${TIER_PRICE_GBP[3]}`,
+    })
   })
 
   it('encodes the agreed limits (null = unlimited)', () => {

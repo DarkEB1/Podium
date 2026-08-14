@@ -14,6 +14,7 @@ import StatStrip from '@/components/layout/stat-strip'
 import SettingsShell from '@/components/layout/settings-shell'
 import CancelSubscription from '@/components/brand/cancel-subscription'
 import { cn } from '@/lib/utils'
+import { TIERS, TIER_NAMES, TIER_PRICE_GBP, isTier } from '@/lib/entitlements'
 import type { Database } from '@/types/database'
 import type { BillingHistoryItem } from '@/lib/supabase/payments'
 
@@ -58,12 +59,14 @@ interface Props {
   activeSubscription?: { tier: number; currentPeriodEnd: string } | null
 }
 
-// Tier catalogue mirrors the public pricing (BR2). Prices in whole GBP/month.
-const TIER_CATALOGUE: { tier: number; name: string; price: number }[] = [
-  { tier: 1, name: 'Tier 1', price: 99 },
-  { tier: 2, name: 'Tier 2', price: 249 },
-  { tier: 3, name: 'Tier 3', price: 599 },
-]
+// Tier catalogue mirrors the public pricing (BR2), sourced from the shared
+// entitlements config so it can never drift from the marketing tiers.
+// Prices in whole GBP/month.
+const TIER_CATALOGUE: { tier: number; name: string; price: number }[] = TIERS.map((tier) => ({
+  tier,
+  name: TIER_NAMES[tier],
+  price: TIER_PRICE_GBP[tier],
+}))
 
 function formatGBP(pence: number): string {
   return `£${(pence / 100).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -264,7 +267,10 @@ export default function BrandSettingsForm({ profile, stats, subscription, billin
 
           <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
             <p className="text-medium text-foreground">
-              Current plan: <span className="font-semibold">{currentTier?.name ?? `Tier ${subscription.tier}`}</span>
+              Current plan:{' '}
+              <span className="font-semibold">
+                {currentTier?.name ?? (isTier(subscription.tier) ? TIER_NAMES[subscription.tier] : 'Your plan')}
+              </span>
               {currentTier ? <span className="text-muted-foreground"> · £{currentTier.price}/mo</span> : null}
             </p>
 

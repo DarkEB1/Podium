@@ -6,7 +6,15 @@ export const TIERS: readonly Tier[] = [1, 2, 3] as const
 export const POPULAR_TIER: Tier = 2
 
 export const TIER_NAMES: Record<Tier, string> = { 1: 'Starter', 2: 'Growth', 3: 'Enterprise' }
-export const TIER_PRICE_DISPLAY: Record<Tier, string> = { 1: '£59', 2: '£149', 3: '£299' }
+
+// Numeric GBP price is the single source of truth for the amount; the
+// display strings below derive from it so the two can never drift apart.
+export const TIER_PRICE_GBP: Record<Tier, number> = { 1: 59, 2: 149, 3: 299 }
+export const TIER_PRICE_DISPLAY: Record<Tier, string> = {
+  1: `£${TIER_PRICE_GBP[1]}`,
+  2: `£${TIER_PRICE_GBP[2]}`,
+  3: `£${TIER_PRICE_GBP[3]}`,
+}
 export const TIER_TAGLINE: Record<Tier, string> = {
   1: 'For brands getting started with athlete partnerships.',
   2: 'For growing brands running multiple campaigns.',

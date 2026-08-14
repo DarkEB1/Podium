@@ -6,9 +6,11 @@ import { getActiveAthleteProfilesPage, ATHLETE_PAGE_SIZE, getDiscoveryUiMode } f
 import { getShortlist } from '@/lib/supabase/discovery'
 import { getVerifiedUserIds } from '@/lib/supabase/verification'
 import { getSubscriptionForUser } from '@/lib/supabase/payments'
+import { getEntitlementUsage } from '@/lib/supabase/entitlements'
 import AthletesBrowser from '@/components/discovery/athletes-browser'
 import DiscoverySwitch from '@/components/brand/discovery-switch'
 import LoadMore from '@/components/discovery/load-more'
+import { UsageMeter } from '@/components/brand/usage-meter'
 import { AccentHeading } from '@/components/ui/accent-heading'
 import { parseShowParam } from '@/lib/pagination'
 import { ROUTES } from '@/lib/routes'
@@ -38,11 +40,12 @@ export default async function BrandDiscoverPage({
   const params = (await searchParams) ?? {}
   const shown = parseShowParam(params.show, ATHLETE_PAGE_SIZE)
 
-  const [{ athletes, hasMore }, shortlist, subscription, mode] = await Promise.all([
+  const [{ athletes, hasMore }, shortlist, subscription, mode, usage] = await Promise.all([
     getActiveAthleteProfilesPage(supabase, { limit: shown }),
     getShortlist(supabase, user.id),
     getSubscriptionForUser(supabase, user.id),
     getDiscoveryUiMode(supabase, user.id, 'brand'),
+    getEntitlementUsage(supabase, user.id),
   ])
 
   const savedUserIds = shortlist.map((s) => s.target_user_id)
@@ -71,6 +74,13 @@ export default async function BrandDiscoverPage({
           </p>
         </div>
       </div>
+      {usage ? (
+        <UsageMeter
+          label="Connection requests this period"
+          used={usage.requests.used}
+          limit={usage.requests.limit}
+        />
+      ) : null}
       {/* PR-23: both browse modes ship, so the page renders the toggle. */}
       <AthletesBrowser
         athletes={athletes}

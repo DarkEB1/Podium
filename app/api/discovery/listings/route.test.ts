@@ -14,11 +14,16 @@ vi.mock('@/lib/supabase/discovery', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/supabase/discovery')>()
   return { ...actual, createListing: vi.fn(), getListings: vi.fn() }
 })
+vi.mock('@/lib/supabase/entitlements', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/supabase/entitlements')>()
+  return { ...actual, assertCanCreateListing: vi.fn() }
+})
 
 import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getOwnProfile } from '@/lib/supabase/profiles'
 import { createListing, getListings, DiscoveryError } from '@/lib/supabase/discovery'
+import { assertCanCreateListing } from '@/lib/supabase/entitlements'
 import { GET, POST } from './route'
 
 const fakeUser = {
@@ -69,6 +74,13 @@ describe('POST /api/discovery/listings', () => {
     vi.mocked(createClient).mockResolvedValue(
       {} as unknown as Awaited<ReturnType<typeof createClient>>
     )
+    vi.mocked(assertCanCreateListing).mockResolvedValue({
+      allowed: true,
+      gated: true,
+      tier: 1,
+      limit: 3,
+      used: 0,
+    })
   })
 
   it('returns 401 when not authenticated', async () => {
@@ -105,6 +117,29 @@ describe('POST /api/discovery/listings', () => {
     expect(res.status).toBe(201)
     const json = await res.json()
     expect(json).toEqual(fakeListing)
+    // Guards against arg-order regressions (e.g. swapping id/role) that every
+    // other test's permissive mock would silently pass through.
+    expect(assertCanCreateListing).toHaveBeenCalledWith(
+      expect.anything(),
+      fakeUser.id,
+      fakeUser.role
+    )
+  })
+
+  it('returns 402 when the brand has hit its active-listing cap', async () => {
+    vi.mocked(getUser).mockResolvedValue({ ...fakeUser, role: 'brand' } as never)
+    vi.mocked(getOwnProfile).mockResolvedValue(fakeBrandProfile as never)
+    vi.mocked(assertCanCreateListing).mockResolvedValue({
+      allowed: false,
+      gated: true,
+      tier: 1,
+      limit: 3,
+      used: 3,
+      reason: 'LIMIT_REACHED',
+    })
+    const res = await POST(makeRequest('POST', { title: 'Test', type: 'athlete_endorsement' }))
+    expect(res.status).toBe(402)
+    expect((await res.json()).error.code).toBe('LIMIT_REACHED')
   })
 
   // A rejected insert used to escape the handler, so Next answered with a

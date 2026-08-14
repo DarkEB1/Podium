@@ -6,10 +6,9 @@ import { getSubscriptionOverview } from '@/lib/supabase/admin-insights'
 import StatGrid from '@/components/admin/stat-grid'
 import { AccentHeading } from '@/components/ui/accent-heading'
 import { ROUTES } from '@/lib/routes'
+import { TIER_NAMES, isTier } from '@/lib/entitlements'
 
 export const metadata: Metadata = { title: 'Subscriptions · Podium Admin', robots: { index: false } }
-
-const TIER_NAME: Record<number, string> = { 1: 'Starter', 2: 'Growth', 3: 'Enterprise' }
 
 export default async function AdminSubscriptionsPage() {
   const supabase = await createClient()
@@ -30,7 +29,7 @@ export default async function AdminSubscriptionsPage() {
       <div className="mt-8">
         <StatGrid
           stats={[1, 2, 3].map((tier) => ({
-            label: TIER_NAME[tier] ?? `Tier ${tier}`,
+            label: isTier(tier) ? TIER_NAMES[tier] : `Tier ${tier}`,
             value: s.byTier[tier] ?? 0,
           }))}
         />

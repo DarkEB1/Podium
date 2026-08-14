@@ -24,6 +24,8 @@ function clientReturningCount(count: number | null, error: unknown = null): Supa
   // cast: hand-rolled thenable stand-in for the PostgREST builder used only in tests
   ;(chain as { then: unknown }).then = (resolve: (v: unknown) => unknown) =>
     Promise.resolve({ count, error }).then(resolve)
+  // cast: this hand-rolled stub only implements the from/select/eq/gte chain the
+  // functions under test actually call, not the full SupabaseClient surface
   const client = { from: vi.fn((table: string) => {
     calls.push({ method: 'from', args: [table] })
     return chain
@@ -135,7 +137,6 @@ describe('getEntitlementUsage', () => {
     // Inject specific counts for each query by replacing the mock's promise
     const subClient = client as unknown as { _testCalls: Array<{ method: string; args: unknown[] }> }
     let callCount = 0
-    const originalFrom = (client as unknown as { from: ReturnType<typeof vi.fn> }).from
     ;(client as unknown as { from: ReturnType<typeof vi.fn> }).from = vi.fn((table: string) => {
       subClient._testCalls.push({ method: 'from', args: [table] })
       callCount++
