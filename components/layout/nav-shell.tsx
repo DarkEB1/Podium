@@ -19,6 +19,10 @@ import {
 import NotificationBell from './notification-bell'
 import ThemeToggle from './theme-toggle'
 import PodiumMark from '@/components/brand/podium-mark'
+import {
+  BreadcrumbLabelProvider,
+  useBreadcrumbLabelOverride,
+} from './breadcrumb-label'
 
 interface NavShellProps {
   role: NavRole
@@ -31,13 +35,27 @@ interface NavShellProps {
  * Navigation data comes from `lib/nav/config.ts` (which sources every href
  * from `lib/routes.ts`); the shell never declares its own hrefs, so a nav item
  * cannot drift out of sync with the routes that actually exist (B-4).
+ *
+ * The default export wraps the shell in `BreadcrumbLabelProvider` so any page
+ * inside `children` can register a display name for its final breadcrumb (a
+ * dynamic-route page whose last path segment is an opaque id would otherwise
+ * fall back to the generic label `buildBreadcrumbs` derives).
  */
 export default function NavShell({ role, children }: NavShellProps) {
+  return (
+    <BreadcrumbLabelProvider>
+      <NavShellInner role={role}>{children}</NavShellInner>
+    </BreadcrumbLabelProvider>
+  )
+}
+
+function NavShellInner({ role, children }: NavShellProps) {
   const pathname = usePathname()
   const items = navItemsForRole(role)
   const bottomItems = bottomNavForRole(role)
   const cta = ctaForRole(role)
-  const crumbs = buildBreadcrumbs(pathname)
+  const lastLabel = useBreadcrumbLabelOverride(pathname)
+  const crumbs = buildBreadcrumbs(pathname, { lastLabel })
 
   // H3: the active indicator is a shared-layout element (`layoutId`) so it
   // physically slides between items. Reduced-motion users get the indicator

@@ -1,6 +1,7 @@
 import { render, screen, within } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import NavShell from './nav-shell'
+import { BreadcrumbLabel } from './breadcrumb-label'
 
 vi.mock('next/navigation', () => ({
   usePathname: () => '/athlete/discover',
@@ -118,6 +119,19 @@ describe('NavShell', () => {
     )
     const crumbs = screen.getByRole('navigation', { name: /breadcrumb/i })
     expect(within(crumbs).getByText(/discover/i)).toBeInTheDocument()
+  })
+
+  // A dynamic route's last segment can be an opaque id; the page names the
+  // final crumb through the BreadcrumbLabel island instead.
+  it('lets a page rename the final breadcrumb via BreadcrumbLabel', () => {
+    render(
+      <NavShell role="athlete">
+        <BreadcrumbLabel label="Sarah Okoro" />
+      </NavShell>,
+    )
+    const crumbs = screen.getByRole('navigation', { name: /breadcrumb/i })
+    expect(within(crumbs).getByText('Sarah Okoro')).toBeInTheDocument()
+    expect(within(crumbs).queryByText('Discover')).not.toBeInTheDocument()
   })
 
   it('renders children', () => {

@@ -146,15 +146,36 @@ export function humaniseSegment(segment: string): string {
 }
 
 /**
+ * A UUID-shaped path segment (8-4-4-4-12 hex). Dynamic routes such as
+ * `/athlete/profile/[userId]` put an opaque row id in the URL; humanising it
+ * would render the raw id in the breadcrumb trail.
+ */
+const UUID_SEGMENT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
  * Breadcrumb trail derived from a pathname, each crumb carrying the cumulative
  * href so every ancestor is navigable. Root (`/`) yields no crumbs.
+ *
+ * UUID-shaped segments never render raw: pages can supply a display name for
+ * the final crumb via `options.lastLabel` (see
+ * `components/layout/breadcrumb-label.tsx`), and as a safety net an
+ * un-labelled UUID falls back to the generic "Profile". Consecutive crumbs
+ * with identical labels are collapsed so `/athlete/profile/<uuid>` reads
+ * "Athlete / Profile" rather than "Athlete / Profile / Profile".
  */
-export function buildBreadcrumbs(pathname: string): Breadcrumb[] {
+export function buildBreadcrumbs(
+  pathname: string,
+  options?: { lastLabel?: string | null },
+): Breadcrumb[] {
   const segments = pathname.split('/').filter(Boolean)
-  return segments.map((segment, i) => ({
-    label: humaniseSegment(segment),
+  const crumbs = segments.map((segment, i) => ({
+    label: UUID_SEGMENT.test(segment) ? 'Profile' : humaniseSegment(segment),
     href: `/${segments.slice(0, i + 1).join('/')}`,
   }))
+  const lastLabel = options?.lastLabel?.trim()
+  const last = crumbs[crumbs.length - 1]
+  if (lastLabel && last) last.label = lastLabel
+  return crumbs.filter((crumb, i) => i === 0 || crumb.label !== crumbs[i - 1]?.label)
 }
 
 /**
