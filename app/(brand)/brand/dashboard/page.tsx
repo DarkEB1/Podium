@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { Lock } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getOwnProfile } from '@/lib/supabase/profiles'
@@ -12,6 +13,8 @@ import { AccentHeading } from '@/components/ui/accent-heading'
 import { EmptyState } from '@/components/ui/empty-state'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { ROUTES } from '@/lib/routes'
+import { ENTITLEMENTS, isTier } from '@/lib/entitlements'
 import type { Database } from '@/types/database'
 
 type BrandRow = Database['public']['Tables']['brand_profiles']['Row']
@@ -61,6 +64,8 @@ export default async function BrandDashboardPage() {
   const hasSubscription = Boolean(
     subscription && ['active', 'trialing'].includes(subscription.status),
   )
+  const hasAnalytics =
+    hasSubscription && subscription !== null && isTier(subscription.tier) && ENTITLEMENTS[subscription.tier].analytics
 
   const statusMessage =
     brandProfile.status === 'pending_approval'
@@ -93,6 +98,36 @@ export default async function BrandDashboardPage() {
             { label: 'Deals Closed', value: String(dealsClosed) },
           ]}
         />
+      </section>
+
+      <section className="space-y-6">
+        <AccentHeading as="h2" className="text-large">
+          Analytics
+        </AccentHeading>
+        <Link
+          href={ROUTES.brand.analytics}
+          className={cn(
+            'flex items-center justify-between gap-4 rounded-2xl border border-border bg-card p-8',
+            'shadow-sm transition-[transform,box-shadow] duration-200 ease-out',
+            'hover:-translate-y-0.5 hover:shadow-card active:scale-[0.99]',
+            'motion-reduce:transform-none motion-reduce:transition-none',
+          )}
+        >
+          <div>
+            <p className="font-heading text-medium font-semibold text-foreground">
+              Outreach analytics
+            </p>
+            <p className="mt-1 max-w-[48ch] text-small text-muted-foreground">
+              Funnel, acceptance and response rates, audience reach, and daily trends.
+            </p>
+          </div>
+          {!hasAnalytics && (
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
+              <Lock size={12} aria-hidden="true" />
+              Enterprise
+            </span>
+          )}
+        </Link>
       </section>
 
       {!hasSubscription && (

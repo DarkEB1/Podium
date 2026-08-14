@@ -5,7 +5,6 @@ import { getUser } from '@/lib/supabase/auth'
 import { getOwnProfile } from '@/lib/supabase/profiles'
 import { getSettings } from '@/lib/supabase/settings'
 import AgentSettingsForm from '@/components/agent/agent-settings-form'
-import { AccentHeading } from '@/components/ui/accent-heading'
 import type { Database } from '@/types/database'
 
 /**
@@ -37,17 +36,5 @@ export default async function AgentSettingsPage() {
   // falls back to visible defaults, so a fetch failure must not break the page.
   const settings = await getSettings(supabase, user.id).catch(() => null)
 
-  return (
-    <div className="mx-auto max-w-7xl px-6 py-12 md:px-16 md:py-16">
-      <header className="mb-10">
-        <AccentHeading as="h1" className="text-display">
-          Settings
-        </AccentHeading>
-        <p className="mt-4 max-w-[48ch] text-medium text-muted-foreground">
-          Manage your agency profile, visibility, and notifications.
-        </p>
-      </header>
-      <AgentSettingsForm profile={profile} settings={settings} />
-    </div>
-  )
+  return <AgentSettingsForm profile={profile} settings={settings} />
 }

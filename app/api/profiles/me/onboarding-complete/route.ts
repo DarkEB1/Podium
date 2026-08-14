@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { completeBrandOnboarding, ProfileError } from '@/lib/supabase/profiles'
+import { setOnboardedCookie } from '@/lib/auth/onboarded-cookie'
 
 /**
  * Marks a brand's onboarding wizard as finished (the step 4 "Submit for review"
@@ -43,7 +44,12 @@ export async function POST() {
 
   try {
     await completeBrandOnboarding(supabase, user.id)
-    return NextResponse.json({ success: true })
+    // The brand has finished the wizard (onboarding_completed_at is now set),
+    // so cache that for middleware's onboarding gate. See
+    // lib/auth/onboarded-cookie.ts.
+    const response = NextResponse.json({ success: true })
+    setOnboardedCookie(response)
+    return response
   } catch (err) {
     if (err instanceof ProfileError) {
       if (err.code === 'PROFILE_NOT_FOUND') {

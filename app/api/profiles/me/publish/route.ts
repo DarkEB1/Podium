@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { publishProfile, ProfileError, type ProfileRole } from '@/lib/supabase/profiles'
+import { setOnboardedCookie } from '@/lib/auth/onboarded-cookie'
 
 export async function POST() {
   const supabase = await createClient()
@@ -23,7 +24,12 @@ export async function POST() {
 
   try {
     await publishProfile(supabase, user.id, user.role as ProfileRole)
-    return NextResponse.json({ success: true })
+    // Onboarding is now finished for this role (publish sets status active/
+    // non-draft) — cache that so middleware's onboarding gate skips its
+    // per-navigation profile query. See lib/auth/onboarded-cookie.ts.
+    const response = NextResponse.json({ success: true })
+    setOnboardedCookie(response)
+    return response
   } catch (err) {
     if (err instanceof ProfileError) {
       if (err.code === 'PROFILE_NOT_FOUND') {

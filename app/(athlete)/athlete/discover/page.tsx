@@ -50,7 +50,7 @@ export default async function AthleteDiscoverPage({
   const ranked = athlete ? sortListingsByMatch(listings, athlete) : listings
 
   return (
-    <div className="mx-auto max-w-6xl space-y-10 px-6 py-12 md:px-16 md:py-16">
+    <div className="mx-auto max-w-6xl space-y-12 px-6 py-12 md:px-16 md:py-16">
       <div>
         <AccentHeading as="h1" className="text-display">Discover opportunities</AccentHeading>
         <p className="mt-3 max-w-[52ch] text-medium leading-relaxed text-muted-foreground">

@@ -31,7 +31,7 @@ export default async function AthleteSavedPage() {
   const brands = profiles.filter(Boolean) as BrandRow[]
 
   return (
-    <div className="mx-auto max-w-4xl space-y-10 px-6 py-12 md:px-16 md:py-16">
+    <div className="mx-auto max-w-3xl space-y-10 px-6 py-12 md:px-16 md:py-16">
       <div>
         <AccentHeading as="h1" className="text-display">Saved brands</AccentHeading>
         <p className="mt-3 text-medium text-muted-foreground">{brands.length} saved</p>
@@ -47,7 +47,7 @@ export default async function AthleteSavedPage() {
         <div className="grid gap-6 sm:grid-cols-2">
           {brands.map((brand) => (
             <div key={brand.id} className="rounded-2xl border border-border bg-card p-8 shadow-sm">
-              <p className="font-medium text-foreground">{(brand as { company_name?: string }).company_name ?? brand.id}</p>
+              <p className="font-medium text-foreground break-words">{(brand as { company_name?: string }).company_name ?? 'Unnamed brand'}</p>
             </div>
           ))}
         </div>

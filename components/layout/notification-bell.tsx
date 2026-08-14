@@ -50,7 +50,7 @@ export default function NotificationBell() {
         {unread.length > 0 && (
           <span
             role="status"
-            className="absolute -right-0.5 -top-0.5 flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-white"
+            className="absolute -right-0.5 -top-0.5 flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground"
           >
             {unread.length > 9 ? '9+' : unread.length}
           </span>
@@ -58,7 +58,7 @@ export default function NotificationBell() {
       </Button>
 
       {open && (
-        <div className="absolute right-0 top-10 z-50 w-80 rounded-xl border bg-card shadow-lg">
+        <div className="absolute right-0 top-10 z-50 w-80 max-w-[calc(100vw-1.5rem)] rounded-xl border bg-card shadow-lg">
           <div className="border-b px-4 py-2 text-sm font-semibold">Notifications</div>
           {notifications.length === 0 ? (
             <p className="px-4 py-6 text-center text-sm text-muted-foreground">No notifications yet</p>

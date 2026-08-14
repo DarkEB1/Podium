@@ -2,6 +2,7 @@ import Link from 'next/link'
 import CookieBanner from '@/components/legal/cookie-banner'
 import CookiePreferencesButton from '@/components/legal/cookie-preferences-button'
 import { CONTROLLER } from '@/lib/legal/versions'
+import { ROUTES } from '@/lib/routes'
 
 /**
  * Every href below has been verified to resolve to a real route or to an
@@ -14,6 +15,7 @@ import { CONTROLLER } from '@/lib/legal/versions'
 const PRODUCT_LINKS = [
   { label: 'How it works', href: '/#what-we-do' },
   { label: 'Who it’s for', href: '/#who' },
+  { label: 'Pricing', href: ROUTES.pricing },
 ]
 
 const ACCOUNT_LINKS = [
@@ -33,7 +35,7 @@ export default function Footer() {
   return (
     <>
       <footer className="border-t border-border bg-background py-14">
-        <div className="mx-auto max-w-6xl px-6 md:px-10">
+        <div className="mx-auto max-w-7xl px-6 md:px-16">
           <div className="grid gap-10 sm:grid-cols-2 md:grid-cols-4">
             <div>
               <span className="font-heading text-xl font-extrabold tracking-tight text-foreground">

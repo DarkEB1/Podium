@@ -27,7 +27,7 @@ export default async function AdminDashboardPage() {
   const totalPending = pending.athletes + pending.brands
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-12 space-y-12 md:px-8">
+    <div className="mx-auto max-w-5xl space-y-12 px-6 py-12 md:px-16 md:py-16">
       <div className="space-y-3">
         <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Admin · Overview</p>
         <AccentHeading as="h1" className="text-display">Dashboard</AccentHeading>

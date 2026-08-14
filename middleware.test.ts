@@ -8,6 +8,7 @@ const createServerClient = vi.fn()
 vi.mock('@supabase/ssr', () => ({ createServerClient: (...args: unknown[]) => createServerClient(...args) }))
 
 import { ADMIN_2FA_COOKIE, signAdmin2faCookie } from '@/lib/auth/admin-2fa-cookie'
+import { ONBOARDED_COOKIE } from '@/lib/auth/onboarded-cookie'
 import { middleware, ROLE_HEADER } from './middleware'
 
 interface Row { [key: string]: unknown }
@@ -423,6 +424,71 @@ describe('middleware', () => {
       )
       const res = await middleware(request(destination))
       expect(redirectedTo(res)).toBeNull()
+    })
+  })
+
+  // ── PERF: onboarding fast-path cookie ────────────────────────────────────
+  // The onboarding gate's profile query never changes its answer once a user
+  // has finished onboarding, so a `podium-onboarded=1` cookie lets middleware
+  // skip that cross-Atlantic round-trip. SECURITY: it may only short-circuit
+  // the onboarding UX redirect — every gate above it is untouched.
+  describe('onboarding fast-path cookie (perf)', () => {
+    const onboardedCookie = { cookie: `${ONBOARDED_COOKIE}=1` }
+
+    it('skips the profile query and the redirect when the cookie is present', async () => {
+      // The profile row is null (i.e. NOT onboarded) — proving the cookie, not
+      // the row, is what lets the request through.
+      const queries = stubSupabase(
+        { id: 'u1' },
+        { users: { role: 'athlete' }, athlete_profiles: null },
+      )
+      const res = await middleware(request('/athlete/discover', onboardedCookie))
+
+      expect(redirectedTo(res)).toBeNull()
+      expect(queries.some((q) => q.table === 'athlete_profiles')).toBe(false)
+      // The role is still resolved and forwarded exactly as normal.
+      expect(forwardedHeader(res, ROLE_HEADER)).toBe('athlete')
+    })
+
+    it('still runs the query and redirect when the cookie is absent', async () => {
+      const queries = stubSupabase(
+        { id: 'u1' },
+        { users: { role: 'athlete' }, athlete_profiles: null },
+      )
+      const res = await middleware(request('/athlete/discover'))
+
+      expect(redirectedTo(res)).toBe('/athlete/onboarding/step/1')
+      expect(queries.some((q) => q.table === 'athlete_profiles')).toBe(true)
+    })
+
+    it('sets the cookie when the gate observes a completed profile', async () => {
+      stubSupabase(
+        { id: 'u1' },
+        { users: { role: 'athlete' }, athlete_profiles: COMPLETE_ATHLETE },
+      )
+      const res = await middleware(request('/athlete/discover'))
+
+      expect(redirectedTo(res)).toBeNull()
+      expect(res.headers.get('set-cookie')).toContain(`${ONBOARDED_COOKIE}=1`)
+    })
+
+    it('does not set the cookie for a user still mid-onboarding', async () => {
+      stubSupabase({ id: 'u1' }, { users: { role: 'athlete' }, athlete_profiles: null })
+      const res = await middleware(request('/athlete/onboarding/step/1'))
+
+      // On the onboarding page itself there is no redirect, but the user is not
+      // yet onboarded, so nothing should be cached.
+      expect(redirectedTo(res)).toBeNull()
+      expect(res.headers.get('set-cookie') ?? '').not.toContain(`${ONBOARDED_COOKIE}=1`)
+    })
+
+    // A forged cookie must never reach past the onboarding UX redirect into any
+    // real gate: the admin gate below still bounces a non-admin to /403 even
+    // with the fast-path cookie set.
+    it('never lets the cookie bypass the admin gate', async () => {
+      stubSupabase({ id: 'u1' }, { users: { role: 'athlete' } })
+      const res = await middleware(request('/admin/dashboard', onboardedCookie))
+      expect(redirectedTo(res)).toBe('/403')
     })
   })
 })

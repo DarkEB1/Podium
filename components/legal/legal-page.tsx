@@ -5,6 +5,7 @@
 
 import type { ReactNode } from 'react'
 import Link from 'next/link'
+import { AccentHeading } from '@/components/ui/accent-heading'
 
 export function DraftNotice() {
   return (
@@ -65,7 +66,7 @@ export function LegalPage({
 }) {
   return (
     <main className="bg-background">
-      <div className="mx-auto max-w-3xl px-6 py-16 md:px-10 md:py-24">
+      <div className="mx-auto max-w-3xl px-6 py-12 md:px-16 md:py-16">
         <Link
           href="/"
           className="text-sm font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
@@ -73,9 +74,9 @@ export function LegalPage({
           ← Back to Podium
         </Link>
 
-        <h1 className="mt-8 font-heading text-4xl font-extrabold leading-[1.02] tracking-[-0.03em] text-foreground sm:text-5xl">
+        <AccentHeading as="h1" className="mt-8 text-display">
           {title}
-        </h1>
+        </AccentHeading>
 
         <p className="mt-4 text-sm text-muted-foreground">
           Version <strong className="text-foreground">{version}</strong> ·

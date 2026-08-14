@@ -33,6 +33,8 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ROUTES } from '@/lib/routes'
+import { brandResumeStep } from '@/lib/nav/config'
+import { OnboardingStepper } from '@/components/onboarding/onboarding-stepper'
 import type { Database } from '@/types/database'
 
 type BrandRow = Database['public']['Tables']['brand_profiles']['Row']
@@ -216,12 +218,12 @@ function Step1({ profile, onSaved }: { profile: BrandRow | null; onSaved: (p: Br
         )} />
         <FormField control={form.control} name="trading_name" render={({ field }) => (
           <FormItem>
-            <FormLabel>Trading name <span className="text-muted-foreground text-xs">(optional)</span></FormLabel>
+            <FormLabel>Trading name <span className="text-muted-foreground text-small">(optional)</span></FormLabel>
             <FormControl><Input placeholder="Acme" {...field} /></FormControl>
             <FormMessage />
           </FormItem>
         )} />
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormField control={form.control} name="headquarters_city" render={({ field }) => (
             <FormItem>
               <FormLabel>City</FormLabel>
@@ -239,14 +241,14 @@ function Step1({ profile, onSaved }: { profile: BrandRow | null; onSaved: (p: Br
         </div>
         <FormField control={form.control} name="website_url" render={({ field }) => (
           <FormItem>
-            <FormLabel>Website <span className="text-muted-foreground text-xs">(optional)</span></FormLabel>
+            <FormLabel>Website <span className="text-muted-foreground text-small">(optional)</span></FormLabel>
             <FormControl><Input type="url" placeholder="https://acme.com" {...field} /></FormControl>
             <FormMessage />
           </FormItem>
         )} />
         <FormField control={form.control} name="linkedin_url" render={({ field }) => (
           <FormItem>
-            <FormLabel>LinkedIn <span className="text-muted-foreground text-xs">(optional)</span></FormLabel>
+            <FormLabel>LinkedIn <span className="text-muted-foreground text-small">(optional)</span></FormLabel>
             <FormControl><Input type="url" placeholder="https://linkedin.com/company/acme" {...field} /></FormControl>
             <FormMessage />
           </FormItem>
@@ -358,7 +360,7 @@ function Step2({ profile, onSaved }: { profile: BrandRow | null; onSaved: (p: Br
           )} />
         ) : null}
         <div>
-          <p className="mb-2 text-sm font-medium">What your brand is looking for</p>
+          <p className="mb-2 text-medium font-medium">What your brand is looking for</p>
           <CardSelectGroup
             multiple
             options={SEEKING_OPTIONS.map((o) => ({
@@ -372,8 +374,8 @@ function Step2({ profile, onSaved }: { profile: BrandRow | null; onSaved: (p: Br
           />
         </div>
         <div>
-          <p className="mb-2 text-sm font-medium">
-            Target sports <span className="text-muted-foreground text-xs">(up to {MAX_TARGET_SPORTS})</span>
+          <p className="mb-2 text-medium font-medium">
+            Target sports <span className="text-muted-foreground text-small">(up to {MAX_TARGET_SPORTS})</span>
           </p>
           <div className="flex flex-wrap gap-2">
             {TARGET_SPORTS.map((s) => {
@@ -386,7 +388,7 @@ function Step2({ profile, onSaved }: { profile: BrandRow | null; onSaved: (p: Br
                   aria-pressed={active}
                   onClick={() => toggleSport(s.name)}
                   className={cn(
-                    'flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm transition-colors',
+                    'flex items-center gap-1.5 rounded-full border px-3 py-1 text-medium transition-colors',
                     'focus-visible:ring-3 focus-visible:ring-ring/50 outline-none',
                     active
                       ? 'border-primary bg-primary/10 text-foreground'
@@ -407,14 +409,14 @@ function Step2({ profile, onSaved }: { profile: BrandRow | null; onSaved: (p: Br
         </div>
         <FormField control={form.control} name="target_level" render={({ field }) => (
           <FormItem>
-            <FormLabel>Athlete/team level preference <span className="text-muted-foreground text-xs">(optional)</span></FormLabel>
+            <FormLabel>Athlete/team level preference <span className="text-muted-foreground text-small">(optional)</span></FormLabel>
             <FormControl><Input placeholder="e.g. Semi-Pro, Amateur" {...field} /></FormControl>
             <FormMessage />
           </FormItem>
         )} />
         <FormField control={form.control} name="geographic_preference" render={({ field }) => (
           <FormItem>
-            <FormLabel>Geographic preference <span className="text-muted-foreground text-xs">(optional)</span></FormLabel>
+            <FormLabel>Geographic preference <span className="text-muted-foreground text-small">(optional)</span></FormLabel>
             <FormControl><Input placeholder="e.g. United Kingdom, London only" {...field} /></FormControl>
             <FormMessage />
           </FormItem>
@@ -523,27 +525,27 @@ function Step4({ profile }: { profile: BrandRow | null }) {
   return (
     <div className="space-y-6">
       <div className="rounded-xl border bg-muted/30 p-4 space-y-2">
-        <p className="text-sm font-semibold">Profile summary</p>
-        <dl className="space-y-1 text-sm">
-          <div className="flex gap-2">
+        <p className="text-medium font-semibold">Profile summary</p>
+        <dl className="space-y-1 text-medium">
+          <div className="flex min-w-0 gap-2">
             <dt className="text-muted-foreground w-40">Company</dt>
             <dd>{profile?.company_name ?? 'Not set'}</dd>
           </div>
-          <div className="flex gap-2">
+          <div className="flex min-w-0 gap-2">
             <dt className="text-muted-foreground w-40">Industry</dt>
             <dd>{profile?.industry?.replace('_', ' ') ?? 'Not set'}</dd>
           </div>
-          <div className="flex gap-2">
+          <div className="flex min-w-0 gap-2">
             <dt className="text-muted-foreground w-40">Location</dt>
             <dd>{[profile?.headquarters_city, profile?.headquarters_country].filter(Boolean).join(', ') || 'Not set'}</dd>
           </div>
-          <div className="flex gap-2">
+          <div className="flex min-w-0 gap-2">
             <dt className="text-muted-foreground w-40">Website</dt>
-            <dd>{profile?.website_url ?? 'Not set'}</dd>
+            <dd className="min-w-0 break-words">{profile?.website_url ?? 'Not set'}</dd>
           </div>
         </dl>
       </div>
-      <p className="text-xs text-muted-foreground">
+      <p className="text-small text-muted-foreground">
         Your profile will be reviewed by the Podium team. Meanwhile, set up your subscription to start discovering athletes and teams.
       </p>
       <Button className="w-full" onClick={handleSubmit} disabled={loading}>
@@ -572,17 +574,36 @@ export default function BrandProfileForm({ step, profile: initialProfile }: Prop
   }
 
   const TOTAL_STEPS = 4
+  const currentIndex = step - 1
+
+  // Stepper pills, one per step. Labels come from the same map as the header.
+  const stepperSteps = [1, 2, 3, 4].map((s) => ({ label: stepLabel(s) }))
+
+  // Furthest step the saved profile proves the brand reached — reuse the resume
+  // logic so they can jump back to any completed step. brandResumeStep returns a
+  // 1-based step; never below the current step (backward nav is always open).
+  const furthestIndex = brandResumeStep(profile) - 1
+  const maxReachable = Math.max(currentIndex, furthestIndex)
+
+  function handleNavigate(index: number) {
+    const targetStep = index + 1
+    if (targetStep === step) return
+    router.push(`/brand/onboarding/step/${targetStep}`)
+  }
 
   return (
     <div className="space-y-6">
-      <div>
-        <div className="flex justify-between text-xs text-muted-foreground mb-1">
+      <div className="space-y-3">
+        <div className="flex justify-between text-small text-muted-foreground">
           <span>Step {step} of {TOTAL_STEPS}: {stepLabel(step)}</span>
           <span>{Math.round((step / TOTAL_STEPS) * 100)}%</span>
         </div>
-        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-          <div className="h-full bg-foreground transition-[width]" style={{ width: `${(step / TOTAL_STEPS) * 100}%` }} />
-        </div>
+        <OnboardingStepper
+          steps={stepperSteps}
+          current={currentIndex}
+          maxReachable={maxReachable}
+          onNavigate={handleNavigate}
+        />
       </div>
 
       {step === 1 && <Step1 profile={profile} onSaved={handleSaved} />}

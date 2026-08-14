@@ -40,7 +40,7 @@ export default async function AdminBrandsPage({
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-12 space-y-12 md:px-8">
+    <div className="mx-auto max-w-5xl space-y-12 px-6 py-12 md:px-16 md:py-16">
       <div className="space-y-3">
         <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Admin · Brands</p>
         <AccentHeading as="h1" className="text-display">Brands</AccentHeading>
@@ -75,15 +75,15 @@ export default async function AdminBrandsPage({
                 href={`/admin/brands/${b.id}`}
                 className="flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors"
               >
-                <div>
-                  <p className="font-medium">{b.company_name ?? 'Unnamed brand'}</p>
-                  <p className="text-xs text-muted-foreground">
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{b.company_name ?? 'Unnamed brand'}</p>
+                  <p className="truncate text-xs text-muted-foreground">
                     {[b.trading_name, b.industry?.replace(/_/g, ' '), b.headquarters_country]
                       .filter(Boolean)
                       .join(' · ')}
                   </p>
                 </div>
-                <StatusBadge status={b.status} />
+                <StatusBadge status={b.status} className="shrink-0" />
               </Link>
             </li>
           ))}

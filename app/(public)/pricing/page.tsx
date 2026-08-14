@@ -2,9 +2,11 @@ import Link from 'next/link'
 import { Check } from 'lucide-react'
 
 import { buttonVariants } from '@/components/ui/button'
+import { AccentHeading } from '@/components/ui/accent-heading'
 import { cn } from '@/lib/utils'
 import { ROUTES } from '@/lib/routes'
 import Footer from '@/components/layout/footer'
+import { TIERS, TIER_NAMES, TIER_PRICE_DISPLAY, TIER_TAGLINE, POPULAR_TIER, featureBullets } from '@/lib/entitlements'
 
 export const metadata = {
   title: 'Pricing · Podium',
@@ -41,42 +43,6 @@ const FREE_ROLES = [
   },
 ]
 
-const BRAND_TIERS = [
-  {
-    name: 'Tier 1',
-    price: '£99',
-    cadence: '/mo',
-    tagline: 'For brands getting started with athlete partnerships.',
-    features: ['50 connection requests / month', 'Basic search filters', '10 athlete messages / month'],
-  },
-  {
-    name: 'Tier 2',
-    price: '£249',
-    cadence: '/mo',
-    tagline: 'For growing brands running multiple campaigns.',
-    popular: true,
-    features: [
-      '200 connection requests / month',
-      'Advanced search filters',
-      'Unlimited athlete messaging',
-      'Priority support',
-    ],
-  },
-  {
-    name: 'Tier 3',
-    price: '£599',
-    cadence: '/mo',
-    tagline: 'For agencies and enterprises at scale.',
-    features: [
-      'Unlimited connection requests',
-      'Full filter suite',
-      'Unlimited athlete messaging',
-      'Dedicated account manager',
-      'Analytics dashboard',
-    ],
-  },
-]
-
 export default function PricingPage() {
   return (
     <main>
@@ -85,9 +51,9 @@ export default function PricingPage() {
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             Pricing
           </p>
-          <h1 className="mt-6 max-w-[18ch] font-heading text-4xl font-extrabold leading-[1.0] tracking-[-0.03em] text-foreground sm:text-5xl md:text-6xl">
+          <AccentHeading as="h1" className="mt-6 max-w-[18ch] text-display">
             Free for talent. <span className="text-primary">Simple</span> for brands.
-          </h1>
+          </AccentHeading>
           <p className="mt-6 max-w-[52ch] text-lg leading-relaxed text-muted-foreground">
             Athletes, teams and agents never pay a penny. Brands cover the cost of the
             marketplace with a straightforward monthly subscription.
@@ -129,45 +95,49 @@ export default function PricingPage() {
             settings.
           </p>
           <div className="mt-8 grid gap-6 md:grid-cols-3">
-            {BRAND_TIERS.map(({ name, price, cadence, tagline, features, popular }) => (
-              <div
-                key={name}
-                className={cn(
-                  'flex flex-col rounded-2xl border bg-card p-8 shadow-sm',
-                  popular ? 'border-primary' : 'border-border',
-                )}
-              >
-                {popular ? (
-                  <span className="self-start rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">
-                    Most popular
-                  </span>
-                ) : null}
-                <h3 className="mt-5 font-heading text-2xl font-extrabold tracking-tight text-foreground">
-                  {name}
-                </h3>
-                <p className="mt-3">
-                  <span className="font-heading text-4xl font-extrabold tracking-tight text-foreground">
-                    {price}
-                  </span>
-                  <span className="text-base text-muted-foreground">{cadence}</span>
-                </p>
-                <p className="mt-2 text-base leading-relaxed text-muted-foreground">{tagline}</p>
-                <ul className="mt-6 flex-1 space-y-3 text-sm">
-                  {features.map((f) => (
-                    <li key={f} className="flex items-start gap-3 text-foreground">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" strokeWidth={2.5} aria-hidden="true" />
-                      <span className="leading-snug">{f}</span>
-                    </li>
-                  ))}
-                </ul>
-                <Link
-                  href={ROUTES.auth.signUpAs('brand')}
-                  className={cn(buttonVariants({ variant: popular ? 'default' : 'outline' }), 'mt-8')}
+            {TIERS.map((tier) => {
+              const popular = tier === POPULAR_TIER
+              const bullets = featureBullets(tier)
+              return (
+                <div
+                  key={tier}
+                  className={cn(
+                    'flex flex-col rounded-2xl border bg-card p-8 shadow-sm',
+                    popular ? 'border-primary' : 'border-border',
+                  )}
                 >
-                  Start free trial
-                </Link>
-              </div>
-            ))}
+                  {popular ? (
+                    <span className="self-start rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">
+                      Most popular
+                    </span>
+                  ) : null}
+                  <h3 className="mt-5 font-heading text-2xl font-extrabold tracking-tight text-foreground">
+                    {TIER_NAMES[tier]}
+                  </h3>
+                  <p className="mt-3">
+                    <span className="font-heading text-4xl font-extrabold tracking-tight text-foreground">
+                      {TIER_PRICE_DISPLAY[tier]}
+                    </span>
+                    <span className="text-base text-muted-foreground">/mo</span>
+                  </p>
+                  <p className="mt-2 text-base leading-relaxed text-muted-foreground">{TIER_TAGLINE[tier]}</p>
+                  <ul className="mt-6 flex-1 space-y-3 text-sm">
+                    {bullets.map((f) => (
+                      <li key={f} className="flex items-start gap-3 text-foreground">
+                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" strokeWidth={2.5} aria-hidden="true" />
+                        <span className="leading-snug">{f}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <Link
+                    href={ROUTES.auth.signUpAs('brand')}
+                    className={cn(buttonVariants({ variant: popular ? 'default' : 'outline' }), 'mt-8')}
+                  >
+                    Start free trial
+                  </Link>
+                </div>
+              )
+            })}
           </div>
         </div>
       </section>

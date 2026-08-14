@@ -5,6 +5,7 @@ import { getUser } from '@/lib/supabase/auth'
 import { getTwoFactorStatus } from '@/lib/supabase/two-factor'
 import TwoFactorChallenge from '@/components/admin/two-factor-challenge'
 import TwoFactorSetup from '@/components/admin/two-factor-setup'
+import { AccentHeading } from '@/components/ui/accent-heading'
 import { ROUTES } from '@/lib/routes'
 
 export const metadata: Metadata = {
@@ -27,10 +28,8 @@ export default async function AdminTwoFactorPage() {
   const status = await getTwoFactorStatus(admin, user.id)
 
   return (
-    <div className="mx-auto max-w-md px-6 py-16 md:py-24">
-      <h1 className="font-heading text-display font-extrabold tracking-tight text-foreground">
-        Two-factor authentication
-      </h1>
+    <div className="mx-auto max-w-md px-6 py-12 md:py-16">
+      <AccentHeading as="h1" className="text-display">Two-factor authentication</AccentHeading>
       <div className="mt-6">
         {status.enabled ? <TwoFactorChallenge /> : <TwoFactorSetup />}
       </div>

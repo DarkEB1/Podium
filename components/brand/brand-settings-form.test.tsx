@@ -109,8 +109,8 @@ describe('BrandSettingsForm', () => {
 
   it('shows upgrade/downgrade with effective date and price difference', () => {
     render(<BrandSettingsForm profile={baseProfile} subscription={subscription} />)
-    // current tier is 1 (£99); upgrading to tier 2 (£249) shows a +£150 difference
+    // current tier is 1 (£59); upgrading to tier 2 (£149) shows a +£90 difference
     expect(screen.getByText(/effective/i)).toBeInTheDocument()
-    expect(screen.getByText(/\+£150/)).toBeInTheDocument()
+    expect(screen.getByText(/\+£90/)).toBeInTheDocument()
   })
 })

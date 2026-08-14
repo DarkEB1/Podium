@@ -60,7 +60,7 @@ export function CardSelectGroup({
 
   return (
     <div className={cn("flex flex-col gap-2", className)}>
-      <div role="group" className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+      <div role="group" className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3">
         {options.map((option) => {
           const selected = value.includes(option.value)
           return (
@@ -71,7 +71,7 @@ export function CardSelectGroup({
               aria-pressed={selected}
               onClick={() => handleSelect(option.value)}
               className={cn(
-                "pressable group flex flex-col items-start gap-2 rounded-2xl border bg-card p-5 text-left shadow-sm outline-none transition-shadow",
+                "pressable group flex flex-col items-start gap-2 rounded-2xl border bg-card p-4 text-left shadow-sm outline-none transition-shadow sm:p-5",
                 "hover:-translate-y-0.5 hover:shadow-lg",
                 "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                 selected

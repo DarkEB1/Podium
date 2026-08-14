@@ -41,7 +41,7 @@ export default async function AdminAthletesPage({
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-12 space-y-12 md:px-8">
+    <div className="mx-auto max-w-5xl space-y-12 px-6 py-12 md:px-16 md:py-16">
       <div className="space-y-3">
         <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Admin · Athletes</p>
         <AccentHeading as="h1" className="text-display">Athletes</AccentHeading>
@@ -76,15 +76,15 @@ export default async function AdminAthletesPage({
                 href={`/admin/athletes/${a.id}`}
                 className="flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors"
               >
-                <div>
-                  <p className="font-medium">{a.display_name ?? a.full_legal_name ?? 'Unnamed'}</p>
-                  <p className="text-xs text-muted-foreground">
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{a.display_name ?? a.full_legal_name ?? 'Unnamed'}</p>
+                  <p className="truncate text-xs text-muted-foreground">
                     {[a.primary_sport, a.level?.replace(/_/g, ' '), a.home_country]
                       .filter(Boolean)
                       .join(' · ')}
                   </p>
                 </div>
-                <StatusBadge status={a.status} />
+                <StatusBadge status={a.status} className="shrink-0" />
               </Link>
             </li>
           ))}

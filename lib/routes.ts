@@ -119,6 +119,8 @@ export const ROUTES = {
     profile: '/brand/profile',
     payments: '/brand/payments',
     subscription: '/brand/subscription',
+    /** Enterprise-gated outreach analytics; non-Enterprise brands see an upsell. */
+    analytics: '/brand/analytics',
     settings: '/brand/settings',
     onboarding: '/brand/onboarding',
     onboardingStep: (step: number) => `/brand/onboarding/step/${step}`,

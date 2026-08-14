@@ -5,8 +5,6 @@ import { getUser } from '@/lib/supabase/auth'
 import { getOwnProfile } from '@/lib/supabase/profiles'
 import { getSubscriptionForUser } from '@/lib/supabase/payments'
 import BrandSettingsForm from '@/components/brand/brand-settings-form'
-import { AccentHeading } from '@/components/ui/accent-heading'
-import CancelSubscription from '@/components/brand/cancel-subscription'
 import type { Database } from '@/types/database'
 
 /**
@@ -42,34 +40,13 @@ export default async function BrandSettingsPage() {
     !subscription.cancellation_scheduled_at
 
   return (
-    <div className="mx-auto max-w-2xl px-6 py-12 space-y-16 md:px-16 md:py-16">
-      <header className="space-y-3">
-        <AccentHeading as="h1" className="text-display">Settings</AccentHeading>
-        <p className="text-medium text-muted-foreground">
-          Manage your company profile and subscription.
-        </p>
-      </header>
-
-      <section className="space-y-6">
-        <h2 className="text-large">Company details</h2>
-        <BrandSettingsForm profile={brandProfile} />
-      </section>
-
-      {hasActiveSubscription && (
-        <section className="space-y-6">
-          <h2 className="text-large">Subscription</h2>
-          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
-            <p className="text-medium text-muted-foreground">
-              You are on Tier {subscription!.tier}. Your subscription renews on{' '}
-              <span className="text-foreground font-medium">
-                {new Date(subscription!.current_period_end).toLocaleDateString()}
-              </span>
-              .
-            </p>
-            <CancelSubscription />
-          </div>
-        </section>
-      )}
-    </div>
+    <BrandSettingsForm
+      profile={brandProfile}
+      activeSubscription={
+        hasActiveSubscription
+          ? { tier: subscription!.tier, currentPeriodEnd: subscription!.current_period_end }
+          : null
+      }
+    />
   )
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Footer from '@/components/layout/footer'
 import ContactForm from '@/components/contact/contact-form'
+import { AccentHeading } from '@/components/ui/accent-heading'
 import { CONTROLLER } from '@/lib/legal/versions'
 
 // M-1: public and indexable, like the other (public) marketing pages.
@@ -13,14 +14,14 @@ export const metadata: Metadata = {
 export default function ContactPage() {
   return (
     <>
-      <main className="mx-auto min-h-screen max-w-xl px-6 py-16 md:px-10">
+      <main className="mx-auto min-h-screen max-w-2xl px-6 py-12 md:px-16 md:py-16">
         <header className="mb-10 space-y-2">
           <p className="text-small font-medium uppercase tracking-[0.18em] text-muted-foreground">
             Contact
           </p>
-          <h1 className="font-heading text-display font-extrabold tracking-tight text-foreground">
+          <AccentHeading as="h1" className="text-display">
             Talk to us
-          </h1>
+          </AccentHeading>
           <p className="text-medium text-muted-foreground">
             Questions, feedback or a partnership idea? Send a message and it
             lands straight in our inbox. Prefer email? Write to{' '}

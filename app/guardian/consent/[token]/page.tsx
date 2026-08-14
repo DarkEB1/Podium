@@ -21,9 +21,8 @@ export default async function GuardianConsentPage({
   const status = await getConsentTokenStatus(admin, token)
 
   return (
-    <main className="mx-auto max-w-xl px-6 py-16 md:py-24">
-      <span className="text-medium font-extrabold tracking-tight text-foreground">Podium</span>
-      <h1 className="mt-6 font-heading text-display font-extrabold tracking-tight text-foreground">
+    <main className="mx-auto max-w-xl px-6 py-12 md:py-16">
+      <h1 className="font-heading text-display font-extrabold tracking-tight text-foreground">
         Guardian consent
       </h1>
 

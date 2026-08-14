@@ -19,6 +19,8 @@ import { RequiredKey } from '@/components/ui/required-key'
 import { cn } from '@/lib/utils'
 import { copy } from '@/lib/copy'
 import { track } from '@/lib/analytics'
+import { athleteResumeStep } from '@/lib/nav/config'
+import { OnboardingStepper } from '@/components/onboarding/onboarding-stepper'
 import GuardianForm, { type GuardianValues } from './guardian-form'
 import type { Database } from '@/types/database'
 
@@ -341,7 +343,7 @@ function Step2({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormField control={form.control} name="primary_sport" render={({ field }) => (
             <FormItem>
               <FormLabel>Primary sport</FormLabel>
@@ -444,7 +446,7 @@ function Step2({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
             <FormMessage />
           </FormItem>
         )} />
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <FormField control={form.control} name="years_active" render={({ field }) => (
             <FormItem>
               <FormLabel>Years active</FormLabel>
@@ -802,23 +804,41 @@ export default function ProfileWizard({ step, profile: initialProfile }: Props) 
   // otherwise an adult on step 6 reads "Step 6 of 5 / 120%" (spec §3A.5).
   const stepSequence = isUnder18 ? [1, 2, 3, 4, 5, 6] : [1, 2, 3, 4, 6]
   const TOTAL_STEPS = stepSequence.length
-  const displayPosition = Math.max(1, stepSequence.indexOf(step) + 1)
+  const currentIndex = stepSequence.indexOf(step)
+  const displayPosition = Math.max(1, currentIndex + 1)
   const progressPct = Math.min(100, Math.round((displayPosition / TOTAL_STEPS) * 100))
+
+  // Stepper pills, one per step in the (adult-adjusted) sequence.
+  const stepperSteps = stepSequence.map((routeStep) => ({ label: stepLabel(routeStep) }))
+
+  // Furthest step the saved profile proves the user reached — reuse the resume
+  // logic so a user can jump back to any completed step. athleteResumeStep
+  // returns a 1-based ROUTE step number (1,2,3,4,6), which we map back to a
+  // sequence index. Never below the current step: backward nav is always open.
+  const furthestRouteStep = athleteResumeStep(profile)
+  const furthestIndex = stepSequence.indexOf(furthestRouteStep)
+  const maxReachable = Math.max(currentIndex, furthestIndex)
+
+  function handleNavigate(index: number) {
+    const routeStep = stepSequence[index]
+    if (routeStep === undefined || routeStep === step) return
+    router.push(`/athlete/onboarding/step/${routeStep}`)
+  }
 
   return (
     <div className="space-y-8">
-      {/* Progress header */}
-      <div>
-        <div className="mb-2 flex justify-between text-small text-muted-foreground">
+      {/* Progress header + step selector */}
+      <div className="space-y-3">
+        <div className="flex justify-between text-small text-muted-foreground">
           <span>Step {displayPosition} of {TOTAL_STEPS}: {stepLabel(step)}</span>
           <span>{progressPct}%</span>
         </div>
-        <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-          <div
-            className="h-full bg-foreground transition-[width]"
-            style={{ width: `${progressPct}%` }}
-          />
-        </div>
+        <OnboardingStepper
+          steps={stepperSteps}
+          current={currentIndex}
+          maxReachable={maxReachable}
+          onNavigate={handleNavigate}
+        />
       </div>
 
       {step === 1 && <Step1 profile={profile} onSaved={handleSaved} />}

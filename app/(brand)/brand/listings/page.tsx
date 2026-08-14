@@ -4,9 +4,11 @@ import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getOwnProfile } from '@/lib/supabase/profiles'
 import { getListings } from '@/lib/supabase/discovery'
+import { getEntitlementUsage } from '@/lib/supabase/entitlements'
 import { buttonVariants } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { AccentHeading } from '@/components/ui/accent-heading'
+import { UsageMeter } from '@/components/brand/usage-meter'
 import ListingsManager from './listings-manager'
 import type { Database } from '@/types/database'
 
@@ -30,7 +32,11 @@ export default async function BrandListingsPage() {
   const profile = await getOwnProfile(supabase, user.id, 'brand') as BrandRow | null
   if (!profile) redirect('/brand/onboarding')
 
-  const allListings = await getListings(supabase) as JobListingRow[]
+  const [allListingsRaw, usage] = await Promise.all([
+    getListings(supabase),
+    getEntitlementUsage(supabase, user.id),
+  ])
+  const allListings = allListingsRaw as JobListingRow[]
   const myListings = allListings.filter((l) => l.brand_id === profile.id)
 
   return (
@@ -41,6 +47,14 @@ export default async function BrandListingsPage() {
         </AccentHeading>
         <Link href="/brand/listings/new" className={buttonVariants()}>+ New listing</Link>
       </div>
+
+      {usage ? (
+        <UsageMeter
+          label="Active listings"
+          used={usage.listings.used}
+          limit={usage.listings.limit}
+        />
+      ) : null}
 
       {myListings.length === 0 ? (
         <EmptyState

@@ -11,7 +11,10 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import StatStrip from '@/components/layout/stat-strip'
+import SettingsShell from '@/components/layout/settings-shell'
+import CancelSubscription from '@/components/brand/cancel-subscription'
 import { cn } from '@/lib/utils'
+import { TIERS, TIER_NAMES, TIER_PRICE_GBP, isTier } from '@/lib/entitlements'
 import type { Database } from '@/types/database'
 import type { BillingHistoryItem } from '@/lib/supabase/payments'
 
@@ -48,14 +51,22 @@ interface Props {
   stats?: CampaignStats
   subscription?: SettingsSubscription | null
   billing?: BillingHistoryItem[]
+  /**
+   * Simple active-subscription summary for the settings page (tier + renewal
+   * date). Renders a Subscription section with a cancel control. Independent of
+   * the richer `subscription` prop other callers pass.
+   */
+  activeSubscription?: { tier: number; currentPeriodEnd: string } | null
 }
 
-// Tier catalogue mirrors the public pricing (BR2). Prices in whole GBP/month.
-const TIER_CATALOGUE: { tier: number; name: string; price: number }[] = [
-  { tier: 1, name: 'Tier 1', price: 99 },
-  { tier: 2, name: 'Tier 2', price: 249 },
-  { tier: 3, name: 'Tier 3', price: 599 },
-]
+// Tier catalogue mirrors the public pricing (BR2), sourced from the shared
+// entitlements config so it can never drift from the marketing tiers.
+// Prices in whole GBP/month.
+const TIER_CATALOGUE: { tier: number; name: string; price: number }[] = TIERS.map((tier) => ({
+  tier,
+  name: TIER_NAMES[tier],
+  price: TIER_PRICE_GBP[tier],
+}))
 
 function formatGBP(pence: number): string {
   return `£${(pence / 100).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -73,7 +84,7 @@ const PAYMENT_STATUS_LABEL: Record<BillingHistoryItem['status'], string> = {
   refunded: 'Refunded',
 }
 
-export default function BrandSettingsForm({ profile, stats, subscription, billing }: Props) {
+export default function BrandSettingsForm({ profile, stats, subscription, billing, activeSubscription }: Props) {
   const [loading, setLoading] = useState(false)
   const [confirmRemoveSeat, setConfirmRemoveSeat] = useState(false)
   const [removingSeat, setRemovingSeat] = useState(false)
@@ -126,8 +137,22 @@ export default function BrandSettingsForm({ profile, stats, subscription, billin
   const isPastDue = subscription?.status === 'past_due'
   const currentTier = subscription ? TIER_CATALOGUE.find((t) => t.tier === subscription.tier) : undefined
 
+  // Section nav mirrors the sections actually rendered below, so anchor links
+  // never point at an absent section.
+  const sections = [
+    ...(stats ? [{ id: 'campaign', label: 'Campaign performance' }] : []),
+    { id: 'company', label: 'Company details' },
+    ...(subscription
+      ? [{ id: 'subscription', label: 'Subscription & seats' }]
+      : activeSubscription
+        ? [{ id: 'subscription', label: 'Subscription' }]
+        : []),
+    ...(billing ? [{ id: 'billing', label: 'Billing history' }] : []),
+  ]
+
   return (
-    <div className="space-y-8">
+    <SettingsShell sections={sections} active={sections[0]?.id ?? 'company'}>
+      <div className="space-y-12">
       {/* Persistent failed-payment banner (spec §4C.1) */}
       {isPastDue && (
         <div
@@ -151,7 +176,7 @@ export default function BrandSettingsForm({ profile, stats, subscription, billin
 
       {/* Campaign performance summary (spec §4C.1) */}
       {stats && (
-        <section aria-labelledby="campaign-stats-heading" className="space-y-3">
+        <section id="campaign" aria-labelledby="campaign-stats-heading" className="space-y-3">
           <h2 id="campaign-stats-heading" className="font-heading text-large font-semibold text-foreground">
             Campaign performance
           </h2>
@@ -167,7 +192,7 @@ export default function BrandSettingsForm({ profile, stats, subscription, billin
       )}
 
       {/* Company profile form */}
-      <section aria-labelledby="company-heading" className="space-y-4">
+      <section id="company" aria-labelledby="company-heading" className="space-y-4">
         <h2 id="company-heading" className="font-heading text-large font-semibold text-foreground">
           Company details
         </h2>
@@ -235,14 +260,17 @@ export default function BrandSettingsForm({ profile, stats, subscription, billin
 
       {/* Subscription, seats & upgrade/downgrade (spec §4C.1) */}
       {subscription && (
-        <section aria-labelledby="subscription-heading" className="space-y-4">
+        <section id="subscription" aria-labelledby="subscription-heading" className="space-y-4">
           <h2 id="subscription-heading" className="font-heading text-large font-semibold text-foreground">
             Subscription &amp; seats
           </h2>
 
           <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
             <p className="text-medium text-foreground">
-              Current plan: <span className="font-semibold">{currentTier?.name ?? `Tier ${subscription.tier}`}</span>
+              Current plan:{' '}
+              <span className="font-semibold">
+                {currentTier?.name ?? (isTier(subscription.tier) ? TIER_NAMES[subscription.tier] : 'Your plan')}
+              </span>
               {currentTier ? <span className="text-muted-foreground"> · £{currentTier.price}/mo</span> : null}
             </p>
 
@@ -317,7 +345,7 @@ export default function BrandSettingsForm({ profile, stats, subscription, billin
 
       {/* Billing history with downloadable PDF invoices (spec §4C.1) */}
       {billing && (
-        <section aria-labelledby="billing-heading" className="space-y-3">
+        <section id="billing" aria-labelledby="billing-heading" className="space-y-3">
           <h2 id="billing-heading" className="font-heading text-large font-semibold text-foreground">
             Billing history
           </h2>
@@ -351,6 +379,27 @@ export default function BrandSettingsForm({ profile, stats, subscription, billin
           )}
         </section>
       )}
-    </div>
+
+      {/* Active-subscription summary + cancel (settings page). Independent of the
+          richer `subscription` section other callers render. */}
+      {activeSubscription && (
+        <section id="subscription" aria-labelledby="subscription-summary-heading" className="space-y-4">
+          <h2 id="subscription-summary-heading" className="font-heading text-large font-semibold text-foreground">
+            Subscription
+          </h2>
+          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
+            <p className="text-medium text-muted-foreground">
+              You are on Tier {activeSubscription.tier}. Your subscription renews on{' '}
+              <span className="text-foreground font-medium">
+                {new Date(activeSubscription.currentPeriodEnd).toLocaleDateString()}
+              </span>
+              .
+            </p>
+            <CancelSubscription />
+          </div>
+        </section>
+      )}
+      </div>
+    </SettingsShell>
   )
 }

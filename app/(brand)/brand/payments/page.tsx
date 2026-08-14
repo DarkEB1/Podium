@@ -32,7 +32,7 @@ export default async function BrandPaymentsPage() {
   const payments = (await getPaymentHistory(supabase, user.id)) as PaymentRow[]
 
   return (
-    <div className="mx-auto max-w-4xl px-6 py-12 space-y-16 md:px-16 md:py-16">
+    <div className="mx-auto max-w-4xl space-y-12 px-6 py-12 md:px-16 md:py-16">
       <header className="space-y-3">
         <AccentHeading as="h1" className="text-display">Payments</AccentHeading>
         <p className="text-medium text-muted-foreground">

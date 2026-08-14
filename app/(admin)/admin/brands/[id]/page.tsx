@@ -25,7 +25,7 @@ export default async function AdminBrandDetailPage({
   if (!brand) notFound()
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-12 space-y-12 md:px-8">
+    <div className="mx-auto max-w-3xl space-y-12 px-6 py-12 md:px-16 md:py-16">
       <div className="flex items-center justify-between">
         <Link href="/admin/brands" className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }))}>
           ← Brands
