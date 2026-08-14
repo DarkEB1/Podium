@@ -8,16 +8,27 @@ vi.mock('@/lib/supabase/payments', async (io) => {
 })
 
 import { getSubscriptionForUser } from '@/lib/supabase/payments'
-import { assertCanSendConnectionRequest, assertCanSendMessage } from './entitlements'
+import { assertCanSendConnectionRequest, assertCanSendMessage, assertCanCreateListing, getEntitlementUsage } from './entitlements'
 
 // Minimal client whose count query (`.select(_, {count,head}).eq().gte()`) resolves { count }.
-function clientReturningCount(count: number): SupabaseClient<Database> {
+// Records calls to from/eq/gte for verification of query structure.
+function clientReturningCount(count: number | null, error: unknown = null): SupabaseClient<Database> {
+  const calls: Array<{ method: string; args: unknown[] }> = []
   const chain: Record<string, unknown> = {}
-  for (const m of ['select', 'eq', 'gte']) chain[m] = vi.fn(() => chain)
+  for (const m of ['select', 'eq', 'gte']) {
+    chain[m] = vi.fn((...args: unknown[]) => {
+      calls.push({ method: m, args })
+      return chain
+    })
+  }
+  // cast: hand-rolled thenable stand-in for the PostgREST builder used only in tests
   ;(chain as { then: unknown }).then = (resolve: (v: unknown) => unknown) =>
-    Promise.resolve({ count, error: null }).then(resolve)
-  // cast: hand-rolled stand-in for the PostgREST builder used only in tests
-  return { from: vi.fn(() => chain) } as unknown as SupabaseClient<Database>
+    Promise.resolve({ count, error }).then(resolve)
+  const client = { from: vi.fn((table: string) => {
+    calls.push({ method: 'from', args: [table] })
+    return chain
+  }), _testCalls: calls } as unknown as SupabaseClient<Database>
+  return client
 }
 
 const sub = (over: Record<string, unknown> = {}) => ({
@@ -63,5 +74,87 @@ describe('entitlement guards', () => {
     vi.mocked(getSubscriptionForUser).mockResolvedValue(sub({ tier: 3 }) as never)
     const res = await assertCanSendMessage(clientReturningCount(9999), 'u1', 'brand')
     expect(res).toMatchObject({ allowed: true, limit: null, tier: 3 })
+  })
+
+  it('allows a Starter brand under the 3-listing cap', async () => {
+    vi.mocked(getSubscriptionForUser).mockResolvedValue(sub() as never)
+    const res = await assertCanCreateListing(clientReturningCount(2), 'u1', 'brand')
+    expect(res).toMatchObject({ allowed: true, limit: 3, used: 2, tier: 1 })
+  })
+
+  it('blocks a Starter brand at the 3-listing cap', async () => {
+    vi.mocked(getSubscriptionForUser).mockResolvedValue(sub() as never)
+    const res = await assertCanCreateListing(clientReturningCount(3), 'u1', 'brand')
+    expect(res).toMatchObject({ allowed: false, reason: 'LIMIT_REACHED', limit: 3, used: 3 })
+  })
+
+  it('verifies request count query filters by sender_id and billing window', async () => {
+    vi.mocked(getSubscriptionForUser).mockResolvedValue(sub() as never)
+    const client = clientReturningCount(5)
+    await assertCanSendConnectionRequest(client, 'u1', 'brand')
+    const calls = (client as unknown as { _testCalls: Array<{ method: string; args: unknown[] }> })._testCalls
+    expect(calls).toContainEqual({ method: 'from', args: ['connection_requests'] })
+    expect(calls).toContainEqual({ method: 'eq', args: ['sender_id', 'u1'] })
+    expect(calls).toContainEqual({ method: 'gte', args: ['created_at', '2026-08-01T00:00:00Z'] })
+  })
+
+  it('verifies listing count query filters by brand_id and active status', async () => {
+    vi.mocked(getSubscriptionForUser).mockResolvedValue(sub() as never)
+    const client = clientReturningCount(1)
+    await assertCanCreateListing(client, 'u1', 'brand')
+    const calls = (client as unknown as { _testCalls: Array<{ method: string; args: unknown[] }> })._testCalls
+    expect(calls).toContainEqual({ method: 'from', args: ['job_listings'] })
+    expect(calls).toContainEqual({ method: 'eq', args: ['brand_id', 'bp1'] })
+    expect(calls).toContainEqual({ method: 'eq', args: ['status', 'active'] })
+  })
+
+  it('propagates count query errors', async () => {
+    vi.mocked(getSubscriptionForUser).mockResolvedValue(sub() as never)
+    const testError = { code: 'PGRST301', message: 'Invalid table' }
+    const client = clientReturningCount(null, testError)
+    await expect(assertCanSendConnectionRequest(client, 'u1', 'brand')).rejects.toEqual(testError)
+  })
+})
+
+describe('getEntitlementUsage', () => {
+  it('returns null when there is no active subscription', async () => {
+    vi.mocked(getSubscriptionForUser).mockResolvedValue(null as never)
+    const res = await getEntitlementUsage(clientReturningCount(0), 'u1')
+    expect(res).toBeNull()
+  })
+
+  it('returns null when subscription status is not active/trialing', async () => {
+    vi.mocked(getSubscriptionForUser).mockResolvedValue(sub({ status: 'past_due' }) as never)
+    const res = await getEntitlementUsage(clientReturningCount(0), 'u1')
+    expect(res).toBeNull()
+  })
+
+  it('returns full usage object for active Starter subscription', async () => {
+    vi.mocked(getSubscriptionForUser).mockResolvedValue(sub() as never)
+    const client = clientReturningCount(0) // will be reused by the mock for all queries
+    // Inject specific counts for each query by replacing the mock's promise
+    const subClient = client as unknown as { _testCalls: Array<{ method: string; args: unknown[] }> }
+    let callCount = 0
+    const originalFrom = (client as unknown as { from: ReturnType<typeof vi.fn> }).from
+    ;(client as unknown as { from: ReturnType<typeof vi.fn> }).from = vi.fn((table: string) => {
+      subClient._testCalls.push({ method: 'from', args: [table] })
+      callCount++
+      const result = { count: callCount === 1 ? 5 : callCount === 2 ? 25 : 1, error: null } // requests, messages, listings
+      const chain = {
+        select: vi.fn(() => chain),
+        eq: vi.fn(() => chain),
+        gte: vi.fn(() => chain),
+        then: (resolve: (v: unknown) => unknown) => Promise.resolve(result).then(resolve),
+      }
+      return chain
+    })
+    const res = await getEntitlementUsage(client, 'u1')
+    expect(res).toMatchObject({
+      tier: 1,
+      analytics: false,
+      requests: { limit: 15, used: 5 },
+      listings: { limit: 3, used: 1 },
+      messages: { limit: 100, used: 25 },
+    })
   })
 })

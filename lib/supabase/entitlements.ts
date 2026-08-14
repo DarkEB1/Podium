@@ -32,6 +32,7 @@ async function countSince(c: Client, table: 'connection_requests' | 'messages', 
 }
 
 async function countActiveListings(c: Client, brandProfileId: string): Promise<number> {
+  // cast drops the Database generic to avoid deep PostgREST inference (matches lib/supabase/* idiom)
   const { count, error } = await (c as SupabaseClient)
     .from('job_listings')
     .select('id', { count: 'exact', head: true })
