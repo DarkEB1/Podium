@@ -15,6 +15,7 @@ import {
   TIER_TAGLINE,
   POPULAR_TIER,
   COMPARISON_ROWS,
+  isTier,
   type Tier as TierId,
 } from '@/lib/entitlements'
 import type { Database } from '@/types/database'
@@ -75,7 +76,9 @@ function CurrentSubscription({ subscription }: { subscription: SubscriptionRow }
         <p className="text-small font-semibold uppercase tracking-wide text-muted-foreground">
           Current plan
         </p>
-        <p className="text-large font-bold">{currentTier?.name ?? `Tier ${subscription.tier}`}</p>
+        <p className="text-large font-bold">
+          {currentTier?.name ?? (isTier(subscription.tier) ? TIER_NAMES[subscription.tier] : 'Your plan')}
+        </p>
         <p className="text-medium capitalize text-muted-foreground">{subscription.status}</p>
         {trialActive && (
           <p className="text-small text-accent-foreground">

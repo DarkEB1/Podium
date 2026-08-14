@@ -12,6 +12,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import StatStrip from '@/components/layout/stat-strip'
 import { cn } from '@/lib/utils'
+import { TIERS, TIER_NAMES, TIER_PRICE_GBP } from '@/lib/entitlements'
 import type { Database } from '@/types/database'
 import type { BillingHistoryItem } from '@/lib/supabase/payments'
 
@@ -50,12 +51,14 @@ interface Props {
   billing?: BillingHistoryItem[]
 }
 
-// Tier catalogue mirrors the public pricing (BR2). Prices in whole GBP/month.
-const TIER_CATALOGUE: { tier: number; name: string; price: number }[] = [
-  { tier: 1, name: 'Tier 1', price: 99 },
-  { tier: 2, name: 'Tier 2', price: 249 },
-  { tier: 3, name: 'Tier 3', price: 599 },
-]
+// Tier catalogue mirrors the public pricing (BR2), sourced from the shared
+// entitlements config so it can never drift from the marketing tiers.
+// Prices in whole GBP/month.
+const TIER_CATALOGUE: { tier: number; name: string; price: number }[] = TIERS.map((tier) => ({
+  tier,
+  name: TIER_NAMES[tier],
+  price: TIER_PRICE_GBP[tier],
+}))
 
 function formatGBP(pence: number): string {
   return `£${(pence / 100).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
