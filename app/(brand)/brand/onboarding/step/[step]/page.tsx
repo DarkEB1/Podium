@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getOwnProfile } from '@/lib/supabase/profiles'
+import { isOnboardingComplete } from '@/lib/nav/config'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import BrandProfileForm from '@/components/brand/brand-profile-form'
 import TrackOnboardingStep from '@/components/analytics/track-onboarding-step'
@@ -47,7 +48,15 @@ export default async function BrandOnboardingStepPage({
   // getOwnProfile returns the row for the given role table; cast narrows the union to BrandRow
   const profile = await getOwnProfile(supabase, user.id, 'brand') as BrandRow | null
 
-  if (profile?.status === 'active') redirect('/brand/dashboard')
+  // "Done with onboarding" for a brand is `onboarding_completed_at`, NOT
+  // `status`. status is admin-approval (pending_approval | active | …) and is
+  // set independently of the wizard. Using `status === 'active'` here disagreed
+  // with the middleware onboarding gate (which uses isOnboardingComplete →
+  // onboarding_completed_at): a brand that was approved (status active) but had
+  // not finished the wizard got redirected here → dashboard (status active) →
+  // gate → back here (not completed) → an infinite redirect loop that never
+  // rendered the form. Match the gate's definition so the two agree.
+  if (isOnboardingComplete('brand', profile)) redirect('/brand/dashboard')
 
   return (
     <div className="mx-auto w-full max-w-2xl px-6 py-12 md:px-16 md:py-16">
