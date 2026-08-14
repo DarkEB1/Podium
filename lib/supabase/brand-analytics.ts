@@ -51,6 +51,8 @@ export function computeFunnel(rows: ReqRow[], messaged: number) {
 export function buildTimeSeries(rows: ReqRow[]): Array<{ date: string; requestsSent: number; accepted: number }> {
   const byDay = new Map<string, { requestsSent: number; accepted: number }>()
   for (const r of rows) {
+    // slice(0, 10): created_at is stored as a UTC ISO 8601 string (Supabase Rules
+    // in CLAUDE.md), so its first 10 chars are always the UTC calendar date.
     const date = (r.created_at ?? '').slice(0, 10)
     if (!date) continue
     const cur = byDay.get(date) ?? { requestsSent: 0, accepted: 0 }
