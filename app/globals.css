@@ -369,6 +369,11 @@
 /* Landing hero word chip (spec §4.2): a miniature domino. The outgoing word
    tips forward about its bottom edge; the incoming one rises from behind
    with a slight overshoot. */
+/* Measurement rulers carry their word via CSS content, not a DOM text node,
+   so scrapers and raw-text extraction never see the word list. */
+.chip-ruler::before {
+  content: attr(data-word);
+}
 @keyframes chip-out {
   from { transform: rotateX(0deg); opacity: 1; }
   to { transform: rotateX(-92deg); opacity: 0; }

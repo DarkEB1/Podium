@@ -41,7 +41,7 @@ export default function PanelHero() {
           letterSpacing: '-0.035em',
         }}
       >
-        <span className="block">Sponsorship</span>
+        <span className="block">Sponsorship</span>{' '}
         <span className="block">
           for <WordChip />
         </span>

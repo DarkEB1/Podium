@@ -63,21 +63,20 @@ export default function WordChip() {
         {/* measurement rulers: every word, so a flip never reflows the line.
             The current word's ruler sits in flow, unclipped, and is the only
             thing that decides where this whole assembly sits on the sentence's
-            baseline; the rest are lifted out of flow. Hidden with an inline
-            style, not a class, so a no-CSS render (scrapers, reader modes)
-            never sees the word list spelled out four times over. */}
+            baseline; the rest are lifted out of flow. The word itself is CSS
+            content (.chip-ruler::before reads data-word), never a DOM text
+            node, so raw-text extraction and no-CSS renders see nothing here. */}
         {WORDS.map((w, i) => (
           <span
             key={w}
             aria-hidden="true"
+            data-word={w}
             ref={(el) => {
               rulers.current[i] = el
             }}
-            className={`${CHIP_PAD} inline-block ${i === index ? '' : 'absolute left-0 top-0'}`}
+            className={`chip-ruler ${CHIP_PAD} inline-block ${i === index ? '' : 'absolute left-0 top-0'}`}
             style={{ visibility: 'hidden' }}
-          >
-            {w}
-          </span>
+          />
         ))}
         {/* the tile itself, laid over that box and clipping the flip */}
         <span
@@ -105,7 +104,7 @@ export default function WordChip() {
         </span>
       </span>
       <span aria-hidden="true">.</span>
-      <span className="sr-only">athletes, teams, brands and you</span>
+      <span className="sr-only"> athletes, teams, brands and you</span>
     </>
   )
 }
