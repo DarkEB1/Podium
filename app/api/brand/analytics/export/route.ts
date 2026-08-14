@@ -1,7 +1,7 @@
-import { NextResponse, type NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
-import { getSubscriptionForUser, getBrandProfileIdForUser } from '@/lib/supabase/payments'
+import { getSubscriptionForUser } from '@/lib/supabase/payments'
 import { getBrandAnalytics } from '@/lib/supabase/brand-analytics'
 import { ENTITLEMENTS, isTier } from '@/lib/entitlements'
 
@@ -34,7 +34,7 @@ function forbidden() {
  * distinguishes "not a brand" from "not Enterprise" so it can't be used to
  * fingerprint account state.
  */
-export async function GET(_request: NextRequest) {
+export async function GET() {
   const supabase = await createClient()
   const user = await getUser(supabase)
   if (!user || user.role !== 'brand') {
@@ -45,22 +45,19 @@ export async function GET(_request: NextRequest) {
   const tier = subscription && isTier(subscription.tier) ? subscription.tier : null
   const active = subscription?.status === 'active' || subscription?.status === 'trialing'
   const unlocked = subscription !== null && tier !== null && ENTITLEMENTS[tier].analytics && active
+  // `!subscription` is redundant to `!unlocked` (unlocked can only be true when
+  // subscription is non-null), but TS can't narrow subscription's nullability
+  // through the `unlocked` boolean, so it stays for the compiler.
   if (!unlocked || !subscription) {
     return forbidden()
   }
 
-  const brandProfileId = await getBrandProfileIdForUser(supabase, user.id)
-  if (!brandProfileId) {
-    return NextResponse.json(
-      { error: { code: 'BRAND_PROFILE_NOT_FOUND', message: 'Brand profile not found' } },
-      { status: 404 }
-    )
-  }
-
+  // subscriptions.brand_id already IS brand_profiles.id (see getBrandProfileIdForUser
+  // in lib/supabase/payments.ts) — no need for a second lookup.
   const analytics = await getBrandAnalytics(
     supabase,
     user.id,
-    brandProfileId,
+    subscription.brand_id,
     subscription.current_period_start,
     subscription.current_period_end
   )

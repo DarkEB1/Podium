@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database'
 import { getSenderDisplayNames } from '@/lib/supabase/connections'
+import { TIER_NAMES, isTier } from '@/lib/entitlements'
 
 /**
  * Shared name / URL / formatting helpers for wiring domain events to the
@@ -50,9 +51,9 @@ export function nameOf(
   return names[userId] ?? fallback
 }
 
-/** Subscription tier number -> human label, mirroring app/(public)/pricing/page.tsx. */
+/** Subscription tier number -> human label, from the shared tier config (lib/entitlements). */
 export function tierName(tier: number): string {
-  return `Tier ${tier}`
+  return isTier(tier) ? TIER_NAMES[tier] : `Tier ${tier}`
 }
 
 /**
