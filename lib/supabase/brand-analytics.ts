@@ -16,6 +16,8 @@ const AUDIENCE_KEYS = ['instagram_followers', 'tiktok_followers', 'youtube_subsc
 /** Reach for one athlete = the largest single-platform follower/subscriber count on file. */
 export function audienceOf(social: unknown): number {
   if (!social || typeof social !== 'object') return 0
+  // as Record: the typeof guard above proves this is a plain object; the shape
+  // of athlete_profiles.social_accounts (jsonb) isn't otherwise known statically.
   const rec = social as Record<string, unknown>
   let max = 0
   for (const k of AUDIENCE_KEYS) {
@@ -99,6 +101,8 @@ export async function getBrandAnalytics(
     .gte('created_at', periodStart)
     .lte('created_at', periodEnd)
   if (reqErr) throw reqErr
+  // as Array<...>: db is the untyped cast from Client (see above), so the
+  // projection's shape has to be asserted; it matches the select() list exactly.
   const reqRows = (reqs ?? []) as Array<ReqRow & { recipient_id: string }>
 
   // 2. Distinct matches messaged in-period
