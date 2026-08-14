@@ -2,6 +2,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 
+import { AccentHeading } from '@/components/ui/accent-heading'
 import { buttonVariants } from '@/components/ui/button'
 import { isRemoteImageSrc } from '@/components/ui/image-src'
 import { LevelChip, VerifiedBadge } from '@/components/ui/status-badges'
@@ -72,7 +73,7 @@ export default function TeamProfileDetail({
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-12 px-6 py-12 md:px-16 md:py-16">
+    <div className="mx-auto max-w-3xl space-y-12 px-6 py-12 md:px-16 md:py-16">
       <Link href={backHref} className={buttonVariants({ variant: 'ghost', size: 'sm' })}>
         <ArrowLeft className="size-4" aria-hidden="true" />
         {backLabel}
@@ -89,9 +90,9 @@ export default function TeamProfileDetail({
           className="size-28 shrink-0 rounded-2xl object-cover"
         />
         <div className="min-w-0 space-y-3">
-          <h1 className="font-heading text-display font-extrabold tracking-tight text-foreground">
+          <AccentHeading as="h1" className="text-display">
             {name}
-          </h1>
+          </AccentHeading>
           <p className="text-medium text-muted-foreground">
             {[sport, level, location].filter(Boolean).join(' · ') || 'Team on Podium'}
           </p>

@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { buttonVariants } from '@/components/ui/button'
+import { AccentHeading } from '@/components/ui/accent-heading'
+import { cn } from '@/lib/utils'
 import { ROUTES } from '@/lib/routes'
 
 export const metadata: Metadata = {
@@ -23,19 +25,21 @@ export default async function UnsubscribedPage({
   const failed = error === 'invalid'
 
   return (
-    <main className="mx-auto flex min-h-[60vh] max-w-md flex-col items-center justify-center px-6 text-center">
-      <h1 className="font-heading text-2xl font-bold text-foreground">
-        {failed ? 'That link didn’t work' : 'You’re unsubscribed'}
-      </h1>
-      <p className="mt-3 text-medium text-muted-foreground">
-        {failed
-          ? 'This unsubscribe link is invalid or has already been used. You can manage every email preference from your settings.'
-          : 'You will no longer receive marketing emails from Podium. You can fine-tune every notification, including which service emails you receive, from your settings at any time.'}
-      </p>
-      <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-        <Link href={ROUTES.auth.signIn} className={buttonVariants()}>
-          Go to Podium
-        </Link>
+    <main className="flex min-h-screen items-center justify-center bg-background px-6 py-16">
+      <div className="mx-auto w-full max-w-md">
+        <div className="rounded-2xl border border-border bg-card p-8 shadow-card">
+          <AccentHeading as="h1" className="text-display">
+            {failed ? 'That link didn’t work' : 'You’re unsubscribed'}
+          </AccentHeading>
+          <p className="mt-3 text-medium text-muted-foreground">
+            {failed
+              ? 'This unsubscribe link is invalid or has already been used. You can manage every email preference from your settings.'
+              : 'You will no longer receive marketing emails from Podium. You can fine-tune every notification, including which service emails you receive, from your settings at any time.'}
+          </p>
+          <Link href={ROUTES.auth.signIn} className={cn(buttonVariants(), 'mt-8')}>
+            Go to Podium
+          </Link>
+        </div>
       </div>
     </main>
   )

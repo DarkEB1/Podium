@@ -4,6 +4,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { isTwoFactorEnabled } from '@/lib/supabase/two-factor'
 import TwoFactorChallenge from '@/components/admin/two-factor-challenge'
+import { AccentHeading } from '@/components/ui/accent-heading'
 import { ROUTES, ROLE_DASHBOARD } from '@/lib/routes'
 import type { AppRole } from '@/lib/routes'
 
@@ -26,12 +27,16 @@ export default async function UserTwoFactorPage() {
   if (!(await isTwoFactorEnabled(createAdminClient(), user.id))) redirect(home)
 
   return (
-    <main className="mx-auto max-w-md px-6 py-16 md:py-24">
-      <h1 className="font-heading text-display font-extrabold tracking-tight text-foreground">
-        Two-factor authentication
-      </h1>
-      <div className="mt-6">
-        <TwoFactorChallenge verifyPath="/api/account/2fa/verify" redirectPath={home} />
+    <main className="flex min-h-screen items-center justify-center bg-background px-6 py-16">
+      <div className="mx-auto w-full max-w-md">
+        <div className="rounded-2xl border border-border bg-card p-8 shadow-card">
+          <AccentHeading as="h1" className="text-display">
+            Two-factor authentication
+          </AccentHeading>
+          <div className="mt-6">
+            <TwoFactorChallenge verifyPath="/api/account/2fa/verify" redirectPath={home} />
+          </div>
+        </div>
       </div>
     </main>
   )

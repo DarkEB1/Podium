@@ -39,7 +39,7 @@ export default function StatStrip({ stats, className }: StatStripProps) {
           <li
             key={stat.label}
             className={cn(
-              'rounded-2xl border border-border bg-card p-8',
+              'rounded-2xl border border-border bg-card p-5 sm:p-8',
               'shadow-sm transition-[transform,box-shadow] duration-200 ease-out',
               'hover:-translate-y-0.5 hover:shadow-card active:scale-[0.99]',
               'motion-reduce:transform-none motion-reduce:transition-none',

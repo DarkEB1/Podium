@@ -18,7 +18,7 @@ export default async function AdminAnalyticsPage() {
   const a = await getPlatformAnalytics(createAdminClient())
 
   return (
-    <div className="mx-auto max-w-4xl px-6 py-10 md:px-16">
+    <div className="mx-auto max-w-5xl space-y-12 px-6 py-12 md:px-16 md:py-16">
       <div className="space-y-3">
         <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Admin · Analytics</p>
         <AccentHeading as="h1" className="text-display">Analytics</AccentHeading>

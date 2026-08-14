@@ -74,7 +74,7 @@ export default async function AgentClientsPage() {
   })
 
   return (
-    <div className="mx-auto max-w-6xl space-y-10 px-6 py-12 md:px-16 md:py-16">
+    <div className="mx-auto max-w-6xl space-y-12 px-6 py-12 md:px-16 md:py-16">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <AccentHeading as="h1" className="text-display">

@@ -33,7 +33,7 @@ export default function Footer() {
   return (
     <>
       <footer className="border-t border-border bg-background py-14">
-        <div className="mx-auto max-w-6xl px-6 md:px-10">
+        <div className="mx-auto max-w-7xl px-6 md:px-16">
           <div className="grid gap-10 sm:grid-cols-2 md:grid-cols-4">
             <div>
               <span className="font-heading text-xl font-extrabold tracking-tight text-foreground">

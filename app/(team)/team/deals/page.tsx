@@ -23,7 +23,7 @@ export default async function TeamDealsPage() {
   const history = received.filter((p) => p.status !== 'pending')
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-12 space-y-12 md:px-8">
+    <div className="mx-auto max-w-3xl space-y-12 px-6 py-12 md:px-16 md:py-16">
       <div>
         <AccentHeading as="h1" className="text-display">Deals</AccentHeading>
         <p className="mt-3 text-medium text-muted-foreground">Proposals and contracts from brands</p>

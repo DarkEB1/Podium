@@ -7,6 +7,7 @@ export type ThemeProviderProps = React.ComponentProps<typeof NextThemesProvider>
 
 /**
  * ThemeProvider — the single mount point for next-themes.
+ * Default light, explicit dark via toggle.
  *
  * NX-2: dark mode was dead because (a) the root layout pinned
  * `forcedTheme="light"`, and (b) Tailwind 4 resolves `dark:` from
@@ -25,8 +26,8 @@ export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
   return (
     <NextThemesProvider
       attribute="class"
-      defaultTheme="system"
-      enableSystem
+      defaultTheme="light"
+      enableSystem={false}
       disableTransitionOnChange
       storageKey="podium-theme"
       {...props}

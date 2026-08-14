@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import SignOutButton from '@/components/auth/sign-out-button'
+import { AccentHeading } from '@/components/ui/accent-heading'
 
 interface SettingsShellProps {
   sections: { id: string; label: string }[]
@@ -31,9 +32,7 @@ export default function SettingsShell({
         className,
       )}
     >
-      <h1 className="font-heading text-display font-semibold tracking-tight text-foreground">
-        Settings
-      </h1>
+      <AccentHeading as="h1" className="text-display">Settings</AccentHeading>
       <div className="mt-10 grid gap-10 md:grid-cols-[16rem_1fr]">
         <nav
           aria-label="Settings sections"

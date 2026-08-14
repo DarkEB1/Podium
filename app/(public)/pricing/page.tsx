@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { Check } from 'lucide-react'
 
 import { buttonVariants } from '@/components/ui/button'
+import { AccentHeading } from '@/components/ui/accent-heading'
 import { cn } from '@/lib/utils'
 import { ROUTES } from '@/lib/routes'
 import Footer from '@/components/layout/footer'
@@ -85,9 +86,9 @@ export default function PricingPage() {
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             Pricing
           </p>
-          <h1 className="mt-6 max-w-[18ch] font-heading text-4xl font-extrabold leading-[1.0] tracking-[-0.03em] text-foreground sm:text-5xl md:text-6xl">
+          <AccentHeading as="h1" className="mt-6 max-w-[18ch] text-display">
             Free for talent. <span className="text-primary">Simple</span> for brands.
-          </h1>
+          </AccentHeading>
           <p className="mt-6 max-w-[52ch] text-lg leading-relaxed text-muted-foreground">
             Athletes, teams and agents never pay a penny. Brands cover the cost of the
             marketplace with a straightforward monthly subscription.

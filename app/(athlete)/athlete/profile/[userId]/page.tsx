@@ -107,7 +107,7 @@ export default async function AthletePublicProfilePage({
         availability={availability}
       />
 
-      <div className="mx-auto mt-12 max-w-7xl space-y-16 px-6 md:px-16">
+      <div className="mx-auto mt-12 max-w-5xl space-y-16 px-6 md:px-16">
         <ProfileStatStrip
           followers={readStat(profile.performance_stats, 'followers')}
           engagement={readStat(profile.performance_stats, 'engagement')}

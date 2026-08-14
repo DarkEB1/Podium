@@ -6,6 +6,7 @@ import { getOwnProfile } from '@/lib/supabase/profiles'
 import { createTeamProfile } from '@/lib/supabase/teams'
 import { Card, CardContent } from '@/components/ui/card'
 import TeamProfileForm from '@/components/team/team-profile-form'
+import { AccentHeading } from '@/components/ui/accent-heading'
 import type { Database } from '@/types/database'
 
 /**
@@ -57,7 +58,7 @@ export default async function TeamOnboardingPage() {
   return (
     <div className="mx-auto w-full max-w-2xl px-6 py-12 md:px-16 md:py-16">
       <header className="mb-10">
-        <h1 className="text-display text-foreground">Create your team profile</h1>
+        <AccentHeading as="h1" className="text-display">Create your team profile</AccentHeading>
         <p className="mt-3 text-medium text-muted-foreground">
           Tell sponsors who you are and what you&rsquo;re looking for. You can
           refine everything later.

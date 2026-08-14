@@ -681,10 +681,10 @@ export default function SettingsForm({
               <ul className="mt-2 space-y-1 text-small text-muted-foreground">
                 {actionPhotos.map((url, i) => (
                   <li key={url} className="flex items-center justify-between gap-2">
-                    <span className="truncate">Photo {i + 1}</span>
+                    <span className="truncate min-w-0">Photo {i + 1}</span>
                     <button
                       type="button"
-                      className="text-destructive hover:underline"
+                      className="shrink-0 text-destructive hover:underline"
                       onClick={() => setActionPhotos((prev) => prev.filter((p) => p !== url))}
                     >
                       Remove
@@ -720,7 +720,7 @@ export default function SettingsForm({
               <ul className="mt-2 space-y-1 text-small text-muted-foreground">
                 {videos.map((url) => (
                   <li key={url} className="flex items-center justify-between gap-2">
-                    <span className="truncate">{url}</span>
+                    <span className="truncate min-w-0">{url}</span>
                     <button
                       type="button"
                       className="text-destructive hover:underline"
@@ -754,12 +754,12 @@ export default function SettingsForm({
               <ul className="mb-2 space-y-1 text-small">
                 {Object.entries(stats).map(([k, v]) => (
                   <li key={k} className="flex items-center justify-between gap-2">
-                    <span>
+                    <span className="min-w-0 break-words">
                       <span className="text-muted-foreground">{k}:</span> {v}
                     </span>
                     <button
                       type="button"
-                      className="text-destructive hover:underline"
+                      className="shrink-0 text-destructive hover:underline"
                       onClick={() =>
                         setStats((prev) => {
                           const next = { ...prev }
@@ -774,18 +774,20 @@ export default function SettingsForm({
                 ))}
               </ul>
             )}
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <Input
                 aria-label="Stat label"
                 placeholder="Label (e.g. 100m PB)"
                 value={statLabel}
                 onChange={(e) => setStatLabel(e.target.value)}
+                className="flex-1 min-w-0"
               />
               <Input
                 aria-label="Stat value"
                 placeholder="Value (e.g. 10.4s)"
                 value={statValue}
                 onChange={(e) => setStatValue(e.target.value)}
+                className="flex-1 min-w-0"
               />
               <Button type="button" variant="outline" onClick={addStat}>
                 Add

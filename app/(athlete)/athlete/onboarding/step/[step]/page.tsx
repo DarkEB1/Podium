@@ -5,6 +5,7 @@ import { getUser } from '@/lib/supabase/auth'
 import { getOwnProfile } from '@/lib/supabase/profiles'
 import ProfileWizard from '@/components/athlete/profile-wizard'
 import TrackOnboardingStep from '@/components/analytics/track-onboarding-step'
+import { AccentHeading } from '@/components/ui/accent-heading'
 import type { Database } from '@/types/database'
 
 /**
@@ -55,7 +56,7 @@ export default async function OnboardingStepPage({
         <p className="text-small font-medium uppercase tracking-[0.18em] text-muted-foreground">
           Set up your profile
         </p>
-        <h1 className="text-display text-foreground">{STEP_TITLES[step]}</h1>
+        <AccentHeading as="h1" className="text-display">{STEP_TITLES[step]}</AccentHeading>
       </header>
       <ProfileWizard step={step} profile={profile} />
     </div>

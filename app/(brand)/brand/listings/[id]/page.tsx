@@ -48,7 +48,7 @@ export default async function EditListingPage({
   if (!listing || listing.brand_id !== profile.id) redirect('/brand/listings')
 
   return (
-    <div className="mx-auto max-w-3xl space-y-10 px-6 py-12 md:px-16 md:py-16">
+    <div className="mx-auto max-w-3xl space-y-12 px-6 py-12 md:px-16 md:py-16">
       <AccentHeading as="h1" className="text-display">
         Edit listing
       </AccentHeading>

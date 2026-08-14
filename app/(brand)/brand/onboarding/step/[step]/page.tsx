@@ -6,6 +6,7 @@ import { getOwnProfile } from '@/lib/supabase/profiles'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import BrandProfileForm from '@/components/brand/brand-profile-form'
 import TrackOnboardingStep from '@/components/analytics/track-onboarding-step'
+import { AccentHeading } from '@/components/ui/accent-heading'
 import type { Database } from '@/types/database'
 
 /**
@@ -49,11 +50,17 @@ export default async function BrandOnboardingStepPage({
   if (profile?.status === 'active') redirect('/brand/dashboard')
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
+    <div className="mx-auto w-full max-w-2xl px-6 py-12 md:px-16 md:py-16">
       <TrackOnboardingStep role="brand" step={step} />
-      <Card className="w-full max-w-xl">
+      <header className="mb-10 space-y-2">
+        <p className="text-small font-medium uppercase tracking-[0.18em] text-muted-foreground">
+          Set up your brand
+        </p>
+        <AccentHeading as="h1" className="text-display">{STEP_TITLES[step]}</AccentHeading>
+      </header>
+      <Card className="w-full">
         <CardHeader>
-          <CardTitle>Set up your brand: {STEP_TITLES[step]}</CardTitle>
+          <CardTitle className="text-large">{STEP_TITLES[step]}</CardTitle>
         </CardHeader>
         <CardContent>
           <BrandProfileForm step={step} profile={profile} />

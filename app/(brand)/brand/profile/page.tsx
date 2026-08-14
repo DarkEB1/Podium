@@ -108,7 +108,7 @@ export default async function BrandProfilePage() {
         <dl className="grid gap-4 sm:grid-cols-2">
           <div>
             <dt className="text-small text-muted-foreground">Website</dt>
-            <dd className="text-medium text-foreground">{profile.website_url ?? 'Not set'}</dd>
+            <dd className="truncate text-medium text-foreground">{profile.website_url ?? 'Not set'}</dd>
           </div>
           <div>
             <dt className="text-small text-muted-foreground">LinkedIn</dt>

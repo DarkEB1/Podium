@@ -32,7 +32,7 @@ export default async function AdminListingsPage({
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-12 space-y-12 md:px-8">
+    <div className="mx-auto max-w-5xl space-y-12 px-6 py-12 md:px-16 md:py-16">
       <div className="space-y-3">
         <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Admin · Listings</p>
         <AccentHeading as="h1" className="text-display">Listings</AccentHeading>
@@ -63,18 +63,18 @@ export default async function AdminListingsPage({
         <ul className="divide-y rounded-xl border">
           {listings.map((l) => (
             <li key={l.id} className="flex items-center justify-between px-4 py-3">
-              <div>
-                <p className="font-medium">{l.title}</p>
-                <p className="text-xs text-muted-foreground">
+              <div className="min-w-0">
+                <p className="truncate font-medium">{l.title}</p>
+                <p className="truncate text-xs text-muted-foreground">
                   {[l.type.replace(/_/g, ' '), l.sport_required, l.location]
                     .filter(Boolean)
                     .join(' · ')}
                 </p>
-                <p className="text-xs text-muted-foreground">
+                <p className="truncate text-xs text-muted-foreground">
                   Created {new Date(l.created_at).toLocaleDateString()}
                 </p>
               </div>
-              <StatusBadge status={l.status} />
+              <StatusBadge status={l.status} className="shrink-0" />
             </li>
           ))}
         </ul>

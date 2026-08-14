@@ -33,7 +33,7 @@ export default async function TeamRequestsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-10 px-6 py-12 md:px-16 md:py-16">
+    <div className="mx-auto max-w-3xl space-y-12 px-6 py-12 md:px-16 md:py-16">
       <div>
         <AccentHeading as="h1" className="text-display">Connection requests</AccentHeading>
         <p className="mt-3 text-medium text-muted-foreground">{requests.length} pending</p>

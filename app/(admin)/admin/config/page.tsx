@@ -41,7 +41,7 @@ export default async function AdminConfigPage() {
   }))
 
   return (
-    <div className="mx-auto max-w-4xl px-6 py-10 md:px-16">
+    <div className="mx-auto max-w-4xl px-6 py-12 md:px-16 md:py-16">
       <div className="space-y-3">
         <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Admin · Configuration</p>
         <AccentHeading as="h1" className="text-display">System configuration</AccentHeading>

@@ -33,7 +33,7 @@ export default async function NewListingPage({
   // No duplicate source — plain create via the canonical ListingForm.
   if (!from) {
     return (
-      <div className="mx-auto max-w-3xl space-y-10 px-6 py-12 md:px-16 md:py-16">
+      <div className="mx-auto max-w-3xl space-y-12 px-6 py-12 md:px-16 md:py-16">
         <AccentHeading as="h1" className="text-display">
           Create a listing
         </AccentHeading>
@@ -57,7 +57,7 @@ export default async function NewListingPage({
   // Only allow duplicating the brand's own listings; otherwise fall back to a blank create.
   if (!source || source.brand_id !== profile.id) {
     return (
-      <div className="mx-auto max-w-3xl space-y-10 px-6 py-12 md:px-16 md:py-16">
+      <div className="mx-auto max-w-3xl space-y-12 px-6 py-12 md:px-16 md:py-16">
         <AccentHeading as="h1" className="text-display">
           Create a listing
         </AccentHeading>

@@ -22,7 +22,7 @@ export default async function AdminVerificationPage() {
   const pending = await listPendingVerifications(createAdminClient())
 
   return (
-    <div className="mx-auto max-w-4xl px-6 py-10 md:px-16">
+    <div className="mx-auto max-w-4xl px-6 py-12 md:px-16 md:py-16">
       <div className="space-y-3">
         <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Admin · Verification</p>
         <AccentHeading as="h1" className="text-display">Verification queue</AccentHeading>
@@ -30,7 +30,7 @@ export default async function AdminVerificationPage() {
       </div>
 
       {pending.length === 0 ? (
-        <p className="mt-8 text-medium text-muted-foreground">Nothing to review right now.</p>
+        <p className="mt-8 py-12 text-center text-medium text-muted-foreground">Nothing to review right now.</p>
       ) : (
         <ul className="mt-8 divide-y divide-border rounded-xl border border-border">
           {pending.map((r) => (

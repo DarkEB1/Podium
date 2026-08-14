@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { createProfile, getOwnProfile, publishProfile } from '@/lib/supabase/profiles'
+import { AccentHeading } from '@/components/ui/accent-heading'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -74,9 +75,9 @@ export default async function AgentOnboardingPage() {
         <p className="text-small font-medium uppercase tracking-[0.18em] text-muted-foreground">
           Set up your agency
         </p>
-        <h1 className="font-heading text-display font-extrabold tracking-tight text-foreground">
+        <AccentHeading as="h1" className="text-display">
           Tell us about your agency
-        </h1>
+        </AccentHeading>
         <p className="text-medium text-muted-foreground">
           This is how athletes, teams and brands see you on Podium. You can refine everything later
           from your profile.

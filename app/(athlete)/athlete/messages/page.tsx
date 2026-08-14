@@ -21,7 +21,7 @@ export default async function AthleteMessagesPage() {
   const conversations = await getConversations(supabase, user.id)
 
   return (
-    <div className="mx-auto max-w-2xl space-y-10 px-6 py-12 md:px-16 md:py-16">
+    <div className="mx-auto max-w-3xl space-y-12 px-6 py-12 md:px-16 md:py-16">
       <header className="space-y-2">
         <AccentHeading as="h1" className="text-display">Messages</AccentHeading>
         <p className="text-medium text-muted-foreground">Your conversations with brands and agents.</p>

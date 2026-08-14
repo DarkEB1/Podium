@@ -341,7 +341,7 @@ function Step2({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormField control={form.control} name="primary_sport" render={({ field }) => (
             <FormItem>
               <FormLabel>Primary sport</FormLabel>
@@ -444,7 +444,7 @@ function Step2({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
             <FormMessage />
           </FormItem>
         )} />
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <FormField control={form.control} name="years_active" render={({ field }) => (
             <FormItem>
               <FormLabel>Years active</FormLabel>

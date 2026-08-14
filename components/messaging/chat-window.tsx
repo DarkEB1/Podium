@@ -204,8 +204,8 @@ export default function ChatWindow({
     // PR-18: `min-w-0` on every column in this stack. Without it a flex child
     // resolves min-width to its content width, and one long unbroken message or
     // a wide composer pushes the whole conversation off-screen.
-    <div className="flex h-[calc(100vh-8rem)] min-w-0 flex-col">
-      <div className="flex-1 min-w-0 space-y-4 overflow-y-auto overflow-x-hidden px-6 py-8">
+    <div className="flex min-h-0 flex-1 min-w-0 flex-col">
+      <div className="min-h-0 flex-1 min-w-0 space-y-4 overflow-y-auto overflow-x-hidden px-6 py-8">
         {messages.length === 0 && !otherTyping ? (
           <EmptyState
             variant="emptyInbox"

@@ -7,6 +7,7 @@ import { getMessages } from '@/lib/supabase/messaging'
 import { getProposals } from '@/lib/supabase/deals'
 import { buttonVariants } from '@/components/ui/button'
 import ChatWindow from '@/components/messaging/chat-window'
+import ChatPageShell from '@/components/layout/chat-page-shell'
 import type { Database } from '@/types/database'
 
 /**
@@ -51,8 +52,8 @@ export default async function AthleteChatPage({
   }
 
   return (
-    <div className="mx-auto flex h-screen max-w-2xl flex-col">
-      <div className="flex items-center gap-3 border-b border-border px-6 py-4 md:px-16">
+    <ChatPageShell>
+      <div className="flex items-center gap-3 border-b border-border px-6 py-4">
         <Link href="/athlete/messages" className={buttonVariants({ variant: 'ghost', size: 'sm' })}>
           ←
         </Link>
@@ -65,6 +66,6 @@ export default async function AthleteChatPage({
         currentUserId={user.id}
         viewerRole="athlete"
       />
-    </div>
+    </ChatPageShell>
   )
 }

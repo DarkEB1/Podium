@@ -4,7 +4,6 @@ import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getOwnProfile } from '@/lib/supabase/profiles'
 import SettingsForm from '@/components/athlete/settings-form'
-import { AccentHeading } from '@/components/ui/accent-heading'
 import type { Database } from '@/types/database'
 
 /**
@@ -28,13 +27,9 @@ export default async function AthleteSettingsPage() {
   const profile = (await getOwnProfile(supabase, user.id, 'athlete')) as AthleteRow | null
   if (!profile) redirect('/athlete/onboarding')
 
-  return (
-    <div className="mx-auto max-w-2xl space-y-10 px-6 py-12 md:px-16 md:py-16">
-      <header className="space-y-2">
-        <AccentHeading as="h1" className="text-display">Settings</AccentHeading>
-        <p className="text-medium text-muted-foreground">Manage your profile, visibility, notifications and account.</p>
-      </header>
-      <SettingsForm profile={profile} />
-    </div>
-  )
+  // SettingsForm renders SettingsShell, which owns the page container, the
+  // "Settings" H1, the section nav and Sign-out. Wrapping it in an extra
+  // max-w-2xl container (as this page used to) squished the shell's two-column
+  // grid and duplicated the heading — the double-wrap defect.
+  return <SettingsForm profile={profile} />
 }

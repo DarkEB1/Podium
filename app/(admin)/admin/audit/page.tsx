@@ -18,7 +18,7 @@ export default async function AdminAuditPage() {
   const logs = await getAuditLogs(createAdminClient(), { limit: 100 })
 
   return (
-    <div className="mx-auto max-w-4xl px-6 py-10 md:px-16">
+    <div className="mx-auto max-w-4xl px-6 py-12 md:px-16 md:py-16">
       <div className="space-y-3">
         <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Admin · Audit log</p>
         <AccentHeading as="h1" className="text-display">Audit log</AccentHeading>
@@ -26,7 +26,7 @@ export default async function AdminAuditPage() {
       </div>
 
       {logs.length === 0 ? (
-        <p className="mt-8 text-medium text-muted-foreground">No audit entries yet.</p>
+        <p className="mt-8 py-12 text-center text-medium text-muted-foreground">No audit entries yet.</p>
       ) : (
         <ul className="mt-8 divide-y divide-border rounded-xl border border-border">
           {logs.map((l) => (

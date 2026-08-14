@@ -51,7 +51,7 @@ export default async function BrandProposalDetailPage({
   }).format(proposal.pay_amount)
 
   return (
-    <div className="mx-auto max-w-2xl px-6 py-12 space-y-12 md:px-8">
+    <div className="mx-auto max-w-2xl space-y-12 px-6 py-12 md:px-16 md:py-16">
       <div className="flex items-center gap-3">
         <Link href="/brand/deals" className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }))}>
           ← Back
@@ -66,19 +66,19 @@ export default async function BrandProposalDetailPage({
           </span>
         </div>
 
-        <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+        <dl className="grid grid-cols-1 gap-y-2 text-sm sm:grid-cols-2 sm:gap-x-4">
           <dt className="text-muted-foreground">Compensation</dt>
-          <dd className="font-medium">{amount} · {payLabel}</dd>
+          <dd className="min-w-0 break-words font-medium">{amount} · {payLabel}</dd>
           {proposal.timeline_start && (
             <>
               <dt className="text-muted-foreground">Timeline</dt>
-              <dd>{proposal.timeline_start}{proposal.timeline_end ? ` → ${proposal.timeline_end}` : ''}</dd>
+              <dd className="min-w-0 break-words">{proposal.timeline_start}{proposal.timeline_end ? ` → ${proposal.timeline_end}` : ''}</dd>
             </>
           )}
           {proposal.additional_terms && (
             <>
               <dt className="text-muted-foreground">Additional terms</dt>
-              <dd>{proposal.additional_terms}</dd>
+              <dd className="min-w-0 break-words">{proposal.additional_terms}</dd>
             </>
           )}
         </dl>
@@ -91,19 +91,19 @@ export default async function BrandProposalDetailPage({
       {contract && (
         <div className="rounded-xl border bg-card p-6 space-y-4">
           <h2 className="font-semibold">Contract</h2>
-          <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+          <dl className="grid grid-cols-1 gap-y-2 text-sm sm:grid-cols-2 sm:gap-x-4">
             <dt className="text-muted-foreground">Status</dt>
-            <dd className="capitalize">{contract.status.replace(/_/g, ' ')}</dd>
+            <dd className="min-w-0 break-words capitalize">{contract.status.replace(/_/g, ' ')}</dd>
             {contract.brand_signed_at && (
               <>
                 <dt className="text-muted-foreground">Your signature</dt>
-                <dd>{new Date(contract.brand_signed_at).toLocaleDateString()}</dd>
+                <dd className="min-w-0 break-words">{new Date(contract.brand_signed_at).toLocaleDateString()}</dd>
               </>
             )}
             {contract.athlete_signed_at && (
               <>
                 <dt className="text-muted-foreground">Athlete signature</dt>
-                <dd>{new Date(contract.athlete_signed_at).toLocaleDateString()}</dd>
+                <dd className="min-w-0 break-words">{new Date(contract.athlete_signed_at).toLocaleDateString()}</dd>
               </>
             )}
           </dl>
