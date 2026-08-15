@@ -10,7 +10,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
-import { ROUTES } from '@/lib/routes'
+import { ROUTES, ROLE_DASHBOARD } from '@/lib/routes'
 
 /**
  * Shared per-role navigation config (spec §2.5). Single source of truth for the
@@ -105,18 +105,30 @@ const NAV_ITEMS: Record<NavRole, readonly NavItem[]> = {
  * is role-scoped so it is unambiguous which route group it lands in.
  */
 const ROLE_CTA: Record<NavRole, RoleCta> = {
-  // Athletes and teams edit their profile from Settings — that page hosts the
-  // profile form, so the CTA points there rather than at a non-existent
-  // `/athlete/profile/edit`.
-  athlete: { label: 'Edit Profile', href: ROUTES.athlete.settings },
+  // DASH1b: this CTA lands on the role's Settings page (which hosts the profile
+  // form), so it is labelled "Settings" rather than "Edit Profile". The old
+  // label collided with the "Profile" nav item — which points at the *public*
+  // profile — and read as if it were a second way to reach it.
+  athlete: { label: 'Settings', href: ROUTES.athlete.settings },
   brand: { label: 'Post a Listing', href: ROUTES.brand.listingsNew },
-  team: { label: 'Edit Profile', href: ROUTES.team.settings },
+  team: { label: 'Settings', href: ROUTES.team.settings },
   agent: { label: 'Add Client', href: ROUTES.agent.clientsNew },
 }
 
 /** The four top-level destinations for a role. */
 export function navItemsForRole(role: NavRole): readonly NavItem[] {
   return NAV_ITEMS[role]
+}
+
+/**
+ * The wordmark's home destination — always the role's dashboard (DASH1). The
+ * dashboard is not one of the four top-level nav slots for most roles, so
+ * pointing the logo at it is what keeps the dashboard reachable from every page
+ * and gives a consistent "back to home" affordance (it previously linked to the
+ * first nav item, i.e. Discover, orphaning the dashboard).
+ */
+export function homeForRole(role: NavRole): string {
+  return ROLE_DASHBOARD[role]
 }
 
 /** The single persistent CTA for a role. */

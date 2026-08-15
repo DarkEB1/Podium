@@ -61,6 +61,7 @@ export default async function AthleteDiscoverPage({
       <ListingsBrowser
         listings={ranked}
         initialMode={mode}
+        athleteSport={athlete?.primary_sport ?? null}
         {...(hasMore
           ? {
               footer: (

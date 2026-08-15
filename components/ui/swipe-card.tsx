@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Image from "next/image"
-import { Check, X } from "lucide-react"
+import { Check, X, type LucideIcon } from "lucide-react"
 import {
   animate,
   motion,
@@ -35,6 +35,14 @@ export interface SwipeCardProps {
   /** Copy for the two actions; also used as the buttons' accessible names. */
   passLabel?: string
   likeLabel?: string
+  /**
+   * Icon for the "like" action. Defaults to a check. Surfaces where the action
+   * is a save/shortlist (not an application) pass a bookmark so the control does
+   * not read as "apply" (DISC8).
+   */
+  likeIcon?: LucideIcon
+  /** Render the pass/like labels as visible captions under the buttons (DISC8). */
+  showActionLabels?: boolean
   blurDataURL?: string
   /** L1: 0→1 drag magnitude the deck reads to grow the peek card toward the
    *  outgoing one. Written by this card, owned by SwipeDeck. */
@@ -84,10 +92,13 @@ export function SwipeCard({
   onSwipe,
   passLabel = "Pass",
   likeLabel = "Interested",
+  likeIcon,
+  showActionLabels = false,
   blurDataURL,
   dragProgress,
   className,
 }: SwipeCardProps) {
+  const LikeIcon = likeIcon ?? Check
   const prefersReducedMotion = useReducedMotion()
   const articleRef = React.useRef<HTMLElement | null>(null)
   // Guards against a second commit (double key press / button while flinging).
@@ -242,23 +253,37 @@ export function SwipeCard({
         ) : null}
         {tags ? <div className="flex flex-wrap gap-1">{tags}</div> : null}
 
-        <div className="mt-2 flex items-center justify-center gap-4">
-          <button
-            type="button"
-            aria-label={passLabel}
-            onClick={() => commit("left")}
-            className="inline-flex size-12 items-center justify-center rounded-full border border-border bg-card text-destructive shadow-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-          >
-            <X aria-hidden="true" className="size-5" />
-          </button>
-          <button
-            type="button"
-            aria-label={likeLabel}
-            onClick={() => commit("right")}
-            className="inline-flex size-12 items-center justify-center rounded-full border border-border bg-card text-success shadow-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-          >
-            <Check aria-hidden="true" className="size-5" />
-          </button>
+        <div className="mt-2 flex items-start justify-center gap-6">
+          <div className="flex flex-col items-center gap-1">
+            <button
+              type="button"
+              aria-label={passLabel}
+              onClick={() => commit("left")}
+              className="inline-flex size-12 items-center justify-center rounded-full border border-border bg-card text-destructive shadow-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
+              <X aria-hidden="true" className="size-5" />
+            </button>
+            {showActionLabels ? (
+              <span aria-hidden="true" className="text-small text-muted-foreground">
+                {passLabel}
+              </span>
+            ) : null}
+          </div>
+          <div className="flex flex-col items-center gap-1">
+            <button
+              type="button"
+              aria-label={likeLabel}
+              onClick={() => commit("right")}
+              className="inline-flex size-12 items-center justify-center rounded-full border border-border bg-card text-success shadow-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
+              <LikeIcon aria-hidden="true" className="size-5" />
+            </button>
+            {showActionLabels ? (
+              <span aria-hidden="true" className="text-small text-muted-foreground">
+                {likeLabel}
+              </span>
+            ) : null}
+          </div>
         </div>
       </div>
     </motion.article>

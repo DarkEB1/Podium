@@ -105,4 +105,52 @@ describe('MatchList', () => {
     expect(screen.getByText(/your inbox is quiet/i)).toBeInTheDocument()
     expect(screen.getByText(/accept a connection request/i)).toBeInTheDocument()
   })
+
+  it('hides the search and sort controls when the inbox is empty (MSG2)', () => {
+    render(<MatchList conversations={[]} basePath="/athlete/messages" />)
+    expect(screen.queryByRole('searchbox', { name: /search conversations/i })).toBeNull()
+    expect(screen.queryByLabelText(/sort conversations/i)).toBeNull()
+  })
+
+  it('renders the empty-inbox actions passed by the surface (MSG1)', () => {
+    render(
+      <MatchList
+        conversations={[]}
+        basePath="/athlete/messages"
+        emptyInbox={{
+          description: 'When you accept a request from a brand or agent, your conversation appears here.',
+          primaryAction: { label: 'View connection requests', href: '/athlete/requests' },
+          secondaryAction: { label: 'Discover brands', href: '/athlete/discover' },
+        }}
+      />
+    )
+    expect(
+      screen.getByText(/when you accept a request from a brand or agent/i)
+    ).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /view connection requests/i })).toHaveAttribute(
+      'href',
+      '/athlete/requests'
+    )
+    expect(screen.getByRole('link', { name: /discover brands/i })).toHaveAttribute(
+      'href',
+      '/athlete/discover'
+    )
+  })
+
+  it('shows a distinct no-match state naming the query, with a clear-search action (MSG2)', async () => {
+    const user = userEvent.setup()
+    render(<MatchList conversations={convos} basePath="/athlete/messages" />)
+
+    const search = screen.getByRole('searchbox', { name: /search conversations/i })
+    await user.type(search, 'zzz-nobody')
+
+    // distinct copy that quotes the query — not the generic "inbox is quiet"
+    expect(screen.getByText(/no conversations match 'zzz-nobody'/i)).toBeInTheDocument()
+    expect(screen.queryByText(/your inbox is quiet/i)).toBeNull()
+    expect(screen.queryByTestId('conversation-name')).toBeNull()
+
+    // clearing the search restores the full list
+    await user.click(screen.getByRole('button', { name: /clear search/i }))
+    expect(names()).toEqual(['Bob Brand', 'Alice Archer'])
+  })
 })

@@ -84,9 +84,10 @@ describe('ProfileStatStrip', () => {
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
   })
 
-  // Followers/engagement were permanently "Not set" because nothing wrote the
-  // performance_stats keys — the owner now gets a way to fix it in place.
-  it('gives the owner an "Add socials" link when audience metrics are missing', () => {
+  // PROF3: an empty audience metric shows a neutral dash in the value slot, not
+  // a CTA. The owner gets a single de-duplicated helper beneath the strip
+  // (previously the identical "Add socials" link filled both value slots).
+  it('shows dashes and one owner helper when audience metrics are missing', () => {
     render(
       <ProfileStatStrip
         followers={null}
@@ -97,9 +98,25 @@ describe('ProfileStatStrip', () => {
         settingsHref="/athlete/settings#profile"
       />,
     )
-    const links = screen.getAllByRole('link', { name: 'Add socials' })
-    expect(links).toHaveLength(2)
-    expect(links[0]).toHaveAttribute('href', '/athlete/settings#profile')
+    // No CTA is jammed into the value slots.
+    expect(screen.queryByRole('link', { name: 'Add socials' })).not.toBeInTheDocument()
+    // Both empty value slots announce "Not provided" to screen readers.
+    expect(screen.getAllByText('Not provided')).toHaveLength(2)
+    // Exactly one helper link, beneath the strip.
+    const helper = screen.getByRole('link', { name: 'Connect socials to show reach' })
+    expect(helper).toHaveAttribute('href', '/athlete/settings#profile')
+    expect(screen.getAllByRole('link')).toHaveLength(1)
+  })
+
+  // The helper is owner-only: a visitor sees dashes and no link at all.
+  it('shows no owner helper for a non-owner with missing metrics', () => {
+    render(
+      <ProfileStatStrip followers={null} engagement={null} sport="Athletics" level="National" />,
+    )
+    expect(
+      screen.queryByRole('link', { name: 'Connect socials to show reach' }),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
   })
 
   it('captions present audience metrics as self-reported', () => {

@@ -1,17 +1,34 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { ROUTES } from '@/lib/routes'
 import { track } from '@/lib/analytics'
+import { cn } from '@/lib/utils'
 import type { Database } from '@/types/database'
 
 type ConnectionRequestRow = Database['public']['Tables']['connection_requests']['Row']
 
+// Read-only labels for a request the recipient has already acted on (or the
+// sender has withdrawn). `pending` is deliberately absent: a pending request
+// renders its Accept/Decline controls, never a status pill.
+const RESOLVED_STATUS_LABEL: Record<string, string> = {
+  accepted: 'Accepted',
+  declined: 'Declined',
+  withdrawn: 'Withdrawn',
+}
+
 interface Props {
   request: ConnectionRequestRow
-  onResponded: () => void
+  /**
+   * Called after a pending request is accepted/declined so the list can drop it.
+   * Optional because a resolved (accepted/declined) card is read-only and never
+   * responds.
+   */
+  onResponded?: (() => void) | undefined
   /**
    * Sender's display name. Optional so existing call sites keep compiling, but
    * pass it wherever you can — without it the card falls back to a generic
@@ -24,6 +41,12 @@ interface Props {
    * call sites keep compiling; falls back to `unknown` rather than guessing.
    */
   viewerRole?: string | undefined
+  /**
+   * Where an ACCEPTED request hands off to (the viewer's Messages inbox). When
+   * set, an accepted card shows a "Message them" link so a request that leaves
+   * the pending queue still has somewhere to go, instead of vanishing.
+   */
+  messagesHref?: string | undefined
 }
 
 export default function ConnectionRequestCard({
@@ -31,8 +54,10 @@ export default function ConnectionRequestCard({
   onResponded,
   senderName,
   viewerRole,
+  messagesHref,
 }: Props) {
   const [loading, setLoading] = useState<'accepted' | 'declined' | null>(null)
+  const isPending = request.status === 'pending'
 
   async function respond(action: 'accepted' | 'declined') {
     setLoading(action)
@@ -57,7 +82,7 @@ export default function ConnectionRequestCard({
       // Only the responder's role and the outcome enum leave the browser.
       track('connection_request_responded', { role: viewerRole ?? 'unknown', outcome: action })
       toast.success(action === 'accepted' ? 'Request accepted, you can now message them' : 'Request declined')
-      onResponded()
+      onResponded?.()
     } catch {
       toast.error('Could not reach Podium. Please check your connection and try again.')
     } finally {
@@ -85,23 +110,42 @@ export default function ConnectionRequestCard({
       <p className="text-small text-muted-foreground">
         Received {new Date(request.sent_at).toLocaleDateString()}
       </p>
-      <div className="flex gap-2">
-        <Button
-          size="sm"
-          onClick={() => respond('accepted')}
-          disabled={loading !== null}
-        >
-          {loading === 'accepted' ? 'Accepting…' : 'Accept'}
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => respond('declined')}
-          disabled={loading !== null}
-        >
-          {loading === 'declined' ? 'Declining…' : 'Decline'}
-        </Button>
-      </div>
+      {isPending ? (
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            onClick={() => respond('accepted')}
+            disabled={loading !== null}
+          >
+            {loading === 'accepted' ? 'Accepting…' : 'Accept'}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => respond('declined')}
+            disabled={loading !== null}
+          >
+            {loading === 'declined' ? 'Declining…' : 'Decline'}
+          </Button>
+        </div>
+      ) : (
+        // Resolved request: read-only. The status pill confirms the outcome so an
+        // acted-on request has a visible record, and an accepted one hands off to
+        // Messages rather than dead-ending.
+        <div className="flex flex-wrap items-center gap-3">
+          <Badge variant={request.status === 'accepted' ? 'secondary' : 'outline'}>
+            {RESOLVED_STATUS_LABEL[request.status] ?? request.status}
+          </Badge>
+          {request.status === 'accepted' && messagesHref ? (
+            <Link
+              href={messagesHref}
+              className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
+            >
+              Message them
+            </Link>
+          ) : null}
+        </div>
+      )}
     </div>
   )
 }

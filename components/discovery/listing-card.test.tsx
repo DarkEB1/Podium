@@ -47,12 +47,37 @@ describe('ListingCard', () => {
     expect(screen.getByText(/Football/)).toBeInTheDocument()
   })
 
-  it('opens the campaign detail dialog when View is clicked', async () => {
+  // DISC1: the brand is identified on the card, not just in the swipe view.
+  it('names the brand on the card', () => {
+    render(<ListingCard listing={makeListing({ brand_name: 'Stride' })} />)
+    expect(screen.getByText('Stride')).toBeInTheDocument()
+  })
+
+  // DISC4: the pay slot is always rendered, even without a fee.
+  it('always shows a pay slot, falling back to "Fee undisclosed"', () => {
+    render(
+      <ListingCard
+        listing={makeListing({ title: 'Grassroots fund', pay_amount: null, pay_type: null })}
+      />
+    )
+    expect(screen.getByText(/fee undisclosed/i)).toBeInTheDocument()
+  })
+
+  it('opens the request composer when Request is clicked', async () => {
     render(<ListingCard listing={makeListing()} />)
-    await userEvent.click(screen.getByRole('button', { name: /view/i }))
+    await userEvent.click(screen.getByRole('button', { name: /request/i }))
     expect(await screen.findByRole('dialog')).toBeInTheDocument()
     // full description shown in the detail view
     expect(screen.getByText(/Looking for a footballer/)).toBeInTheDocument()
+  })
+
+  // DISC3: the message field is not in an error state before any interaction.
+  it('does not show the message error state before the user interacts', async () => {
+    render(<ListingCard listing={makeListing()} />)
+    await userEvent.click(screen.getByRole('button', { name: /request/i }))
+    await screen.findByRole('dialog')
+    const textarea = screen.getByLabelText(/personalised message/i)
+    expect(textarea).toHaveAttribute('aria-invalid', 'false')
   })
 
   describe('connection request length bounds (PR-8)', () => {
@@ -76,7 +101,7 @@ describe('ListingCard', () => {
 
     it('disables Send below the minimum and enables it well before the maximum', async () => {
       render(<ListingCard listing={makeListing()} />)
-      await userEvent.click(screen.getByRole('button', { name: /view/i }))
+      await userEvent.click(screen.getByRole('button', { name: /request/i }))
       await screen.findByRole('dialog')
 
       const send = screen.getByRole('button', { name: /send request/i })
@@ -101,7 +126,7 @@ describe('ListingCard', () => {
       render(
         <ListingCard listing={makeListing({ brand_id: 'bp-99', brand_user_id: 'user-99' })} />
       )
-      await userEvent.click(screen.getByRole('button', { name: /view/i }))
+      await userEvent.click(screen.getByRole('button', { name: /request/i }))
       await screen.findByRole('dialog')
 
       const textarea = screen.getByLabelText(/personalised message/i)
@@ -124,7 +149,7 @@ describe('ListingCard', () => {
 
     it('cannot send when the listing has no resolvable brand user', async () => {
       render(<ListingCard listing={makeListing({ brand_user_id: null })} />)
-      await userEvent.click(screen.getByRole('button', { name: /view/i }))
+      await userEvent.click(screen.getByRole('button', { name: /request/i }))
       await screen.findByRole('dialog')
 
       const textarea = screen.getByLabelText(/personalised message/i)

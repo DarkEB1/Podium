@@ -32,32 +32,84 @@ const PAY_TYPE_LABEL: Record<string, string> = {
   revenue_share: 'Revenue share',
 }
 
-function placeholderImage(seed: string): string {
-  // Deterministic placeholder so cards have a stable visual until brands upload campaign art.
-  return `https://picsum.photos/seed/${encodeURIComponent(seed)}/600/360`
-}
+// DISC7: job_listings carries no campaign image column (see types/database.ts),
+// so there is no brand-supplied artwork to use and the old random Unsplash-style
+// stock (a pug, a leaf) actively misled. A neutral on-brand placeholder replaces
+// it; brand identity is carried by the overlay lockup + card body instead.
+const CAMPAIGN_PLACEHOLDER = '/placeholder-cover.svg'
 
 function formatLevel(level: string | null): string | null {
   return level ? level.replace(/_/g, ' ') : null
+}
+
+/** Two-letter monogram used as a brand logo stand-in (DISC1/DISC7). */
+function brandInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return '?'
+  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase()
+  return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase()
+}
+
+/** Deterministic brand colour so a brand always reads the same across cards. */
+function brandColor(name: string): string {
+  let hue = 0
+  for (let i = 0; i < name.length; i++) hue = (hue * 31 + name.charCodeAt(i)) % 360
+  return `hsl(${hue} 52% 42%)`
+}
+
+/**
+ * DISC4: the pay slot is always populated. A listing with no `pay_amount` used
+ * to drop the row entirely, so cards were uneven. Every card now states its pay
+ * shape — a figure, "Revenue share", or "Fee undisclosed".
+ */
+function payDisplay(listing: ListingSummary): { value: string; label: string } {
+  if (listing.pay_type === 'revenue_share') return { value: 'Revenue share', label: '' }
+  if (listing.pay_amount != null) {
+    return {
+      value: `${listing.pay_currency} ${listing.pay_amount.toLocaleString()}`,
+      label: listing.pay_type ? (PAY_TYPE_LABEL[listing.pay_type] ?? '') : '',
+    }
+  }
+  return { value: 'Fee undisclosed', label: '' }
+}
+
+/** Coloured monogram + name — a brand logo stand-in with real alt semantics. */
+function BrandLockup({ name, className }: { name: string; className?: string }) {
+  return (
+    <span className={className}>
+      <span
+        aria-hidden="true"
+        style={{ backgroundColor: brandColor(name) }}
+        className="inline-flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white"
+      >
+        {brandInitials(name)}
+      </span>
+      <span className="min-w-0 truncate">{name}</span>
+    </span>
+  )
 }
 
 export default function ListingCard({ listing }: Props) {
   const [open, setOpen] = useState(false)
   const [message, setMessage] = useState('')
   const [sending, setSending] = useState(false)
+  // DISC3: keep the message field neutral until the athlete has interacted, so
+  // it does not render in red error styling before they have typed anything.
+  const [touched, setTouched] = useState(false)
 
-  const payLabel = listing.pay_type ? PAY_TYPE_LABEL[listing.pay_type] : null
   const subtitle = [listing.sport_required, formatLevel(listing.level_required)]
     .filter(Boolean)
     .join(' · ')
 
-  const stat =
-    payLabel && listing.pay_amount
-      ? {
-          label: payLabel,
-          value: `${listing.pay_currency} ${listing.pay_amount.toLocaleString()}`,
-        }
-      : undefined
+  const pay = payDisplay(listing)
+  const brandName = listing.brand_name
+
+  const brandBadge = brandName ? (
+    <BrandLockup
+      name={brandName}
+      className="inline-flex max-w-[12rem] items-center gap-1.5 rounded-full bg-card/90 py-1 pl-1 pr-2.5 text-small font-medium text-foreground shadow-sm ring-1 ring-foreground/10 backdrop-blur"
+    />
+  ) : null
 
   const tags = (
     <>
@@ -77,6 +129,8 @@ export default function ListingCard({ listing }: Props) {
   const trimmedLength = message.trim().length
   const tooShort = trimmedLength < CONNECTION_MESSAGE_MIN
   const tooLong = trimmedLength > CONNECTION_MESSAGE_MAX
+  // Show the error styling only once the athlete has engaged (DISC3).
+  const showError = touched && (tooShort || tooLong)
   // PR-19: a listing whose brand profile could not be resolved has nobody to
   // send to. Disable rather than let the request fail its FK server-side.
   const canSend = !tooShort && !tooLong && listing.brand_user_id !== null
@@ -107,6 +161,7 @@ export default function ListingCard({ listing }: Props) {
       toast.success('Connection request sent')
       setOpen(false)
       setMessage('')
+      setTouched(false)
     } catch {
       toast.error('Could not send your request. Please check your connection and try again.')
     } finally {
@@ -117,20 +172,32 @@ export default function ListingCard({ listing }: Props) {
   return (
     <>
       <MarketplaceCard
-        image={placeholderImage(listing.id)}
-        imageAlt={`${listing.title} campaign artwork`}
+        image={CAMPAIGN_PLACEHOLDER}
+        imageAlt={brandName ? `${brandName} campaign` : `${listing.title} campaign`}
         imageRatio={0.6}
         title={listing.title}
+        // DISC1: name the brand on the card. The lockup sits over the artwork;
+        // the sport/level line stays as the subtitle.
+        {...(brandBadge ? { overlayBadges: brandBadge } : {})}
         // Spread optional props only when present — required by exactOptionalPropertyTypes.
         {...(subtitle ? { subtitle } : {})}
-        {...(stat ? { stat } : {})}
+        stat={pay}
         tags={tags}
-        cta={{ label: 'View', onClick: () => setOpen(true) }}
+        // DISC2: the CTA opens the request composer, so it is labelled for that
+        // outcome rather than the ambiguous "View".
+        cta={{ label: 'Request', onClick: () => setOpen(true) }}
       />
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
+            {/* DISC1: identify the brand prominently in the request header. */}
+            {brandName ? (
+              <BrandLockup
+                name={brandName}
+                className="mb-1 inline-flex items-center gap-2 text-small font-medium text-muted-foreground"
+              />
+            ) : null}
             <DialogTitle>{listing.title}</DialogTitle>
             {subtitle && <DialogDescription>{subtitle}</DialogDescription>}
           </DialogHeader>
@@ -141,12 +208,10 @@ export default function ListingCard({ listing }: Props) {
             )}
 
             <dl className="flex flex-wrap gap-x-8 gap-y-2 text-small">
-              {stat && (
-                <div>
-                  <dt className="text-muted-foreground">{stat.label}</dt>
-                  <dd className="font-medium text-foreground">{stat.value}</dd>
-                </div>
-              )}
+              <div>
+                <dt className="text-muted-foreground">{pay.label || 'Pay'}</dt>
+                <dd className="font-medium text-foreground">{pay.value}</dd>
+              </div>
               {listing.location && (
                 <div>
                   <dt className="text-muted-foreground">Location</dt>
@@ -170,7 +235,7 @@ export default function ListingCard({ listing }: Props) {
                 Personalised message
               </label>
               <p className="text-small text-muted-foreground">
-                Tell this brand why you are a great fit, in between {CONNECTION_MESSAGE_MIN} and{' '}
+                Tell this brand why you are a great fit, in {CONNECTION_MESSAGE_MIN}–
                 {CONNECTION_MESSAGE_MAX} characters.
               </p>
               <Textarea
@@ -178,19 +243,25 @@ export default function ListingCard({ listing }: Props) {
                 rows={6}
                 maxLength={CONNECTION_MESSAGE_MAX}
                 value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                aria-invalid={tooShort || tooLong}
+                onChange={(e) => {
+                  setMessage(e.target.value)
+                  setTouched(true)
+                }}
+                onBlur={() => setTouched(true)}
+                aria-invalid={showError}
                 aria-describedby="connection-message-status"
                 placeholder="Introduce yourself, your audience and why this campaign suits you…"
               />
               <div className="flex items-center justify-between">
                 <span
                   id="connection-message-status"
-                  role={tooLong ? 'alert' : undefined}
+                  role={touched && tooLong ? 'alert' : undefined}
                   className={
-                    tooShort || tooLong
+                    showError
                       ? 'text-small font-medium text-destructive'
-                      : 'text-small text-success'
+                      : !tooShort && !tooLong
+                        ? 'text-small text-success'
+                        : 'text-small text-muted-foreground'
                   }
                 >
                   {tooLong

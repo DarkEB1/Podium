@@ -7,14 +7,16 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Slider } from '@/components/ui/slider'
-import { Combobox } from '@/components/ui/combobox'
+import { Combobox, type ComboboxOption } from '@/components/ui/combobox'
 import { CountrySelect } from '@/components/ui/country-select'
 import { CardSelectGroup } from '@/components/ui/card-select'
 import { ImageUpload } from '@/components/ui/image-upload'
 import { CharacterCounter } from '@/components/ui/character-counter'
+import PasswordStrength from '@/components/auth/password-strength'
 import SettingsShell from '@/components/layout/settings-shell'
 import { createClient } from '@/lib/supabase/client'
 import { parseSocialInput, socialHandle, type SocialPlatform } from '@/lib/social/handles'
+import { SPORT_OPTIONS, isKnownSport } from '@/lib/sports'
 import { UK_UNIVERSITIES } from '@/lib/data/universities'
 import {
   updateSettings,
@@ -121,6 +123,70 @@ function parseOptionalNumber(raw: string): number | null | undefined {
   if (cleaned === '') return null
   const n = Number(cleaned)
   return Number.isFinite(n) ? n : undefined
+}
+
+/**
+ * SET3 — sport option list for a combobox backed by the canonical SPORTS
+ * vocabulary. An existing out-of-vocabulary value (junk left in the free-text
+ * column, e.g. secondary_sport = "Gay") is surfaced as its own selectable
+ * option rather than silently dropped, so the athlete can see and correct it.
+ * `extraFirst` is prepended (e.g. a "None" choice for the optional secondary).
+ */
+function buildSportOptions(
+  current: string,
+  extraFirst?: ComboboxOption,
+): ComboboxOption[] {
+  const base = [...SPORT_OPTIONS] as ComboboxOption[]
+  const out = extraFirst ? [extraFirst, ...base] : base
+  if (current && !isKnownSport(current)) {
+    return [{ value: current, label: `${current} (unrecognised)` }, ...out]
+  }
+  return out
+}
+
+/**
+ * SET2/SET4 — client-side password policy, mirroring
+ * `lib/supabase/auth.ts#validatePassword` without importing the server module
+ * into this client bundle. Returns an error string or null when acceptable.
+ */
+function passwordPolicyError(pw: string): string | null {
+  if (pw.length < 8) return 'Password must be at least 8 characters'
+  if (pw.length > 128) return 'Password must be 128 characters or fewer'
+  if (!/[A-Z]/.test(pw)) return 'Password must contain at least one uppercase letter'
+  if (!/[0-9]/.test(pw)) return 'Password must contain at least one number'
+  if (!/[^A-Za-z0-9]/.test(pw)) return 'Password must contain at least one symbol'
+  return null
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+/**
+ * SET12 — human-format a stored UTC ISO timestamp as a short relative/absolute
+ * string (e.g. "Today at 10:50", "Yesterday at 22:14", "3 Jun 2026"). Falls
+ * back to the raw string if it does not parse.
+ */
+function formatActivity(iso: string): string {
+  const t = Date.parse(iso)
+  if (Number.isNaN(t)) return iso
+  const d = new Date(t)
+  const now = new Date()
+  const time = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+  const sameDay = d.toDateString() === now.toDateString()
+  const yesterday = new Date(now)
+  yesterday.setDate(now.getDate() - 1)
+  if (sameDay) return `Today at ${time}`
+  if (d.toDateString() === yesterday.toDateString()) return `Yesterday at ${time}`
+  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+/** SET8 — a small red asterisk marking a required field for sighted users. */
+function RequiredMark() {
+  return (
+    <span aria-hidden="true" className="text-destructive">
+      {' '}
+      *
+    </span>
+  )
 }
 
 const SECTIONS = [
@@ -399,6 +465,11 @@ export default function SettingsForm({
   )
   const [achievements, setAchievements] = useState(profile.notable_achievements ?? '')
   const [savingProfile, setSavingProfile] = useState(false)
+  // SET8 — inline validation for the required identity fields.
+  const [profileErrors, setProfileErrors] = useState<{
+    display_name?: string
+    primary_sport?: string
+  }>({})
 
   // Section 2 — Visibility & Discovery.
   // profile_visible / pause_matches live on profile_settings (updateSettings, B9).
@@ -444,13 +515,20 @@ export default function SettingsForm({
     settings?.display_currency ?? 'gbp',
   )
   const [savingPayments, setSavingPayments] = useState(false)
+  const [startingPayout, setStartingPayout] = useState(false)
 
   // Section 6 — Representation.
   const [revokeTargetId, setRevokeTargetId] = useState<string | null>(null)
 
   // Section 7 — Security.
   const [newEmail, setNewEmail] = useState('')
+  const [emailError, setEmailError] = useState<string | null>(null)
+  const [savingEmail, setSavingEmail] = useState(false)
+  const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordError, setPasswordError] = useState<string | null>(null)
+  const [savingPassword, setSavingPassword] = useState(false)
   const [twoFactorSetup, setTwoFactorSetup] = useState(false)
   const [sessions, setSessions] = useState<SessionEntry[]>([])
   const [revokingSessionId, setRevokingSessionId] = useState<string | null>(null)
@@ -458,6 +536,52 @@ export default function SettingsForm({
   // Section 8 — Account.
   const [deactivated, setDeactivated] = useState(profile.status === 'deactivated')
   const [deleteConfirm, setDeleteConfirm] = useState('')
+
+  // --- SET5: per-section dirty tracking ----------------------------------
+  // A section's Save is enabled only when its fields differ from the last
+  // saved baseline. Snapshots are compared as JSON so nested arrays/objects
+  // (photos, stats, the notification matrix) participate. Baselines are seeded
+  // from the first render (props) and advanced on each successful save.
+  const profileSnapshot = JSON.stringify({
+    displayName, photoUrl, actionPhotos, videos, primarySport, secondarySport,
+    level, position, yearsActive, heightCm, weightKg, dateOfBirth, phone,
+    homeCity, homeCountry, universityTeam, universityCity, universityCountry,
+    highestLevel, academyClub, nationalProgramme, socialHandles, socialFollowers,
+    stats, achievements,
+  })
+  const discoverySnapshot = JSON.stringify({
+    seeking, isSeeking, travelRadius, availability, availableFrom, uiMode,
+  })
+  const notificationsSnapshot = JSON.stringify({
+    matrix, quietStart, quietEnd, emailDigest, marketingOptIn,
+  })
+  const privacySnapshot = JSON.stringify({ locationPrecision, sectionVisibility })
+  const paymentsSnapshot = JSON.stringify({ displayCurrency })
+
+  const [profileBaseline, setProfileBaseline] = useState(profileSnapshot)
+  const [discoveryBaseline, setDiscoveryBaseline] = useState(discoverySnapshot)
+  const [notificationsBaseline, setNotificationsBaseline] = useState(notificationsSnapshot)
+  const [privacyBaseline, setPrivacyBaseline] = useState(privacySnapshot)
+  const [paymentsBaseline, setPaymentsBaseline] = useState(paymentsSnapshot)
+
+  const profileDirty = profileSnapshot !== profileBaseline
+  const discoveryDirty = discoverySnapshot !== discoveryBaseline
+  const notificationsDirty = notificationsSnapshot !== notificationsBaseline
+  const privacyDirty = privacySnapshot !== privacyBaseline
+  const paymentsDirty = paymentsSnapshot !== paymentsBaseline
+  const anyDirty =
+    profileDirty || discoveryDirty || notificationsDirty || privacyDirty || paymentsDirty
+
+  // SET5 — a native confirm dialog on navigation/refresh while edits are pending.
+  useEffect(() => {
+    if (!anyDirty) return
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [anyDirty])
 
   // Load active sessions for the Security section (B9).
   useEffect(() => {
@@ -489,11 +613,47 @@ export default function SettingsForm({
       await updateSettings(createClient(), profile.user_id, {
         display_currency: displayCurrency,
       })
+      setPaymentsBaseline(paymentsSnapshot)
       toast.success('Payment preferences saved')
     } catch {
       toast.error('Failed to save setting')
     } finally {
       setSavingPayments(false)
+    }
+  }
+
+  // SET13 — begin Stripe Connect payout onboarding and hand off to the hosted
+  // flow. Wired to the existing /api/account/connect route.
+  async function startPayoutSetup() {
+    setStartingPayout(true)
+    try {
+      const res = await fetch('/api/account/connect', { method: 'POST' })
+      const json = (await res.json().catch(() => ({}))) as {
+        url?: string
+        error?: { message?: string }
+      }
+      if (!res.ok || !json.url) {
+        toast.error(json.error?.message ?? 'Could not start payout setup.')
+        return
+      }
+      window.location.href = json.url
+    } catch {
+      toast.error('Could not start payout setup.')
+    } finally {
+      setStartingPayout(false)
+    }
+  }
+
+  // SET13 — there is no athlete-initiated "invite an agent" server flow yet
+  // (agents add clients from their own dashboard; see NEEDS-USER). The useful
+  // real action is sharing the profile link, so an agent can find and add you.
+  async function copyProfileLink() {
+    try {
+      const url = `${window.location.origin}/athlete/profile/${profile.user_id}`
+      await navigator.clipboard.writeText(url)
+      toast.success('Profile link copied. Share it with your agent to get linked.')
+    } catch {
+      toast.error('Could not copy your profile link.')
     }
   }
 
@@ -542,10 +702,12 @@ export default function SettingsForm({
     patch: Database['public']['Tables']['profile_settings']['Update'],
     setSaving: (v: boolean) => void,
     successMsg: string,
+    onSuccess?: () => void,
   ) {
     setSaving(true)
     try {
       await updateSettings(createClient(), profile.user_id, patch)
+      onSuccess?.()
       toast.success(successMsg)
     } catch {
       toast.error('Failed to save setting')
@@ -565,6 +727,7 @@ export default function SettingsForm({
       },
       setSavingNotifications,
       'Notification preferences saved',
+      () => setNotificationsBaseline(notificationsSnapshot),
     )
   }
 
@@ -577,6 +740,7 @@ export default function SettingsForm({
       },
       setSavingPrivacy,
       'Privacy preferences saved',
+      () => setPrivacyBaseline(privacySnapshot),
     )
   }
 
@@ -589,6 +753,83 @@ export default function SettingsForm({
       toast.error('Failed to request data export')
     } finally {
       setExporting(false)
+    }
+  }
+
+  // SET2/SET4 — change email. Client-validated; the server route that actually
+  // re-issues the verification email does not exist yet (see NEEDS-USER), so a
+  // missing endpoint is reported honestly rather than faking success.
+  async function updateEmailHandler() {
+    const email = newEmail.trim()
+    if (!EMAIL_RE.test(email)) {
+      setEmailError('Enter a valid email address')
+      return
+    }
+    setEmailError(null)
+    setSavingEmail(true)
+    try {
+      const res = await fetch('/api/account/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+      if (res.status === 404) {
+        toast.error('Changing your email is not available yet. Please contact support.')
+        return
+      }
+      const data = await res.json().catch(() => null)
+      if (!res.ok) {
+        setEmailError(data?.error?.message ?? 'Failed to update email')
+        return
+      }
+      setNewEmail('')
+      toast.success('Check your new inbox to confirm the change')
+    } catch {
+      toast.error('Something went wrong. Please try again.')
+    } finally {
+      setSavingEmail(false)
+    }
+  }
+
+  // SET2/SET4 — change password. Requires the current password, a policy-valid
+  // new password and a matching confirmation. The current password is collected
+  // and sent, but the existing /api/auth/password-update route does not yet
+  // re-authenticate with it (see NEEDS-USER).
+  async function updatePasswordHandler() {
+    if (!currentPassword) {
+      setPasswordError('Enter your current password')
+      return
+    }
+    const policy = passwordPolicyError(newPassword)
+    if (policy) {
+      setPasswordError(policy)
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError('Passwords do not match')
+      return
+    }
+    setPasswordError(null)
+    setSavingPassword(true)
+    try {
+      const res = await fetch('/api/auth/password-update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: newPassword, current_password: currentPassword }),
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) {
+        setPasswordError(data?.error?.message ?? 'Failed to update password')
+        return
+      }
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+      toast.success('Password updated')
+    } catch {
+      toast.error('Something went wrong. Please try again.')
+    } finally {
+      setSavingPassword(false)
     }
   }
 
@@ -643,6 +884,16 @@ export default function SettingsForm({
   }
 
   async function saveProfile() {
+    // SET8 — required identity fields, validated inline before any network call.
+    const nextErrors: { display_name?: string; primary_sport?: string } = {}
+    if (!displayName.trim()) nextErrors.display_name = 'Display name is required'
+    if (!primarySport.trim()) nextErrors.primary_sport = 'Primary sport is required'
+    setProfileErrors(nextErrors)
+    if (Object.keys(nextErrors).length > 0) {
+      toast.error('Please fix the highlighted fields.')
+      return
+    }
+
     const social_accounts = buildSocialAccounts()
     if (!social_accounts) return
 
@@ -682,7 +933,10 @@ export default function SettingsForm({
         performance_stats: stats,
         notable_achievements: achievements,
       })
-      if (ok) toast.success('Profile saved')
+      if (ok) {
+        setProfileBaseline(profileSnapshot)
+        toast.success('Profile saved')
+      }
     } catch {
       toast.error('Something went wrong. Please try again.')
     } finally {
@@ -694,16 +948,33 @@ export default function SettingsForm({
     key: 'profile_visible' | 'pause_matches',
     next: boolean,
   ) {
+    // SET6 — "Profile visible" is the single discoverability control. Brand
+    // discoverability (`discoverable`) is not a separate switch anymore, so it
+    // is written in lockstep here to avoid the old inconsistent-state trap
+    // where profile_visible=on but discoverable=off (or vice-versa).
+    const patch: Database['public']['Tables']['profile_settings']['Update'] =
+      key === 'profile_visible'
+        ? { profile_visible: next, discoverable: next }
+        : { pause_matches: next }
+
     // Optimistic UI; revert on failure.
-    if (key === 'profile_visible') setProfileVisible(next)
-    else setPauseMatches(next)
+    if (key === 'profile_visible') {
+      setProfileVisible(next)
+      setDiscoverable(next)
+    } else {
+      setPauseMatches(next)
+    }
     setSavingVisibility(true)
     try {
-      await updateSettings(createClient(), profile.user_id, { [key]: next })
+      await updateSettings(createClient(), profile.user_id, patch)
       toast.success('Settings saved')
     } catch {
-      if (key === 'profile_visible') setProfileVisible(!next)
-      else setPauseMatches(!next)
+      if (key === 'profile_visible') {
+        setProfileVisible(!next)
+        setDiscoverable(!next)
+      } else {
+        setPauseMatches(!next)
+      }
       toast.error('Failed to save setting')
     } finally {
       setSavingVisibility(false)
@@ -721,7 +992,10 @@ export default function SettingsForm({
         available_from_date: availability === 'available_from' ? availableFrom || null : null,
         discovery_ui_mode: uiMode,
       })
-      if (ok) toast.success('Discovery preferences saved')
+      if (ok) {
+        setDiscoveryBaseline(discoverySnapshot)
+        toast.success('Discovery preferences saved')
+      }
     } catch {
       toast.error('Something went wrong. Please try again.')
     } finally {
@@ -794,12 +1068,32 @@ export default function SettingsForm({
           <div>
             <label htmlFor="display_name" className="mb-1 block text-medium font-medium">
               Display name
+              <RequiredMark />
             </label>
             <Input
               id="display_name"
+              required
+              aria-required="true"
               value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
+              onChange={(e) => {
+                setDisplayName(e.target.value)
+                if (profileErrors.display_name) {
+                  setProfileErrors((prev) => {
+                    const { display_name: _cleared, ...rest } = prev
+                    return rest
+                  })
+                }
+              }}
+              aria-invalid={profileErrors.display_name ? true : undefined}
+              aria-describedby={
+                profileErrors.display_name ? 'display_name_error' : undefined
+              }
             />
+            {profileErrors.display_name && (
+              <p id="display_name_error" role="alert" className="mt-1 text-small text-destructive">
+                {profileErrors.display_name}
+              </p>
+            )}
           </div>
 
           {/* Personal details (onboarding parity: wizard step 1) */}
@@ -874,28 +1168,56 @@ export default function SettingsForm({
               <div>
                 <label htmlFor="primary_sport" className="mb-1 block text-medium font-medium">
                   Primary sport
+                  <RequiredMark />
                 </label>
-                <Input
+                {/* SET3 — constrained to the canonical vocabulary; an existing
+                    out-of-vocab value is surfaced as its own option. */}
+                <Combobox
                   id="primary_sport"
-                  value={primarySport}
-                  onChange={(e) => setPrimarySport(e.target.value)}
+                  aria-label="Primary sport"
+                  options={buildSportOptions(primarySport)}
+                  value={primarySport || null}
+                  onChange={(v) => {
+                    setPrimarySport(v)
+                    if (profileErrors.primary_sport) {
+                      setProfileErrors((prev) => {
+                        const { primary_sport: _cleared, ...rest } = prev
+                        return rest
+                      })
+                    }
+                  }}
+                  placeholder="Select your sport"
                 />
+                {profileErrors.primary_sport && (
+                  <p
+                    id="primary_sport_error"
+                    role="alert"
+                    className="mt-1 text-small text-destructive"
+                  >
+                    {profileErrors.primary_sport}
+                  </p>
+                )}
               </div>
               <div>
                 <label htmlFor="secondary_sport" className="mb-1 block text-medium font-medium">
                   Secondary sport
                 </label>
-                <Input
+                {/* SET3 — same vocabulary, plus an explicit "None" to clear it. */}
+                <Combobox
                   id="secondary_sport"
-                  value={secondarySport}
-                  onChange={(e) => setSecondarySport(e.target.value)}
+                  aria-label="Secondary sport"
+                  options={buildSportOptions(secondarySport, { value: '', label: 'None' })}
+                  value={secondarySport || ''}
+                  onChange={setSecondarySport}
+                  placeholder="Select a sport (optional)"
                 />
               </div>
               <div>
-                <span className="mb-1 block text-medium font-medium" id="level-label">
+                <label htmlFor="level" className="mb-1 block text-medium font-medium">
                   Competition level
-                </span>
+                </label>
                 <Combobox
+                  id="level"
                   aria-label="Competition level"
                   options={LEVEL_OPTIONS}
                   value={level}
@@ -919,48 +1241,58 @@ export default function SettingsForm({
             {/* Conditional per-level fields, mirroring the wizard (§3A.3). */}
             {level === 'university_bucs' && (
               <div className="space-y-4">
+                {/* SET11 — team, city and country grouped under one subheading,
+                    with the three controls sharing consistent styling. */}
+                <fieldset className="space-y-4 rounded-[var(--radius)] border bg-card p-4 shadow-card">
+                  <legend className="px-1 text-medium font-medium">University</legend>
+                  <div>
+                    <label htmlFor="university_team" className="mb-1 block text-medium font-medium">
+                      University team
+                    </label>
+                    <Combobox
+                      id="university_team"
+                      aria-label="University team"
+                      options={UNIVERSITY_TEAM_OPTIONS}
+                      value={universityTeam}
+                      onChange={setUniversityTeam}
+                      placeholder="Search your university team"
+                      allowCreate
+                    />
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <label htmlFor="university_city" className="mb-1 block text-medium font-medium">
+                        University city
+                      </label>
+                      <Input
+                        id="university_city"
+                        placeholder="e.g. Loughborough"
+                        value={universityCity}
+                        onChange={(e) => setUniversityCity(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="university_country"
+                        className="mb-1 block text-medium font-medium"
+                      >
+                        University country
+                      </label>
+                      <CountrySelect
+                        id="university_country"
+                        aria-label="University country"
+                        value={universityCountry}
+                        onChange={setUniversityCountry}
+                      />
+                    </div>
+                  </div>
+                </fieldset>
                 <div>
-                  <label htmlFor="university_team" className="mb-1 block text-medium font-medium">
-                    University team
+                  <label htmlFor="highest_level" className="mb-1 block text-medium font-medium">
+                    Highest level played outside university
                   </label>
                   <Combobox
-                    id="university_team"
-                    aria-label="University team"
-                    options={UNIVERSITY_TEAM_OPTIONS}
-                    value={universityTeam}
-                    onChange={setUniversityTeam}
-                    placeholder="Search your university team"
-                    allowCreate
-                  />
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <label htmlFor="university_city" className="mb-1 block text-medium font-medium">
-                      University city
-                    </label>
-                    <Input
-                      id="university_city"
-                      value={universityCity}
-                      onChange={(e) => setUniversityCity(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="university_country" className="mb-1 block text-medium font-medium">
-                      University country
-                    </label>
-                    <CountrySelect
-                      id="university_country"
-                      aria-label="University country"
-                      value={universityCountry}
-                      onChange={setUniversityCountry}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <span className="mb-1 block text-medium font-medium" id="highest-level-label">
-                    Highest level played outside university
-                  </span>
-                  <Combobox
+                    id="highest_level"
                     aria-label="Highest level played outside university"
                     options={HIGHEST_LEVEL_OPTIONS}
                     value={highestLevel}
@@ -1217,9 +1549,16 @@ export default function SettingsForm({
             <CharacterCounter value={achievements} max={600} />
           </div>
 
-          <Button type="button" onClick={saveProfile} disabled={savingProfile}>
-            {savingProfile ? 'Saving…' : 'Save profile'}
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button type="button" onClick={saveProfile} disabled={savingProfile || !profileDirty}>
+              {savingProfile ? 'Saving…' : 'Save profile'}
+            </Button>
+            {profileDirty && (
+              <span role="status" className="text-small text-muted-foreground">
+                Unsaved changes
+              </span>
+            )}
+          </div>
         </section>
 
         {/* -------------- Section 2: Visibility & Discovery -------------- */}
@@ -1302,10 +1641,11 @@ export default function SettingsForm({
 
           {/* Travel radius */}
           <div>
-            <label className="mb-1 block text-medium font-medium" htmlFor="travel-radius">
+            <p id="travel-radius-label" className="mb-1 text-medium font-medium">
               Travel radius
-            </label>
+            </p>
             <Slider
+              aria-label="Travel radius"
               min={0}
               max={500}
               step={5}
@@ -1313,6 +1653,30 @@ export default function SettingsForm({
               onChange={setTravelRadius}
               format={(n) => `${n} km`}
             />
+            {/* SET14 — the endpoints of the range, and an exact numeric entry. */}
+            <div className="mt-1 flex items-center justify-between text-small text-muted-foreground">
+              <span>0 km</span>
+              <span>500 km</span>
+            </div>
+            <div className="mt-2 flex items-center gap-2">
+              <label htmlFor="travel_radius_km" className="text-small text-muted-foreground">
+                Exact
+              </label>
+              <Input
+                id="travel_radius_km"
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={500}
+                className="w-24"
+                value={String(travelRadius)}
+                onChange={(e) => {
+                  const n = Number(e.target.value)
+                  if (Number.isFinite(n)) setTravelRadius(Math.min(500, Math.max(0, n)))
+                }}
+              />
+              <span className="text-small text-muted-foreground">km</span>
+            </div>
           </div>
 
           {/* Availability + conditional date */}
@@ -1367,9 +1731,20 @@ export default function SettingsForm({
             />
           </div>
 
-          <Button type="button" onClick={saveDiscovery} disabled={savingDiscovery}>
-            {savingDiscovery ? 'Saving…' : 'Save discovery'}
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              type="button"
+              onClick={saveDiscovery}
+              disabled={savingDiscovery || !discoveryDirty}
+            >
+              {savingDiscovery ? 'Saving…' : 'Save discovery'}
+            </Button>
+            {discoveryDirty && (
+              <span role="status" className="text-small text-muted-foreground">
+                Unsaved changes
+              </span>
+            )}
+          </div>
         </section>
 
         {/* ---------------- Section 3: Notifications ---------------- */}
@@ -1493,9 +1868,20 @@ export default function SettingsForm({
             />
           </div>
 
-          <Button type="button" onClick={saveNotifications} disabled={savingNotifications}>
-            {savingNotifications ? 'Saving…' : 'Save notifications'}
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              type="button"
+              onClick={saveNotifications}
+              disabled={savingNotifications || !notificationsDirty}
+            >
+              {savingNotifications ? 'Saving…' : 'Save notifications'}
+            </Button>
+            {notificationsDirty && (
+              <span role="status" className="text-small text-muted-foreground">
+                Unsaved changes
+              </span>
+            )}
+          </div>
         </section>
 
         {/* ---------------- Section 4: Privacy & Data ---------------- */}
@@ -1509,23 +1895,19 @@ export default function SettingsForm({
             Privacy &amp; Data
           </h2>
 
-          {/* Who can see me */}
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-medium font-medium" id="discoverable-label">
-                Who can see you
-              </p>
-              <p className="text-small text-muted-foreground">
-                When on, your profile can be discovered by brands. When off, only people you
-                connect with can see it.
-              </p>
-            </div>
-            <Switch
-              aria-labelledby="discoverable-label"
-              aria-label="Discoverable by brands"
-              checked={discoverable}
-              onCheckedChange={setDiscoverable}
-            />
+          {/* SET6 — discoverability has one home: the "Profile visible" control
+              in Visibility & Discovery. This is a read-only mirror so the two
+              can never disagree. */}
+          <div className="rounded-[var(--radius)] border bg-card p-4 text-small text-muted-foreground shadow-card">
+            <p className="mb-1 font-medium text-foreground">Who can see you</p>
+            <p>
+              Your discoverability is set by{' '}
+              <span className="font-medium text-foreground">Profile visible</span> in Visibility
+              &amp; Discovery. It is currently{' '}
+              {discoverable
+                ? 'on — brands can find your profile.'
+                : 'off — only people you connect with can see it.'}
+            </p>
           </div>
 
           {/* Per-section show / hide */}
@@ -1568,9 +1950,20 @@ export default function SettingsForm({
             </p>
           </div>
 
-          <Button type="button" onClick={savePrivacy} disabled={savingPrivacy}>
-            {savingPrivacy ? 'Saving…' : 'Save privacy'}
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              type="button"
+              onClick={savePrivacy}
+              disabled={savingPrivacy || !privacyDirty}
+            >
+              {savingPrivacy ? 'Saving…' : 'Save privacy'}
+            </Button>
+            {privacyDirty && (
+              <span role="status" className="text-small text-muted-foreground">
+                Unsaved changes
+              </span>
+            )}
+          </div>
 
           {/* Block list */}
           <div className="space-y-2 border-t pt-6">
@@ -1708,9 +2101,20 @@ export default function SettingsForm({
                   : ''}
               </p>
             ) : (
-              <p className="text-small text-muted-foreground">
-                Payouts are optional until you agree a paid deal. You can set this up later.
-              </p>
+              <div className="space-y-3">
+                <p className="text-small text-muted-foreground">
+                  Payouts are optional until you agree a paid deal. Set them up whenever
+                  you&apos;re ready to get paid.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={startPayoutSetup}
+                  disabled={startingPayout}
+                >
+                  {startingPayout ? 'Opening Stripe…' : 'Set up payouts'}
+                </Button>
+              </div>
             )}
           </div>
 
@@ -1719,8 +2123,8 @@ export default function SettingsForm({
             <p className="mb-1 font-medium text-foreground">Tax information</p>
             <p>
               You are responsible for declaring income from sponsorships to your local tax
-              authority. Podium does not provide tax advice. Receipts above can be used as
-              records of payments received.
+              authority. Podium does not provide tax advice. Your payment receipts, when
+              available, can be used as records of payments received.
             </p>
           </div>
 
@@ -1743,9 +2147,20 @@ export default function SettingsForm({
             </select>
           </div>
 
-          <Button type="button" onClick={savePayments} disabled={savingPayments}>
-            {savingPayments ? 'Saving…' : 'Save payment settings'}
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              type="button"
+              onClick={savePayments}
+              disabled={savingPayments || !paymentsDirty}
+            >
+              {savingPayments ? 'Saving…' : 'Save payment settings'}
+            </Button>
+            {paymentsDirty && (
+              <span role="status" className="text-small text-muted-foreground">
+                Unsaved changes
+              </span>
+            )}
+          </div>
         </section>
 
         {/* ---------------- Section 6: Representation ---------------- */}
@@ -1763,9 +2178,15 @@ export default function SettingsForm({
           <div className="space-y-3">
             <p className="text-medium font-medium">Linked agents</p>
             {linkedAgents.length === 0 ? (
-              <p className="text-small text-muted-foreground">
-                You don&apos;t have an agent linked.
-              </p>
+              <div className="space-y-3">
+                <p className="text-small text-muted-foreground">
+                  You don&apos;t have an agent linked. Agents add you from their own Podium
+                  dashboard — share your profile link so they can find and represent you.
+                </p>
+                <Button type="button" variant="outline" onClick={copyProfileLink}>
+                  Invite an agent
+                </Button>
+              </div>
             ) : (
               <ul className="space-y-4">
                 {linkedAgents.map((agent) => (
@@ -1882,32 +2303,116 @@ export default function SettingsForm({
             Security
           </h2>
 
-          {/* Change email */}
-          <div>
-            <label htmlFor="new_email" className="mb-1 block text-medium font-medium">
-              New email
-            </label>
-            <Input
-              id="new_email"
-              type="email"
-              value={newEmail}
-              onChange={(e) => setNewEmail(e.target.value)}
-              placeholder="you@example.com"
-            />
+          {/* Change email — its own submit + inline validation (SET2). The new
+              address must not be autofilled with the current one (SET4). */}
+          <div className="space-y-3 rounded-[var(--radius)] border bg-card p-4 shadow-card">
+            <p className="text-medium font-medium">Change email</p>
+            <div>
+              <label htmlFor="new_email" className="mb-1 block text-medium font-medium">
+                New email
+              </label>
+              <Input
+                id="new_email"
+                type="email"
+                autoComplete="email"
+                value={newEmail}
+                onChange={(e) => {
+                  setNewEmail(e.target.value)
+                  if (emailError) setEmailError(null)
+                }}
+                placeholder="you@example.com"
+                aria-invalid={emailError ? true : undefined}
+                aria-describedby={emailError ? 'new_email_error' : undefined}
+              />
+              {emailError && (
+                <p id="new_email_error" role="alert" className="mt-1 text-small text-destructive">
+                  {emailError}
+                </p>
+              )}
+            </div>
+            <Button
+              type="button"
+              onClick={updateEmailHandler}
+              disabled={savingEmail || !newEmail.trim()}
+            >
+              {savingEmail ? 'Updating…' : 'Update email'}
+            </Button>
           </div>
 
-          {/* Change password */}
-          <div>
-            <label htmlFor="new_password" className="mb-1 block text-medium font-medium">
-              New password
-            </label>
-            <Input
-              id="new_password"
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="At least 8 characters"
-            />
+          {/* Change password — current-password re-auth, confirmation and a
+              strength meter (SET2). All three use new-password autofill (SET4). */}
+          <div className="space-y-3 rounded-[var(--radius)] border bg-card p-4 shadow-card">
+            <p className="text-medium font-medium">Change password</p>
+            <div>
+              <label htmlFor="current_password" className="mb-1 block text-medium font-medium">
+                Current password
+                <RequiredMark />
+              </label>
+              <Input
+                id="current_password"
+                type="password"
+                autoComplete="current-password"
+                value={currentPassword}
+                onChange={(e) => {
+                  setCurrentPassword(e.target.value)
+                  if (passwordError) setPasswordError(null)
+                }}
+                placeholder="Your current password"
+              />
+            </div>
+            <div>
+              <label htmlFor="new_password" className="mb-1 block text-medium font-medium">
+                New password
+                <RequiredMark />
+              </label>
+              <Input
+                id="new_password"
+                type="password"
+                autoComplete="new-password"
+                value={newPassword}
+                onChange={(e) => {
+                  setNewPassword(e.target.value)
+                  if (passwordError) setPasswordError(null)
+                }}
+                placeholder="At least 8 characters"
+                aria-invalid={passwordError ? true : undefined}
+                aria-describedby={passwordError ? 'new_password_error' : undefined}
+              />
+              <PasswordStrength password={newPassword} />
+            </div>
+            <div>
+              <label htmlFor="confirm_password" className="mb-1 block text-medium font-medium">
+                Confirm new password
+                <RequiredMark />
+              </label>
+              <Input
+                id="confirm_password"
+                type="password"
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(e) => {
+                  setConfirmPassword(e.target.value)
+                  if (passwordError) setPasswordError(null)
+                }}
+                placeholder="Re-enter your new password"
+                aria-invalid={passwordError ? true : undefined}
+                aria-describedby={passwordError ? 'new_password_error' : undefined}
+              />
+            </div>
+            {passwordError && (
+              <p id="new_password_error" role="alert" className="text-small text-destructive">
+                {passwordError}
+              </p>
+            )}
+            <Button
+              type="button"
+              onClick={updatePasswordHandler}
+              disabled={
+                savingPassword || !currentPassword || !newPassword || !confirmPassword
+              }
+            >
+              {savingPassword ? 'Updating…' : 'Update password'}
+            </Button>
           </div>
 
           {/* Two-factor authentication */}
@@ -1951,8 +2456,10 @@ export default function SettingsForm({
                     <div>
                       <p className="text-medium">{s.device_label ?? 'Unknown device'}</p>
                       <p className="text-small text-muted-foreground">
-                        {s.ip_address ?? 'Unknown IP'} ·{' '}
-                        <time dateTime={s.last_active_at}>{s.last_active_at}</time>
+                        {s.ip_address ?? 'Unknown IP'} · Last active{' '}
+                        <time dateTime={s.last_active_at}>
+                          {formatActivity(s.last_active_at)}
+                        </time>
                       </p>
                     </div>
                     <Button
@@ -1984,7 +2491,7 @@ export default function SettingsForm({
                         <span className="ml-2 text-destructive">Failed attempt</span>
                       )}
                     </span>
-                    <time dateTime={h.created_at}>{h.created_at}</time>
+                    <time dateTime={h.created_at}>{formatActivity(h.created_at)}</time>
                   </li>
                 ))}
               </ul>
@@ -2049,7 +2556,7 @@ export default function SettingsForm({
                 id="delete_confirm"
                 value={deleteConfirm}
                 onChange={(e) => setDeleteConfirm(e.target.value)}
-                placeholder="DELETE"
+                placeholder="Type DELETE here"
                 autoComplete="off"
               />
             </div>

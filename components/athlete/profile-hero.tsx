@@ -21,7 +21,24 @@ export interface ProfileHeroProps {
   location?: string | undefined
   verified?: boolean | undefined
   availability?: { status: AvailabilityStatus; date?: string } | undefined
+  /**
+   * Persistent primary CTA rendered in the hero panel (e.g. a brand-facing
+   * "Send connection request"). Only supplied for the non-owner view.
+   */
+  action?: React.ReactNode
   className?: string | undefined
+}
+
+/** "Jane Doe" -> "JD"; empty/odd input falls back to "?". */
+function initialsOf(name: string): string {
+  const letters = name
+    .trim()
+    .split(/\s+/)
+    .map((word) => word[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join('')
+  return letters ? letters.toUpperCase() : '?'
 }
 
 /**
@@ -31,6 +48,10 @@ export interface ProfileHeroProps {
  * When no cover image exists a designed band stands in so the layout never
  * collapses: a soft brand-tinted gradient when an avatar carries the identity,
  * or the muted media placeholder when there is no imagery at all.
+ *
+ * PROF2 guard: a missing avatar never leaves a blank space — an initials disc
+ * always carries the identity. The stored image itself is user data and is not
+ * altered here; upload guidance/validation belongs in the settings upload flow.
  */
 export default function ProfileHero({
   coverImage,
@@ -40,32 +61,50 @@ export default function ProfileHero({
   location,
   verified,
   availability,
+  action,
   className,
 }: ProfileHeroProps) {
+  const avatarNode = avatar ? (
+    // eslint-disable-next-line @next/next/no-img-element -- arbitrary external/CDN URL, not a static asset
+    <img
+      src={avatar}
+      alt={`${name} profile photo`}
+      className="size-16 shrink-0 rounded-full border border-border bg-muted object-cover sm:size-20"
+    />
+  ) : (
+    // PROF2: initials fallback so identity is always visually present.
+    <div
+      aria-hidden="true"
+      className="flex size-16 shrink-0 items-center justify-center rounded-full border border-border bg-muted text-large font-semibold text-muted-foreground sm:size-20"
+    >
+      {initialsOf(name)}
+    </div>
+  )
+
   const panel = (
-    <div className="flex items-start gap-4 sm:gap-6">
-      {avatar ? (
-        // eslint-disable-next-line @next/next/no-img-element -- arbitrary external/CDN URL, not a static asset
-        <img
-          src={avatar}
-          alt={`${name} profile photo`}
-          className="size-16 shrink-0 rounded-full border border-border bg-muted object-cover sm:size-20"
-        />
-      ) : null}
-      <div className="flex min-w-0 flex-col gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <h1 className="font-heading text-large font-semibold text-foreground">{name}</h1>
-          {verified !== undefined ? <VerifiedBadge verified={verified} /> : null}
-          {availability ? (
-            <AvailabilityBadge
-              status={availability.status}
-              {...(availability.date ? { date: availability.date } : {})}
-            />
-          ) : null}
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+      <div className="flex min-w-0 items-start gap-4 sm:gap-6">
+        {avatarNode}
+        <div className="flex min-w-0 flex-col gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="font-heading text-large font-semibold text-foreground">{name}</h1>
+            {/* PROF4: only the earned, positive "Verified" badge appears here.
+                The grey "Unverified" pill was noise with no path to act, so it
+                is no longer shown; the owner is offered a "Get verified" action
+                elsewhere on the page instead. */}
+            {verified ? <VerifiedBadge verified /> : null}
+            {availability ? (
+              <AvailabilityBadge
+                status={availability.status}
+                {...(availability.date ? { date: availability.date } : {})}
+              />
+            ) : null}
+          </div>
+          {tagline ? <p className="text-medium text-muted-foreground">{tagline}</p> : null}
+          {location ? <p className="text-small text-muted-foreground">{location}</p> : null}
         </div>
-        {tagline ? <p className="text-medium text-muted-foreground">{tagline}</p> : null}
-        {location ? <p className="text-small text-muted-foreground">{location}</p> : null}
       </div>
+      {action ? <div className="shrink-0 sm:self-center">{action}</div> : null}
     </div>
   )
 

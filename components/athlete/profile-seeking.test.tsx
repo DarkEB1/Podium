@@ -10,6 +10,25 @@ describe('ProfileSeeking', () => {
     expect(screen.getByText('Product gifting')).toBeInTheDocument()
   })
 
+  // PROF10: the pills are framed by a "What <name> is looking for" intro.
+  it('renders a named intro above the pills', () => {
+    render(<ProfileSeeking seeking={['paid_partnership']} name="Jane Doe" />)
+    expect(screen.getByText('What Jane Doe is looking for')).toBeInTheDocument()
+  })
+
+  // PROF10: enum jargon becomes a readable label with a tooltip description,
+  // e.g. "university_nil_collective" is NOT shown as "University nil collective".
+  it('renders a canonical label and a tooltip description per category', () => {
+    render(<ProfileSeeking seeking={['university_nil_collective']} />)
+    expect(screen.getByText('University / NIL collective')).toBeInTheDocument()
+    expect(screen.queryByText('University nil collective')).not.toBeInTheDocument()
+    const item = screen.getByText('University / NIL collective').closest('li')
+    expect(item).toHaveAttribute(
+      'title',
+      'Name, image and likeness deals through a college collective.',
+    )
+  })
+
   it('shows neutral open-to-opportunities copy for an empty list (default isSeeking=true)', () => {
     render(<ProfileSeeking seeking={[]} />)
     expect(screen.getByText(/open to opportunities/i)).toBeInTheDocument()

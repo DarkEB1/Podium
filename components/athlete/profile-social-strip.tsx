@@ -1,6 +1,7 @@
+import Link from 'next/link'
 import { AtSign, Camera, Music2, Video } from 'lucide-react'
 
-import { EmptyState } from '@/components/ui/empty-state'
+import { buttonVariants } from '@/components/ui/button'
 import { parseSocialInput, type SocialPlatform } from '@/lib/social/handles'
 import { cn } from '@/lib/utils'
 
@@ -38,8 +39,10 @@ export interface ProfileSocialStripProps {
  * (spec §10.2.2). Stored values are read through `parseSocialInput`
  * (lib/social/handles.ts) so both canonical handles and legacy full-URL rows
  * render as "@handle" with a working absolute profile URL; values that cannot
- * be read as a handle are skipped. When nothing is connected a designed empty
- * state stands in, with an inline "Connect social" action for the owner.
+ * be read as a handle are skipped. When nothing is connected a condensed empty
+ * state stands in — paragraph text, not a heading, so it never pollutes the
+ * section's outline (PROF9) — with an inline "Connect social" action for the
+ * owner that reads as opening settings.
  */
 export default function ProfileSocialStrip({
   accounts,
@@ -54,18 +57,27 @@ export default function ProfileSocialStrip({
 
   if (connected.length === 0) {
     return (
-      <EmptyState
-        {...(className ? { className } : {})}
-        title="No social accounts"
-        description={
-          isOwner && connectHref
-            ? 'Connect your social accounts from your settings so brands can see your reach.'
-            : 'Connected social profiles will appear here.'
-        }
-        {...(isOwner && connectHref
-          ? { action: { label: 'Connect social', href: connectHref } }
-          : {})}
-      />
+      <div
+        className={cn(
+          'rounded-2xl border border-dashed border-border bg-muted/30 p-6 text-center',
+          className,
+        )}
+      >
+        <p className="text-medium text-foreground">No social accounts</p>
+        <p className="mx-auto mt-1 max-w-prose text-small text-muted-foreground">
+          {isOwner && connectHref
+            ? 'Connect your social accounts in Settings so brands can see your reach.'
+            : 'Connected social profiles will appear here.'}
+        </p>
+        {isOwner && connectHref ? (
+          <Link
+            href={connectHref}
+            className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'mt-3')}
+          >
+            Connect social
+          </Link>
+        ) : null}
+      </div>
     )
   }
 

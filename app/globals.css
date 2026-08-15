@@ -115,7 +115,7 @@
   --secondary: #F0F1F0;
   --secondary-foreground: #17181A;
   --muted: #F0F1F0;
-  --muted-foreground: #4A4B4E; /* body grey; 8.9:1 on page */
+  --muted-foreground: #434447; /* body grey; 9.4:1 on page (G4 — extra AA headroom, still clearly muted) */
   --accent: #EEF0EE;
   --accent-foreground: #17181A;
   --success: #2F6446;
@@ -170,7 +170,14 @@
   --card-foreground: #F2F3F1;
   --popover: #1C1D21;
   --popover-foreground: #F2F3F1;
-  --primary: #A7B4FB;          /* lifted electric blue */
+  /* G2 — same hue as the light primary (#2742F0, ~231°), only lightened for AA
+     on dark surfaces (primary is text AND fill here). The previous #A7B4FB sat
+     at the same hue but was so pale/high-lightness it read as lavender and lost
+     the "strongest action" weight; #8598F7 keeps hue ~231° at higher saturation
+     and lower lightness, so the primary button carries equal weight in both
+     themes while still clearing 4.5:1 as text on --accent (5.2:1) and against
+     near-black --primary-foreground (6.9:1). */
+  --primary: #8598F7;          /* lifted electric blue — hue-matched to light */
   --primary-foreground: #131417;
   --secondary: #26272C;
   --secondary-foreground: #F2F3F1;
@@ -184,8 +191,8 @@
   --border: #34353A;
   --border-ink: var(--border);
   --input: #77787D;
-  --ring: #A7B4FB;
-  --chart-1: #A7B4FB;
+  --ring: #8598F7;
+  --chart-1: #8598F7;
   --chart-2: #7C8DF7;
   --chart-3: #C1EC2F;
   --chart-4: #DDF0A8;
@@ -199,16 +206,16 @@
   /* Shadows read as flat mush on dark surfaces — deepen them and lean on borders. */
   --shadow-card: 0 1px 2px rgba(0,0,0,0.40), 0 6px 16px rgba(0,0,0,0.45);
   --shadow-card-hover: 0 10px 28px rgba(0,0,0,0.55);
-  --shadow-focus: 0 0 0 3px rgba(167, 180, 251, 0.45);
+  --shadow-focus: 0 0 0 3px rgba(133, 152, 247, 0.45);
 
   --sidebar: #1C1D21;
   --sidebar-foreground: #F2F3F1;
-  --sidebar-primary: #A7B4FB;
+  --sidebar-primary: #8598F7;
   --sidebar-primary-foreground: #131417;
   --sidebar-accent: #2B2C31;
   --sidebar-accent-foreground: #F2F3F1;
   --sidebar-border: #34353A;
-  --sidebar-ring: #A7B4FB;
+  --sidebar-ring: #8598F7;
 
   color-scheme: dark;
 }

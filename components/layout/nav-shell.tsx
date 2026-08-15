@@ -7,11 +7,11 @@ import { cn } from '@/lib/utils'
 import { SPRING } from '@/lib/motion/springs'
 import { buttonVariants } from '@/components/ui/button'
 import SignOutButton from '@/components/auth/sign-out-button'
-import { ROUTES } from '@/lib/routes'
 import {
   bottomNavForRole,
   buildBreadcrumbs,
   ctaForRole,
+  homeForRole,
   isActiveHref,
   navItemsForRole,
   type NavRole,
@@ -63,8 +63,9 @@ function NavShellInner({ role, children }: NavShellProps) {
   const reduced = useReducedMotion()
   const indicatorTransition = reduced ? { duration: 0 } : SPRING.snappy
 
-  // The first nav item doubles as the role's home destination for the wordmark.
-  const home = items[0]?.href ?? ROUTES.home
+  // DASH1: the wordmark links to the role's dashboard (its home), not the first
+  // nav item — that is what keeps the dashboard reachable and un-orphaned.
+  const home = homeForRole(role)
 
   return (
     <div className="flex min-h-screen flex-col">

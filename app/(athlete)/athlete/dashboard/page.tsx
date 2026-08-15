@@ -8,6 +8,7 @@ import StatStrip from '@/components/layout/stat-strip'
 import { AccentHeading } from '@/components/ui/accent-heading'
 import { SectionDivider } from '@/components/ui/section-divider'
 import { buttonVariants } from '@/components/ui/button'
+import { ROUTES } from '@/lib/routes'
 import type { Database } from '@/types/database'
 
 type AthleteRow = Database['public']['Tables']['athlete_profiles']['Row']
@@ -19,6 +20,41 @@ export const metadata = {
   title: 'Athlete dashboard · Podium',
   description: 'Your sponsorship activity at a glance: connections, conversations and deals.',
   robots: { index: false, follow: false },
+}
+
+/**
+ * Present a stored display name in title case for the hero (DASH7) without
+ * mutating the stored value. Capitalises the first letter after a word boundary
+ * (start, whitespace, hyphen or apostrophe) and leaves every other character
+ * untouched, so "nick dunn" -> "Nick Dunn" while already-cased names such as
+ * "McDonald" or "O'Brien" survive unchanged.
+ */
+function toTitleCase(name: string): string {
+  return name.replace(/(^|[\s'’-])(\p{L})/gu, (_match, boundary: string, letter: string) =>
+    boundary + letter.toUpperCase(),
+  )
+}
+
+/**
+ * A profile is "fleshed out" once the discoverability-relevant fields are set.
+ * Mirrors the field set behind the settings page's completeness meter so the
+ * dashboard's first-run prompt (DASH5) stays honest; kept boolean rather than a
+ * percentage so there is no second, drifting number competing with settings.
+ * The `as object` casts match the settings form: these JSON columns are typed
+ * as `Json` and only their key count matters here.
+ */
+function needsProfileWork(profile: AthleteRow): boolean {
+  const done = [
+    Boolean(profile.profile_photo_url),
+    Boolean(profile.primary_sport),
+    Boolean(profile.level),
+    (profile.action_photos?.length ?? 0) > 0,
+    (profile.highlight_videos?.length ?? 0) > 0,
+    Object.keys((profile.social_accounts as object) ?? {}).length > 0,
+    Object.keys((profile.performance_stats as object) ?? {}).length > 0,
+    Boolean(profile.notable_achievements),
+  ]
+  return done.some((field) => !field)
 }
 
 export default async function AthleteDashboardPage() {
@@ -40,7 +76,7 @@ export default async function AthleteDashboardPage() {
     <div className="mx-auto max-w-5xl space-y-12 px-6 py-12 md:px-16 md:py-16">
       <div>
         <AccentHeading as="h1" className="text-display">
-          Welcome back, {profile.display_name}
+          Welcome back, {toTitleCase(profile.display_name ?? '')}
         </AccentHeading>
         <p className="mt-3 max-w-[46ch] text-medium leading-relaxed text-muted-foreground">
           {profile.status === 'pending_review'
@@ -49,23 +85,61 @@ export default async function AthleteDashboardPage() {
         </p>
       </div>
 
-      <SectionDivider label="Your numbers" />
+      {needsProfileWork(profile) ? (
+        <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-8">
+          <div>
+            <p className="text-medium font-medium text-foreground">
+              Complete your profile to get discovered
+            </p>
+            <p className="mt-1 max-w-[52ch] text-small text-muted-foreground">
+              Brands search on sport, level and highlights. A fuller profile shows up in more of
+              their results.
+            </p>
+          </div>
+          <Link href={ROUTES.athlete.settings} className={buttonVariants()}>
+            Finish your profile
+          </Link>
+        </div>
+      ) : null}
+
+      <SectionDivider label="At a glance" />
 
       <StatStrip
         className="sm:grid-cols-3"
         stats={[
-          { label: 'Active conversations', value: String(activeMatches.length), iconKey: 'partners' },
-          { label: 'Sport', value: profile.primary_sport ?? 'Not set', iconKey: 'trophy' },
-          { label: 'Profile status', value: profile.status.replace('_', ' '), iconKey: 'verified' },
+          {
+            label: 'Active conversations',
+            value: String(activeMatches.length),
+            iconKey: 'partners',
+            href: ROUTES.athlete.messages,
+          },
+          {
+            label: 'Sport',
+            value: profile.primary_sport ?? 'Not set',
+            iconKey: 'trophy',
+            href: ROUTES.athlete.profile,
+          },
+          {
+            label: 'Profile status',
+            value: profile.status.replace('_', ' '),
+            iconKey: 'verified',
+            href: ROUTES.athlete.settings,
+          },
         ]}
       />
 
       <SectionDivider label="Get going" />
 
       <div className="flex flex-wrap gap-3">
-        <Link href="/athlete/discover" className={buttonVariants()}>Browse brands</Link>
-        <Link href="/athlete/messages" className={buttonVariants({ variant: 'outline' })}>Messages ({activeMatches.length})</Link>
-        <Link href="/athlete/requests" className={buttonVariants({ variant: 'outline' })}>Connection requests</Link>
+        <Link href={ROUTES.athlete.discover} className={buttonVariants()}>
+          Discover brands
+        </Link>
+        <Link href={ROUTES.athlete.messages} className={buttonVariants({ variant: 'outline' })}>
+          Messages
+        </Link>
+        <Link href={ROUTES.athlete.requests} className={buttonVariants({ variant: 'outline' })}>
+          Requests
+        </Link>
       </div>
     </div>
   )

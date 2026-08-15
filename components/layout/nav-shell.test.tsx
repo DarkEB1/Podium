@@ -98,6 +98,34 @@ describe('NavShell', () => {
     expect(screen.getByRole('link', { name: /post a listing/i })).toBeInTheDocument()
   })
 
+  // DASH1: the wordmark previously linked to the first nav item (Discover),
+  // orphaning the dashboard. It now points at the role's dashboard home.
+  it('links the wordmark to the role dashboard, not the first nav item', () => {
+    render(
+      <NavShell role="athlete">
+        <div>page</div>
+      </NavShell>,
+    )
+    expect(screen.getByRole('link', { name: /podium/i })).toHaveAttribute(
+      'href',
+      '/athlete/dashboard',
+    )
+  })
+
+  // DASH1b: the header CTA lands on /athlete/settings, so it is labelled
+  // "Settings" — not "Edit Profile", which collided with the public "Profile"
+  // nav item.
+  it('labels the header CTA "Settings" and points it at settings', () => {
+    render(
+      <NavShell role="athlete">
+        <div>page</div>
+      </NavShell>,
+    )
+    const settings = screen.getByRole('link', { name: 'Settings' })
+    expect(settings).toHaveAttribute('href', '/athlete/settings')
+    expect(screen.queryByRole('link', { name: /edit profile/i })).toBeNull()
+  })
+
   it('renders a mobile bottom navigation with a light top divider', () => {
     render(
       <NavShell role="athlete">

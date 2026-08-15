@@ -6,7 +6,9 @@ import type { Database } from '@/types/database'
 
 type ConnectionRequestRow = Database['public']['Tables']['connection_requests']['Row']
 
-const makeRequest = (): ConnectionRequestRow => ({
+const makeRequest = (
+  overrides: Partial<ConnectionRequestRow> = {}
+): ConnectionRequestRow => ({
   id: 'req1',
   sender_id: 'brand1',
   recipient_id: 'athlete1',
@@ -16,6 +18,7 @@ const makeRequest = (): ConnectionRequestRow => ({
   responded_at: null,
   created_at: '2024-01-01T00:00:00Z',
   updated_at: '2024-01-01T00:00:00Z',
+  ...overrides,
 })
 
 describe('ConnectionRequestCard', () => {
@@ -53,5 +56,31 @@ describe('ConnectionRequestCard', () => {
         expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ action: 'declined' }) })
       )
     )
+  })
+
+  it('renders a read-only accepted card with a Messages hand-off and no action buttons', () => {
+    render(
+      <ConnectionRequestCard
+        request={makeRequest({ status: 'accepted' })}
+        messagesHref="/athlete/messages"
+      />
+    )
+    expect(screen.getByText('Accepted')).toBeInTheDocument()
+    const link = screen.getByRole('link', { name: /message them/i })
+    expect(link).toHaveAttribute('href', '/athlete/messages')
+    expect(screen.queryByRole('button', { name: /accept/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /decline/i })).not.toBeInTheDocument()
+  })
+
+  it('renders a declined card as read-only with no hand-off link', () => {
+    render(
+      <ConnectionRequestCard
+        request={makeRequest({ status: 'declined' })}
+        messagesHref="/athlete/messages"
+      />
+    )
+    expect(screen.getByText('Declined')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /message them/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /accept|decline/i })).not.toBeInTheDocument()
   })
 })
