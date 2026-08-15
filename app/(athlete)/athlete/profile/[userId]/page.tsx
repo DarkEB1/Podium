@@ -170,7 +170,11 @@ export default async function AthletePublicProfilePage({
           <h2 id="seeking-heading" className="font-heading text-large font-semibold text-foreground">
             Seeking
           </h2>
-          <ProfileSeeking seeking={profile.seeking} />
+          <ProfileSeeking
+            seeking={profile.seeking}
+            isSeeking={profile.is_seeking ?? true}
+            isOwner={isOwner}
+          />
         </section>
 
         <section aria-labelledby="gallery-heading" className="space-y-4">

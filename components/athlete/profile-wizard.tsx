@@ -832,7 +832,7 @@ function Step6({ profile, onSaved }: { profile: AthleteRow | null; onSaved: (p: 
         <dl className="space-y-1 text-medium">
           <div className="flex gap-2"><dt className="w-32 text-muted-foreground">Display name</dt><dd>{profile?.display_name ?? 'Not set'}</dd></div>
           <div className="flex gap-2"><dt className="w-32 text-muted-foreground">Sport</dt><dd>{profile?.primary_sport ?? 'Not set'}</dd></div>
-          <div className="flex gap-2"><dt className="w-32 text-muted-foreground">Level</dt><dd>{profile?.level ?? 'Not set'}</dd></div>
+          <div className="flex gap-2"><dt className="w-32 text-muted-foreground">Level</dt><dd>{profile?.level ? (LEVEL_OPTIONS.find((o) => o.value === profile.level)?.label ?? profile.level) : 'Not set'}</dd></div>
           <div className="flex gap-2"><dt className="w-32 text-muted-foreground">Location</dt><dd>{[profile?.home_city, profile?.home_country].filter(Boolean).join(', ') || 'Not set'}</dd></div>
         </dl>
       </div>
