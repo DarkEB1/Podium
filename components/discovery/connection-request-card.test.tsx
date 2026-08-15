@@ -31,7 +31,9 @@ describe('ConnectionRequestCard', () => {
     expect(screen.getByText(/we would love to work with you/i)).toBeInTheDocument()
   })
 
-  it('calls PATCH /api/discovery/connections/[id] with accepted on Accept', async () => {
+  // The API route validates against VALID_ACTIONS = {'accept','decline','withdraw'}
+  // (app/api/discovery/connections/[requestId]/route.ts) — past-tense values 400.
+  it('calls PATCH /api/discovery/connections/[id] with accept on Accept', async () => {
     vi.mocked(fetch).mockResolvedValue({ ok: true, json: async () => ({}) } as Response)
     const onResponded = vi.fn()
     render(<ConnectionRequestCard request={makeRequest()} onResponded={onResponded} />)
@@ -39,13 +41,13 @@ describe('ConnectionRequestCard', () => {
     await waitFor(() =>
       expect(fetch).toHaveBeenCalledWith(
         '/api/discovery/connections/req1',
-        expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ action: 'accepted' }) })
+        expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ action: 'accept' }) })
       )
     )
     expect(onResponded).toHaveBeenCalled()
   })
 
-  it('calls PATCH with declined on Decline', async () => {
+  it('calls PATCH with decline on Decline', async () => {
     vi.mocked(fetch).mockResolvedValue({ ok: true, json: async () => ({}) } as Response)
     const onResponded = vi.fn()
     render(<ConnectionRequestCard request={makeRequest()} onResponded={onResponded} />)
@@ -53,7 +55,7 @@ describe('ConnectionRequestCard', () => {
     await waitFor(() =>
       expect(fetch).toHaveBeenCalledWith(
         '/api/discovery/connections/req1',
-        expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ action: 'declined' }) })
+        expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ action: 'decline' }) })
       )
     )
   })
