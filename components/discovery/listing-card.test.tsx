@@ -11,6 +11,8 @@ const makeListing = (overrides: Partial<JobListingWithBrand> = {}): JobListingWi
   brand_id: 'b1',
   brand_user_id: 'brand-user-1',
   brand_name: 'Acme',
+  brand_logo_url: null,
+  brand_cover_url: null,
   title: 'Football Endorsement',
   type: 'athlete_endorsement',
   description: 'Looking for a footballer to represent our energy brand across social.',
@@ -51,6 +53,24 @@ describe('ListingCard', () => {
   it('names the brand on the card', () => {
     render(<ListingCard listing={makeListing({ brand_name: 'Stride' })} />)
     expect(screen.getByText('Stride')).toBeInTheDocument()
+  })
+
+  // DISC1: a real brand logo is used when the brand has uploaded one.
+  it('renders the brand logo image when brand_logo_url is present', () => {
+    const { container } = render(
+      <ListingCard
+        listing={makeListing({ brand_name: 'Stride', brand_logo_url: 'https://cdn.test/stride.png' })}
+      />,
+    )
+    expect(container.querySelector('img[src="https://cdn.test/stride.png"]')).not.toBeNull()
+  })
+
+  // DISC7: with no uploaded cover, the card gets a branded tile (a data: URI in
+  // the brand's colour), never the shared flat placeholder.
+  it('falls back to a branded cover tile when the brand has no cover image', () => {
+    render(<ListingCard listing={makeListing({ brand_name: 'Stride', brand_cover_url: null })} />)
+    const cover = screen.getByAltText('Stride campaign') as HTMLImageElement
+    expect(cover.getAttribute('src') ?? '').toMatch(/^data:image\/svg\+xml/)
   })
 
   // DISC4: the pay slot is always rendered, even without a fee.

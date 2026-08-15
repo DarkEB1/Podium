@@ -10,6 +10,8 @@ const listing = (over: Partial<ListingSummary> = {}): ListingSummary => ({
   brand_id: 'b1',
   brand_user_id: 'brand-user-1',
   brand_name: 'Acme',
+  brand_logo_url: null,
+  brand_cover_url: null,
   title: 'Football Endorsement',
   type: 'athlete_endorsement',
   description: 'desc',

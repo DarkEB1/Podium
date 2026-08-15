@@ -314,7 +314,14 @@ describe('getListings', () => {
     // PR-19: every listing is flattened to carry the owning brand's *user* id,
     // which is what connection requests must address. Absent embed -> null.
     expect(result).toEqual([
-      { id: 'l1', title: 'Listing 1', brand_user_id: null, brand_name: null },
+      {
+        id: 'l1',
+        title: 'Listing 1',
+        brand_user_id: null,
+        brand_name: null,
+        brand_logo_url: null,
+        brand_cover_url: null,
+      },
     ])
   })
 

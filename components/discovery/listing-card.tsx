@@ -50,11 +50,38 @@ function brandInitials(name: string): string {
   return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase()
 }
 
-/** Deterministic brand colour so a brand always reads the same across cards. */
-function brandColor(name: string): string {
+/** Deterministic hue (0–359) so a brand always reads the same colour everywhere. */
+function brandHue(name: string): number {
   let hue = 0
   for (let i = 0; i < name.length; i++) hue = (hue * 31 + name.charCodeAt(i)) % 360
-  return `hsl(${hue} 52% 42%)`
+  return hue
+}
+
+/** Deterministic brand colour so a brand always reads the same across cards. */
+function brandColor(name: string): string {
+  return `hsl(${brandHue(name)} 52% 42%)`
+}
+
+/**
+ * A branded cover tile (DISC1/DISC7). Real brand artwork (`cover_image_url`) is
+ * preferred; when a brand has uploaded none, this inline SVG gives the card an
+ * intentional, on-brand cover — a deterministic gradient in the brand's colour
+ * with its monogram — instead of a single flat grey placeholder shared by every
+ * card. Encoded as a data URI so it needs no network round-trip or stored asset.
+ */
+function brandCoverDataUri(name: string): string {
+  const hue = brandHue(name)
+  const svg =
+    `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 240'>` +
+    `<defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>` +
+    `<stop offset='0' stop-color='hsl(${hue} 55% 46%)'/>` +
+    `<stop offset='1' stop-color='hsl(${hue} 52% 30%)'/>` +
+    `</linearGradient></defs>` +
+    `<rect width='400' height='240' fill='url(#g)'/>` +
+    `<text x='200' y='150' text-anchor='middle' font-family='system-ui,sans-serif' ` +
+    `font-size='104' font-weight='700' fill='rgba(255,255,255,0.9)'>${brandInitials(name)}</text>` +
+    `</svg>`
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`
 }
 
 /**
@@ -73,17 +100,38 @@ function payDisplay(listing: ListingSummary): { value: string; label: string } {
   return { value: 'Fee undisclosed', label: '' }
 }
 
-/** Coloured monogram + name — a brand logo stand-in with real alt semantics. */
-function BrandLockup({ name, className }: { name: string; className?: string }) {
+/**
+ * Brand name preceded by the real brand logo when one exists, else a coloured
+ * monogram stand-in. The mark is decorative (the name carries the label).
+ */
+function BrandLockup({
+  name,
+  logoUrl,
+  className,
+}: {
+  name: string
+  logoUrl?: string | null
+  className?: string
+}) {
   return (
     <span className={className}>
-      <span
-        aria-hidden="true"
-        style={{ backgroundColor: brandColor(name) }}
-        className="inline-flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white"
-      >
-        {brandInitials(name)}
-      </span>
+      {logoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element -- brand logos come from arbitrary hosts not declared in next.config images.remotePatterns
+        <img
+          src={logoUrl}
+          alt=""
+          aria-hidden="true"
+          className="size-5 shrink-0 rounded-full object-cover ring-1 ring-foreground/10"
+        />
+      ) : (
+        <span
+          aria-hidden="true"
+          style={{ backgroundColor: brandColor(name) }}
+          className="inline-flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white"
+        >
+          {brandInitials(name)}
+        </span>
+      )}
       <span className="min-w-0 truncate">{name}</span>
     </span>
   )
@@ -103,10 +151,20 @@ export default function ListingCard({ listing }: Props) {
 
   const pay = payDisplay(listing)
   const brandName = listing.brand_name
+  const brandLogo = listing.brand_logo_url
+
+  // DISC1/DISC7: prefer the brand's real cover art; otherwise a branded tile in
+  // the brand's colour, never the single flat grey placeholder for every card.
+  const coverImage = listing.brand_cover_url
+    ? listing.brand_cover_url
+    : brandName
+      ? brandCoverDataUri(brandName)
+      : CAMPAIGN_PLACEHOLDER
 
   const brandBadge = brandName ? (
     <BrandLockup
       name={brandName}
+      logoUrl={brandLogo}
       className="inline-flex max-w-[12rem] items-center gap-1.5 rounded-full bg-card/90 py-1 pl-1 pr-2.5 text-small font-medium text-foreground shadow-sm ring-1 ring-foreground/10 backdrop-blur"
     />
   ) : null
@@ -172,7 +230,7 @@ export default function ListingCard({ listing }: Props) {
   return (
     <>
       <MarketplaceCard
-        image={CAMPAIGN_PLACEHOLDER}
+        image={coverImage}
         imageAlt={brandName ? `${brandName} campaign` : `${listing.title} campaign`}
         imageRatio={0.6}
         title={listing.title}
@@ -195,6 +253,7 @@ export default function ListingCard({ listing }: Props) {
             {brandName ? (
               <BrandLockup
                 name={brandName}
+                logoUrl={brandLogo}
                 className="mb-1 inline-flex items-center gap-2 text-small font-medium text-muted-foreground"
               />
             ) : null}
