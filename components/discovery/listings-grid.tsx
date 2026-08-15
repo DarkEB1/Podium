@@ -1,10 +1,7 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
-import { motion, useReducedMotion } from 'motion/react'
 import { Search } from 'lucide-react'
 
-import { SPRING } from '@/lib/motion/springs'
 import { CardSkeleton } from '@/components/ui/card-skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import ListingCard from './listing-card'
@@ -32,25 +29,11 @@ export default function ListingsGrid({ listings, loading = false, footer, athlet
   const filters = useListingFilters(listings, { athleteSport: athleteSport ?? null })
   const filtered = filters.filtered
 
-  // Entry-motion guard (UX audit M4): stagger the cards in on the grid's FIRST
-  // mount only. `animateFirstMount` is read during render — true on the initial
-  // pass, then flipped off after commit — so filter/sort/load-more re-renders
-  // (which unmount and remount cards) render statically instead of replaying.
-  const reduced = useReducedMotion()
-  const firstMountRef = useRef(true)
-  const animateFirstMount = firstMountRef.current
-  useEffect(() => {
-    firstMountRef.current = false
-  }, [])
-  const cardMotion = (index: number) =>
-    animateFirstMount
-      ? {
-          initial: reduced ? { opacity: 0 } : { opacity: 0, y: 8 },
-          animate: { opacity: 1, y: 0 },
-          transition: { ...SPRING.default, delay: reduced ? 0 : Math.min(index, 8) * 0.04 },
-        }
-      : { initial: false as const }
-
+  // Cards render statically (no opacity-based entry reveal). A per-card
+  // `initial: { opacity: 0 }` animation leaves the grid invisible until
+  // requestAnimationFrame fires — which never happens in a backgrounded tab and
+  // produces a blank flash on slow (high-latency) first paints. The page-level
+  // transition and the swipe deck already carry the motion language.
   return (
     <div className="space-y-6">
       <ListingsToolbar state={filters} listings={listings} />
@@ -80,10 +63,8 @@ export default function ListingsGrid({ listings, loading = false, footer, athlet
           data-testid="listings-grid"
           className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3"
         >
-          {filtered.map((l, index) => (
-            <motion.div key={l.id} {...cardMotion(index)}>
-              <ListingCard listing={l} />
-            </motion.div>
+          {filtered.map((l) => (
+            <ListingCard key={l.id} listing={l} />
           ))}
         </div>
       )}

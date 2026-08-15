@@ -111,18 +111,19 @@ describe('AthleteDashboardPage', () => {
     ).toHaveTextContent('Welcome back, Nick Dunn')
   })
 
-  it('links each snapshot card to a sensible destination (DASH4)', async () => {
+  it('renders snapshot cards as passive stats, not links (DASH4)', async () => {
     setProfile('active')
     getMatchesMock.mockResolvedValue([{ id: 'm1', status: 'active' }])
     await renderPage()
 
-    // The elevated cards are now honest links, not inert tap targets. StatStrip
-    // renders the tile value as the link, so the accessible name is the value.
-    expect(screen.getByRole('link', { name: '1' })).toHaveAttribute('href', '/athlete/messages')
-    expect(screen.getByRole('link', { name: /athletics/i })).toHaveAttribute(
-      'href',
-      '/athlete/profile',
-    )
+    // The snapshot tiles read as honest passive stats: the big value is not a
+    // link (a link named just "1" is meaningless to a screen reader, and the
+    // "Get going" actions below already provide navigation). No stat value
+    // should resolve to a link.
+    expect(screen.queryByRole('link', { name: '1' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /athletics/i })).not.toBeInTheDocument()
+    // The value is still shown, just not as an anchor.
+    expect(screen.getByText('1')).toBeInTheDocument()
   })
 
   it('aligns the quick-action labels to the nav vocabulary (DASH3)', async () => {

@@ -111,19 +111,16 @@ export default async function AthleteDashboardPage() {
             label: 'Active conversations',
             value: String(activeMatches.length),
             iconKey: 'partners',
-            href: ROUTES.athlete.messages,
           },
           {
             label: 'Sport',
             value: profile.primary_sport ?? 'Not set',
             iconKey: 'trophy',
-            href: ROUTES.athlete.profile,
           },
           {
             label: 'Profile status',
             value: profile.status.replace('_', ' '),
             iconKey: 'verified',
-            href: ROUTES.athlete.settings,
           },
         ]}
       />
