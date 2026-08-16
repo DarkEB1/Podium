@@ -21,13 +21,21 @@ import type { ListingSummary } from '@/lib/supabase/discovery'
 
 // PR-1: `verified` was a facet that filtered nothing (there is no brand
 // verification column), so it stays gone.
-export type FacetKey = 'sport' | 'budget' | 'location' | 'industry'
+export type FacetKey = 'sport' | 'budget' | 'location' | 'industry' | 'payType'
 
 const FACETS: { key: FacetKey; label: string }[] = [
   { key: 'sport', label: 'Sport' },
   { key: 'budget', label: 'Budget' },
   { key: 'location', label: 'Location' },
   { key: 'industry', label: 'Industry' },
+  { key: 'payType', label: 'Pay type' },
+]
+
+export const PAY_TYPE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'flat_fee', label: 'Flat fee' },
+  { value: 'monthly_retainer', label: 'Monthly retainer' },
+  { value: 'per_post', label: 'Per post' },
+  { value: 'revenue_share', label: 'Revenue share' },
 ]
 
 export const BUDGET_BANDS: { value: string; label: string; min: number; max: number }[] = [
@@ -227,6 +235,7 @@ const EMPTY_FILTERS: Record<FacetKey, string | null> = {
   budget: null,
   location: null,
   industry: null,
+  payType: null,
 }
 
 export interface ListingFilters {
@@ -272,6 +281,7 @@ export function useListingFilters(
       if (filters.location && (l.is_remote ? 'Remote' : l.location) !== filters.location)
         return false
       if (filters.industry && l.type !== filters.industry) return false
+      if (filters.payType && l.pay_type !== filters.payType) return false
       if (band) {
         const pay = l.pay_amount ?? 0
         if (pay < band.min || pay > band.max) return false
@@ -352,6 +362,7 @@ export function ListingsToolbar({
     budget: BUDGET_BANDS.map((b) => ({ value: b.value, label: b.label })),
     location: locationOptions,
     industry: industryOptions,
+    payType: PAY_TYPE_OPTIONS,
   }
 
   const searchPlaceholder = `Search ${listings.length} campaigns by sport, brand or location…`
