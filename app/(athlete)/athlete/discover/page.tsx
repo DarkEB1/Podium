@@ -4,9 +4,10 @@ import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getActiveListingsPage, LISTING_PAGE_SIZE } from '@/lib/supabase/discovery'
 import { getDiscoveryUiMode, getOwnProfile } from '@/lib/supabase/profiles'
-import { sortListingsByMatch } from '@/lib/matching/score'
+import { decorateWithMatch } from '@/lib/discovery/match'
+import { buildRails } from '@/lib/discovery/rails'
 import type { Database } from '@/types/database'
-import ListingsBrowser from '@/components/discovery/listings-browser'
+import { DiscoverFeed } from '@/components/discovery/discover-feed'
 import LoadMore from '@/components/discovery/load-more'
 import { parseShowParam } from '@/lib/pagination'
 import { ROUTES } from '@/lib/routes'
@@ -43,36 +44,41 @@ export default async function AthleteDiscoverPage({
     getOwnProfile(supabase, user.id, 'athlete'),
   ])
 
-  // Spec Section 10: rank this page of listings by fit for the athlete, so the
-  // most relevant opportunities surface first. getOwnProfile returns the role
-  // union; role 'athlete' narrows it to the row the scorer reads.
+  // Spec Section 10: score this page of listings by fit for the athlete, then
+  // group them into the made-for-you rails the Live Board feed renders.
+  // getOwnProfile returns the role union; role 'athlete' narrows it to the row
+  // the scorer reads. decorateWithMatch tolerates a null athlete; buildRails and
+  // the flat grid each sort on their own, so the page no longer pre-sorts.
   const athlete = profile as Database['public']['Tables']['athlete_profiles']['Row'] | null
-  const ranked = athlete ? sortListingsByMatch(listings, athlete) : listings
+  const athleteSport = athlete?.primary_sport ?? null
+  const scored = decorateWithMatch(listings, athlete)
+  const rails = buildRails(scored, { athleteSport })
 
   return (
     <div className="mx-auto max-w-6xl space-y-12 px-6 py-12 md:px-16 md:py-16">
       <div>
-        <AccentHeading as="h1" className="text-display">Discover opportunities</AccentHeading>
+        <AccentHeading as="h1" className="text-display">
+          {athleteSport ? `Ranked for you, ${athleteSport}` : 'Discover opportunities'}
+        </AccentHeading>
         <p className="mt-3 max-w-[52ch] text-medium leading-relaxed text-muted-foreground">
           Browse brand campaigns and send a personalised connection request.
         </p>
       </div>
-      {/* PR-23: both browse modes ship, so the page renders the toggle. */}
-      <ListingsBrowser
-        listings={ranked}
+      {/* PR-23: both browse modes ship, so the feed renders the toggle. */}
+      <DiscoverFeed
+        listings={scored}
+        rails={rails}
         initialMode={mode}
-        athleteSport={athlete?.primary_sport ?? null}
-        {...(hasMore
-          ? {
-              footer: (
-                <LoadMore
-                  href={`${ROUTES.athlete.discover}?show=${shown + LISTING_PAGE_SIZE}`}
-                  shown={listings.length}
-                  label="Load more campaigns"
-                />
-              ),
-            }
-          : {})}
+        athleteSport={athleteSport}
+        footer={
+          hasMore ? (
+            <LoadMore
+              href={`${ROUTES.athlete.discover}?show=${shown + LISTING_PAGE_SIZE}`}
+              shown={listings.length}
+              label="Load more campaigns"
+            />
+          ) : undefined
+        }
       />
     </div>
   )

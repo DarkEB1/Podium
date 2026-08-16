@@ -77,20 +77,34 @@ describe('AthleteDiscoverPage', () => {
     expect(screen.getByRole('radio', { name: /swipe/i })).toBeInTheDocument()
   })
 
+  it('leads the masthead with the athlete primary sport when one is known', async () => {
+    await renderPage()
+    expect(
+      screen.getByRole('heading', { level: 1, name: /ranked for you, football/i })
+    ).toBeInTheDocument()
+  })
+
+  it('renders the made-for-you rails in marketplace mode', async () => {
+    await renderPage()
+    expect(screen.getByTestId('discover-rails')).toBeInTheDocument()
+    // buildRails always emits a "Top matches" rail for a non-empty page.
+    expect(screen.getByRole('region', { name: /top matches/i })).toBeInTheDocument()
+  })
+
   it('starts in the mode persisted on the profile', async () => {
     getDiscoveryUiModeMock.mockResolvedValue('swipe')
     await renderPage()
     expect(screen.getByTestId('swipe-deck')).toBeInTheDocument()
-    expect(screen.queryByTestId('listings-grid')).toBeNull()
+    expect(screen.queryByTestId('discover-rails')).toBeNull()
   })
 
-  it('switches from the grid to the swipe deck when the toggle is used', async () => {
+  it('switches from the rails to the swipe deck when the toggle is used', async () => {
     await renderPage()
-    expect(screen.getByTestId('listings-grid')).toBeInTheDocument()
+    expect(screen.getByTestId('discover-rails')).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('radio', { name: /swipe/i }))
     expect(screen.getByTestId('swipe-deck')).toBeInTheDocument()
-    expect(screen.queryByTestId('listings-grid')).toBeNull()
+    expect(screen.queryByTestId('discover-rails')).toBeNull()
   })
 
   // FA-5
