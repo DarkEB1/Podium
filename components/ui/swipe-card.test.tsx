@@ -105,6 +105,16 @@ describe("SwipeCard (PR-23)", () => {
     expect(screen.getByTestId("swipe-gloss")).toBeInTheDocument()
   })
 
+  // jsdom does not compute paint order, so this cannot assert the badges
+  // paint above the gloss directly. It does guard the mechanism the fix
+  // relies on: the gloss must carry no positive/explicit z-index utility,
+  // so DOM order (gloss first, badges later) is what decides stacking.
+  it("does not give the gloss layer an explicit z-index (paint order relies on DOM order)", () => {
+    render(<SwipeCard {...base} glossy />)
+    const gloss = screen.getByTestId("swipe-gloss")
+    expect(gloss.className).not.toMatch(/\bz-\d|\bz-\[/)
+  })
+
   it("renders no overlay content by default (opt-in, backward compatible)", () => {
     render(<SwipeCard {...base} />)
     expect(screen.queryByText("92")).not.toBeInTheDocument()

@@ -234,11 +234,13 @@ export function SwipeCard({
           // a soft top highlight fading down, plus a faint inner top-left
           // glow. No motion is involved, so no prefers-reduced-motion gate
           // is needed, since a static gradient cannot trigger vestibular
-          // discomfort.
+          // discomfort. Deliberately no z-index: it is first in DOM order
+          // inside the figure, so the later like/pass drag badges (also
+          // z-index:auto) paint above it and stay legible.
           <div
             aria-hidden="true"
             data-testid="swipe-gloss"
-            className="pointer-events-none absolute inset-0 z-[1] bg-[linear-gradient(180deg,rgba(255,255,255,0.35)_0%,rgba(255,255,255,0)_45%),radial-gradient(120%_60%_at_18%_0%,rgba(255,255,255,0.30),rgba(255,255,255,0)_60%)]"
+            className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.35)_0%,rgba(255,255,255,0)_45%),radial-gradient(120%_60%_at_18%_0%,rgba(255,255,255,0.30),rgba(255,255,255,0)_60%)]"
           />
         ) : null}
         {overlay ? (
