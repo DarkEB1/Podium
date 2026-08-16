@@ -20,6 +20,7 @@ export interface JobListingWithBrand extends JobListingRow {
   brand_name: string | null
   brand_logo_url: string | null
   brand_cover_url: string | null
+  brand_description: string | null
 }
 type ConnectionRequestRow = Database['public']['Tables']['connection_requests']['Row']
 type ShortlistRow = Database['public']['Tables']['shortlists']['Row']
@@ -203,7 +204,7 @@ export async function getListings(
   const { data, error } = await (supabase as SupabaseClient)
     .from('job_listings')
     .select(
-      '*, brand_profiles!inner(user_id, company_name, trading_name, logo_url, cover_image_url)',
+      '*, brand_profiles!inner(user_id, company_name, trading_name, logo_url, cover_image_url, description)',
     )
 
   if (error) {
@@ -216,6 +217,7 @@ export async function getListings(
     trading_name: string | null
     logo_url: string | null
     cover_image_url: string | null
+    description: string | null
   }
   type Embedded = JobListingRow & { brand_profiles?: EmbeddedBrand | EmbeddedBrand[] | null }
 
@@ -230,6 +232,7 @@ export async function getListings(
       brand_name: brand ? (brand.trading_name ?? brand.company_name) : null,
       brand_logo_url: brand?.logo_url ?? null,
       brand_cover_url: brand?.cover_image_url ?? null,
+      brand_description: brand?.description ?? null,
     } satisfies JobListingWithBrand
   })
 }
@@ -286,6 +289,7 @@ export type ListingSummary = Pick<JobListingRow, ListingSummaryKeys> & {
   brand_name: string | null
   brand_logo_url: string | null
   brand_cover_url: string | null
+  brand_description: string | null
 }
 
 /** Rows per discovery page. */
@@ -325,7 +329,7 @@ export async function getActiveListingsPage(
   const { data, error } = await (supabase as SupabaseClient)
     .from('job_listings')
     .select(
-      `${LISTING_SUMMARY_COLUMNS}, brand_profiles!inner(user_id, company_name, trading_name, logo_url, cover_image_url)`,
+      `${LISTING_SUMMARY_COLUMNS}, brand_profiles!inner(user_id, company_name, trading_name, logo_url, cover_image_url, description)`,
     )
     .eq('status', 'active')
     .or(listingDeadlinePredicate(cutoff))
@@ -342,6 +346,7 @@ export async function getActiveListingsPage(
     trading_name: string | null
     logo_url: string | null
     cover_image_url: string | null
+    description: string | null
   }
   type Embedded = Pick<JobListingRow, ListingSummaryKeys> & {
     brand_profiles?: EmbeddedBrand | EmbeddedBrand[] | null
@@ -358,6 +363,7 @@ export async function getActiveListingsPage(
       brand_name: brand ? (brand.trading_name ?? brand.company_name) : null,
       brand_logo_url: brand?.logo_url ?? null,
       brand_cover_url: brand?.cover_image_url ?? null,
+      brand_description: brand?.description ?? null,
     } satisfies ListingSummary
   })
 

@@ -12,6 +12,7 @@ const makelisting = (overrides: Partial<JobListingWithBrand>): JobListingWithBra
   brand_name: 'Acme',
   brand_logo_url: null,
   brand_cover_url: null,
+  brand_description: null,
   title: 'Football Endorsement',
   type: 'athlete_endorsement',
   description: 'Looking for a footballer',
