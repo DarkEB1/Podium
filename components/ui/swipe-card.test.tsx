@@ -94,6 +94,26 @@ describe("SwipeCard (PR-23)", () => {
       "placeholder-athlete.svg"
     )
   })
+
+  it("renders no gloss layer by default (opt-in, backward compatible)", () => {
+    render(<SwipeCard {...base} />)
+    expect(screen.queryByTestId("swipe-gloss")).not.toBeInTheDocument()
+  })
+
+  it("renders a gloss sheen layer when glossy is set", () => {
+    render(<SwipeCard {...base} glossy />)
+    expect(screen.getByTestId("swipe-gloss")).toBeInTheDocument()
+  })
+
+  it("renders no overlay content by default (opt-in, backward compatible)", () => {
+    render(<SwipeCard {...base} />)
+    expect(screen.queryByText("92")).not.toBeInTheDocument()
+  })
+
+  it("renders the overlay node in the figure when provided", () => {
+    render(<SwipeCard {...base} overlay={<span>92</span>} />)
+    expect(screen.getByText("92")).toBeInTheDocument()
+  })
 })
 
 describe("SwipeDeck (PR-23)", () => {

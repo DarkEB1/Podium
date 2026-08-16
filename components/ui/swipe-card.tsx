@@ -48,6 +48,19 @@ export interface SwipeCardProps {
    *  outgoing one. Written by this card, owned by SwipeDeck. */
   dragProgress?: MotionValue<number> | undefined
   className?: string
+  /**
+   * Opt-in plastic gloss sheen over the card surface (discover marketplace
+   * redesign). Purely a static, non-interactive, decorative CSS gradient,
+   * so it needs no reduced-motion gate. Off by default; team-side callers
+   * are unaffected. When true, adds a `data-testid="swipe-gloss"` layer.
+   */
+  glossy?: boolean
+  /**
+   * Opt-in node rendered absolutely in the figure's top-left, above the
+   * image (discover marketplace redesign carries the MatchScore ring here).
+   * Off by default; renders nothing when omitted.
+   */
+  overlay?: React.ReactNode
 }
 
 /**
@@ -97,6 +110,8 @@ export function SwipeCard({
   blurDataURL,
   dragProgress,
   className,
+  glossy = false,
+  overlay,
 }: SwipeCardProps) {
   const LikeIcon = likeIcon ?? Check
   const prefersReducedMotion = useReducedMotion()
@@ -214,6 +229,21 @@ export function SwipeCard({
           draggable={false}
           className="object-cover"
         />
+        {glossy ? (
+          // Static plastic sheen (direction-b-editorial score-chip material):
+          // a soft top highlight fading down, plus a faint inner top-left
+          // glow. No motion is involved, so no prefers-reduced-motion gate
+          // is needed, since a static gradient cannot trigger vestibular
+          // discomfort.
+          <div
+            aria-hidden="true"
+            data-testid="swipe-gloss"
+            className="pointer-events-none absolute inset-0 z-[1] bg-[linear-gradient(180deg,rgba(255,255,255,0.35)_0%,rgba(255,255,255,0)_45%),radial-gradient(120%_60%_at_18%_0%,rgba(255,255,255,0.30),rgba(255,255,255,0)_60%)]"
+          />
+        ) : null}
+        {overlay ? (
+          <div className="absolute left-3 top-3 z-10">{overlay}</div>
+        ) : null}
         <motion.span
           aria-hidden="true"
           style={{ opacity: likeOpacity }}
