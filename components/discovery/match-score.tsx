@@ -113,7 +113,7 @@ export function MatchScore({ score, size = 'sm', className }: MatchScoreProps) {
         </span>
       </span>
       {size === 'lg' && (
-        <span className="font-mono text-xs text-muted-foreground">match</span>
+        <span className="font-mono text-xs uppercase text-muted-foreground">match</span>
       )}
     </span>
   )

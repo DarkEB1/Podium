@@ -54,11 +54,49 @@ describe('OpportunityCard', () => {
     expect(screen.queryByText('Sport and level match')).not.toBeInTheDocument()
   })
 
-  it('shows an urgency chip for a listing closing soon', () => {
+  it('shows an urgency chip for a listing closing soon, without repeating it in the meta row', () => {
     const deadline = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString()
     render(<OpportunityCard listing={makeListing({ application_deadline: deadline })} />)
-    // The urgency appears both in the top-right chip and the meta deadline.
-    expect(screen.getAllByText(/closes in/i).length).toBeGreaterThan(0)
+    // The urgency label appears exactly once: the top-right chip. The meta
+    // row must not repeat it.
+    expect(screen.getAllByText(/closes in/i)).toHaveLength(1)
+    // Instead the meta row shows a non-redundant fact: the location.
+    expect(screen.getByText('London')).toBeInTheDocument()
+  })
+
+  it('shows "Remote" in the meta row when there is urgency but no location', () => {
+    const deadline = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString()
+    render(
+      <OpportunityCard
+        listing={makeListing({ application_deadline: deadline, location: null, is_remote: true })}
+      />
+    )
+    expect(screen.getAllByText(/closes in/i)).toHaveLength(1)
+    expect(screen.getByText('Remote')).toBeInTheDocument()
+  })
+
+  it('shows the contract length in the meta row when there is urgency but no location or remote flag', () => {
+    const deadline = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString()
+    render(
+      <OpportunityCard
+        listing={makeListing({
+          application_deadline: deadline,
+          location: null,
+          is_remote: false,
+          contract_duration_months: 6,
+        })}
+      />
+    )
+    expect(screen.getByText('6mo')).toBeInTheDocument()
+  })
+
+  it('shows the plain deadline text in the meta row when there is no urgency', () => {
+    render(
+      <OpportunityCard
+        listing={makeListing({ application_deadline: null, created_at: '2000-01-01' })}
+      />
+    )
+    expect(screen.getByText('Open')).toBeInTheDocument()
   })
 
   it('opens the card-back detail when the card body is clicked', async () => {

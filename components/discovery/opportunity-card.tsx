@@ -36,8 +36,15 @@ export function OpportunityCard({ listing }: Props) {
   const strongestReason = listing.matchReasons[0]
   const canSave = listing.brand_user_id !== null
 
-  const deadlineText =
-    urgency?.kind === 'closing' ? urgency.label : urgency?.kind === 'new' ? 'New' : 'Open'
+  // The urgency chip already shows the deadline/urgency label, so the meta
+  // row must not repeat it. When there is urgency, show a different,
+  // non-redundant fact instead (location, or contract length as a
+  // fallback); when there is no urgency, fall back to the plain text.
+  const metaFact = urgency
+    ? (listing.location ??
+      (listing.is_remote ? 'Remote' : null) ??
+      (listing.contract_duration_months ? `${listing.contract_duration_months}mo` : null))
+    : 'Open'
 
   if (dismissed) return null
 
@@ -143,7 +150,9 @@ export function OpportunityCard({ listing }: Props) {
         {/* Mono meta row */}
         <div className="mt-auto flex items-center justify-between border-t border-border pt-3 font-mono text-small">
           <span className="font-semibold text-foreground">{pay.value}</span>
-          <span className="uppercase tracking-[0.02em] text-muted-foreground">{deadlineText}</span>
+          {metaFact ? (
+            <span className="uppercase tracking-[0.02em] text-muted-foreground">{metaFact}</span>
+          ) : null}
         </div>
 
         {/* Actions */}

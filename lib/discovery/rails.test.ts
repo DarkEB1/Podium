@@ -58,7 +58,7 @@ it('includes a because-you-<sport> rail only when athleteSport is set and there 
   const withSport = buildRails([surf1, surf2, skate], { athleteSport: 'surfing', now })
   const onSportRail = withSport.find((r) => r.id === 'because-you-surfing')
   expect(onSportRail).toBeDefined()
-  expect(onSportRail!.title).toBe('Because you surfing')
+  expect(onSportRail!.title).toBe("Because you're into surfing")
   expect(onSportRail!.listings.map((l) => l.id)).toEqual(['s2', 's1'])
 
   const withoutSport = buildRails([surf1, surf2, skate], { now })

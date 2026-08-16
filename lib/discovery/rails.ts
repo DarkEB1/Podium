@@ -35,7 +35,7 @@ export function buildRails(
     if (onSport.length > 0) {
       rails.push({
         id: `because-you-${sport.toLowerCase()}`,
-        title: `Because you ${sport.toLowerCase()}`,
+        title: `Because you're into ${sport.toLowerCase()}`,
         listings: onSport,
       })
     }
