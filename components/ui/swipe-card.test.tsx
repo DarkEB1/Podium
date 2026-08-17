@@ -94,6 +94,36 @@ describe("SwipeCard (PR-23)", () => {
       "placeholder-athlete.svg"
     )
   })
+
+  it("renders no gloss layer by default (opt-in, backward compatible)", () => {
+    render(<SwipeCard {...base} />)
+    expect(screen.queryByTestId("swipe-gloss")).not.toBeInTheDocument()
+  })
+
+  it("renders a gloss sheen layer when glossy is set", () => {
+    render(<SwipeCard {...base} glossy />)
+    expect(screen.getByTestId("swipe-gloss")).toBeInTheDocument()
+  })
+
+  // jsdom does not compute paint order, so this cannot assert the badges
+  // paint above the gloss directly. It does guard the mechanism the fix
+  // relies on: the gloss must carry no positive/explicit z-index utility,
+  // so DOM order (gloss first, badges later) is what decides stacking.
+  it("does not give the gloss layer an explicit z-index (paint order relies on DOM order)", () => {
+    render(<SwipeCard {...base} glossy />)
+    const gloss = screen.getByTestId("swipe-gloss")
+    expect(gloss.className).not.toMatch(/\bz-\d|\bz-\[/)
+  })
+
+  it("renders no overlay content by default (opt-in, backward compatible)", () => {
+    render(<SwipeCard {...base} />)
+    expect(screen.queryByText("92")).not.toBeInTheDocument()
+  })
+
+  it("renders the overlay node in the figure when provided", () => {
+    render(<SwipeCard {...base} overlay={<span>92</span>} />)
+    expect(screen.getByText("92")).toBeInTheDocument()
+  })
 })
 
 describe("SwipeDeck (PR-23)", () => {

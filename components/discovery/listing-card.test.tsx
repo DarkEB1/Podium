@@ -13,6 +13,7 @@ const makeListing = (overrides: Partial<JobListingWithBrand> = {}): JobListingWi
   brand_name: 'Acme',
   brand_logo_url: null,
   brand_cover_url: null,
+  brand_description: null,
   title: 'Football Endorsement',
   type: 'athlete_endorsement',
   description: 'Looking for a footballer to represent our energy brand across social.',

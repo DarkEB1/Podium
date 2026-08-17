@@ -321,6 +321,7 @@ describe('getListings', () => {
         brand_name: null,
         brand_logo_url: null,
         brand_cover_url: null,
+        brand_description: null,
       },
     ])
   })
@@ -971,6 +972,28 @@ describe('getActiveListingsPage', () => {
     const page = await getActiveListingsPage(client)
 
     expect(page.listings[0]).toMatchObject({ brand_user_id: 'u-brand', brand_name: 'Acme' })
+    expect(page.listings[0]).not.toHaveProperty('brand_profiles')
+  })
+
+  it('flattens the embedded brand profile description to brand_description', async () => {
+    const { client } = makeListingPagingClient([
+      {
+        id: 'l1',
+        title: 'Listing 1',
+        brand_profiles: {
+          user_id: 'u-brand',
+          company_name: 'Acme Ltd',
+          trading_name: 'Acme',
+          description: 'Sustainable sportswear brand backing grassroots athletes.',
+        },
+      },
+    ])
+
+    const page = await getActiveListingsPage(client)
+
+    expect(page.listings[0]).toMatchObject({
+      brand_description: 'Sustainable sportswear brand backing grassroots athletes.',
+    })
     expect(page.listings[0]).not.toHaveProperty('brand_profiles')
   })
 
