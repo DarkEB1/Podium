@@ -122,6 +122,89 @@ interface PendingCrop {
   file: File
   previewUrl: string
   ext: string
+  /** Natural pixel dimensions, read once at selection time. */
+  naturalWidth: number
+  naturalHeight: number
+}
+
+/** Longest edge of the exported crop — plenty for a hero cover, small upload. */
+const MAX_EXPORT_PX = 1600
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value))
+}
+
+/** Load an image element from an object URL for canvas rasterisation. */
+function loadImage(url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = () => reject(new Error("Could not decode image."))
+    img.src = url
+  })
+}
+
+/**
+ * Rasterise the crop-window contents (cover-fitted image + zoom + offsets) to
+ * a canvas and return the encoded blob. Returns null whenever the runtime
+ * cannot do it (no 2d context, un-decodable format such as HEIC outside
+ * Safari, toBlob unavailable) so the caller can fall back to the original.
+ */
+async function rasteriseCrop(
+  pending: PendingCrop,
+  zoom: number,
+  offset: { x: number; y: number },
+  cropW: number,
+  cropH: number,
+): Promise<{ blob: Blob; ext: string } | null> {
+  try {
+    if (typeof document === "undefined") return null
+    // Displayed pixels per natural pixel: cover fit at zoom 1, scaled up.
+    const scale =
+      Math.max(cropW / pending.naturalWidth, cropH / pending.naturalHeight) *
+      zoom
+    // Source rect (natural pixels) visible through the crop window. The image
+    // centre sits at the window centre displaced by the offset.
+    const sw = cropW / scale
+    const sh = cropH / scale
+    const sx = clamp(
+      pending.naturalWidth / 2 - (cropW / 2 + offset.x) / scale,
+      0,
+      Math.max(0, pending.naturalWidth - sw)
+    )
+    const sy = clamp(
+      pending.naturalHeight / 2 - (cropH / 2 + offset.y) / scale,
+      0,
+      Math.max(0, pending.naturalHeight - sh)
+    )
+
+    // Export at the crop's native resolution, capped so a 6000px photo does
+    // not upload megabytes it will never render at.
+    const outW = Math.round(Math.min(MAX_EXPORT_PX, Math.max(cropW, sw)))
+    const outH = Math.max(1, Math.round(outW * (cropH / cropW)))
+
+    const canvas = document.createElement("canvas")
+    if (typeof canvas.toBlob !== "function") return null
+    canvas.width = outW
+    canvas.height = outH
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return null
+
+    const img = await loadImage(pending.previewUrl)
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, outW, outH)
+
+    // PNG stays PNG (transparency); everything else exports as JPEG.
+    const png = pending.ext === "png"
+    const blob = await new Promise<Blob | null>((resolve) =>
+      png
+        ? canvas.toBlob(resolve, "image/png")
+        : canvas.toBlob(resolve, "image/jpeg", 0.9)
+    )
+    if (!blob) return null
+    return { blob, ext: png ? "png" : "jpg" }
+  } catch {
+    return null
+  }
 }
 
 export function ImageUpload({
@@ -173,8 +256,10 @@ export function ImageUpload({
     }
 
     const previewUrl = URL.createObjectURL(file)
+    let width: number
+    let height: number
     try {
-      const { width, height } = await readDimensions(previewUrl)
+      ;({ width, height } = await readDimensions(previewUrl))
       if (width < minPx || height < minPx) {
         URL.revokeObjectURL(previewUrl)
         setError(`Image must be at least ${minPx}px on its shortest side.`)
@@ -188,7 +273,13 @@ export function ImageUpload({
 
     setZoom(1)
     setOffset({ x: 0, y: 0 })
-    setPending({ file, previewUrl, ext: match.ext })
+    setPending({
+      file,
+      previewUrl,
+      ext: match.ext,
+      naturalWidth: width,
+      naturalHeight: height,
+    })
   }
 
   function closeCropper() {
@@ -204,10 +295,14 @@ export function ImageUpload({
     setUploading(true)
     setError(null)
     try {
-      // The crop transform (zoom/offset) is applied client-side before upload.
-      // In a canvas-capable runtime we'd rasterise; the original blob is the
-      // safe fallback so the contract (a public URL) always holds.
-      const url = await doUpload(pending.file, pending.ext)
+      // Rasterise the visible crop (cover fit + zoom + reposition) so the
+      // uploaded bytes match what the user framed. When the runtime cannot
+      // rasterise (no canvas 2d context, un-decodable format) the original
+      // blob is the fallback so the contract (a public URL) always holds.
+      const cropped = await rasteriseCrop(pending, zoom, offset, cropW, cropH)
+      const url = cropped
+        ? await doUpload(cropped.blob, cropped.ext)
+        : await doUpload(pending.file, pending.ext)
       onUploaded(url)
       closeCropper()
     } catch (e) {
@@ -217,6 +312,31 @@ export function ImageUpload({
   }
 
   const round = shape === "circle"
+
+  // Crop window geometry. Cover fit: at zoom 1 the image exactly fills the
+  // window on its tighter axis, so nothing renders at natural pixel size and
+  // a huge photo no longer appears wildly over-zoomed.
+  const cropW = 240
+  const cropH = aspect >= 1 ? 240 / aspect : 240
+  const coverScale = pending
+    ? Math.max(cropW / pending.naturalWidth, cropH / pending.naturalHeight)
+    : 1
+  const baseW = pending ? pending.naturalWidth * coverScale : 0
+  const baseH = pending ? pending.naturalHeight * coverScale : 0
+  // The image centre can move at most this far before an edge enters the
+  // window; sliders and stored offsets are clamped to it.
+  const maxOffsetX = Math.max(0, Math.round((baseW * zoom - cropW) / 2))
+  const maxOffsetY = Math.max(0, Math.round((baseH * zoom - cropH) / 2))
+
+  function handleZoomChange(nextZoom: number) {
+    setZoom(nextZoom)
+    const nextMaxX = Math.max(0, Math.round((baseW * nextZoom - cropW) / 2))
+    const nextMaxY = Math.max(0, Math.round((baseH * nextZoom - cropH) / 2))
+    setOffset((o) => ({
+      x: clamp(o.x, -nextMaxX, nextMaxX),
+      y: clamp(o.y, -nextMaxY, nextMaxY),
+    }))
+  }
 
   return (
     // aria-invalid is valid on a labelled group per ARIA 1.2; the lint rule is
@@ -337,10 +457,7 @@ export function ImageUpload({
                 "relative mx-auto overflow-hidden bg-muted",
                 round ? "rounded-full" : "rounded-xl"
               )}
-              style={{
-                width: 240,
-                height: aspect >= 1 ? 240 / aspect : 240,
-              }}
+              style={{ width: cropW, height: cropH }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -349,6 +466,8 @@ export function ImageUpload({
                 draggable={false}
                 className="absolute left-1/2 top-1/2 max-w-none select-none"
                 style={{
+                  width: baseW,
+                  height: baseH,
                   transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px)) scale(${zoom})`,
                 }}
               />
@@ -363,7 +482,7 @@ export function ImageUpload({
                 max={3}
                 step={0.05}
                 value={zoom}
-                onChange={(e) => setZoom(Number(e.target.value))}
+                onChange={(e) => handleZoomChange(Number(e.target.value))}
                 className="w-full accent-primary"
               />
             </label>
@@ -374,12 +493,15 @@ export function ImageUpload({
                 <input
                   type="range"
                   aria-label="Reposition horizontally"
-                  min={-100}
-                  max={100}
+                  min={-maxOffsetX}
+                  max={maxOffsetX}
                   step={1}
                   value={offset.x}
                   onChange={(e) =>
-                    setOffset((o) => ({ ...o, x: Number(e.target.value) }))
+                    setOffset((o) => ({
+                      ...o,
+                      x: clamp(Number(e.target.value), -maxOffsetX, maxOffsetX),
+                    }))
                   }
                   className="w-full accent-primary"
                 />
@@ -389,12 +511,15 @@ export function ImageUpload({
                 <input
                   type="range"
                   aria-label="Reposition vertically"
-                  min={-100}
-                  max={100}
+                  min={-maxOffsetY}
+                  max={maxOffsetY}
                   step={1}
                   value={offset.y}
                   onChange={(e) =>
-                    setOffset((o) => ({ ...o, y: Number(e.target.value) }))
+                    setOffset((o) => ({
+                      ...o,
+                      y: clamp(Number(e.target.value), -maxOffsetY, maxOffsetY),
+                    }))
                   }
                   className="w-full accent-primary"
                 />

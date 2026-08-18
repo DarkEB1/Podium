@@ -33,12 +33,14 @@ export default function SettingsShell({
       )}
     >
       <AccentHeading as="h1" className="text-display">Settings</AccentHeading>
-      <div className="mt-10 grid gap-10 md:grid-cols-[16rem_1fr]">
+      {/* The two-column split waits for lg: at 768-1024px the fixed 16rem rail
+          left the content column ~344px wide, mangling intrinsic grids inside. */}
+      <div className="mt-10 grid gap-10 lg:grid-cols-[16rem_1fr]">
         <nav
           aria-label="Settings sections"
-          className="md:border-r md:border-border md:pr-10"
+          className="lg:border-r lg:border-border lg:pr-10"
         >
-          <ul className="flex gap-1 overflow-x-auto md:flex-col md:overflow-visible">
+          <ul className="flex gap-1 overflow-x-auto lg:flex-col lg:overflow-visible">
           {sections.map((section) => {
             const isActive = section.id === active
             return (

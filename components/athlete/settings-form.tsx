@@ -7,12 +7,17 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Slider } from '@/components/ui/slider'
-import { Combobox } from '@/components/ui/combobox'
+import { Combobox, type ComboboxOption } from '@/components/ui/combobox'
+import { CountrySelect } from '@/components/ui/country-select'
 import { CardSelectGroup } from '@/components/ui/card-select'
 import { ImageUpload } from '@/components/ui/image-upload'
 import { CharacterCounter } from '@/components/ui/character-counter'
+import PasswordStrength from '@/components/auth/password-strength'
 import SettingsShell from '@/components/layout/settings-shell'
 import { createClient } from '@/lib/supabase/client'
+import { parseSocialInput, socialHandle, type SocialPlatform } from '@/lib/social/handles'
+import { SPORT_OPTIONS, isKnownSport } from '@/lib/sports'
+import { UK_UNIVERSITIES } from '@/lib/data/universities'
 import {
   updateSettings,
   requestDataExport,
@@ -63,6 +68,127 @@ const AVAILABILITY_LABELS: Record<AvailabilityStatus, string> = {
   not_available: 'Not Available',
 }
 
+// Mirrors the wizard's §3A.3 pickers: the full recognised-institution dataset
+// (allowCreate keeps free-text teams possible) and the five standard tiers for
+// "highest level played outside university".
+const UNIVERSITY_TEAM_OPTIONS = UK_UNIVERSITIES.map((u) => ({
+  value: u.id,
+  label: u.name,
+}))
+
+const HIGHEST_LEVEL_OPTIONS = LEVEL_OPTIONS.filter(
+  (o) => !['university_bucs', 'academy', 'national'].includes(o.value),
+)
+
+// Social platforms editable in Settings. Followers are self-reported and land
+// on the canonical numeric keys read by matching (lib/matching/score.ts) and
+// the profile tiles: <platform>_followers, youtube_subscribers for YouTube.
+const SOCIAL_PLATFORM_FIELDS: {
+  key: SocialPlatform
+  label: string
+  followerKey: string
+  followerLabel: string
+}[] = [
+  { key: 'instagram', label: 'Instagram', followerKey: 'instagram_followers', followerLabel: 'Instagram followers' },
+  { key: 'tiktok', label: 'TikTok', followerKey: 'tiktok_followers', followerLabel: 'TikTok followers' },
+  { key: 'youtube', label: 'YouTube', followerKey: 'youtube_subscribers', followerLabel: 'YouTube subscribers' },
+  { key: 'twitter', label: 'X / Twitter', followerKey: 'twitter_followers', followerLabel: 'X / Twitter followers' },
+]
+
+/** Pre-fill for a social input: canonical "@handle" for any stored shape. */
+function storedSocialInput(platform: SocialPlatform, entry: unknown): string {
+  const raw =
+    typeof entry === 'string'
+      ? entry
+      : entry && typeof entry === 'object'
+        ? (entry as { url?: string }).url
+        : undefined
+  if (!raw) return ''
+  const handle = socialHandle(platform, raw)
+  return handle ? `@${handle}` : raw
+}
+
+/** Pre-fill for a follower-count input from the stored numeric key. */
+function storedFollowerInput(value: unknown): string {
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value)
+  if (typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value))) {
+    return value.trim()
+  }
+  return ''
+}
+
+/** '' -> null, otherwise a finite number (commas stripped) or undefined when invalid. */
+function parseOptionalNumber(raw: string): number | null | undefined {
+  const cleaned = raw.replace(/,/g, '').trim()
+  if (cleaned === '') return null
+  const n = Number(cleaned)
+  return Number.isFinite(n) ? n : undefined
+}
+
+/**
+ * SET3 — sport option list for a combobox backed by the canonical SPORTS
+ * vocabulary. An existing out-of-vocabulary value (junk left in the free-text
+ * column, e.g. secondary_sport = "Gay") is surfaced as its own selectable
+ * option rather than silently dropped, so the athlete can see and correct it.
+ * `extraFirst` is prepended (e.g. a "None" choice for the optional secondary).
+ */
+function buildSportOptions(
+  current: string,
+  extraFirst?: ComboboxOption,
+): ComboboxOption[] {
+  const base = [...SPORT_OPTIONS] as ComboboxOption[]
+  const out = extraFirst ? [extraFirst, ...base] : base
+  if (current && !isKnownSport(current)) {
+    return [{ value: current, label: `${current} (unrecognised)` }, ...out]
+  }
+  return out
+}
+
+/**
+ * SET2/SET4 — client-side password policy, mirroring
+ * `lib/supabase/auth.ts#validatePassword` without importing the server module
+ * into this client bundle. Returns an error string or null when acceptable.
+ */
+function passwordPolicyError(pw: string): string | null {
+  if (pw.length < 8) return 'Password must be at least 8 characters'
+  if (pw.length > 128) return 'Password must be 128 characters or fewer'
+  if (!/[A-Z]/.test(pw)) return 'Password must contain at least one uppercase letter'
+  if (!/[0-9]/.test(pw)) return 'Password must contain at least one number'
+  if (!/[^A-Za-z0-9]/.test(pw)) return 'Password must contain at least one symbol'
+  return null
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+/**
+ * SET12 — human-format a stored UTC ISO timestamp as a short relative/absolute
+ * string (e.g. "Today at 10:50", "Yesterday at 22:14", "3 Jun 2026"). Falls
+ * back to the raw string if it does not parse.
+ */
+function formatActivity(iso: string): string {
+  const t = Date.parse(iso)
+  if (Number.isNaN(t)) return iso
+  const d = new Date(t)
+  const now = new Date()
+  const time = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+  const sameDay = d.toDateString() === now.toDateString()
+  const yesterday = new Date(now)
+  yesterday.setDate(now.getDate() - 1)
+  if (sameDay) return `Today at ${time}`
+  if (d.toDateString() === yesterday.toDateString()) return `Yesterday at ${time}`
+  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+/** SET8 — a small red asterisk marking a required field for sighted users. */
+function RequiredMark() {
+  return (
+    <span aria-hidden="true" className="text-destructive">
+      {' '}
+      *
+    </span>
+  )
+}
+
 const SECTIONS = [
   { id: 'profile', label: 'Profile' },
   { id: 'visibility', label: 'Visibility & Discovery' },
@@ -104,7 +230,9 @@ const STRIPE_CONNECT_LABELS: Record<
   NonNullable<AthleteRow['stripe_connect_status']>,
   string
 > = {
-  not_started: 'Not started',
+  // Forward-looking: payouts are optional until a paid deal exists, so this
+  // must not read as a broken setup (the status line is hidden for it anyway).
+  not_started: 'Not set up',
   pending: 'Pending',
   restricted: 'Restricted',
   active: 'Active',
@@ -288,10 +416,48 @@ export default function SettingsForm({
   const [actionPhotos, setActionPhotos] = useState<string[]>(profile.action_photos ?? [])
   const [videos, setVideos] = useState<string[]>(profile.highlight_videos ?? [])
   const [primarySport, setPrimarySport] = useState(profile.primary_sport ?? '')
+  const [secondarySport, setSecondarySport] = useState(profile.secondary_sport ?? '')
   const [level, setLevel] = useState<string | null>(profile.level)
-  const [instagram, setInstagram] = useState(
-    ((profile.social_accounts as Record<string, string>)?.instagram as string) ?? '',
+  const [position, setPosition] = useState(profile.position ?? '')
+  const [yearsActive, setYearsActive] = useState(
+    profile.years_active != null ? String(profile.years_active) : '',
   )
+  const [heightCm, setHeightCm] = useState(
+    profile.height_cm != null ? String(profile.height_cm) : '',
+  )
+  const [weightKg, setWeightKg] = useState(
+    profile.weight_kg != null ? String(profile.weight_kg) : '',
+  )
+  const [dateOfBirth, setDateOfBirth] = useState(profile.date_of_birth ?? '')
+  const [phone, setPhone] = useState(profile.phone ?? '')
+  const [homeCity, setHomeCity] = useState(profile.home_city ?? '')
+  const [homeCountry, setHomeCountry] = useState<string | null>(profile.home_country)
+  // Conditional per-level fields, mirroring the wizard's §3A.3 gating.
+  const [universityTeam, setUniversityTeam] = useState<string | null>(profile.university_team)
+  // ?? null keeps this working against a DB the migration has not reached yet.
+  const [universityCity, setUniversityCity] = useState(profile.university_city ?? '')
+  const [universityCountry, setUniversityCountry] = useState<string | null>(
+    profile.university_country ?? null,
+  )
+  const [highestLevel, setHighestLevel] = useState<string | null>(profile.highest_level)
+  const [academyClub, setAcademyClub] = useState(profile.academy_club ?? '')
+  const [nationalProgramme, setNationalProgramme] = useState(profile.national_programme ?? '')
+  // Socials: canonical handle strings + self-reported follower counts, both
+  // living inside the social_accounts jsonb (storage contract in
+  // lib/social/handles.ts).
+  const socialRecord = (profile.social_accounts ?? {}) as Record<string, unknown>
+  const [socialHandles, setSocialHandles] = useState<Record<SocialPlatform, string>>({
+    instagram: storedSocialInput('instagram', socialRecord.instagram),
+    tiktok: storedSocialInput('tiktok', socialRecord.tiktok),
+    youtube: storedSocialInput('youtube', socialRecord.youtube),
+    twitter: storedSocialInput('twitter', socialRecord.twitter),
+  })
+  const [socialFollowers, setSocialFollowers] = useState<Record<SocialPlatform, string>>({
+    instagram: storedFollowerInput(socialRecord.instagram_followers),
+    tiktok: storedFollowerInput(socialRecord.tiktok_followers),
+    youtube: storedFollowerInput(socialRecord.youtube_subscribers),
+    twitter: storedFollowerInput(socialRecord.twitter_followers),
+  })
   const [statLabel, setStatLabel] = useState('')
   const [statValue, setStatValue] = useState('')
   const [stats, setStats] = useState<Record<string, string>>(
@@ -299,6 +465,11 @@ export default function SettingsForm({
   )
   const [achievements, setAchievements] = useState(profile.notable_achievements ?? '')
   const [savingProfile, setSavingProfile] = useState(false)
+  // SET8 — inline validation for the required identity fields.
+  const [profileErrors, setProfileErrors] = useState<{
+    display_name?: string
+    primary_sport?: string
+  }>({})
 
   // Section 2 — Visibility & Discovery.
   // profile_visible / pause_matches live on profile_settings (updateSettings, B9).
@@ -313,6 +484,9 @@ export default function SettingsForm({
   )
   const [availableFrom, setAvailableFrom] = useState(profile.available_from_date ?? '')
   const [uiMode, setUiMode] = useState<UiMode>(profile.discovery_ui_mode)
+  // ?? true keeps this working (and matches the column default) against a DB
+  // the is_seeking migration has not reached yet.
+  const [isSeeking, setIsSeeking] = useState<boolean>(profile.is_seeking ?? true)
   const [savingDiscovery, setSavingDiscovery] = useState(false)
 
   // Section 3 — Notifications (all persist to profile_settings via updateSettings).
@@ -341,13 +515,20 @@ export default function SettingsForm({
     settings?.display_currency ?? 'gbp',
   )
   const [savingPayments, setSavingPayments] = useState(false)
+  const [startingPayout, setStartingPayout] = useState(false)
 
   // Section 6 — Representation.
   const [revokeTargetId, setRevokeTargetId] = useState<string | null>(null)
 
   // Section 7 — Security.
   const [newEmail, setNewEmail] = useState('')
+  const [emailError, setEmailError] = useState<string | null>(null)
+  const [savingEmail, setSavingEmail] = useState(false)
+  const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordError, setPasswordError] = useState<string | null>(null)
+  const [savingPassword, setSavingPassword] = useState(false)
   const [twoFactorSetup, setTwoFactorSetup] = useState(false)
   const [sessions, setSessions] = useState<SessionEntry[]>([])
   const [revokingSessionId, setRevokingSessionId] = useState<string | null>(null)
@@ -355,6 +536,52 @@ export default function SettingsForm({
   // Section 8 — Account.
   const [deactivated, setDeactivated] = useState(profile.status === 'deactivated')
   const [deleteConfirm, setDeleteConfirm] = useState('')
+
+  // --- SET5: per-section dirty tracking ----------------------------------
+  // A section's Save is enabled only when its fields differ from the last
+  // saved baseline. Snapshots are compared as JSON so nested arrays/objects
+  // (photos, stats, the notification matrix) participate. Baselines are seeded
+  // from the first render (props) and advanced on each successful save.
+  const profileSnapshot = JSON.stringify({
+    displayName, photoUrl, actionPhotos, videos, primarySport, secondarySport,
+    level, position, yearsActive, heightCm, weightKg, dateOfBirth, phone,
+    homeCity, homeCountry, universityTeam, universityCity, universityCountry,
+    highestLevel, academyClub, nationalProgramme, socialHandles, socialFollowers,
+    stats, achievements,
+  })
+  const discoverySnapshot = JSON.stringify({
+    seeking, isSeeking, travelRadius, availability, availableFrom, uiMode,
+  })
+  const notificationsSnapshot = JSON.stringify({
+    matrix, quietStart, quietEnd, emailDigest, marketingOptIn,
+  })
+  const privacySnapshot = JSON.stringify({ locationPrecision, sectionVisibility })
+  const paymentsSnapshot = JSON.stringify({ displayCurrency })
+
+  const [profileBaseline, setProfileBaseline] = useState(profileSnapshot)
+  const [discoveryBaseline, setDiscoveryBaseline] = useState(discoverySnapshot)
+  const [notificationsBaseline, setNotificationsBaseline] = useState(notificationsSnapshot)
+  const [privacyBaseline, setPrivacyBaseline] = useState(privacySnapshot)
+  const [paymentsBaseline, setPaymentsBaseline] = useState(paymentsSnapshot)
+
+  const profileDirty = profileSnapshot !== profileBaseline
+  const discoveryDirty = discoverySnapshot !== discoveryBaseline
+  const notificationsDirty = notificationsSnapshot !== notificationsBaseline
+  const privacyDirty = privacySnapshot !== privacyBaseline
+  const paymentsDirty = paymentsSnapshot !== paymentsBaseline
+  const anyDirty =
+    profileDirty || discoveryDirty || notificationsDirty || privacyDirty || paymentsDirty
+
+  // SET5 — a native confirm dialog on navigation/refresh while edits are pending.
+  useEffect(() => {
+    if (!anyDirty) return
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [anyDirty])
 
   // Load active sessions for the Security section (B9).
   useEffect(() => {
@@ -386,11 +613,47 @@ export default function SettingsForm({
       await updateSettings(createClient(), profile.user_id, {
         display_currency: displayCurrency,
       })
+      setPaymentsBaseline(paymentsSnapshot)
       toast.success('Payment preferences saved')
     } catch {
       toast.error('Failed to save setting')
     } finally {
       setSavingPayments(false)
+    }
+  }
+
+  // SET13 — begin Stripe Connect payout onboarding and hand off to the hosted
+  // flow. Wired to the existing /api/account/connect route.
+  async function startPayoutSetup() {
+    setStartingPayout(true)
+    try {
+      const res = await fetch('/api/account/connect', { method: 'POST' })
+      const json = (await res.json().catch(() => ({}))) as {
+        url?: string
+        error?: { message?: string }
+      }
+      if (!res.ok || !json.url) {
+        toast.error(json.error?.message ?? 'Could not start payout setup.')
+        return
+      }
+      window.location.href = json.url
+    } catch {
+      toast.error('Could not start payout setup.')
+    } finally {
+      setStartingPayout(false)
+    }
+  }
+
+  // SET13 — there is no athlete-initiated "invite an agent" server flow yet
+  // (agents add clients from their own dashboard; see NEEDS-USER). The useful
+  // real action is sharing the profile link, so an agent can find and add you.
+  async function copyProfileLink() {
+    try {
+      const url = `${window.location.origin}/athlete/profile/${profile.user_id}`
+      await navigator.clipboard.writeText(url)
+      toast.success('Profile link copied. Share it with your agent to get linked.')
+    } catch {
+      toast.error('Could not copy your profile link.')
     }
   }
 
@@ -439,10 +702,12 @@ export default function SettingsForm({
     patch: Database['public']['Tables']['profile_settings']['Update'],
     setSaving: (v: boolean) => void,
     successMsg: string,
+    onSuccess?: () => void,
   ) {
     setSaving(true)
     try {
       await updateSettings(createClient(), profile.user_id, patch)
+      onSuccess?.()
       toast.success(successMsg)
     } catch {
       toast.error('Failed to save setting')
@@ -462,6 +727,7 @@ export default function SettingsForm({
       },
       setSavingNotifications,
       'Notification preferences saved',
+      () => setNotificationsBaseline(notificationsSnapshot),
     )
   }
 
@@ -474,6 +740,7 @@ export default function SettingsForm({
       },
       setSavingPrivacy,
       'Privacy preferences saved',
+      () => setPrivacyBaseline(privacySnapshot),
     )
   }
 
@@ -486,6 +753,83 @@ export default function SettingsForm({
       toast.error('Failed to request data export')
     } finally {
       setExporting(false)
+    }
+  }
+
+  // SET2/SET4 — change email. Client-validated; the server route that actually
+  // re-issues the verification email does not exist yet (see NEEDS-USER), so a
+  // missing endpoint is reported honestly rather than faking success.
+  async function updateEmailHandler() {
+    const email = newEmail.trim()
+    if (!EMAIL_RE.test(email)) {
+      setEmailError('Enter a valid email address')
+      return
+    }
+    setEmailError(null)
+    setSavingEmail(true)
+    try {
+      const res = await fetch('/api/account/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+      if (res.status === 404) {
+        toast.error('Changing your email is not available yet. Please contact support.')
+        return
+      }
+      const data = await res.json().catch(() => null)
+      if (!res.ok) {
+        setEmailError(data?.error?.message ?? 'Failed to update email')
+        return
+      }
+      setNewEmail('')
+      toast.success('Check your new inbox to confirm the change')
+    } catch {
+      toast.error('Something went wrong. Please try again.')
+    } finally {
+      setSavingEmail(false)
+    }
+  }
+
+  // SET2/SET4 — change password. Requires the current password, a policy-valid
+  // new password and a matching confirmation. The current password is collected
+  // and sent, but the existing /api/auth/password-update route does not yet
+  // re-authenticate with it (see NEEDS-USER).
+  async function updatePasswordHandler() {
+    if (!currentPassword) {
+      setPasswordError('Enter your current password')
+      return
+    }
+    const policy = passwordPolicyError(newPassword)
+    if (policy) {
+      setPasswordError(policy)
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError('Passwords do not match')
+      return
+    }
+    setPasswordError(null)
+    setSavingPassword(true)
+    try {
+      const res = await fetch('/api/auth/password-update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: newPassword, current_password: currentPassword }),
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) {
+        setPasswordError(data?.error?.message ?? 'Failed to update password')
+        return
+      }
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+      toast.success('Password updated')
+    } catch {
+      toast.error('Something went wrong. Please try again.')
+    } finally {
+      setSavingPassword(false)
     }
   }
 
@@ -508,7 +852,59 @@ export default function SettingsForm({
     return true
   }
 
+  /**
+   * Validates and canonicalises the social inputs into the social_accounts
+   * jsonb: bare handle strings per platform plus the numeric self-reported
+   * follower keys. Returns null (after a toast) when an input is invalid.
+   */
+  function buildSocialAccounts(): Record<string, unknown> | null {
+    const next: Record<string, unknown> = { ...socialRecord }
+    for (const { key, label, followerKey, followerLabel } of SOCIAL_PLATFORM_FIELDS) {
+      const handleInput = socialHandles[key].trim()
+      if (!handleInput) {
+        delete next[key]
+      } else {
+        const parsed = parseSocialInput(key, handleInput)
+        if (!parsed) {
+          toast.error(`Check your ${label} handle. Use @yourhandle or a profile link.`)
+          return null
+        }
+        next[key] = parsed.handle
+      }
+
+      const followers = parseOptionalNumber(socialFollowers[key])
+      if (followers === undefined || (followers !== null && followers < 0)) {
+        toast.error(`${followerLabel} must be a number.`)
+        return null
+      }
+      if (followers === null) delete next[followerKey]
+      else next[followerKey] = Math.round(followers)
+    }
+    return next
+  }
+
   async function saveProfile() {
+    // SET8 — required identity fields, validated inline before any network call.
+    const nextErrors: { display_name?: string; primary_sport?: string } = {}
+    if (!displayName.trim()) nextErrors.display_name = 'Display name is required'
+    if (!primarySport.trim()) nextErrors.primary_sport = 'Primary sport is required'
+    setProfileErrors(nextErrors)
+    if (Object.keys(nextErrors).length > 0) {
+      toast.error('Please fix the highlighted fields.')
+      return
+    }
+
+    const social_accounts = buildSocialAccounts()
+    if (!social_accounts) return
+
+    const years_active = parseOptionalNumber(yearsActive)
+    const height_cm = parseOptionalNumber(heightCm)
+    const weight_kg = parseOptionalNumber(weightKg)
+    if (years_active === undefined || height_cm === undefined || weight_kg === undefined) {
+      toast.error('Years active, height and weight must be numbers.')
+      return
+    }
+
     setSavingProfile(true)
     try {
       const ok = await patchProfile({
@@ -516,13 +912,31 @@ export default function SettingsForm({
         profile_photo_url: photoUrl,
         action_photos: actionPhotos,
         highlight_videos: videos,
+        date_of_birth: dateOfBirth || null,
+        phone: phone || null,
+        home_city: homeCity || null,
+        home_country: homeCountry,
         primary_sport: primarySport,
+        secondary_sport: secondarySport || null,
         level,
-        social_accounts: { ...(profile.social_accounts as object), instagram },
+        position: position || null,
+        years_active,
+        height_cm,
+        weight_kg,
+        university_team: universityTeam || null,
+        university_city: universityCity || null,
+        university_country: universityCountry,
+        highest_level: highestLevel || null,
+        academy_club: academyClub || null,
+        national_programme: nationalProgramme || null,
+        social_accounts,
         performance_stats: stats,
         notable_achievements: achievements,
       })
-      if (ok) toast.success('Profile saved')
+      if (ok) {
+        setProfileBaseline(profileSnapshot)
+        toast.success('Profile saved')
+      }
     } catch {
       toast.error('Something went wrong. Please try again.')
     } finally {
@@ -534,16 +948,33 @@ export default function SettingsForm({
     key: 'profile_visible' | 'pause_matches',
     next: boolean,
   ) {
+    // SET6 — "Profile visible" is the single discoverability control. Brand
+    // discoverability (`discoverable`) is not a separate switch anymore, so it
+    // is written in lockstep here to avoid the old inconsistent-state trap
+    // where profile_visible=on but discoverable=off (or vice-versa).
+    const patch: Database['public']['Tables']['profile_settings']['Update'] =
+      key === 'profile_visible'
+        ? { profile_visible: next, discoverable: next }
+        : { pause_matches: next }
+
     // Optimistic UI; revert on failure.
-    if (key === 'profile_visible') setProfileVisible(next)
-    else setPauseMatches(next)
+    if (key === 'profile_visible') {
+      setProfileVisible(next)
+      setDiscoverable(next)
+    } else {
+      setPauseMatches(next)
+    }
     setSavingVisibility(true)
     try {
-      await updateSettings(createClient(), profile.user_id, { [key]: next })
+      await updateSettings(createClient(), profile.user_id, patch)
       toast.success('Settings saved')
     } catch {
-      if (key === 'profile_visible') setProfileVisible(!next)
-      else setPauseMatches(!next)
+      if (key === 'profile_visible') {
+        setProfileVisible(!next)
+        setDiscoverable(!next)
+      } else {
+        setPauseMatches(!next)
+      }
       toast.error('Failed to save setting')
     } finally {
       setSavingVisibility(false)
@@ -555,12 +986,16 @@ export default function SettingsForm({
     try {
       const ok = await patchProfile({
         seeking,
+        is_seeking: isSeeking,
         travel_radius_km: travelRadius,
         availability_status: availability,
         available_from_date: availability === 'available_from' ? availableFrom || null : null,
         discovery_ui_mode: uiMode,
       })
-      if (ok) toast.success('Discovery preferences saved')
+      if (ok) {
+        setDiscoveryBaseline(discoverySnapshot)
+        toast.success('Discovery preferences saved')
+      }
     } catch {
       toast.error('Something went wrong. Please try again.')
     } finally {
@@ -633,39 +1068,309 @@ export default function SettingsForm({
           <div>
             <label htmlFor="display_name" className="mb-1 block text-medium font-medium">
               Display name
+              <RequiredMark />
             </label>
             <Input
               id="display_name"
+              required
+              aria-required="true"
               value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
+              onChange={(e) => {
+                setDisplayName(e.target.value)
+                if (profileErrors.display_name) {
+                  setProfileErrors((prev) => {
+                    const { display_name: _cleared, ...rest } = prev
+                    return rest
+                  })
+                }
+              }}
+              aria-invalid={profileErrors.display_name ? true : undefined}
+              aria-describedby={
+                profileErrors.display_name ? 'display_name_error' : undefined
+              }
             />
+            {profileErrors.display_name && (
+              <p id="display_name_error" role="alert" className="mt-1 text-small text-destructive">
+                {profileErrors.display_name}
+              </p>
+            )}
           </div>
 
-          {/* Sport + Level */}
-          <div className="grid gap-4 sm:grid-cols-2">
+          {/* Personal details (onboarding parity: wizard step 1) */}
+          <fieldset className="space-y-4">
+            <legend className="text-medium font-medium">Personal details</legend>
             <div>
-              <label htmlFor="primary_sport" className="mb-1 block text-medium font-medium">
-                Primary sport
+              <label htmlFor="full_legal_name" className="mb-1 block text-medium font-medium">
+                Full legal name
               </label>
               <Input
-                id="primary_sport"
-                value={primarySport}
-                onChange={(e) => setPrimarySport(e.target.value)}
+                id="full_legal_name"
+                value={profile.full_legal_name ?? ''}
+                disabled
+                aria-describedby="full_legal_name_help"
               />
+              <p id="full_legal_name_help" className="mt-1 text-small text-muted-foreground">
+                Locked. Contact support to change your legal name.
+              </p>
             </div>
-            <div>
-              <span className="mb-1 block text-medium font-medium" id="level-label">
-                Competition level
-              </span>
-              <Combobox
-                aria-label="Competition level"
-                options={LEVEL_OPTIONS}
-                value={level}
-                onChange={setLevel}
-                placeholder="Select level"
-              />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="date_of_birth" className="mb-1 block text-medium font-medium">
+                  Date of birth
+                </label>
+                <Input
+                  id="date_of_birth"
+                  type="date"
+                  value={dateOfBirth}
+                  onChange={(e) => setDateOfBirth(e.target.value)}
+                />
+              </div>
+              <div>
+                <label htmlFor="phone" className="mb-1 block text-medium font-medium">
+                  Phone
+                </label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder="+44 7700 900000"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                />
+              </div>
+              <div>
+                <label htmlFor="home_city" className="mb-1 block text-medium font-medium">
+                  City
+                </label>
+                <Input
+                  id="home_city"
+                  value={homeCity}
+                  onChange={(e) => setHomeCity(e.target.value)}
+                />
+              </div>
+              <div>
+                <label htmlFor="home_country" className="mb-1 block text-medium font-medium">
+                  Country
+                </label>
+                <CountrySelect
+                  id="home_country"
+                  aria-label="Country"
+                  value={homeCountry}
+                  onChange={setHomeCountry}
+                />
+              </div>
             </div>
-          </div>
+          </fieldset>
+
+          {/* Sport + Level (onboarding parity: wizard step 2) */}
+          <fieldset className="space-y-4">
+            <legend className="text-medium font-medium">Sport</legend>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="primary_sport" className="mb-1 block text-medium font-medium">
+                  Primary sport
+                  <RequiredMark />
+                </label>
+                {/* SET3 — constrained to the canonical vocabulary; an existing
+                    out-of-vocab value is surfaced as its own option. */}
+                <Combobox
+                  id="primary_sport"
+                  aria-label="Primary sport"
+                  options={buildSportOptions(primarySport)}
+                  value={primarySport || null}
+                  onChange={(v) => {
+                    setPrimarySport(v)
+                    if (profileErrors.primary_sport) {
+                      setProfileErrors((prev) => {
+                        const { primary_sport: _cleared, ...rest } = prev
+                        return rest
+                      })
+                    }
+                  }}
+                  placeholder="Select your sport"
+                />
+                {profileErrors.primary_sport && (
+                  <p
+                    id="primary_sport_error"
+                    role="alert"
+                    className="mt-1 text-small text-destructive"
+                  >
+                    {profileErrors.primary_sport}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label htmlFor="secondary_sport" className="mb-1 block text-medium font-medium">
+                  Secondary sport
+                </label>
+                {/* SET3 — same vocabulary, plus an explicit "None" to clear it. */}
+                <Combobox
+                  id="secondary_sport"
+                  aria-label="Secondary sport"
+                  options={buildSportOptions(secondarySport, { value: '', label: 'None' })}
+                  value={secondarySport || ''}
+                  onChange={setSecondarySport}
+                  placeholder="Select a sport (optional)"
+                />
+              </div>
+              <div>
+                <label htmlFor="level" className="mb-1 block text-medium font-medium">
+                  Competition level
+                </label>
+                <Combobox
+                  id="level"
+                  aria-label="Competition level"
+                  options={LEVEL_OPTIONS}
+                  value={level}
+                  onChange={setLevel}
+                  placeholder="Select level"
+                />
+              </div>
+              <div>
+                <label htmlFor="position" className="mb-1 block text-medium font-medium">
+                  Position / discipline
+                </label>
+                <Input
+                  id="position"
+                  placeholder="Striker / Sprinter"
+                  value={position}
+                  onChange={(e) => setPosition(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Conditional per-level fields, mirroring the wizard (§3A.3). */}
+            {level === 'university_bucs' && (
+              <div className="space-y-4">
+                {/* SET11 — team, city and country grouped under one subheading,
+                    with the three controls sharing consistent styling. */}
+                <fieldset className="space-y-4 rounded-[var(--radius)] border bg-card p-4 shadow-card">
+                  <legend className="px-1 text-medium font-medium">University</legend>
+                  <div>
+                    <label htmlFor="university_team" className="mb-1 block text-medium font-medium">
+                      University team
+                    </label>
+                    <Combobox
+                      id="university_team"
+                      aria-label="University team"
+                      options={UNIVERSITY_TEAM_OPTIONS}
+                      value={universityTeam}
+                      onChange={setUniversityTeam}
+                      placeholder="Search your university team"
+                      allowCreate
+                    />
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <label htmlFor="university_city" className="mb-1 block text-medium font-medium">
+                        University city
+                      </label>
+                      <Input
+                        id="university_city"
+                        placeholder="e.g. Loughborough"
+                        value={universityCity}
+                        onChange={(e) => setUniversityCity(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="university_country"
+                        className="mb-1 block text-medium font-medium"
+                      >
+                        University country
+                      </label>
+                      <CountrySelect
+                        id="university_country"
+                        aria-label="University country"
+                        value={universityCountry}
+                        onChange={setUniversityCountry}
+                      />
+                    </div>
+                  </div>
+                </fieldset>
+                <div>
+                  <label htmlFor="highest_level" className="mb-1 block text-medium font-medium">
+                    Highest level played outside university
+                  </label>
+                  <Combobox
+                    id="highest_level"
+                    aria-label="Highest level played outside university"
+                    options={HIGHEST_LEVEL_OPTIONS}
+                    value={highestLevel}
+                    onChange={setHighestLevel}
+                    placeholder="Select level"
+                  />
+                </div>
+              </div>
+            )}
+            {level === 'academy' && (
+              <div>
+                <label htmlFor="academy_club" className="mb-1 block text-medium font-medium">
+                  Academy / club
+                </label>
+                <Input
+                  id="academy_club"
+                  placeholder="e.g. Arsenal Academy"
+                  value={academyClub}
+                  onChange={(e) => setAcademyClub(e.target.value)}
+                />
+              </div>
+            )}
+            {level === 'national' && (
+              <div>
+                <label htmlFor="national_programme" className="mb-1 block text-medium font-medium">
+                  National programme
+                </label>
+                <Input
+                  id="national_programme"
+                  placeholder="e.g. British Athletics World Class Programme"
+                  value={nationalProgramme}
+                  onChange={(e) => setNationalProgramme(e.target.value)}
+                />
+              </div>
+            )}
+
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div>
+                <label htmlFor="years_active" className="mb-1 block text-medium font-medium">
+                  Years active
+                </label>
+                <Input
+                  id="years_active"
+                  type="number"
+                  min={0}
+                  max={50}
+                  value={yearsActive}
+                  onChange={(e) => setYearsActive(e.target.value)}
+                />
+              </div>
+              <div>
+                <label htmlFor="height_cm" className="mb-1 block text-medium font-medium">
+                  Height (cm)
+                </label>
+                <Input
+                  id="height_cm"
+                  type="number"
+                  min={100}
+                  max={250}
+                  value={heightCm}
+                  onChange={(e) => setHeightCm(e.target.value)}
+                />
+              </div>
+              <div>
+                <label htmlFor="weight_kg" className="mb-1 block text-medium font-medium">
+                  Weight (kg)
+                </label>
+                <Input
+                  id="weight_kg"
+                  type="number"
+                  min={30}
+                  max={200}
+                  value={weightKg}
+                  onChange={(e) => setWeightKg(e.target.value)}
+                />
+              </div>
+            </div>
+          </fieldset>
 
           {/* Action photos */}
           <div>
@@ -734,18 +1439,51 @@ export default function SettingsForm({
             )}
           </div>
 
-          {/* Socials */}
-          <div>
-            <label htmlFor="instagram" className="mb-1 block text-medium font-medium">
-              Instagram handle
-            </label>
-            <Input
-              id="instagram"
-              value={instagram}
-              onChange={(e) => setInstagram(e.target.value)}
-              placeholder="@yourhandle"
-            />
-          </div>
+          {/* Socials: canonical handles + self-reported follower counts. */}
+          <fieldset className="space-y-4">
+            <legend className="text-medium font-medium">Social accounts</legend>
+            {SOCIAL_PLATFORM_FIELDS.map(({ key, label, followerLabel }) => (
+              <div key={key} className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label htmlFor={`social_${key}`} className="mb-1 block text-medium font-medium">
+                    {label}
+                  </label>
+                  <Input
+                    id={`social_${key}`}
+                    value={socialHandles[key]}
+                    onChange={(e) =>
+                      setSocialHandles((prev) => ({ ...prev, [key]: e.target.value }))
+                    }
+                    placeholder="@yourhandle or profile link"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor={`followers_${key}`}
+                    className="mb-1 block text-medium font-medium"
+                  >
+                    {followerLabel}
+                  </label>
+                  <Input
+                    id={`followers_${key}`}
+                    inputMode="numeric"
+                    value={socialFollowers[key]}
+                    onChange={(e) =>
+                      setSocialFollowers((prev) => ({ ...prev, [key]: e.target.value }))
+                    }
+                    placeholder="e.g. 12,400"
+                    aria-describedby={`followers_${key}_help`}
+                  />
+                  <p
+                    id={`followers_${key}_help`}
+                    className="mt-1 text-small text-muted-foreground"
+                  >
+                    Self-reported. Shown on your profile with a self-reported label.
+                  </p>
+                </div>
+              </div>
+            ))}
+          </fieldset>
 
           {/* Performance stats */}
           <div>
@@ -811,9 +1549,16 @@ export default function SettingsForm({
             <CharacterCounter value={achievements} max={600} />
           </div>
 
-          <Button type="button" onClick={saveProfile} disabled={savingProfile}>
-            {savingProfile ? 'Saving…' : 'Save profile'}
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button type="button" onClick={saveProfile} disabled={savingProfile || !profileDirty}>
+              {savingProfile ? 'Saving…' : 'Save profile'}
+            </Button>
+            {profileDirty && (
+              <span role="status" className="text-small text-muted-foreground">
+                Unsaved changes
+              </span>
+            )}
+          </div>
         </section>
 
         {/* -------------- Section 2: Visibility & Discovery -------------- */}
@@ -865,6 +1610,24 @@ export default function SettingsForm({
             />
           </div>
 
+          {/* Seeking opportunities toggle (athlete_profiles.is_seeking) */}
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-medium font-medium" id="seeking-toggle-label">
+                Seeking opportunities
+              </p>
+              <p className="text-small text-muted-foreground">
+                When off, your profile shows you are not currently looking for new deals.
+              </p>
+            </div>
+            <Switch
+              aria-labelledby="seeking-toggle-label"
+              aria-label="Seeking opportunities"
+              checked={isSeeking}
+              onCheckedChange={setIsSeeking}
+            />
+          </div>
+
           {/* Discovery interests (seeking) */}
           <div>
             <p className="mb-2 text-medium font-medium">What you&apos;re seeking</p>
@@ -878,10 +1641,11 @@ export default function SettingsForm({
 
           {/* Travel radius */}
           <div>
-            <label className="mb-1 block text-medium font-medium" htmlFor="travel-radius">
+            <p id="travel-radius-label" className="mb-1 text-medium font-medium">
               Travel radius
-            </label>
+            </p>
             <Slider
+              aria-label="Travel radius"
               min={0}
               max={500}
               step={5}
@@ -889,6 +1653,30 @@ export default function SettingsForm({
               onChange={setTravelRadius}
               format={(n) => `${n} km`}
             />
+            {/* SET14 — the endpoints of the range, and an exact numeric entry. */}
+            <div className="mt-1 flex items-center justify-between text-small text-muted-foreground">
+              <span>0 km</span>
+              <span>500 km</span>
+            </div>
+            <div className="mt-2 flex items-center gap-2">
+              <label htmlFor="travel_radius_km" className="text-small text-muted-foreground">
+                Exact
+              </label>
+              <Input
+                id="travel_radius_km"
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={500}
+                className="w-24"
+                value={String(travelRadius)}
+                onChange={(e) => {
+                  const n = Number(e.target.value)
+                  if (Number.isFinite(n)) setTravelRadius(Math.min(500, Math.max(0, n)))
+                }}
+              />
+              <span className="text-small text-muted-foreground">km</span>
+            </div>
           </div>
 
           {/* Availability + conditional date */}
@@ -901,7 +1689,7 @@ export default function SettingsForm({
                 id="availability"
                 value={availability}
                 onChange={(e) => setAvailability(e.target.value as AvailabilityStatus)}
-                className="h-9 w-full rounded-[var(--radius)] border bg-card px-3 text-medium"
+                className="h-9 w-full rounded-[var(--radius)] border bg-card px-3 text-medium sm:w-64"
               >
                 {(Object.keys(AVAILABILITY_LABELS) as AvailabilityStatus[]).map((s) => (
                   <option key={s} value={s}>
@@ -943,9 +1731,20 @@ export default function SettingsForm({
             />
           </div>
 
-          <Button type="button" onClick={saveDiscovery} disabled={savingDiscovery}>
-            {savingDiscovery ? 'Saving…' : 'Save discovery'}
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              type="button"
+              onClick={saveDiscovery}
+              disabled={savingDiscovery || !discoveryDirty}
+            >
+              {savingDiscovery ? 'Saving…' : 'Save discovery'}
+            </Button>
+            {discoveryDirty && (
+              <span role="status" className="text-small text-muted-foreground">
+                Unsaved changes
+              </span>
+            )}
+          </div>
         </section>
 
         {/* ---------------- Section 3: Notifications ---------------- */}
@@ -1069,9 +1868,20 @@ export default function SettingsForm({
             />
           </div>
 
-          <Button type="button" onClick={saveNotifications} disabled={savingNotifications}>
-            {savingNotifications ? 'Saving…' : 'Save notifications'}
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              type="button"
+              onClick={saveNotifications}
+              disabled={savingNotifications || !notificationsDirty}
+            >
+              {savingNotifications ? 'Saving…' : 'Save notifications'}
+            </Button>
+            {notificationsDirty && (
+              <span role="status" className="text-small text-muted-foreground">
+                Unsaved changes
+              </span>
+            )}
+          </div>
         </section>
 
         {/* ---------------- Section 4: Privacy & Data ---------------- */}
@@ -1085,23 +1895,19 @@ export default function SettingsForm({
             Privacy &amp; Data
           </h2>
 
-          {/* Who can see me */}
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-medium font-medium" id="discoverable-label">
-                Who can see you
-              </p>
-              <p className="text-small text-muted-foreground">
-                When on, your profile can be discovered by brands. When off, only people you
-                connect with can see it.
-              </p>
-            </div>
-            <Switch
-              aria-labelledby="discoverable-label"
-              aria-label="Discoverable by brands"
-              checked={discoverable}
-              onCheckedChange={setDiscoverable}
-            />
+          {/* SET6 — discoverability has one home: the "Profile visible" control
+              in Visibility & Discovery. This is a read-only mirror so the two
+              can never disagree. */}
+          <div className="rounded-[var(--radius)] border bg-card p-4 text-small text-muted-foreground shadow-card">
+            <p className="mb-1 font-medium text-foreground">Who can see you</p>
+            <p>
+              Your discoverability is set by{' '}
+              <span className="font-medium text-foreground">Profile visible</span> in Visibility
+              &amp; Discovery. It is currently{' '}
+              {discoverable
+                ? 'on — brands can find your profile.'
+                : 'off — only people you connect with can see it.'}
+            </p>
           </div>
 
           {/* Per-section show / hide */}
@@ -1144,9 +1950,20 @@ export default function SettingsForm({
             </p>
           </div>
 
-          <Button type="button" onClick={savePrivacy} disabled={savingPrivacy}>
-            {savingPrivacy ? 'Saving…' : 'Save privacy'}
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              type="button"
+              onClick={savePrivacy}
+              disabled={savingPrivacy || !privacyDirty}
+            >
+              {savingPrivacy ? 'Saving…' : 'Save privacy'}
+            </Button>
+            {privacyDirty && (
+              <span role="status" className="text-small text-muted-foreground">
+                Unsaved changes
+              </span>
+            )}
+          </div>
 
           {/* Block list */}
           <div className="space-y-2 border-t pt-6">
@@ -1257,16 +2074,21 @@ export default function SettingsForm({
             )}
           </div>
 
-          {/* Payout / bank + Stripe Connect status */}
+          {/* Payout / bank + Stripe Connect status. Before anything is set up
+              this must read as optional and forward-looking, not broken: one
+              line, no "Not started" status, no double negative. Explicit
+              status wording stays for pending / restricted / active. */}
           <div className="space-y-2 rounded-[var(--radius)] border bg-card p-4 shadow-card">
             <div className="flex items-center justify-between gap-4">
               <p className="text-medium font-medium">Payout account</p>
-              <span className="text-small text-muted-foreground">
-                Stripe Connect:{' '}
-                <span className="text-foreground">
-                  {STRIPE_CONNECT_LABELS[profile.stripe_connect_status ?? 'not_started']}
+              {(profile.stripe_connect_status ?? 'not_started') !== 'not_started' && (
+                <span className="text-small text-muted-foreground">
+                  Stripe Connect:{' '}
+                  <span className="text-foreground">
+                    {STRIPE_CONNECT_LABELS[profile.stripe_connect_status ?? 'not_started']}
+                  </span>
                 </span>
-              </span>
+              )}
             </div>
             {profile.payout_method ? (
               <p className="text-small text-muted-foreground">
@@ -1279,9 +2101,20 @@ export default function SettingsForm({
                   : ''}
               </p>
             ) : (
-              <p className="text-small text-muted-foreground">
-                No payout method set up yet.
-              </p>
+              <div className="space-y-3">
+                <p className="text-small text-muted-foreground">
+                  Payouts are optional until you agree a paid deal. Set them up whenever
+                  you&apos;re ready to get paid.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={startPayoutSetup}
+                  disabled={startingPayout}
+                >
+                  {startingPayout ? 'Opening Stripe…' : 'Set up payouts'}
+                </Button>
+              </div>
             )}
           </div>
 
@@ -1290,8 +2123,8 @@ export default function SettingsForm({
             <p className="mb-1 font-medium text-foreground">Tax information</p>
             <p>
               You are responsible for declaring income from sponsorships to your local tax
-              authority. Podium does not provide tax advice. Receipts above can be used as
-              records of payments received.
+              authority. Podium does not provide tax advice. Your payment receipts, when
+              available, can be used as records of payments received.
             </p>
           </div>
 
@@ -1314,9 +2147,20 @@ export default function SettingsForm({
             </select>
           </div>
 
-          <Button type="button" onClick={savePayments} disabled={savingPayments}>
-            {savingPayments ? 'Saving…' : 'Save payment settings'}
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              type="button"
+              onClick={savePayments}
+              disabled={savingPayments || !paymentsDirty}
+            >
+              {savingPayments ? 'Saving…' : 'Save payment settings'}
+            </Button>
+            {paymentsDirty && (
+              <span role="status" className="text-small text-muted-foreground">
+                Unsaved changes
+              </span>
+            )}
+          </div>
         </section>
 
         {/* ---------------- Section 6: Representation ---------------- */}
@@ -1334,9 +2178,15 @@ export default function SettingsForm({
           <div className="space-y-3">
             <p className="text-medium font-medium">Linked agents</p>
             {linkedAgents.length === 0 ? (
-              <p className="text-small text-muted-foreground">
-                You don&apos;t have an agent linked.
-              </p>
+              <div className="space-y-3">
+                <p className="text-small text-muted-foreground">
+                  You don&apos;t have an agent linked. Agents add you from their own Podium
+                  dashboard — share your profile link so they can find and represent you.
+                </p>
+                <Button type="button" variant="outline" onClick={copyProfileLink}>
+                  Invite an agent
+                </Button>
+              </div>
             ) : (
               <ul className="space-y-4">
                 {linkedAgents.map((agent) => (
@@ -1453,32 +2303,116 @@ export default function SettingsForm({
             Security
           </h2>
 
-          {/* Change email */}
-          <div>
-            <label htmlFor="new_email" className="mb-1 block text-medium font-medium">
-              New email
-            </label>
-            <Input
-              id="new_email"
-              type="email"
-              value={newEmail}
-              onChange={(e) => setNewEmail(e.target.value)}
-              placeholder="you@example.com"
-            />
+          {/* Change email — its own submit + inline validation (SET2). The new
+              address must not be autofilled with the current one (SET4). */}
+          <div className="space-y-3 rounded-[var(--radius)] border bg-card p-4 shadow-card">
+            <p className="text-medium font-medium">Change email</p>
+            <div>
+              <label htmlFor="new_email" className="mb-1 block text-medium font-medium">
+                New email
+              </label>
+              <Input
+                id="new_email"
+                type="email"
+                autoComplete="email"
+                value={newEmail}
+                onChange={(e) => {
+                  setNewEmail(e.target.value)
+                  if (emailError) setEmailError(null)
+                }}
+                placeholder="you@example.com"
+                aria-invalid={emailError ? true : undefined}
+                aria-describedby={emailError ? 'new_email_error' : undefined}
+              />
+              {emailError && (
+                <p id="new_email_error" role="alert" className="mt-1 text-small text-destructive">
+                  {emailError}
+                </p>
+              )}
+            </div>
+            <Button
+              type="button"
+              onClick={updateEmailHandler}
+              disabled={savingEmail || !newEmail.trim()}
+            >
+              {savingEmail ? 'Updating…' : 'Update email'}
+            </Button>
           </div>
 
-          {/* Change password */}
-          <div>
-            <label htmlFor="new_password" className="mb-1 block text-medium font-medium">
-              New password
-            </label>
-            <Input
-              id="new_password"
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="At least 8 characters"
-            />
+          {/* Change password — current-password re-auth, confirmation and a
+              strength meter (SET2). All three use new-password autofill (SET4). */}
+          <div className="space-y-3 rounded-[var(--radius)] border bg-card p-4 shadow-card">
+            <p className="text-medium font-medium">Change password</p>
+            <div>
+              <label htmlFor="current_password" className="mb-1 block text-medium font-medium">
+                Current password
+                <RequiredMark />
+              </label>
+              <Input
+                id="current_password"
+                type="password"
+                autoComplete="current-password"
+                value={currentPassword}
+                onChange={(e) => {
+                  setCurrentPassword(e.target.value)
+                  if (passwordError) setPasswordError(null)
+                }}
+                placeholder="Your current password"
+              />
+            </div>
+            <div>
+              <label htmlFor="new_password" className="mb-1 block text-medium font-medium">
+                New password
+                <RequiredMark />
+              </label>
+              <Input
+                id="new_password"
+                type="password"
+                autoComplete="new-password"
+                value={newPassword}
+                onChange={(e) => {
+                  setNewPassword(e.target.value)
+                  if (passwordError) setPasswordError(null)
+                }}
+                placeholder="At least 8 characters"
+                aria-invalid={passwordError ? true : undefined}
+                aria-describedby={passwordError ? 'new_password_error' : undefined}
+              />
+              <PasswordStrength password={newPassword} />
+            </div>
+            <div>
+              <label htmlFor="confirm_password" className="mb-1 block text-medium font-medium">
+                Confirm new password
+                <RequiredMark />
+              </label>
+              <Input
+                id="confirm_password"
+                type="password"
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(e) => {
+                  setConfirmPassword(e.target.value)
+                  if (passwordError) setPasswordError(null)
+                }}
+                placeholder="Re-enter your new password"
+                aria-invalid={passwordError ? true : undefined}
+                aria-describedby={passwordError ? 'new_password_error' : undefined}
+              />
+            </div>
+            {passwordError && (
+              <p id="new_password_error" role="alert" className="text-small text-destructive">
+                {passwordError}
+              </p>
+            )}
+            <Button
+              type="button"
+              onClick={updatePasswordHandler}
+              disabled={
+                savingPassword || !currentPassword || !newPassword || !confirmPassword
+              }
+            >
+              {savingPassword ? 'Updating…' : 'Update password'}
+            </Button>
           </div>
 
           {/* Two-factor authentication */}
@@ -1522,8 +2456,10 @@ export default function SettingsForm({
                     <div>
                       <p className="text-medium">{s.device_label ?? 'Unknown device'}</p>
                       <p className="text-small text-muted-foreground">
-                        {s.ip_address ?? 'Unknown IP'} ·{' '}
-                        <time dateTime={s.last_active_at}>{s.last_active_at}</time>
+                        {s.ip_address ?? 'Unknown IP'} · Last active{' '}
+                        <time dateTime={s.last_active_at}>
+                          {formatActivity(s.last_active_at)}
+                        </time>
                       </p>
                     </div>
                     <Button
@@ -1555,7 +2491,7 @@ export default function SettingsForm({
                         <span className="ml-2 text-destructive">Failed attempt</span>
                       )}
                     </span>
-                    <time dateTime={h.created_at}>{h.created_at}</time>
+                    <time dateTime={h.created_at}>{formatActivity(h.created_at)}</time>
                   </li>
                 ))}
               </ul>
@@ -1620,7 +2556,7 @@ export default function SettingsForm({
                 id="delete_confirm"
                 value={deleteConfirm}
                 onChange={(e) => setDeleteConfirm(e.target.value)}
-                placeholder="DELETE"
+                placeholder="Type DELETE here"
                 autoComplete="off"
               />
             </div>

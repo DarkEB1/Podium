@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Image from "next/image"
-import { Check, X } from "lucide-react"
+import { Check, X, type LucideIcon } from "lucide-react"
 import {
   animate,
   motion,
@@ -35,11 +35,32 @@ export interface SwipeCardProps {
   /** Copy for the two actions; also used as the buttons' accessible names. */
   passLabel?: string
   likeLabel?: string
+  /**
+   * Icon for the "like" action. Defaults to a check. Surfaces where the action
+   * is a save/shortlist (not an application) pass a bookmark so the control does
+   * not read as "apply" (DISC8).
+   */
+  likeIcon?: LucideIcon
+  /** Render the pass/like labels as visible captions under the buttons (DISC8). */
+  showActionLabels?: boolean
   blurDataURL?: string
   /** L1: 0→1 drag magnitude the deck reads to grow the peek card toward the
    *  outgoing one. Written by this card, owned by SwipeDeck. */
   dragProgress?: MotionValue<number> | undefined
   className?: string
+  /**
+   * Opt-in plastic gloss sheen over the card surface (discover marketplace
+   * redesign). Purely a static, non-interactive, decorative CSS gradient,
+   * so it needs no reduced-motion gate. Off by default; team-side callers
+   * are unaffected. When true, adds a `data-testid="swipe-gloss"` layer.
+   */
+  glossy?: boolean
+  /**
+   * Opt-in node rendered absolutely in the figure's top-left, above the
+   * image (discover marketplace redesign carries the MatchScore ring here).
+   * Off by default; renders nothing when omitted.
+   */
+  overlay?: React.ReactNode
 }
 
 /**
@@ -84,10 +105,15 @@ export function SwipeCard({
   onSwipe,
   passLabel = "Pass",
   likeLabel = "Interested",
+  likeIcon,
+  showActionLabels = false,
   blurDataURL,
   dragProgress,
   className,
+  glossy = false,
+  overlay,
 }: SwipeCardProps) {
+  const LikeIcon = likeIcon ?? Check
   const prefersReducedMotion = useReducedMotion()
   const articleRef = React.useRef<HTMLElement | null>(null)
   // Guards against a second commit (double key press / button while flinging).
@@ -203,6 +229,23 @@ export function SwipeCard({
           draggable={false}
           className="object-cover"
         />
+        {glossy ? (
+          // Static plastic sheen (direction-b-editorial score-chip material):
+          // a soft top highlight fading down, plus a faint inner top-left
+          // glow. No motion is involved, so no prefers-reduced-motion gate
+          // is needed, since a static gradient cannot trigger vestibular
+          // discomfort. Deliberately no z-index: it is first in DOM order
+          // inside the figure, so the later like/pass drag badges (also
+          // z-index:auto) paint above it and stay legible.
+          <div
+            aria-hidden="true"
+            data-testid="swipe-gloss"
+            className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.35)_0%,rgba(255,255,255,0)_45%),radial-gradient(120%_60%_at_18%_0%,rgba(255,255,255,0.30),rgba(255,255,255,0)_60%)]"
+          />
+        ) : null}
+        {overlay ? (
+          <div className="absolute left-3 top-3 z-10">{overlay}</div>
+        ) : null}
         <motion.span
           aria-hidden="true"
           style={{ opacity: likeOpacity }}
@@ -242,23 +285,37 @@ export function SwipeCard({
         ) : null}
         {tags ? <div className="flex flex-wrap gap-1">{tags}</div> : null}
 
-        <div className="mt-2 flex items-center justify-center gap-4">
-          <button
-            type="button"
-            aria-label={passLabel}
-            onClick={() => commit("left")}
-            className="inline-flex size-12 items-center justify-center rounded-full border border-border bg-card text-destructive shadow-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-          >
-            <X aria-hidden="true" className="size-5" />
-          </button>
-          <button
-            type="button"
-            aria-label={likeLabel}
-            onClick={() => commit("right")}
-            className="inline-flex size-12 items-center justify-center rounded-full border border-border bg-card text-success shadow-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-          >
-            <Check aria-hidden="true" className="size-5" />
-          </button>
+        <div className="mt-2 flex items-start justify-center gap-6">
+          <div className="flex flex-col items-center gap-1">
+            <button
+              type="button"
+              aria-label={passLabel}
+              onClick={() => commit("left")}
+              className="inline-flex size-12 items-center justify-center rounded-full border border-border bg-card text-destructive shadow-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
+              <X aria-hidden="true" className="size-5" />
+            </button>
+            {showActionLabels ? (
+              <span aria-hidden="true" className="text-small text-muted-foreground">
+                {passLabel}
+              </span>
+            ) : null}
+          </div>
+          <div className="flex flex-col items-center gap-1">
+            <button
+              type="button"
+              aria-label={likeLabel}
+              onClick={() => commit("right")}
+              className="inline-flex size-12 items-center justify-center rounded-full border border-border bg-card text-success shadow-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
+              <LikeIcon aria-hidden="true" className="size-5" />
+            </button>
+            {showActionLabels ? (
+              <span aria-hidden="true" className="text-small text-muted-foreground">
+                {likeLabel}
+              </span>
+            ) : null}
+          </div>
         </div>
       </div>
     </motion.article>

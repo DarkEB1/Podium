@@ -193,6 +193,7 @@ export type Database = {
           home_city: string | null
           home_country: string | null
           id: string
+          is_seeking: boolean
           is_under_18: boolean
           last_active_at: string | null
           level: Database["public"]["Enums"]["athlete_level"] | null
@@ -220,6 +221,8 @@ export type Database = {
             | Database["public"]["Enums"]["stripe_connect_status"]
             | null
           travel_radius_km: number | null
+          university_city: string | null
+          university_country: string | null
           university_team: string | null
           updated_at: string
           user_id: string
@@ -252,6 +255,7 @@ export type Database = {
           home_city?: string | null
           home_country?: string | null
           id?: string
+          is_seeking?: boolean
           is_under_18?: boolean
           last_active_at?: string | null
           level?: Database["public"]["Enums"]["athlete_level"] | null
@@ -279,6 +283,8 @@ export type Database = {
             | Database["public"]["Enums"]["stripe_connect_status"]
             | null
           travel_radius_km?: number | null
+          university_city?: string | null
+          university_country?: string | null
           university_team?: string | null
           updated_at?: string
           user_id: string
@@ -311,6 +317,7 @@ export type Database = {
           home_city?: string | null
           home_country?: string | null
           id?: string
+          is_seeking?: boolean
           is_under_18?: boolean
           last_active_at?: string | null
           level?: Database["public"]["Enums"]["athlete_level"] | null
@@ -338,6 +345,8 @@ export type Database = {
             | Database["public"]["Enums"]["stripe_connect_status"]
             | null
           travel_radius_km?: number | null
+          university_city?: string | null
+          university_country?: string | null
           university_team?: string | null
           updated_at?: string
           user_id?: string

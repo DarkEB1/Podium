@@ -6,6 +6,7 @@ import { Archive, MessageSquare, SearchX } from 'lucide-react'
 
 import { UserAvatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import { buttonVariants } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
@@ -31,6 +32,12 @@ export interface Conversation {
 
 type SortMode = 'recent' | 'oldest' | 'unread'
 
+/** A labelled link rendered as a button in the zero-conversations state. */
+export interface EmptyInboxAction {
+  label: string
+  href: string
+}
+
 interface Props {
   conversations: Conversation[]
   basePath: string
@@ -40,6 +47,18 @@ interface Props {
    * archive affordance entirely.
    */
   onArchive?: (id: string) => void | Promise<void>
+  /**
+   * Copy + calls-to-action for the zero-conversations ("inbox is quiet") state.
+   * Each surface points a first-time user at the right next step (athletes →
+   * requests / discover); brand and team fall back to the generic default copy
+   * with no actions. The description should reuse the page subtitle's nouns so
+   * the empty state and subtitle read as one voice.
+   */
+  emptyInbox?: {
+    description?: string
+    primaryAction?: EmptyInboxAction
+    secondaryAction?: EmptyInboxAction
+  }
 }
 
 function formatTimestamp(iso: string): string {
@@ -71,7 +90,7 @@ function sortConversations(list: Conversation[], mode: SortMode): Conversation[]
   return sorted
 }
 
-export default function MatchList({ conversations, basePath, onArchive }: Props) {
+export default function MatchList({ conversations, basePath, onArchive, emptyInbox }: Props) {
   const [query, setQuery] = React.useState('')
   const [sort, setSort] = React.useState<SortMode>('recent')
   const [archived, setArchived] = React.useState<Set<string>>(new Set())
@@ -101,52 +120,98 @@ export default function MatchList({ conversations, basePath, onArchive }: Props)
 
   const hasConversations = conversations.some((c) => !archived.has(c.id))
 
+  const hasActions = Boolean(emptyInbox?.primaryAction || emptyInbox?.secondaryAction)
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="flex-1">
-          <label htmlFor="conversation-search" className="sr-only">
-            Search conversations
-          </label>
-          <Input
-            id="conversation-search"
-            type="search"
-            role="searchbox"
-            placeholder="Search by name or message"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
+      {/*
+        MSG2 — the search/sort row does nothing over an empty inbox, so it only
+        renders once there is at least one conversation to filter or sort.
+      */}
+      {hasConversations ? (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="flex-1">
+            <label htmlFor="conversation-search" className="sr-only">
+              Search conversations
+            </label>
+            <Input
+              id="conversation-search"
+              type="search"
+              role="searchbox"
+              placeholder="Search by name or message"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </div>
+          <div>
+            <label htmlFor="conversation-sort" className="sr-only">
+              Sort conversations
+            </label>
+            <select
+              id="conversation-sort"
+              value={sort}
+              onChange={(e) => setSort(e.target.value as SortMode)}
+              className="h-10 rounded-xl border border-border bg-card px-4 text-medium"
+            >
+              <option value="recent">Most recent</option>
+              <option value="oldest">Oldest</option>
+              <option value="unread">Unread first</option>
+            </select>
+          </div>
+        </div>
+      ) : null}
+
+      {/*
+        UX-1 / MSG4 — the empty and no-match states sit inside the same bordered
+        card the populated list uses, so the inbox keeps one layout frame instead
+        of a full-width illustration floating beside the left-aligned header.
+      */}
+      {!hasConversations ? (
+        <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+          {/* MSG3 — copy reuses the subtitle's nouns so a first-timer connects
+              "connection request" to the conversations that appear here. */}
+          <EmptyState
+            variant="emptyInbox"
+            iconComponent={MessageSquare}
+            description={
+              emptyInbox?.description ??
+              'When you accept a connection request, your conversation appears here.'
+            }
+            className={hasActions ? 'pb-6' : ''}
+          />
+          {/* MSG1 — give the empty inbox somewhere to go. */}
+          {hasActions ? (
+            <div className="flex flex-col items-center justify-center gap-3 px-4 pb-16 sm:flex-row">
+              {emptyInbox?.primaryAction ? (
+                <Link
+                  href={emptyInbox.primaryAction.href}
+                  className={buttonVariants({ variant: 'default', size: 'lg' })}
+                >
+                  {emptyInbox.primaryAction.label}
+                </Link>
+              ) : null}
+              {emptyInbox?.secondaryAction ? (
+                <Link
+                  href={emptyInbox.secondaryAction.href}
+                  className={buttonVariants({ variant: 'outline', size: 'lg' })}
+                >
+                  {emptyInbox.secondaryAction.label}
+                </Link>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : visible.length === 0 ? (
+        // MSG2 — distinct "no matches for this query" state, not the generic
+        // "inbox is quiet", with a one-tap way back to the full list.
+        <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+          <EmptyState
+            iconComponent={SearchX}
+            title={`No conversations match '${query.trim()}'`}
+            description="Try a different name, or clear the search to see everyone again."
+            action={{ label: 'Clear search', onClick: () => setQuery('') }}
           />
         </div>
-        <div>
-          <label htmlFor="conversation-sort" className="sr-only">
-            Sort conversations
-          </label>
-          <select
-            id="conversation-sort"
-            value={sort}
-            onChange={(e) => setSort(e.target.value as SortMode)}
-            className="h-10 rounded-xl border border-border bg-card px-4 text-medium"
-          >
-            <option value="recent">Most recent</option>
-            <option value="oldest">Oldest</option>
-            <option value="unread">Unread first</option>
-          </select>
-        </div>
-      </div>
-
-      {/* UX-1 — designed empty states, not a bare sentence on a blank pane. */}
-      {!hasConversations ? (
-        <EmptyState
-          variant="emptyInbox"
-          iconComponent={MessageSquare}
-          description="Accept a connection request and the conversation shows up here."
-        />
-      ) : visible.length === 0 ? (
-        <EmptyState
-          iconComponent={SearchX}
-          title="No conversations match your search"
-          description="Try a different name, or clear the search to see everything again."
-        />
       ) : (
         <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
           {visible.map((c) => {

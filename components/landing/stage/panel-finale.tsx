@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useRef } from 'react'
+import { ROUTES } from '@/lib/routes'
 import { useStage } from './stage'
 import Chip from './chip'
 import { atSeg } from './track-map'
@@ -104,7 +105,7 @@ export default function PanelFinale() {
       >
         <div className="flex items-center gap-7">
           <Link
-            href="/role-select"
+            href={ROUTES.auth.signUp}
             className="flex h-14 items-center rounded-xl bg-primary px-8 text-[16px] font-medium text-primary-foreground transition-colors duration-150 hover:bg-[#1F35C8]"
           >
             Claim your spot
@@ -153,28 +154,35 @@ export default function PanelFinale() {
 
       {/* footer strip: the corridor's last line, below the floor */}
       <footer
-        className="absolute inset-x-0 bottom-0 flex items-center gap-8 font-mono text-[10.5px] uppercase tracking-[.15em]"
+        className="absolute inset-x-0 bottom-0 flex flex-col justify-center gap-2 font-mono text-[10.5px] uppercase tracking-[.15em]"
         style={{ top: '88vh', paddingInline: 'var(--margin-x)' }}
       >
-        <Link
-          href="/terms"
-          className="text-muted-foreground transition-colors duration-150 hover:text-foreground"
-        >
-          TERMS
-        </Link>
-        <Link
-          href="/privacy"
-          className="text-muted-foreground transition-colors duration-150 hover:text-foreground"
-        >
-          PRIVACY
-        </Link>
-        <a
-          href="mailto:hello@podiumsponsorship.com"
-          className="text-muted-foreground transition-colors duration-150 hover:text-foreground"
-        >
-          CONTACT
-        </a>
-        <span className="ml-auto text-muted-foreground">© 2026 PODIUM</span>
+        <div className="flex items-center gap-8">
+          <Link
+            href="/terms"
+            className="text-muted-foreground transition-colors duration-150 hover:text-foreground"
+          >
+            TERMS
+          </Link>
+          <Link
+            href="/privacy"
+            className="text-muted-foreground transition-colors duration-150 hover:text-foreground"
+          >
+            PRIVACY
+          </Link>
+          <a
+            href="mailto:hello@podiumsponsorship.com"
+            className="text-muted-foreground transition-colors duration-150 hover:text-foreground"
+          >
+            CONTACT
+          </a>
+          <span className="ml-auto text-muted-foreground">© 2026 PODIUM</span>
+        </div>
+        {/* the standard disclaimer the shared footer carries, kept quiet */}
+        <p className="normal-case tracking-normal text-muted-foreground/70">
+          Podium is an introduction platform and is not a party to agreements
+          made between brands and athletes or teams.
+        </p>
       </footer>
     </section>
   )

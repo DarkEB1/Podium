@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { ROUTES } from '@/lib/routes'
 import WordChip from './word-chip'
 import ScrollCue from './scroll-cue'
 import ScrollHint from './scroll-hint'
@@ -40,7 +41,7 @@ export default function PanelHero() {
           letterSpacing: '-0.035em',
         }}
       >
-        <span className="block">Sponsorship</span>
+        <span className="block">Sponsorship</span>{' '}
         <span className="block">
           for <WordChip />
         </span>
@@ -53,7 +54,7 @@ export default function PanelHero() {
       >
         <div className="flex items-center gap-7">
           <Link
-            href="/role-select"
+            href={ROUTES.auth.signUp}
             className="flex h-14 items-center rounded-xl bg-primary px-8 text-[16px] font-medium text-primary-foreground transition-colors duration-150 hover:bg-[#1F35C8]"
           >
             Get on the podium

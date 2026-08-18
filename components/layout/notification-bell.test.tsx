@@ -59,6 +59,22 @@ describe('NotificationBell', () => {
     expect(screen.queryByRole('status')).toBeNull()
   })
 
+  // DASH6: the empty panel now explains what will land here instead of showing
+  // only a bare "No notifications yet" line.
+  it('shows an explanatory empty state when there are no notifications', async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: async () => [],
+    } as Response)
+    render(<NotificationBell />)
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/notifications'))
+    await userEvent.click(screen.getByRole('button', { name: /notifications/i }))
+    expect(screen.getByText(/no notifications yet/i)).toBeInTheDocument()
+    expect(
+      screen.getByText(/brands message you or send connection requests/i),
+    ).toBeInTheDocument()
+  })
+
   it('opens dropdown on click and shows notification titles', async () => {
     vi.mocked(fetch).mockResolvedValue({
       ok: true,

@@ -61,10 +61,14 @@ export default function ConnectRequestButton({
   const [message, setMessage] = useState('')
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
+  // DISC3: keep the field neutral until the sender has typed or blurred, so it
+  // does not render in red error styling before any interaction.
+  const [touched, setTouched] = useState(false)
 
   const trimmedLength = message.trim().length
   const tooShort = trimmedLength < CONNECTION_MESSAGE_MIN
   const tooLong = trimmedLength > CONNECTION_MESSAGE_MAX
+  const showError = touched && (tooShort || tooLong)
   const canSend = !tooShort && !tooLong && !sending
 
   async function sendRequest() {
@@ -89,6 +93,7 @@ export default function ConnectRequestButton({
       setSent(true)
       setOpen(false)
       setMessage('')
+      setTouched(false)
     } catch {
       toast.error('Could not send your request. Please check your connection and try again.')
     } finally {
@@ -124,27 +129,33 @@ export default function ConnectRequestButton({
               Personalised message
             </label>
             <p className="text-small text-muted-foreground">
-              Say who you are and what you are proposing, between{' '}
-              {CONNECTION_MESSAGE_MIN} and {CONNECTION_MESSAGE_MAX} characters.
+              Say who you are and what you are proposing, in {CONNECTION_MESSAGE_MIN}–
+              {CONNECTION_MESSAGE_MAX} characters.
             </p>
             <Textarea
               id="connect-message"
               rows={6}
               maxLength={CONNECTION_MESSAGE_MAX}
               value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              aria-invalid={tooShort || tooLong}
+              onChange={(e) => {
+                setMessage(e.target.value)
+                setTouched(true)
+              }}
+              onBlur={() => setTouched(true)}
+              aria-invalid={showError}
               aria-describedby="connect-message-status"
               placeholder="Introduce your brand, the campaign you have in mind and what you are offering…"
             />
             <div className="flex items-center justify-between">
               <span
                 id="connect-message-status"
-                role={tooLong ? 'alert' : undefined}
+                role={touched && tooLong ? 'alert' : undefined}
                 className={
-                  tooShort || tooLong
+                  showError
                     ? 'text-small font-medium text-destructive'
-                    : 'text-small text-success'
+                    : !tooShort && !tooLong
+                      ? 'text-small text-success'
+                      : 'text-small text-muted-foreground'
                 }
               >
                 {tooLong

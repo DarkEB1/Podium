@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Bell } from 'lucide-react'
+import { Bell, BellOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { Database } from '@/types/database'
 
@@ -61,7 +61,22 @@ export default function NotificationBell() {
         <div className="absolute right-0 top-10 z-50 w-80 max-w-[calc(100vw-1.5rem)] rounded-xl border bg-card shadow-lg">
           <div className="border-b px-4 py-2 text-sm font-semibold">Notifications</div>
           {notifications.length === 0 ? (
-            <p className="px-4 py-6 text-center text-sm text-muted-foreground">No notifications yet</p>
+            // DASH6: a real empty state, not a bare line. Echoes the shared
+            // EmptyState language (soft primary disc holding a Lucide icon +
+            // supporting copy) at panel scale, so the bell says what will land
+            // here rather than reading as an error.
+            <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">
+              <div
+                aria-hidden="true"
+                className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary"
+              >
+                <BellOff className="size-5" />
+              </div>
+              <p className="text-sm font-medium text-foreground">No notifications yet</p>
+              <p className="text-xs text-muted-foreground">
+                You&apos;ll hear here when brands message you or send connection requests.
+              </p>
+            </div>
           ) : (
             <ul className="max-h-80 overflow-y-auto divide-y">
               {notifications.map((n) => (

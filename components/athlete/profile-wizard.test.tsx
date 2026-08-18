@@ -202,6 +202,62 @@ describe('ProfileWizard', () => {
     expect(trigger).not.toHaveTextContent(/available_now/)
   })
 
+  // Step 4 socials accept @handle, bare handle or URL; the canonical bare
+  // handle is what gets stored in social_accounts (lib/social/handles.ts).
+  it('step 4: accepts @handle and URL inputs and stores canonical bare handles', async () => {
+    render(<ProfileWizard step={4} profile={null} />)
+    await userEvent.type(screen.getByLabelText('Instagram'), '@jane')
+    await userEvent.type(screen.getByLabelText('TikTok'), 'https://tiktok.com/@bob')
+    await userEvent.type(screen.getByLabelText('YouTube'), 'jane')
+    await userEvent.click(screen.getByRole('button', { name: /next/i }))
+    await waitFor(() => expect(fetch).toHaveBeenCalled())
+    const mockFetch = fetch as unknown as { mock: { calls: [string, { body: string }][] } }
+    const body = JSON.parse(mockFetch.mock.calls[0]![1].body) as {
+      social_accounts?: Record<string, unknown>
+    }
+    expect(body.social_accounts).toMatchObject({
+      instagram: 'jane',
+      tiktok: 'bob',
+      youtube: 'jane',
+    })
+    expect(body.social_accounts).not.toHaveProperty('twitter')
+  }, 15000)
+
+  it('step 4: rejects a wrong-host URL with a validation message and no save', async () => {
+    render(<ProfileWizard step={4} profile={null} />)
+    await userEvent.type(screen.getByLabelText('Instagram'), 'https://facebook.com/jane')
+    await userEvent.click(screen.getByRole('button', { name: /next/i }))
+    expect(
+      await screen.findByText(/enter a handle like @yourname/i),
+    ).toBeInTheDocument()
+    expect(fetch).not.toHaveBeenCalled()
+  }, 15000)
+
+  it('step 4: pre-fills stored legacy URLs as @handles', () => {
+    const profile = {
+      user_id: 'u1', is_under_18: false, status: 'draft',
+      social_accounts: { instagram: 'https://instagram.com/jane', twitter: 'bob' },
+    }
+    render(<ProfileWizard step={4} profile={profile as never} />)
+    expect(screen.getByLabelText('Instagram')).toHaveValue('@jane')
+    expect(screen.getByLabelText('X / Twitter')).toHaveValue('@bob')
+  })
+
+  it('step 4: preserves self-reported follower keys when re-saving socials', async () => {
+    const profile = {
+      user_id: 'u1', is_under_18: false, status: 'draft',
+      social_accounts: { instagram: 'jane', instagram_followers: 12400 },
+    }
+    render(<ProfileWizard step={4} profile={profile as never} />)
+    await userEvent.click(screen.getByRole('button', { name: /next/i }))
+    await waitFor(() => expect(fetch).toHaveBeenCalled())
+    const mockFetch = fetch as unknown as { mock: { calls: [string, { body: string }][] } }
+    const body = JSON.parse(mockFetch.mock.calls[0]![1].body) as {
+      social_accounts?: Record<string, unknown>
+    }
+    expect(body.social_accounts).toMatchObject({ instagram: 'jane', instagram_followers: 12400 })
+  })
+
   it('step 5: guardian step is skipped when is_under_18 is false', () => {
     const profile = {
       user_id: 'u1', is_under_18: false, display_name: 'James', status: 'draft',

@@ -30,12 +30,23 @@ import AthleteDashboardPage from './page'
 
 const USER_ID = 'athlete-user-1'
 
-function setProfile(status = 'active') {
+// A "complete" profile: every discoverability field populated so the
+// first-run "complete your profile" prompt (DASH5) stays hidden unless a test
+// opts into an incomplete row.
+function setProfile(status = 'active', overrides: Record<string, unknown> = {}) {
   getOwnProfileMock.mockResolvedValue({
     id: USER_ID,
     display_name: 'Jordan Pace',
     primary_sport: 'Athletics',
+    level: 'professional',
+    profile_photo_url: 'https://example.com/p.jpg',
+    action_photos: ['https://example.com/a.jpg'],
+    highlight_videos: ['https://example.com/v.mp4'],
+    social_accounts: { instagram: 'jordan' },
+    performance_stats: { wins: 3 },
+    notable_achievements: 'National champion',
     status,
+    ...overrides,
   })
 }
 
@@ -82,9 +93,72 @@ describe('AthleteDashboardPage', () => {
     // Active conversations counts only active matches.
     expect(screen.getByText('2')).toBeInTheDocument()
 
-    // SectionDivider chips break the page into legible sections.
-    expect(screen.getByText(/your numbers/i)).toBeInTheDocument()
+    // SectionDivider chips break the page into legible sections. The metric
+    // section is honestly titled (DASH2): it holds a sport and a status, not
+    // only numbers, so it is "At a glance", not "Your numbers".
+    expect(screen.getByText(/at a glance/i)).toBeInTheDocument()
+    expect(screen.queryByText(/your numbers/i)).not.toBeInTheDocument()
     expect(screen.getByText(/get going/i)).toBeInTheDocument()
+  })
+
+  it('title-cases a lowercase display name in the hero (DASH7)', async () => {
+    setProfile('active', { display_name: 'nick dunn' })
+    await renderPage()
+
+    // Presentation only — the stored value is untouched.
+    expect(
+      screen.getByRole('heading', { name: /welcome back, nick dunn/i }),
+    ).toHaveTextContent('Welcome back, Nick Dunn')
+  })
+
+  it('renders snapshot cards as passive stats, not links (DASH4)', async () => {
+    setProfile('active')
+    getMatchesMock.mockResolvedValue([{ id: 'm1', status: 'active' }])
+    await renderPage()
+
+    // The snapshot tiles read as honest passive stats: the big value is not a
+    // link (a link named just "1" is meaningless to a screen reader, and the
+    // "Get going" actions below already provide navigation). No stat value
+    // should resolve to a link.
+    expect(screen.queryByRole('link', { name: '1' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /athletics/i })).not.toBeInTheDocument()
+    // The value is still shown, just not as an anchor.
+    expect(screen.getByText('1')).toBeInTheDocument()
+  })
+
+  it('aligns the quick-action labels to the nav vocabulary (DASH3)', async () => {
+    setProfile('active')
+    await renderPage()
+
+    expect(screen.getByRole('link', { name: /discover brands/i })).toHaveAttribute(
+      'href',
+      '/athlete/discover',
+    )
+    expect(screen.getByRole('link', { name: /^requests$/i })).toHaveAttribute(
+      'href',
+      '/athlete/requests',
+    )
+    // No invented vocabulary: the old divergent labels are gone.
+    expect(screen.queryByRole('link', { name: /browse brands/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /connection requests/i })).not.toBeInTheDocument()
+  })
+
+  it('surfaces a profile-completion prompt for a thin profile (DASH5)', async () => {
+    setProfile('active', { profile_photo_url: null, notable_achievements: null })
+    await renderPage()
+
+    const cta = screen.getByRole('link', { name: /finish your profile/i })
+    expect(cta).toHaveAttribute('href', '/athlete/settings')
+    expect(screen.getByText(/complete your profile to get discovered/i)).toBeInTheDocument()
+  })
+
+  it('hides the completion prompt once the profile is fleshed out (DASH5)', async () => {
+    setProfile('active')
+    await renderPage()
+
+    expect(
+      screen.queryByRole('link', { name: /finish your profile/i }),
+    ).not.toBeInTheDocument()
   })
 
   it('shows profile status as text, never colour alone', async () => {
@@ -98,7 +172,7 @@ describe('AthleteDashboardPage', () => {
     setProfile('active')
     await renderPage()
 
-    expect(screen.getByRole('link', { name: /browse brands/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /discover brands/i })).toHaveAttribute(
       'href',
       '/athlete/discover',
     )

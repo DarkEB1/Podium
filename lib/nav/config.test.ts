@@ -137,6 +137,60 @@ describe('nav config', () => {
   it('returns no breadcrumbs for the root path', () => {
     expect(buildBreadcrumbs('/')).toEqual([])
   })
+
+  // A UUID segment is an opaque row id; rendering it raw put
+  // "54ebbd32-…" in the trail on /athlete/profile/[userId].
+  it('never renders a raw UUID segment', () => {
+    const crumbs = buildBreadcrumbs(
+      '/brand/discover/54ebbd32-1a2b-4c3d-8e4f-0a1b2c3d4e5f',
+    )
+    expect(crumbs.map((c) => c.label)).toEqual(['Brand', 'Discover', 'Profile'])
+    expect(crumbs[2]?.href).toBe(
+      '/brand/discover/54ebbd32-1a2b-4c3d-8e4f-0a1b2c3d4e5f',
+    )
+  })
+
+  it('is case-insensitive about the UUID hex digits', () => {
+    const crumbs = buildBreadcrumbs(
+      '/brand/discover/54EBBD32-1A2B-4C3D-8E4F-0A1B2C3D4E5F',
+    )
+    expect(crumbs.map((c) => c.label)).toEqual(['Brand', 'Discover', 'Profile'])
+  })
+
+  it('collapses the generic UUID crumb into a preceding Profile crumb', () => {
+    const crumbs = buildBreadcrumbs(
+      '/athlete/profile/54ebbd32-1a2b-4c3d-8e4f-0a1b2c3d4e5f',
+    )
+    expect(crumbs.map((c) => c.label)).toEqual(['Athlete', 'Profile'])
+  })
+
+  it('applies a supplied display name to the final crumb', () => {
+    const crumbs = buildBreadcrumbs(
+      '/athlete/profile/54ebbd32-1a2b-4c3d-8e4f-0a1b2c3d4e5f',
+      { lastLabel: 'Sarah Okoro' },
+    )
+    expect(crumbs.map((c) => c.label)).toEqual(['Athlete', 'Profile', 'Sarah Okoro'])
+    expect(crumbs[2]?.href).toBe(
+      '/athlete/profile/54ebbd32-1a2b-4c3d-8e4f-0a1b2c3d4e5f',
+    )
+  })
+
+  it('ignores an empty or whitespace-only label override', () => {
+    expect(buildBreadcrumbs('/athlete/discover', { lastLabel: '   ' })).toEqual([
+      { label: 'Athlete', href: '/athlete' },
+      { label: 'Discover', href: '/athlete/discover' },
+    ])
+    expect(buildBreadcrumbs('/athlete/discover', { lastLabel: null })).toEqual(
+      buildBreadcrumbs('/athlete/discover'),
+    )
+  })
+
+  it('does not treat non-UUID segments as opaque ids', () => {
+    expect(buildBreadcrumbs('/athlete/requests').map((c) => c.label)).toEqual([
+      'Athlete',
+      'Requests',
+    ])
+  })
 })
 
 describe('onboarding resumption (PR-9)', () => {

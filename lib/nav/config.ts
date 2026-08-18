@@ -10,7 +10,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
-import { ROUTES } from '@/lib/routes'
+import { ROUTES, ROLE_DASHBOARD } from '@/lib/routes'
 
 /**
  * Shared per-role navigation config (spec §2.5). Single source of truth for the
@@ -105,18 +105,30 @@ const NAV_ITEMS: Record<NavRole, readonly NavItem[]> = {
  * is role-scoped so it is unambiguous which route group it lands in.
  */
 const ROLE_CTA: Record<NavRole, RoleCta> = {
-  // Athletes and teams edit their profile from Settings — that page hosts the
-  // profile form, so the CTA points there rather than at a non-existent
-  // `/athlete/profile/edit`.
-  athlete: { label: 'Edit Profile', href: ROUTES.athlete.settings },
+  // DASH1b: this CTA lands on the role's Settings page (which hosts the profile
+  // form), so it is labelled "Settings" rather than "Edit Profile". The old
+  // label collided with the "Profile" nav item — which points at the *public*
+  // profile — and read as if it were a second way to reach it.
+  athlete: { label: 'Settings', href: ROUTES.athlete.settings },
   brand: { label: 'Post a Listing', href: ROUTES.brand.listingsNew },
-  team: { label: 'Edit Profile', href: ROUTES.team.settings },
+  team: { label: 'Settings', href: ROUTES.team.settings },
   agent: { label: 'Add Client', href: ROUTES.agent.clientsNew },
 }
 
 /** The four top-level destinations for a role. */
 export function navItemsForRole(role: NavRole): readonly NavItem[] {
   return NAV_ITEMS[role]
+}
+
+/**
+ * The wordmark's home destination — always the role's dashboard (DASH1). The
+ * dashboard is not one of the four top-level nav slots for most roles, so
+ * pointing the logo at it is what keeps the dashboard reachable from every page
+ * and gives a consistent "back to home" affordance (it previously linked to the
+ * first nav item, i.e. Discover, orphaning the dashboard).
+ */
+export function homeForRole(role: NavRole): string {
+  return ROLE_DASHBOARD[role]
 }
 
 /** The single persistent CTA for a role. */
@@ -146,15 +158,36 @@ export function humaniseSegment(segment: string): string {
 }
 
 /**
+ * A UUID-shaped path segment (8-4-4-4-12 hex). Dynamic routes such as
+ * `/athlete/profile/[userId]` put an opaque row id in the URL; humanising it
+ * would render the raw id in the breadcrumb trail.
+ */
+const UUID_SEGMENT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
  * Breadcrumb trail derived from a pathname, each crumb carrying the cumulative
  * href so every ancestor is navigable. Root (`/`) yields no crumbs.
+ *
+ * UUID-shaped segments never render raw: pages can supply a display name for
+ * the final crumb via `options.lastLabel` (see
+ * `components/layout/breadcrumb-label.tsx`), and as a safety net an
+ * un-labelled UUID falls back to the generic "Profile". Consecutive crumbs
+ * with identical labels are collapsed so `/athlete/profile/<uuid>` reads
+ * "Athlete / Profile" rather than "Athlete / Profile / Profile".
  */
-export function buildBreadcrumbs(pathname: string): Breadcrumb[] {
+export function buildBreadcrumbs(
+  pathname: string,
+  options?: { lastLabel?: string | null },
+): Breadcrumb[] {
   const segments = pathname.split('/').filter(Boolean)
-  return segments.map((segment, i) => ({
-    label: humaniseSegment(segment),
+  const crumbs = segments.map((segment, i) => ({
+    label: UUID_SEGMENT.test(segment) ? 'Profile' : humaniseSegment(segment),
     href: `/${segments.slice(0, i + 1).join('/')}`,
   }))
+  const lastLabel = options?.lastLabel?.trim()
+  const last = crumbs[crumbs.length - 1]
+  if (lastLabel && last) last.label = lastLabel
+  return crumbs.filter((crumb, i) => i === 0 || crumb.label !== crumbs[i - 1]?.label)
 }
 
 /**

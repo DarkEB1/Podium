@@ -13,16 +13,18 @@ import {
   SeekingTag,
 } from '@/components/ui/status-badges'
 import { cn } from '@/lib/utils'
+import { parseSocialInput, type SocialPlatform } from '@/lib/social/handles'
 import type { Database } from '@/types/database'
 
 type AthleteRow = Database['public']['Tables']['athlete_profiles']['Row']
 type AvailabilityStatus = Database['public']['Enums']['availability_status']
 
-// social_accounts is stored as free-form JSON. It may hold either a bare URL
-// string (legacy onboarding writes) or an object carrying the URL plus an
-// optional follower count. Both shapes are handled when rendering (§3B.1).
+// social_accounts is stored as free-form JSON. Canonically it holds bare handle
+// strings plus numeric <platform>_followers keys (lib/social/handles.ts), but
+// legacy rows may hold full URLs, "@handle" strings, or objects carrying a URL
+// plus a follower count. Every shape is handled when rendering (§3B.1).
 type SocialEntry = string | { url?: string; followers?: number } | null | undefined
-type SocialAccounts = Partial<Record<'instagram' | 'tiktok' | 'youtube' | 'twitter', SocialEntry>>
+type SocialAccounts = Record<string, unknown>
 
 interface Props {
   profile: AthleteRow
@@ -48,14 +50,48 @@ function formatFollowers(n: number): string {
   return String(n)
 }
 
-function readSocial(entry: SocialEntry): { url: string; followers: number | null } | null {
-  if (!entry) return null
-  if (typeof entry === 'string') return entry ? { url: entry, followers: null } : null
-  if (entry.url) return { url: entry.url, followers: typeof entry.followers === 'number' ? entry.followers : null }
-  return null
+/**
+ * Resolves one platform entry to a renderable link. Handles, "@handles", full
+ * URLs and the legacy { url, followers } object all resolve through
+ * parseSocialInput so the tile always shows "@handle" with an absolute URL.
+ * Follower counts prefer the canonical numeric <platform>_followers keys
+ * (youtube_subscribers for YouTube) over the legacy object shape.
+ */
+function readSocial(
+  platform: SocialPlatform,
+  accounts: SocialAccounts,
+): { url: string; handle: string | null; followers: number | null } | null {
+  const entry = accounts[platform] as SocialEntry
+  const raw =
+    typeof entry === 'string'
+      ? entry
+      : entry && typeof entry === 'object'
+        ? entry.url
+        : undefined
+  if (!raw) return null
+
+  const parsed = parseSocialInput(platform, raw)
+  // A legacy value that cannot be read as a handle still renders as a link.
+  const url = parsed?.url ?? raw
+  const handle = parsed?.handle ?? null
+
+  const followerKey = platform === 'youtube' ? 'youtube_subscribers' : `${platform}_followers`
+  const canonicalCount = accounts[followerKey]
+  let followers: number | null = null
+  if (typeof canonicalCount === 'number' && Number.isFinite(canonicalCount)) {
+    followers = canonicalCount
+  } else if (
+    entry &&
+    typeof entry === 'object' &&
+    typeof entry.followers === 'number'
+  ) {
+    followers = entry.followers
+  }
+
+  return { url, handle, followers }
 }
 
-const SOCIAL_PLATFORMS: { key: keyof SocialAccounts; label: string; Icon: typeof Camera }[] = [
+const SOCIAL_PLATFORMS: { key: SocialPlatform; label: string; Icon: typeof Camera }[] = [
   { key: 'instagram', label: 'Instagram', Icon: Camera },
   { key: 'tiktok', label: 'TikTok', Icon: Music2 },
   { key: 'youtube', label: 'YouTube', Icon: Video },
@@ -133,7 +169,7 @@ export default function ProfilePreview({ profile, onEditStep }: Props) {
   const social = (profile.social_accounts ?? {}) as SocialAccounts
   const connectedSocials = SOCIAL_PLATFORMS.map((p) => ({
     ...p,
-    data: readSocial(social[p.key]),
+    data: readSocial(p.key, social),
   })).filter((p) => p.data !== null)
 
   const availabilityStatus = (profile.availability_status ?? 'not_available') as AvailabilityStatus
@@ -216,7 +252,11 @@ export default function ProfilePreview({ profile, onEditStep }: Props) {
             ))}
           </div>
         ) : (
-          <p className="text-small text-muted-foreground">Not currently seeking opportunities.</p>
+          // Owner context (this is the onboarding preview): stay inviting
+          // rather than the dead-end "not seeking" line.
+          <p className="text-small text-muted-foreground">
+            Open to opportunities. Pick interests to tell brands what you want.
+          </p>
         )}
       </section>
 
@@ -240,6 +280,9 @@ export default function ProfilePreview({ profile, onEditStep }: Props) {
                 >
                   <Icon aria-hidden="true" className="size-4 text-muted-foreground" />
                   <span>{label}</span>
+                  {data!.handle ? (
+                    <span className="text-muted-foreground">@{data!.handle}</span>
+                  ) : null}
                   {data!.followers !== null ? (
                     <span className="font-medium text-foreground">
                       {formatFollowers(data!.followers)}

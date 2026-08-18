@@ -18,6 +18,9 @@ type JobListingRow = Database['public']['Tables']['job_listings']['Row']
 export interface JobListingWithBrand extends JobListingRow {
   brand_user_id: string | null
   brand_name: string | null
+  brand_logo_url: string | null
+  brand_cover_url: string | null
+  brand_description: string | null
 }
 type ConnectionRequestRow = Database['public']['Tables']['connection_requests']['Row']
 type ShortlistRow = Database['public']['Tables']['shortlists']['Row']
@@ -200,13 +203,22 @@ export async function getListings(
   // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
   const { data, error } = await (supabase as SupabaseClient)
     .from('job_listings')
-    .select('*, brand_profiles!inner(user_id, company_name, trading_name)')
+    .select(
+      '*, brand_profiles!inner(user_id, company_name, trading_name, logo_url, cover_image_url, description)',
+    )
 
   if (error) {
     throw new DiscoveryError('LISTING_FETCH_FAILED', (error as { message: string }).message)
   }
 
-  type EmbeddedBrand = { user_id: string; company_name: string; trading_name: string | null }
+  type EmbeddedBrand = {
+    user_id: string
+    company_name: string
+    trading_name: string | null
+    logo_url: string | null
+    cover_image_url: string | null
+    description: string | null
+  }
   type Embedded = JobListingRow & { brand_profiles?: EmbeddedBrand | EmbeddedBrand[] | null }
 
   return ((data ?? []) as Embedded[]).map((row) => {
@@ -218,6 +230,9 @@ export async function getListings(
       ...listing,
       brand_user_id: brand?.user_id ?? null,
       brand_name: brand ? (brand.trading_name ?? brand.company_name) : null,
+      brand_logo_url: brand?.logo_url ?? null,
+      brand_cover_url: brand?.cover_image_url ?? null,
+      brand_description: brand?.description ?? null,
     } satisfies JobListingWithBrand
   })
 }
@@ -272,6 +287,9 @@ type ListingSummaryKeys =
 export type ListingSummary = Pick<JobListingRow, ListingSummaryKeys> & {
   brand_user_id: string | null
   brand_name: string | null
+  brand_logo_url: string | null
+  brand_cover_url: string | null
+  brand_description: string | null
 }
 
 /** Rows per discovery page. */
@@ -310,7 +328,9 @@ export async function getActiveListingsPage(
   // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
   const { data, error } = await (supabase as SupabaseClient)
     .from('job_listings')
-    .select(`${LISTING_SUMMARY_COLUMNS}, brand_profiles!inner(user_id, company_name, trading_name)`)
+    .select(
+      `${LISTING_SUMMARY_COLUMNS}, brand_profiles!inner(user_id, company_name, trading_name, logo_url, cover_image_url, description)`,
+    )
     .eq('status', 'active')
     .or(listingDeadlinePredicate(cutoff))
     .order('created_at', { ascending: false })
@@ -320,7 +340,14 @@ export async function getActiveListingsPage(
     throw new DiscoveryError('LISTING_FETCH_FAILED', (error as { message: string }).message)
   }
 
-  type EmbeddedBrand = { user_id: string; company_name: string; trading_name: string | null }
+  type EmbeddedBrand = {
+    user_id: string
+    company_name: string
+    trading_name: string | null
+    logo_url: string | null
+    cover_image_url: string | null
+    description: string | null
+  }
   type Embedded = Pick<JobListingRow, ListingSummaryKeys> & {
     brand_profiles?: EmbeddedBrand | EmbeddedBrand[] | null
   }
@@ -334,6 +361,9 @@ export async function getActiveListingsPage(
       ...listing,
       brand_user_id: brand?.user_id ?? null,
       brand_name: brand ? (brand.trading_name ?? brand.company_name) : null,
+      brand_logo_url: brand?.logo_url ?? null,
+      brand_cover_url: brand?.cover_image_url ?? null,
+      brand_description: brand?.description ?? null,
     } satisfies ListingSummary
   })
 

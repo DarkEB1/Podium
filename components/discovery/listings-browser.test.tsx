@@ -10,6 +10,9 @@ const listing = (over: Partial<ListingSummary> = {}): ListingSummary => ({
   brand_id: 'b1',
   brand_user_id: 'brand-user-1',
   brand_name: 'Acme',
+  brand_logo_url: null,
+  brand_cover_url: null,
+  brand_description: null,
   title: 'Football Endorsement',
   type: 'athlete_endorsement',
   description: 'desc',
@@ -93,5 +96,40 @@ describe('ListingsBrowser', () => {
       expect(screen.queryByTestId('swipe-card')).toBeNull()
     })
     expect(screen.getByText(/that is every campaign for now/i)).toBeInTheDocument()
+  })
+
+  // DISC5: the search/sort/filter controls are visible in swipe mode too.
+  it('keeps the search and filter controls in swipe mode', () => {
+    render(<ListingsBrowser listings={[listing()]} initialMode="swipe" />)
+    expect(screen.getByRole('searchbox')).toBeInTheDocument()
+    expect(screen.getByLabelText(/sort/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^sport$/i })).toBeInTheDocument()
+  })
+
+  // DISC5: the swipe deck consumes the same filtered result set.
+  it('filters the swipe deck through the shared search box', async () => {
+    render(
+      <ListingsBrowser
+        listings={[
+          listing({ id: 'l1', title: 'Football Endorsement', sport_required: 'Football' }),
+          listing({ id: 'l2', title: 'Tennis Deal', sport_required: 'Tennis' }),
+        ]}
+        initialMode="swipe"
+      />
+    )
+    expect(screen.getByTestId('results-count')).toHaveTextContent(/2 results/i)
+    await userEvent.type(screen.getByRole('searchbox'), 'Tennis')
+    expect(screen.getByTestId('results-count')).toHaveTextContent(/1 result/i)
+  })
+
+  // DISC8: swipe mode shows a deck progress indicator.
+  it('shows a deck progress indicator in swipe mode', () => {
+    render(
+      <ListingsBrowser
+        listings={[listing({ id: 'l1' }), listing({ id: 'l2' })]}
+        initialMode="swipe"
+      />
+    )
+    expect(screen.getByTestId('deck-progress')).toHaveTextContent(/1 of 2/i)
   })
 })

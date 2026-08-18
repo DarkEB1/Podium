@@ -43,6 +43,7 @@ function makeProfile(overrides: Partial<AthleteRow> = {}): AthleteRow {
     home_city: 'London',
     home_country: 'GB',
     id: 'athlete-1',
+    is_seeking: true,
     is_under_18: false,
     last_active_at: null,
     level: 'national',
@@ -72,6 +73,8 @@ function makeProfile(overrides: Partial<AthleteRow> = {}): AthleteRow {
     stripe_connect_onboarded_at: null,
     stripe_connect_status: null,
     travel_radius_km: 50,
+    university_city: null,
+    university_country: null,
     university_team: null,
     updated_at: '2026-01-01T00:00:00Z',
     user_id: 'user-1',
@@ -186,6 +189,31 @@ describe('ProfilePreview', () => {
       />,
     )
     expect(screen.getByText(/Available from/)).toBeInTheDocument()
+  })
+
+  it('renders canonical handle storage as @handle links with absolute URLs', () => {
+    render(
+      <ProfilePreview
+        profile={makeProfile({
+          social_accounts: {
+            instagram: 'jane',
+            instagram_followers: 12400,
+            twitter: 'https://x.com/bob',
+          },
+        })}
+        onEditStep={vi.fn()}
+      />,
+    )
+    // Canonical bare handle resolves to a full profile URL.
+    const instagram = screen.getByRole('link', { name: /instagram/i })
+    expect(instagram).toHaveAttribute('href', 'https://instagram.com/jane')
+    expect(screen.getByText('@jane')).toBeInTheDocument()
+    // Canonical numeric follower key renders the compact count.
+    expect(screen.getByText('12.4K')).toBeInTheDocument()
+    // Legacy stored URL still renders as @handle with a working URL.
+    const twitter = screen.getByRole('link', { name: /twitter/i })
+    expect(twitter).toHaveAttribute('href', 'https://x.com/bob')
+    expect(screen.getByText('@bob')).toBeInTheDocument()
   })
 
   it('falls back to an initial and em dashes when fields are missing', () => {

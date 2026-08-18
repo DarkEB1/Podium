@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import PodiumMark from '@/components/brand/podium-mark'
+import { ROUTES } from '@/lib/routes'
 import { REST_POINTS } from './track-map'
 
 // Fixed 72px nav (build spec v3 §2.3). Transparent over the hero, solid page
@@ -67,7 +68,7 @@ export default function StageNav({
           Sign in
         </Link>
         <Link
-          href="/role-select"
+          href={ROUTES.auth.signUp}
           className="flex h-10 items-center rounded-xl bg-primary px-5 text-[14px] font-medium text-primary-foreground transition-colors duration-150 hover:bg-[#1F35C8]"
         >
           Join free

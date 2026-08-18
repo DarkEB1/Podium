@@ -54,6 +54,7 @@ const makeProfile = (overrides: Partial<AthleteRow> = {}): AthleteRow => ({
   available_from_date: null,
   travel_radius_km: 50,
   seeking: ['paid_partnership'],
+  is_seeking: true,
   social_accounts: {},
   notable_achievements: null,
   is_under_18: false,
@@ -77,6 +78,8 @@ const makeProfile = (overrides: Partial<AthleteRow> = {}): AthleteRow => ({
   highlight_videos: [],
   national_programme: null,
   university_team: null,
+  university_city: null,
+  university_country: null,
   payout_account_holder: null,
   payout_account_last4: null,
   payout_bank_name: null,
@@ -205,7 +208,10 @@ describe('SettingsForm', () => {
 
   it('saves discovery profile fields (travel radius / mode) via PATCH /api/profiles/me', async () => {
     render(<SettingsForm profile={makeProfile()} settings={makeSettings()} />)
-    await userEvent.click(screen.getByRole('button', { name: /save discovery/i }))
+    const region = screen.getByRole('region', { name: /visibility & discovery/i })
+    // SET5 — Save is gated on a dirty section, so make an edit first.
+    fireEvent.click(within(region).getByRole('switch', { name: /swipe mode/i }))
+    await userEvent.click(within(region).getByRole('button', { name: /save discovery/i }))
     await waitFor(() =>
       expect(fetch).toHaveBeenCalledWith(
         '/api/profiles/me',
@@ -472,7 +478,12 @@ describe('SettingsForm', () => {
     render(<SettingsForm profile={makeProfile()} settings={makeSettings()} />)
     const region = screen.getByRole('region', { name: /security/i })
     expect(within(region).getByLabelText(/new email/i)).toBeInTheDocument()
-    expect(within(region).getByLabelText(/new password/i)).toBeInTheDocument()
+    // Exact match — "New password" must not also collide with "Confirm new password".
+    expect(within(region).getByLabelText(/^new password/i)).toBeInTheDocument()
+    expect(within(region).getByLabelText(/current password/i)).toBeInTheDocument()
+    expect(within(region).getByLabelText(/confirm new password/i)).toBeInTheDocument()
+    expect(within(region).getByRole('button', { name: /update email/i })).toBeInTheDocument()
+    expect(within(region).getByRole('button', { name: /update password/i })).toBeInTheDocument()
   })
 
   it('reveals a 2FA QR setup when enabling two-factor', async () => {
@@ -552,6 +563,167 @@ describe('SettingsForm', () => {
     await waitFor(() => expect(onDeleteAccount).toHaveBeenCalled())
   })
 
+  // --- Onboarding-to-settings parity (Section 1) ---
+
+  function lastPatchBody(): Record<string, unknown> {
+    const mockFetch = fetch as unknown as { mock: { calls: [string, { body: string }][] } }
+    const call = mockFetch.mock.calls[mockFetch.mock.calls.length - 1]!
+    return JSON.parse(call[1].body) as Record<string, unknown>
+  }
+
+  it('renders the full legal name locked with support helper text', () => {
+    render(
+      <SettingsForm
+        profile={makeProfile({ full_legal_name: 'James Alexander Smith' })}
+        settings={makeSettings()}
+      />,
+    )
+    const input = screen.getByLabelText(/full legal name/i)
+    expect(input).toBeDisabled()
+    expect(input).toHaveValue('James Alexander Smith')
+    expect(
+      screen.getByText(/locked\. contact support to change your legal name/i),
+    ).toBeInTheDocument()
+  })
+
+  it('saves the onboarding-parity fields in the profile PATCH body', async () => {
+    render(
+      <SettingsForm
+        profile={makeProfile({
+          secondary_sport: 'Athletics',
+          position: 'Striker',
+          years_active: 4,
+          height_cm: 180,
+          weight_kg: 75,
+          date_of_birth: '1998-05-12',
+          phone: '+44 7700 900000',
+          home_city: 'London',
+        })}
+        settings={makeSettings()}
+      />,
+    )
+    // SET3 — sport is now a constrained combobox (not free text), so drive a
+    // free-text field to dirty the section; the parity payload still flows.
+    fireEvent.change(screen.getByLabelText(/position/i), {
+      target: { value: 'Winger' },
+    })
+    await userEvent.click(screen.getByRole('button', { name: /save profile/i }))
+    await waitFor(() => expect(fetch).toHaveBeenCalled())
+    expect(lastPatchBody()).toMatchObject({
+      secondary_sport: 'Athletics',
+      position: 'Winger',
+      years_active: 4,
+      height_cm: 180,
+      weight_kg: 75,
+      date_of_birth: '1998-05-12',
+      phone: '+44 7700 900000',
+      home_city: 'London',
+    })
+  })
+
+  it('shows the university fields only for University/BUCS athletes', () => {
+    const { unmount } = render(
+      <SettingsForm profile={makeProfile({ level: 'university_bucs' })} settings={makeSettings()} />,
+    )
+    expect(screen.getByLabelText(/university team/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/university city/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/university country/i)).toBeInTheDocument()
+    unmount()
+
+    render(<SettingsForm profile={makeProfile({ level: 'amateur' })} settings={makeSettings()} />)
+    expect(screen.queryByLabelText(/university team/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/university city/i)).not.toBeInTheDocument()
+  })
+
+  it('shows academy and national fields for their levels only', () => {
+    const { unmount } = render(
+      <SettingsForm profile={makeProfile({ level: 'academy' })} settings={makeSettings()} />,
+    )
+    expect(screen.getByLabelText(/academy \/ club/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/national programme/i)).not.toBeInTheDocument()
+    unmount()
+
+    render(<SettingsForm profile={makeProfile({ level: 'national' })} settings={makeSettings()} />)
+    expect(screen.getByLabelText(/national programme/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/academy \/ club/i)).not.toBeInTheDocument()
+  })
+
+  // --- Socials: canonical handles + self-reported follower counts ---
+
+  it('canonicalises social inputs to bare handles in social_accounts', async () => {
+    render(<SettingsForm profile={makeProfile()} settings={makeSettings()} />)
+    fireEvent.change(screen.getByLabelText('Instagram'), { target: { value: '@jane' } })
+    fireEvent.change(screen.getByLabelText('TikTok'), {
+      target: { value: 'https://tiktok.com/@bob' },
+    })
+    await userEvent.click(screen.getByRole('button', { name: /save profile/i }))
+    await waitFor(() => expect(fetch).toHaveBeenCalled())
+    const body = lastPatchBody()
+    expect(body.social_accounts).toMatchObject({ instagram: 'jane', tiktok: 'bob' })
+  })
+
+  it('writes self-reported follower counts to the canonical numeric keys, stripping commas', async () => {
+    render(<SettingsForm profile={makeProfile()} settings={makeSettings()} />)
+    fireEvent.change(screen.getByLabelText('Instagram'), { target: { value: '@jane' } })
+    fireEvent.change(screen.getByLabelText(/instagram followers/i), {
+      target: { value: '12,400' },
+    })
+    fireEvent.change(screen.getByLabelText('YouTube'), { target: { value: '@jane' } })
+    fireEvent.change(screen.getByLabelText(/youtube subscribers/i), {
+      target: { value: '3200' },
+    })
+    await userEvent.click(screen.getByRole('button', { name: /save profile/i }))
+    await waitFor(() => expect(fetch).toHaveBeenCalled())
+    const body = lastPatchBody()
+    expect(body.social_accounts).toMatchObject({
+      instagram_followers: 12400,
+      youtube_subscribers: 3200,
+    })
+    // Follower inputs are clearly labelled as self-reported.
+    expect(
+      screen.getAllByText(/self-reported\. shown on your profile/i).length,
+    ).toBeGreaterThan(0)
+  })
+
+  it('rejects an invalid social input and does not save', async () => {
+    render(<SettingsForm profile={makeProfile()} settings={makeSettings()} />)
+    fireEvent.change(screen.getByLabelText('Instagram'), {
+      target: { value: 'https://facebook.com/jane' },
+    })
+    await userEvent.click(screen.getByRole('button', { name: /save profile/i }))
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  // --- Seeking opportunities toggle (is_seeking) ---
+
+  it('persists the seeking toggle via the discovery PATCH', async () => {
+    render(<SettingsForm profile={makeProfile({ is_seeking: true })} settings={makeSettings()} />)
+    const region = screen.getByRole('region', { name: /visibility & discovery/i })
+    fireEvent.click(within(region).getByRole('switch', { name: /seeking opportunities/i }))
+    await userEvent.click(within(region).getByRole('button', { name: /save discovery/i }))
+    await waitFor(() => expect(fetch).toHaveBeenCalled())
+    expect(lastPatchBody()).toMatchObject({ is_seeking: false })
+  })
+
+  // --- Payout copy: optional framing, not a broken setup ---
+
+  it('frames an unstarted payout setup as optional, with no double negative', () => {
+    render(
+      <SettingsForm
+        profile={makeProfile({ stripe_connect_status: null, payout_method: null })}
+        settings={makeSettings()}
+      />,
+    )
+    const region = screen.getByRole('region', { name: /payments & financial/i })
+    expect(
+      within(region).getByText(/payouts are optional until you agree a paid deal/i),
+    ).toBeInTheDocument()
+    expect(within(region).queryByText(/no payout method set up yet/i)).not.toBeInTheDocument()
+    expect(within(region).queryByText(/not started/i)).not.toBeInTheDocument()
+    // The status chip is hidden entirely until setup begins.
+    expect(within(region).queryByText(/stripe connect:/i)).not.toBeInTheDocument()
+  })
+
   it('shows an under-18 transition banner when the athlete is a minor', () => {
     render(
       <SettingsForm
@@ -561,5 +733,105 @@ describe('SettingsForm', () => {
     )
     const region = screen.getByRole('region', { name: /account/i })
     expect(within(region).getByText(/turn 18/i)).toBeInTheDocument()
+  })
+
+  // --- SET5: per-section dirty tracking ---
+
+  it('enables Save profile only once the section is edited', async () => {
+    render(<SettingsForm profile={makeProfile()} settings={makeSettings()} />)
+    const save = screen.getByRole('button', { name: /save profile/i })
+    expect(save).toBeDisabled()
+    await userEvent.type(screen.getByLabelText(/display name/i), '!')
+    expect(save).toBeEnabled()
+    expect(screen.getAllByText(/unsaved changes/i).length).toBeGreaterThan(0)
+  })
+
+  // --- SET3: constrained sport, junk values preserved not dropped ---
+
+  it('keeps an out-of-vocabulary secondary sport rather than silently dropping it', async () => {
+    render(
+      <SettingsForm
+        profile={makeProfile({ secondary_sport: 'Gay' })}
+        settings={makeSettings()}
+      />,
+    )
+    // Dirty a free-text field so the section can be saved.
+    fireEvent.change(screen.getByLabelText(/position/i), { target: { value: 'Winger' } })
+    await userEvent.click(screen.getByRole('button', { name: /save profile/i }))
+    await waitFor(() => expect(fetch).toHaveBeenCalled())
+    expect(lastPatchBody()).toMatchObject({ secondary_sport: 'Gay' })
+  })
+
+  it('renders labelled primary and secondary sport controls', () => {
+    render(<SettingsForm profile={makeProfile()} settings={makeSettings()} />)
+    expect(screen.getByLabelText('Primary sport')).toBeInTheDocument()
+    expect(screen.getByLabelText('Secondary sport')).toBeInTheDocument()
+  })
+
+  // --- SET6: single discoverability control ---
+
+  it('does not expose a second discoverability switch in Privacy & Data', () => {
+    render(<SettingsForm profile={makeProfile()} settings={makeSettings()} />)
+    const region = screen.getByRole('region', { name: /privacy & data/i })
+    expect(
+      within(region).queryByRole('switch', { name: /discoverable by brands/i }),
+    ).not.toBeInTheDocument()
+    // The single control lives in Visibility & Discovery.
+    const visibility = screen.getByRole('region', { name: /visibility & discovery/i })
+    expect(within(visibility).getByRole('switch', { name: /profile visible/i })).toBeInTheDocument()
+  })
+
+  // --- SET2/SET4: security update controls ---
+
+  it('sets new-password autocomplete on the password fields (SET4)', () => {
+    render(<SettingsForm profile={makeProfile()} settings={makeSettings()} />)
+    expect(screen.getByLabelText(/^new password/i)).toHaveAttribute('autocomplete', 'new-password')
+    expect(screen.getByLabelText(/confirm new password/i)).toHaveAttribute(
+      'autocomplete',
+      'new-password',
+    )
+  })
+
+  it('blocks a password update when confirmation does not match, with an alert', async () => {
+    render(<SettingsForm profile={makeProfile()} settings={makeSettings()} />)
+    await userEvent.type(screen.getByLabelText(/current password/i), 'Old-pass1!')
+    await userEvent.type(screen.getByLabelText(/^new password/i), 'New-pass1!')
+    await userEvent.type(screen.getByLabelText(/confirm new password/i), 'Different1!')
+    await userEvent.click(screen.getByRole('button', { name: /update password/i }))
+    expect(screen.getByRole('alert')).toHaveTextContent(/do not match/i)
+    expect(fetch).not.toHaveBeenCalled()
+  }, 15000)
+
+  it('posts a valid password change to the password-update route', async () => {
+    render(<SettingsForm profile={makeProfile()} settings={makeSettings()} />)
+    await userEvent.type(screen.getByLabelText(/current password/i), 'Old-pass1!')
+    await userEvent.type(screen.getByLabelText(/^new password/i), 'New-pass1!')
+    await userEvent.type(screen.getByLabelText(/confirm new password/i), 'New-pass1!')
+    await userEvent.click(screen.getByRole('button', { name: /update password/i }))
+    await waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith(
+        '/api/auth/password-update',
+        expect.objectContaining({ method: 'POST' }),
+      ),
+    )
+  }, 15000)
+
+  // --- SET13: dead-end empty states now carry a CTA ---
+
+  it('offers a payout setup CTA when no payout method exists', () => {
+    render(
+      <SettingsForm
+        profile={makeProfile({ payout_method: null, stripe_connect_status: null })}
+        settings={makeSettings()}
+      />,
+    )
+    const region = screen.getByRole('region', { name: /payments & financial/i })
+    expect(within(region).getByRole('button', { name: /set up payouts/i })).toBeInTheDocument()
+  })
+
+  it('offers an invite-an-agent CTA when no agent is linked', () => {
+    render(<SettingsForm profile={makeProfile()} settings={makeSettings()} linkedAgents={[]} />)
+    const region = screen.getByRole('region', { name: /representation/i })
+    expect(within(region).getByRole('button', { name: /invite an agent/i })).toBeInTheDocument()
   })
 })

@@ -63,4 +63,46 @@ describe('StatStrip', () => {
     render(<StatStrip stats={[{ label: 'Matches', value: '12', iconKey: 'partners' }]} />)
     expect(screen.getByText('Matches')).toBeInTheDocument()
   })
+
+  // "Semi-Professional" at the display size overflowed a ~135px tile.
+  it('steps long string values down from the display size and lets them wrap', () => {
+    render(<StatStrip stats={[{ label: 'Level', value: 'Semi-Professional' }]} />)
+    const value = screen.getByText('Semi-Professional')
+    expect(value.className).toContain('text-large')
+    expect(value.className).toContain('break-words')
+    expect(value.className).not.toContain('text-display')
+  })
+
+  it('keeps short numeric values at the display size', () => {
+    render(<StatStrip stats={[{ label: 'Matches', value: '12.4K' }]} />)
+    const value = screen.getByText('12.4K')
+    expect(value.className).toContain('text-display')
+  })
+
+  it('renders a value with an href as a link', () => {
+    render(
+      <StatStrip
+        stats={[{ label: 'Followers', value: 'Add socials', href: '/athlete/settings' }]}
+      />,
+    )
+    expect(screen.getByRole('link', { name: 'Add socials' })).toHaveAttribute(
+      'href',
+      '/athlete/settings',
+    )
+  })
+
+  it('renders a caption under the value when provided', () => {
+    render(
+      <StatStrip stats={[{ label: 'Followers', value: '12.4K', caption: 'Self-reported' }]} />,
+    )
+    expect(screen.getByText('Self-reported')).toBeInTheDocument()
+  })
+
+  it('replaces a decorative value with its screen-reader text', () => {
+    render(
+      <StatStrip stats={[{ label: 'Followers', value: '-', srValue: 'Not provided' }]} />,
+    )
+    expect(screen.getByText('Not provided')).toBeInTheDocument()
+    expect(screen.getByText('-')).toHaveAttribute('aria-hidden', 'true')
+  })
 })

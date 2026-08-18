@@ -46,7 +46,9 @@ export interface MarketplaceCardProps {
  *  routing them through the optimizer would throw at runtime, so pass them
  *  straight through. Lazy-loading + intrinsic sizing (the CLS fix) still apply. */
 function isRemote(src: string): boolean {
-  return /^https?:\/\//i.test(src)
+  // `data:` URIs (e.g. an inline branded SVG tile) must also bypass the
+  // optimizer, which only accepts http(s) and configured local paths.
+  return /^https?:\/\//i.test(src) || src.startsWith('data:')
 }
 
 export function MarketplaceCard({

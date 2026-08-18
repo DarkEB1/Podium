@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getOwnProfile } from '@/lib/supabase/profiles'
+import { getSettings } from '@/lib/supabase/settings'
 import SettingsForm from '@/components/athlete/settings-form'
 import type { Database } from '@/types/database'
 
@@ -27,9 +28,15 @@ export default async function AthleteSettingsPage() {
   const profile = (await getOwnProfile(supabase, user.id, 'athlete')) as AthleteRow | null
   if (!profile) redirect('/athlete/onboarding')
 
+  // Settings may legitimately be absent until a row is provisioned; getSettings
+  // answers with safe defaults, and a fetch failure must not break the page.
+  // Without this row the notification matrix, quiet hours, digest, marketing,
+  // discoverable and currency controls all re-initialised blank on every load.
+  const settings = await getSettings(supabase, user.id).catch(() => null)
+
   // SettingsForm renders SettingsShell, which owns the page container, the
   // "Settings" H1, the section nav and Sign-out. Wrapping it in an extra
   // max-w-2xl container (as this page used to) squished the shell's two-column
   // grid and duplicated the heading — the double-wrap defect.
-  return <SettingsForm profile={profile} />
+  return <SettingsForm profile={profile} settings={settings} />
 }

@@ -7,11 +7,11 @@ import { cn } from '@/lib/utils'
 import { SPRING } from '@/lib/motion/springs'
 import { buttonVariants } from '@/components/ui/button'
 import SignOutButton from '@/components/auth/sign-out-button'
-import { ROUTES } from '@/lib/routes'
 import {
   bottomNavForRole,
   buildBreadcrumbs,
   ctaForRole,
+  homeForRole,
   isActiveHref,
   navItemsForRole,
   type NavRole,
@@ -19,6 +19,10 @@ import {
 import NotificationBell from './notification-bell'
 import ThemeToggle from './theme-toggle'
 import PodiumMark from '@/components/brand/podium-mark'
+import {
+  BreadcrumbLabelProvider,
+  useBreadcrumbLabelOverride,
+} from './breadcrumb-label'
 
 interface NavShellProps {
   role: NavRole
@@ -31,13 +35,27 @@ interface NavShellProps {
  * Navigation data comes from `lib/nav/config.ts` (which sources every href
  * from `lib/routes.ts`); the shell never declares its own hrefs, so a nav item
  * cannot drift out of sync with the routes that actually exist (B-4).
+ *
+ * The default export wraps the shell in `BreadcrumbLabelProvider` so any page
+ * inside `children` can register a display name for its final breadcrumb (a
+ * dynamic-route page whose last path segment is an opaque id would otherwise
+ * fall back to the generic label `buildBreadcrumbs` derives).
  */
 export default function NavShell({ role, children }: NavShellProps) {
+  return (
+    <BreadcrumbLabelProvider>
+      <NavShellInner role={role}>{children}</NavShellInner>
+    </BreadcrumbLabelProvider>
+  )
+}
+
+function NavShellInner({ role, children }: NavShellProps) {
   const pathname = usePathname()
   const items = navItemsForRole(role)
   const bottomItems = bottomNavForRole(role)
   const cta = ctaForRole(role)
-  const crumbs = buildBreadcrumbs(pathname)
+  const lastLabel = useBreadcrumbLabelOverride(pathname)
+  const crumbs = buildBreadcrumbs(pathname, { lastLabel })
 
   // H3: the active indicator is a shared-layout element (`layoutId`) so it
   // physically slides between items. Reduced-motion users get the indicator
@@ -45,8 +63,9 @@ export default function NavShell({ role, children }: NavShellProps) {
   const reduced = useReducedMotion()
   const indicatorTransition = reduced ? { duration: 0 } : SPRING.snappy
 
-  // The first nav item doubles as the role's home destination for the wordmark.
-  const home = items[0]?.href ?? ROUTES.home
+  // DASH1: the wordmark links to the role's dashboard (its home), not the first
+  // nav item — that is what keeps the dashboard reachable and un-orphaned.
+  const home = homeForRole(role)
 
   return (
     <div className="flex min-h-screen flex-col">

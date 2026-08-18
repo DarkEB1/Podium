@@ -8,11 +8,19 @@ import { cn } from "@/lib/utils"
 /**
  * LevelChip — competition/skill level shown as a soft, tinted accent pill
  * (clean Airbnb re-skin: no ink border, rounded-full via the shared Badge).
+ *
+ * Long labels ("Semi-Professional") used to be clipped mid-word by the base
+ * Badge's `whitespace-nowrap overflow-hidden` inside narrow cards, so this
+ * chip alone may shrink and truncates with an ellipsis; the full label stays
+ * available through the `title` attribute. Other Badge uses are untouched.
  */
 function LevelChip({ level }: { level: string }) {
   return (
-    <Badge className="bg-accent/15 text-accent-foreground">
-      <span className="font-medium">{level}</span>
+    <Badge
+      title={level}
+      className="min-w-0 max-w-full shrink bg-accent/15 text-accent-foreground"
+    >
+      <span className="min-w-0 truncate font-medium">{level}</span>
     </Badge>
   )
 }

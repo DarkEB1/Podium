@@ -33,7 +33,6 @@ export const ROUTES = {
   /** In-page anchors on the landing page — always reachable signed out. */
   landing: {
     howItWorks: '/#what-we-do',
-    who: '/#who',
   },
 
   auth: {

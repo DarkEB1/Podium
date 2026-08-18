@@ -6,7 +6,9 @@ import type { Database } from '@/types/database'
 
 type ConnectionRequestRow = Database['public']['Tables']['connection_requests']['Row']
 
-const makeRequest = (): ConnectionRequestRow => ({
+const makeRequest = (
+  overrides: Partial<ConnectionRequestRow> = {}
+): ConnectionRequestRow => ({
   id: 'req1',
   sender_id: 'brand1',
   recipient_id: 'athlete1',
@@ -16,6 +18,7 @@ const makeRequest = (): ConnectionRequestRow => ({
   responded_at: null,
   created_at: '2024-01-01T00:00:00Z',
   updated_at: '2024-01-01T00:00:00Z',
+  ...overrides,
 })
 
 describe('ConnectionRequestCard', () => {
@@ -28,7 +31,9 @@ describe('ConnectionRequestCard', () => {
     expect(screen.getByText(/we would love to work with you/i)).toBeInTheDocument()
   })
 
-  it('calls PATCH /api/discovery/connections/[id] with accepted on Accept', async () => {
+  // The API route validates against VALID_ACTIONS = {'accept','decline','withdraw'}
+  // (app/api/discovery/connections/[requestId]/route.ts) — past-tense values 400.
+  it('calls PATCH /api/discovery/connections/[id] with accept on Accept', async () => {
     vi.mocked(fetch).mockResolvedValue({ ok: true, json: async () => ({}) } as Response)
     const onResponded = vi.fn()
     render(<ConnectionRequestCard request={makeRequest()} onResponded={onResponded} />)
@@ -36,13 +41,13 @@ describe('ConnectionRequestCard', () => {
     await waitFor(() =>
       expect(fetch).toHaveBeenCalledWith(
         '/api/discovery/connections/req1',
-        expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ action: 'accepted' }) })
+        expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ action: 'accept' }) })
       )
     )
     expect(onResponded).toHaveBeenCalled()
   })
 
-  it('calls PATCH with declined on Decline', async () => {
+  it('calls PATCH with decline on Decline', async () => {
     vi.mocked(fetch).mockResolvedValue({ ok: true, json: async () => ({}) } as Response)
     const onResponded = vi.fn()
     render(<ConnectionRequestCard request={makeRequest()} onResponded={onResponded} />)
@@ -50,8 +55,34 @@ describe('ConnectionRequestCard', () => {
     await waitFor(() =>
       expect(fetch).toHaveBeenCalledWith(
         '/api/discovery/connections/req1',
-        expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ action: 'declined' }) })
+        expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ action: 'decline' }) })
       )
     )
+  })
+
+  it('renders a read-only accepted card with a Messages hand-off and no action buttons', () => {
+    render(
+      <ConnectionRequestCard
+        request={makeRequest({ status: 'accepted' })}
+        messagesHref="/athlete/messages"
+      />
+    )
+    expect(screen.getByText('Accepted')).toBeInTheDocument()
+    const link = screen.getByRole('link', { name: /message them/i })
+    expect(link).toHaveAttribute('href', '/athlete/messages')
+    expect(screen.queryByRole('button', { name: /accept/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /decline/i })).not.toBeInTheDocument()
+  })
+
+  it('renders a declined card as read-only with no hand-off link', () => {
+    render(
+      <ConnectionRequestCard
+        request={makeRequest({ status: 'declined' })}
+        messagesHref="/athlete/messages"
+      />
+    )
+    expect(screen.getByText('Declined')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /message them/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /accept|decline/i })).not.toBeInTheDocument()
   })
 })
