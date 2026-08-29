@@ -20,6 +20,8 @@ export const ROUTES = {
   home: '/',
   /** Public marketing pricing page. */
   pricing: '/pricing',
+  /** Public contact page with the form that relays to the support inbox. */
+  contact: '/contact',
   forbidden: '/403',
   dashboard: '/dashboard',
   /** Public confirmation shown after a one-click email unsubscribe (CL-4). */
