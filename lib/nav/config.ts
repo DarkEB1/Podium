@@ -150,6 +150,11 @@ export function isActiveHref(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`)
 }
 
+/** Type guard for the four signed-in role path roots. */
+function isNavRole(segment: string | undefined): segment is NavRole {
+  return segment !== undefined && (NAV_ROLES as readonly string[]).includes(segment)
+}
+
 /** `edit-profile` -> `Edit Profile`. */
 export function humaniseSegment(segment: string): string {
   return segment
@@ -184,6 +189,12 @@ export function buildBreadcrumbs(
     label: UUID_SEGMENT.test(segment) ? 'Profile' : humaniseSegment(segment),
     href: `/${segments.slice(0, i + 1).join('/')}`,
   }))
+  // The role root (`/brand`, `/athlete`, ...) has no page of its own: the
+  // role's home is its dashboard. A cumulative `/brand` href sent every brand
+  // user who clicked the first crumb to the bare 404, which renders outside
+  // the app shell and so reads as being signed out.
+  const root = crumbs[0]
+  if (root && isNavRole(segments[0])) root.href = ROLE_DASHBOARD[segments[0]]
   const lastLabel = options?.lastLabel?.trim()
   const last = crumbs[crumbs.length - 1]
   if (lastLabel && last) last.label = lastLabel

@@ -7,6 +7,7 @@ import { getUser } from '@/lib/supabase/auth'
 import { getOwnProfile } from '@/lib/supabase/profiles'
 import { buttonVariants } from '@/components/ui/button'
 import { AccentHeading } from '@/components/ui/accent-heading'
+import BrandLogo from '@/components/brand/brand-logo'
 import { ROUTES } from '@/lib/routes'
 import type { Database } from '@/types/database'
 
@@ -49,7 +50,10 @@ export default async function BrandProfilePage() {
   return (
     <div className="mx-auto max-w-3xl space-y-12 px-6 py-12 md:px-16 md:py-16">
       <header className="flex flex-wrap items-start justify-between gap-6">
-        <div className="min-w-0 space-y-3">
+        {/* The logo the brand uploaded in onboarding/settings was saved but
+            never shown here, which read as a lost upload. */}
+        <BrandLogo name={profile.company_name} logoUrl={profile.logo_url} size="lg" />
+        <div className="min-w-0 flex-1 space-y-3">
           <AccentHeading as="h1" className="text-display">
             {profile.company_name}
           </AccentHeading>

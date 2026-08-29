@@ -471,3 +471,39 @@ sender_name = "Podium"
 # The base value (2/hour) mirrors the built-in mailer cap; with real SMTP the
 # platform cap can be meaningful without throttling legitimate signups.
 email_sent = 100
+
+# Production. Mirrors the staging block so auth mail leaves from the same
+# Resend domain as every other Podium email: with no SMTP configured here,
+# sign-up and reset mail arrived from "Supabase Auth <noreply@mail.app.supabase.io>"
+# (client feedback, 2026-08-29). Applying it is a human step: link to
+# production (`npx supabase link --project-ref wchvidibjhjhchorjsup`), export
+# RESEND_API_KEY, then `npx supabase config push`.
+[remotes.production]
+project_id = "wchvidibjhjhchorjsup"
+
+[remotes.production.auth]
+site_url = "https://www.podiumsponsorship.com"
+additional_redirect_urls = [
+  "https://www.podiumsponsorship.com/**",
+  "https://podiumsponsorship.com/**",
+  "https://podium-lyart.vercel.app/**",
+]
+
+[remotes.production.auth.email]
+# The base block turns confirmations off for local dev; production users must
+# verify their address before signing in.
+enable_confirmations = true
+otp_length = 8
+max_frequency = "1m0s"
+
+[remotes.production.auth.email.smtp]
+enabled = true
+host = "smtp.resend.com"
+port = 465
+user = "resend"
+pass = "env(RESEND_API_KEY)"
+admin_email = "no-reply@podiumsponsorship.com"
+sender_name = "Podium"
+
+[remotes.production.auth.rate_limit]
+email_sent = 100

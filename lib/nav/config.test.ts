@@ -128,10 +128,28 @@ describe('nav config', () => {
   it('builds breadcrumbs from a pathname with cumulative hrefs', () => {
     const crumbs = buildBreadcrumbs('/athlete/profile/edit')
     expect(crumbs).toEqual([
-      { label: 'Athlete', href: '/athlete' },
+      { label: 'Athlete', href: '/athlete/dashboard' },
       { label: 'Profile', href: '/athlete/profile' },
       { label: 'Edit', href: '/athlete/profile/edit' },
     ])
+  })
+
+  // Client bug (2026-08-29): the first crumb on every brand page read "Brand"
+  // and linked to /brand, which has no page. Clicking it landed on the bare
+  // 404 (rendered outside the app shell, so it looked like a sign-out). The
+  // role root crumb must link to the role's dashboard, which is its home.
+  it.each([
+    ['/athlete/profile', '/athlete/dashboard'],
+    ['/brand/profile', '/brand/dashboard'],
+    ['/team/settings', '/team/dashboard'],
+    ['/agent/roster', '/agent/dashboard'],
+  ])('links the role root crumb of %s to the role dashboard', (pathname, home) => {
+    const crumbs = buildBreadcrumbs(pathname)
+    expect(crumbs[0]?.href).toBe(home)
+  })
+
+  it('leaves the root crumb of a non-role path as the cumulative href', () => {
+    expect(buildBreadcrumbs('/admin/brands')[0]).toEqual({ label: 'Admin', href: '/admin' })
   })
 
   it('returns no breadcrumbs for the root path', () => {
@@ -177,7 +195,7 @@ describe('nav config', () => {
 
   it('ignores an empty or whitespace-only label override', () => {
     expect(buildBreadcrumbs('/athlete/discover', { lastLabel: '   ' })).toEqual([
-      { label: 'Athlete', href: '/athlete' },
+      { label: 'Athlete', href: '/athlete/dashboard' },
       { label: 'Discover', href: '/athlete/discover' },
     ])
     expect(buildBreadcrumbs('/athlete/discover', { lastLabel: null })).toEqual(
