@@ -110,12 +110,14 @@ export default function PanelFinale() {
           >
             Claim your spot
           </Link>
-          <a
-            href="mailto:hello@podiumsponsorship.com"
+          {/* The contact page hosts a form; a mailto link opened (or failed
+              to open) the visitor's mail client instead. */}
+          <Link
+            href={ROUTES.contact}
             className="text-[16px] font-medium text-primary underline-offset-4 hover:underline"
           >
             Talk to us <span aria-hidden="true">▸</span>
-          </a>
+          </Link>
         </div>
         <p className="text-[13.5px] font-light text-muted-foreground">
           Founding spots are open. Free for athletes and clubs. No card required.
@@ -170,12 +172,12 @@ export default function PanelFinale() {
           >
             PRIVACY
           </Link>
-          <a
-            href="mailto:hello@podiumsponsorship.com"
+          <Link
+            href={ROUTES.contact}
             className="text-muted-foreground transition-colors duration-150 hover:text-foreground"
           >
             CONTACT
-          </a>
+          </Link>
           <span className="ml-auto text-muted-foreground">© 2026 PODIUM</span>
         </div>
         {/* the standard disclaimer the shared footer carries, kept quiet */}
