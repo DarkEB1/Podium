@@ -47,7 +47,14 @@ export type PresenceState = Record<string, PresenceMeta[]>
 // Channel factories
 // ---------------------------------------------------------------------------
 
-/** Broadcast channel for typing + read-receipt signals, scoped to one match. */
+/**
+ * Broadcast channel for typing + read-receipt signals, scoped to one match.
+ *
+ * WS-MSG-08: `private: true` forces the client to authorize against the
+ * `realtime.messages` RLS policy (migration 20260904000203) before it can join,
+ * so only the two match participants can subscribe or broadcast. A public
+ * channel let anyone with the anon key and a match id forge typing/read events.
+ */
 export function typingChannel(
   supabase: SupabaseClient<Database>,
   matchId: string
@@ -55,7 +62,7 @@ export function typingChannel(
   if (!matchId) {
     throw new RealtimeError('INVALID_MATCH_ID', 'matchId is required to open a typing channel')
   }
-  return supabase.channel(`typing:${matchId}`)
+  return supabase.channel(`typing:${matchId}`, { config: { private: true } })
 }
 
 /** Presence channel keyed by the current user, scoped to one match. */
@@ -70,8 +77,10 @@ export function presenceChannel(
       'matchId and userId are required to open a presence channel'
     )
   }
+  // WS-MSG-08: private, so presence (which reveals a possibly-minor user is
+  // online in real time) is authorized to match participants only.
   return supabase.channel(`presence:${matchId}`, {
-    config: { presence: { key: userId } },
+    config: { private: true, presence: { key: userId } },
   })
 }
 
