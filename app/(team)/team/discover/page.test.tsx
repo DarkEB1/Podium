@@ -78,7 +78,10 @@ describe('TeamDiscoverPage', () => {
 
   it('asks the database for active listings only', async () => {
     await renderPage()
-    expect(getActiveListingsPageMock).toHaveBeenCalledWith(expect.anything(), { limit: 24 })
+    expect(getActiveListingsPageMock).toHaveBeenCalledWith(expect.anything(), {
+      limit: 24,
+      type: 'team_sponsorship',
+    })
   })
 
   it('shows a designed empty state when there are no listings', async () => {
