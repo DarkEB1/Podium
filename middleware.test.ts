@@ -138,6 +138,90 @@ describe('middleware', () => {
     })
   })
 
+  // ── WS-INFRA-01: SEO / metadata routes must be crawlable ─────────────────
+  // `/robots.txt`, `/sitemap.xml`, the OG image and the web manifest were all
+  // 307-ing to /auth on production, so Google saw "no robots.txt", the sitemap
+  // was undiscoverable, and link previews had no image. They are public assets
+  // and must be reachable with no session.
+  describe('metadata routes are public (WS-INFRA-01)', () => {
+    it.each([
+      '/robots.txt',
+      '/sitemap.xml',
+      '/manifest.webmanifest',
+      '/opengraph-image',
+      '/twitter-image',
+    ])('lets a signed-out crawler reach %s without a redirect or 401', async (path) => {
+      stubSupabase(null, {})
+      const res = await middleware(request(path))
+      expect(redirectedTo(res)).toBeNull()
+      expect(res.status).not.toBe(401)
+    })
+  })
+
+  // ── WS-INFRA P2: unknown paths fall through to 404 rather than /auth ──────
+  // Deny-by-default used to 307 EVERY unknown path to /auth for a signed-out
+  // visitor, hiding the branded 404 and returning a soft 200 to crawlers for
+  // garbage URLs. Only genuinely private areas should bounce to sign-in now;
+  // anything else falls through so Next renders not-found.tsx / the 403 page.
+  describe('unknown paths fall through, private areas still gate (WS-INFRA P2)', () => {
+    it.each([
+      '/this-page-does-not-exist-qa',
+      '/Pricing',
+      '/index.html',
+      '/.env',
+      '/manifest.json',
+    ])('does not bounce a signed-out visitor on unknown path %s to /auth', async (path) => {
+      stubSupabase(null, {})
+      const res = await middleware(request(path))
+      // No redirect at all: the request forwards to Next, which 404s.
+      expect(redirectedTo(res)).toBeNull()
+      expect(res.status).not.toBe(401)
+    })
+
+    it('lets a signed-out visitor reach the branded 403 page', async () => {
+      stubSupabase(null, {})
+      const res = await middleware(request('/403'))
+      expect(redirectedTo(res)).toBeNull()
+    })
+
+    it.each([
+      '/athlete/discover',
+      '/brand/listings',
+      '/team/deals',
+      '/agent/clients',
+      '/admin/dashboard',
+      '/dashboard',
+      '/settings/notifications',
+      '/role-select',
+      '/update-password',
+    ])('still sends a signed-out visitor on private path %s to sign-in', async (path) => {
+      stubSupabase(null, {})
+      const res = await middleware(request(path))
+      expect(redirectedTo(res)).toBe('/auth')
+    })
+  })
+
+  // ── WS-INFRA P2: ?next= return-to after sign-in ──────────────────────────
+  // A signed-out visitor deep-linking into a private page landed on the generic
+  // dashboard after signing in, losing where they were headed. The middleware
+  // now carries the attempted path as `?next=` on the sign-in redirect.
+  describe('return-to after sign-in (?next=)', () => {
+    it('preserves the attempted private path as ?next on the redirect', async () => {
+      stubSupabase(null, {})
+      const res = await middleware(request('/athlete/discover'))
+      const loc = new URL(res.headers.get('location') as string)
+      expect(loc.pathname).toBe('/auth')
+      expect(loc.searchParams.get('next')).toBe('/athlete/discover')
+    })
+
+    it('preserves the query string of the attempted path too', async () => {
+      stubSupabase(null, {})
+      const res = await middleware(request('/brand/listings?tab=paused'))
+      const loc = new URL(res.headers.get('location') as string)
+      expect(loc.searchParams.get('next')).toBe('/brand/listings?tab=paused')
+    })
+  })
+
   describe('mandatory, resumable onboarding (PR-9)', () => {
     it('sends an athlete with no profile to the first onboarding step', async () => {
       stubSupabase({ id: 'u1' }, { users: { role: 'athlete' }, athlete_profiles: null })

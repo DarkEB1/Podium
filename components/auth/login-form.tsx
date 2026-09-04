@@ -25,6 +25,25 @@ const schema = z.object({
 })
 type FormValues = z.infer<typeof schema>
 
+/**
+ * WS-INFRA P2 — the return-to target from `?next=`. Middleware sets it when it
+ * bounces a deep-linking signed-out visitor to sign-in. Only a same-origin
+ * absolute path is honoured: protocol-relative (`//host`), absolute URLs and a
+ * target back inside the auth flow are all rejected, so a crafted `next` cannot
+ * turn sign-in into an open redirect or a loop.
+ */
+function safeNextPath(raw: string | null): string | null {
+  if (!raw) return null
+  if (!raw.startsWith('/') || raw.startsWith('//')) return null
+  if (raw === ROUTES.auth.signIn || raw.startsWith('/auth/')) return null
+  return raw
+}
+
+function nextFromLocation(): string | null {
+  if (typeof window === 'undefined') return null
+  return safeNextPath(new URLSearchParams(window.location.search).get('next'))
+}
+
 export default function LoginForm() {
   const router = useRouter()
   const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: { email: '', password: '' } })
@@ -47,9 +66,12 @@ export default function LoginForm() {
       return
     }
     if (!user.role || !user.role_locked_at) {
+      // A role-less user must pick a role before anything else, so the return-to
+      // is deliberately not honoured here.
       router.push(ROUTES.auth.roleSelect)
     } else {
-      router.push(ROLE_DASHBOARD[user.role as UserRole] ?? ROUTES.home)
+      const next = nextFromLocation()
+      router.push(next ?? ROLE_DASHBOARD[user.role as UserRole] ?? ROUTES.home)
     }
   }
 
