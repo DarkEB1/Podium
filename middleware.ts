@@ -15,6 +15,7 @@ import {
   isOnboardedCookieSet,
   setOnboardedCookie,
 } from '@/lib/auth/onboarded-cookie'
+import { RECOVERY_COOKIE, isRecoveryCookieSet } from '@/lib/auth/recovery-cookie'
 
 // 2.4: the admin 2FA challenge/enrollment page is under /admin but must be
 // reachable WITHOUT a passed challenge, or an un-verified admin could never
@@ -301,6 +302,30 @@ export async function middleware(request: NextRequest) {
 
   if (!user) return forward(null)
   const userId = user.id
+
+  // ── WS-ACCT-04: recovery-session confinement ───────────────────────────────
+  // A password-reset link is exchanged for a full session in the auth callback,
+  // which sets `podium-recovery`. Until the user actually sets a new password,
+  // pin that session to the update-password screen (plus the endpoints needed to
+  // finish or abandon: the update API, sign-out, and the callback itself), so a
+  // reset link can never be used to roam the app. The password-update route
+  // clears the marker and signs the session out on success.
+  //
+  // NOTE (merge coordination): this is a localized addition to middleware and
+  // WILL textually conflict with WS-INFRA's middleware changes — resolve by
+  // keeping BOTH branches.
+  if (isRecoveryCookieSet(request.cookies.get(RECOVERY_COOKIE)?.value)) {
+    const recoveryAllowed =
+      pathname === ROUTES.auth.updatePassword ||
+      pathname.startsWith(ROUTES.auth.updatePassword + '/') ||
+      pathname === ROUTES.api.auth.passwordUpdate ||
+      pathname === ROUTES.api.auth.logout ||
+      pathname === ROUTES.api.auth.callback ||
+      pathname === ROUTES.auth.signIn
+    if (!recoveryAllowed) {
+      return redirectTo(ROUTES.auth.updatePassword)
+    }
+  }
 
   // FA-3/NX-6: the role is read at most ONCE per request. The admin gate and
   // the PR-9 onboarding gate below both used to issue their own

@@ -35,6 +35,17 @@ describe('POST /api/auth/login', () => {
     expect(json.error.code).toBe('MISSING_FIELDS')
   })
 
+  it('returns 400 INVALID_JSON on a malformed body', async () => {
+    const req = new NextRequest(new URL('/api/auth/login', 'http://localhost'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{ not json',
+    })
+    const res = await POST(req)
+    expect(res.status).toBe(400)
+    expect((await res.json()).error.code).toBe('INVALID_JSON')
+  })
+
   it('returns 401 on invalid credentials', async () => {
     mockSignIn.mockResolvedValue({ error: { message: 'Invalid login credentials' } })
     const res = await POST(makeRequest({ email: 'test@example.com', password: 'wrong' }))

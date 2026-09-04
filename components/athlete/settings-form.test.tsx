@@ -563,6 +563,26 @@ describe('SettingsForm', () => {
     await waitFor(() => expect(onDeleteAccount).toHaveBeenCalled())
   })
 
+  // WS-ACCT-01: with no override handler (the real page cannot pass one), the
+  // button posts to the re-auth-gated delete endpoint with the current password.
+  it('posts to the delete endpoint with re-auth when no override handler is given', async () => {
+    // The success path calls window.location.assign('/auth'); jsdom logs a
+    // "navigation not implemented" notice but does not throw, and the fetch
+    // assertion below fires before it, so no navigation stub is needed.
+    render(<SettingsForm profile={makeProfile()} settings={makeSettings()} />)
+    const region = screen.getByRole('region', { name: /account/i })
+    const confirmBtn = within(region).getByRole('button', { name: /delete my account/i })
+    await userEvent.type(within(region).getByLabelText(/type delete/i), 'DELETE')
+    await userEvent.type(within(region).getByLabelText(/confirm with your password/i), 'Old-pass1!')
+    await userEvent.click(confirmBtn)
+    await waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith(
+        '/api/account/delete',
+        expect.objectContaining({ method: 'POST' }),
+      ),
+    )
+  })
+
   // --- Onboarding-to-settings parity (Section 1) ---
 
   function lastPatchBody(): Record<string, unknown> {
