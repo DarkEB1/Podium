@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { markEmailVerified } from '@/lib/supabase/auth'
 import { ROUTES } from '@/lib/routes'
 import { AUTH_ERROR_CODES, classifyAuthError } from '@/components/auth/auth-errors'
+import { setRecoveryCookie } from '@/lib/auth/recovery-cookie'
 
 /**
  * B-3 / NX-1 — auth callback.
@@ -53,7 +54,13 @@ export async function GET(request: NextRequest) {
   await markEmailVerified(supabase, data.session.user.id)
 
   if (type === 'recovery') {
-    return NextResponse.redirect(new URL(ROUTES.auth.updatePassword, origin))
+    // WS-ACCT-04: the exchange above minted a full session. Mark it as a
+    // recovery session so middleware confines it to /update-password until the
+    // user actually sets a new password — a reset link must not be a roaming
+    // login. The marker is cleared by /api/auth/password-update on success.
+    const response = NextResponse.redirect(new URL(ROUTES.auth.updatePassword, origin))
+    setRecoveryCookie(response)
+    return response
   }
 
   return NextResponse.redirect(new URL(ROUTES.auth.roleSelect, origin))

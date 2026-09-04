@@ -50,6 +50,12 @@ export const RATE_LIMITS = {
   contactByIp: { limit: 5, windowSeconds: 3600 },
   /** Admin 2FA challenge — tight, a 6-digit code is otherwise brute-forceable. */
   admin2faByUser: { limit: 10, windowSeconds: 300 },
+  /**
+   * Re-authentication of an already-signed-in user (password change, account
+   * deletion). Tight per-user: this verifies the current password, so an
+   * unattended/hijacked session must not get unlimited guesses at it.
+   */
+  reauthByUser: { limit: 8, windowSeconds: 300 },
 } as const satisfies Record<string, RateLimitRule>
 
 /**

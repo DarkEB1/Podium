@@ -10,8 +10,21 @@ import {
 } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
-  const body = await request.json()
-  const { email } = body as { email?: string }
+  let body: { email?: unknown }
+  try {
+    body = (await request.json()) as typeof body
+  } catch {
+    return NextResponse.json(
+      { error: { code: 'INVALID_JSON', message: 'Request body must be valid JSON' } },
+      { status: 400 }
+    )
+  }
+  const rawEmail = body.email
+  // A well-formed but absurd "email" (the audit forwarded a 2 MB string to
+  // Supabase) is refused up front — but still with the same generic answer, so
+  // this never becomes an existence oracle. Non-strings are ignored likewise.
+  const email =
+    typeof rawEmail === 'string' && rawEmail.length <= 254 ? rawEmail : undefined
 
   // DH-2/SEC-2: unthrottled, this endpoint is a mail-bombing primitive — an
   // attacker can flood any victim's inbox with reset links.

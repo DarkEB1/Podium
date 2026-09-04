@@ -491,4 +491,35 @@ describe('middleware', () => {
       expect(redirectedTo(res)).toBe('/403')
     })
   })
+
+  // ── WS-ACCT-04: a recovery-link session cannot roam the app ────────────────
+  describe('recovery-session confinement', () => {
+    const recovery = { cookie: 'podium-recovery=1' }
+
+    it('redirects an app page to /update-password while the recovery marker is set', async () => {
+      stubSupabase({ id: 'u1' }, { users: { role: 'athlete' }, athlete_profiles: COMPLETE_ATHLETE })
+      const res = await middleware(request('/athlete/dashboard', recovery))
+      expect(redirectedTo(res)).toBe('/update-password')
+    })
+
+    it('lets the update-password page itself through', async () => {
+      stubSupabase({ id: 'u1' }, { users: { role: 'athlete' }, athlete_profiles: COMPLETE_ATHLETE })
+      const res = await middleware(request('/update-password', recovery))
+      expect(redirectedTo(res)).toBeNull()
+    })
+
+    it('lets the password-update and sign-out endpoints through so the flow can complete or be abandoned', async () => {
+      stubSupabase({ id: 'u1' }, { users: { role: 'athlete' } })
+      expect(
+        redirectedTo(await middleware(request('/api/auth/password-update', recovery))),
+      ).toBeNull()
+      expect(redirectedTo(await middleware(request('/api/auth/logout', recovery)))).toBeNull()
+    })
+
+    it('does not confine a normal session with no recovery marker', async () => {
+      stubSupabase({ id: 'u1' }, { users: { role: 'athlete' }, athlete_profiles: COMPLETE_ATHLETE })
+      const res = await middleware(request('/athlete/dashboard'))
+      expect(redirectedTo(res)).toBeNull()
+    })
+  })
 })

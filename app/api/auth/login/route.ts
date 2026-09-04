@@ -13,10 +13,18 @@ import {
 import { recordLogin, recordFailedLogin, findUserIdByEmail } from '@/lib/supabase/sessions'
 
 export async function POST(request: NextRequest) {
-  const body = await request.json()
+  let body: { email?: unknown; password?: unknown }
+  try {
+    body = (await request.json()) as typeof body
+  } catch {
+    return NextResponse.json(
+      { error: { code: 'INVALID_JSON', message: 'Request body must be valid JSON' } },
+      { status: 400 }
+    )
+  }
   const { email, password } = body as { email?: string; password?: string }
 
-  if (!email || !password) {
+  if (typeof email !== 'string' || typeof password !== 'string' || !email || !password) {
     return NextResponse.json(
       { error: { code: 'MISSING_FIELDS', message: 'Email and password are required' } },
       { status: 400 }

@@ -48,6 +48,16 @@ describe('GET /api/auth/callback', () => {
     expect(location(res).pathname).toBe('/update-password')
   })
 
+  // WS-ACCT-04: the recovery redirect must carry the confinement marker so the
+  // reset-link session cannot roam the app before setting a new password.
+  it('sets the recovery marker cookie on the recovery redirect only', async () => {
+    const recovery = await GET(makeRequest({ code: 'abc123', type: 'recovery' }))
+    expect(recovery.headers.get('set-cookie') ?? '').toContain('podium-recovery=1')
+
+    const confirm = await GET(makeRequest({ code: 'abc123', type: 'email_confirmation' }))
+    expect(confirm.headers.get('set-cookie') ?? '').not.toContain('podium-recovery=1')
+  })
+
   // B-3 / NX-1: failures used to redirect to /login, which does not exist.
   it('sends failures to the real sign-in route, never /login', async () => {
     const res = await GET(makeRequest({ type: 'email_confirmation' }))

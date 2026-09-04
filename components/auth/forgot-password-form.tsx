@@ -8,7 +8,9 @@ import { Input } from '@/components/ui/input'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 
-const schema = z.object({ email: z.string().email('Invalid email address') })
+const schema = z.object({
+  email: z.string().email('Invalid email address').max(254, 'Enter a valid email address'),
+})
 type FormValues = z.infer<typeof schema>
 
 export default function ForgotPasswordForm() {
@@ -35,7 +37,9 @@ export default function ForgotPasswordForm() {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      {/* noValidate: inline associated errors, not the native validation bubble
+          that hijacks the email field (P2 a11y). */}
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
         <FormField
           control={form.control}
           name="email"
@@ -43,7 +47,7 @@ export default function ForgotPasswordForm() {
             <FormItem>
               <FormLabel>Email</FormLabel>
               <FormControl>
-                <Input type="email" autoComplete="email" placeholder="you@example.com" {...field} />
+                <Input type="email" autoComplete="email" maxLength={254} placeholder="you@example.com" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

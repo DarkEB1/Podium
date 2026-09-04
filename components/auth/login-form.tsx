@@ -20,8 +20,10 @@ const ROLE_DASHBOARD: Partial<Record<UserRole, string>> = {
 }
 
 const schema = z.object({
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(1, 'Password is required'),
+  // Bounds match signup / the server caps (P2): 254 = RFC 5321, 128 = password
+  // policy. Prevents a 10k-char field being POSTed only to bounce as a toast.
+  email: z.string().email('Invalid email address').max(254, 'Enter a valid email address'),
+  password: z.string().min(1, 'Password is required').max(128, 'Password is too long'),
 })
 type FormValues = z.infer<typeof schema>
 
@@ -31,11 +33,20 @@ export default function LoginForm() {
   const { formState: { isSubmitting } } = form
 
   async function onSubmit(values: FormValues) {
-    const res = await fetch(ROUTES.api.auth.login, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(values),
-    })
+    let res: Response
+    try {
+      res = await fetch(ROUTES.api.auth.login, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(values),
+      })
+    } catch {
+      // Offline / DNS failure / server unreachable — `fetch` rejects with
+      // "Failed to fetch". Without this the promise rejected unhandled and the
+      // user saw nothing at all (P2).
+      toast.error('Could not reach the server. Check your connection and try again.')
+      return
+    }
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
       toast.error(data.error?.message ?? 'Login failed')
@@ -55,7 +66,9 @@ export default function LoginForm() {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      {/* noValidate: inline associated errors, not the native validation bubble
+          that hijacks the email field and hides the other errors (P2 a11y). */}
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
         <FormField
           control={form.control}
           name="email"
@@ -63,7 +76,7 @@ export default function LoginForm() {
             <FormItem>
               <FormLabel>Email</FormLabel>
               <FormControl>
-                <Input type="email" autoComplete="email" placeholder="you@example.com" {...field} />
+                <Input type="email" autoComplete="email" maxLength={254} placeholder="you@example.com" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -81,7 +94,7 @@ export default function LoginForm() {
                 </Link>
               </div>
               <FormControl>
-                <Input type="password" autoComplete="current-password" placeholder="••••••••" {...field} />
+                <Input type="password" autoComplete="current-password" maxLength={128} placeholder="••••••••" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
