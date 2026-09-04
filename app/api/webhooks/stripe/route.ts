@@ -27,6 +27,10 @@ import {
   tierName,
   FALLBACK_OTHER_NAME,
 } from '@/lib/email/notify'
+import { getUserRole } from '@/lib/supabase/auth'
+import { insertPaymentConfirmationCard } from '@/lib/supabase/messaging'
+import { dispatchNotification } from '@/lib/notifications'
+import { dealsListPath } from '@/lib/notifications/deep-links'
 import { ROUTES } from '@/lib/routes'
 import { serverEnv } from '@/lib/env'
 import type { Database } from '@/types/database'
@@ -158,6 +162,19 @@ async function upsertFromStripeSubscription(
         url: absoluteUrl(ROUTES.brand.subscription),
       },
     })
+
+    // WS-MSG-01: in-app bell copy for the brand.
+    try {
+      await dispatchNotification(admin, {
+        userId: brandUserId,
+        eventType: 'subscription_started',
+        title: 'Subscription active',
+        body: `Your ${tierName(tierOf(sub))} subscription is active.`,
+        metadata: { url: ROUTES.brand.subscription },
+      })
+    } catch (notifyErr) {
+      console.error('[stripe-webhook] subscription notification dispatch failed', notifyErr)
+    }
   }
 
   return PROCESSED
@@ -281,6 +298,19 @@ async function handleInvoicePayment(
           url: absoluteUrl(ROUTES.brand.subscription),
         },
       })
+
+      // WS-MSG-01: in-app bell copy for the brand.
+      try {
+        await dispatchNotification(admin, {
+          userId: brandUserId,
+          eventType: 'subscription_payment_failed',
+          title: 'Subscription payment failed',
+          body: 'Your subscription payment failed. Update your card to stay active.',
+          metadata: { url: ROUTES.brand.subscription },
+        })
+      } catch (notifyErr) {
+        console.error('[stripe-webhook] subscription-failed notification dispatch failed', notifyErr)
+      }
     }
   }
 
@@ -363,6 +393,19 @@ async function settlePayment(
     receipt_url: settlement?.receiptUrl ?? null,
   })
 
+  // WS-MSG-04: drop a payment_confirmation card into the deal's chat timeline so
+  // both parties see the payment landed in-conversation, not just by email. The
+  // helper is idempotent per proposal (payment_intent.succeeded + charge.succeeded
+  // both settle) and the already-settled guard above means this runs once.
+  // Best-effort: never let a card write undo a payment that has already settled.
+  if (existing.contract_id) {
+    try {
+      await insertPaymentConfirmationCard(admin, existing.contract_id)
+    } catch (cardErr) {
+      console.error('[stripe-webhook] payment_confirmation card insert failed', cardErr)
+    }
+  }
+
   // Side effect after the payment settles: email the PAYEE their receipt. The
   // already-settled guard above means this runs once per payment even though
   // payment_intent.succeeded and charge.succeeded both settle it; the
@@ -370,17 +413,38 @@ async function settlePayment(
   // redelivery double-send. Amount is Stripe minor units; format for the body.
   if (existing.payee_id) {
     const names = await resolveDisplayNames(admin, [existing.payee_id, existing.payer_id])
+    // D20: "View payment" should land on the payee's deals list (payees —
+    // athletes/teams — have no payments page), not /dashboard.
+    const payeeRole = await getUserRole(admin, existing.payee_id)
+    const path = dealsListPath(payeeRole)
+    const amountFormatted = formatAmount(existing.amount, existing.currency)
+    const fromName = nameOf(names, existing.payer_id, FALLBACK_OTHER_NAME)
     await sendTransactionalEmail(admin, {
       event: 'payment_received',
       userId: existing.payee_id,
       idempotencyKey: `payment_received:${paymentIntentId}`,
       data: {
         recipientName: nameOf(names, existing.payee_id),
-        amountFormatted: formatAmount(existing.amount, existing.currency),
-        fromName: nameOf(names, existing.payer_id, FALLBACK_OTHER_NAME),
-        url: absoluteUrl(ROUTES.dashboard),
+        amountFormatted,
+        fromName,
+        url: absoluteUrl(path),
       },
     })
+
+    // WS-MSG-01: in-app bell copy for the payee. Keyed dispatch is not
+    // available, but createNotification is only reached once per settlement (the
+    // already-settled guard above returns before this), so no duplicate row.
+    try {
+      await dispatchNotification(admin, {
+        userId: existing.payee_id,
+        eventType: 'payment_received',
+        title: 'Payment received',
+        body: `You received ${amountFormatted} from ${fromName}.`,
+        metadata: { url: path },
+      })
+    } catch (notifyErr) {
+      console.error('[stripe-webhook] payment notification dispatch failed', notifyErr)
+    }
   }
 
   return PROCESSED

@@ -4,7 +4,7 @@ import { NextRequest } from 'next/server'
 vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn(), createAdminClient: vi.fn() }))
 vi.mock('@/lib/supabase/auth', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/supabase/auth')>()
-  return { ...actual, getUser: vi.fn() }
+  return { ...actual, getUser: vi.fn(), getUserRole: vi.fn() }
 })
 vi.mock('@/lib/supabase/deals', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/supabase/deals')>()
@@ -15,12 +15,14 @@ vi.mock('@/lib/email/notify', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/email/notify')>()
   return { ...actual, resolveDisplayNames: vi.fn() }
 })
+vi.mock('@/lib/notifications', () => ({ dispatchNotification: vi.fn() }))
 
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import { getUser } from '@/lib/supabase/auth'
+import { getUser, getUserRole } from '@/lib/supabase/auth'
 import { respondToProposal, DealsError } from '@/lib/supabase/deals'
 import { sendTransactionalEmail } from '@/lib/email'
 import { resolveDisplayNames } from '@/lib/email/notify'
+import { dispatchNotification } from '@/lib/notifications'
 import { POST } from './route'
 
 const fakeUser = { id: 'user-1', email: 'test@example.com', role: 'athlete' as const, role_locked_at: '2026-04-19T00:00:00Z' }
@@ -45,6 +47,7 @@ describe('POST /api/deals/proposals/[proposalId]/respond', () => {
       deliveryId: 'd1',
       providerId: 'p1',
     })
+    vi.mocked(getUserRole).mockResolvedValue('brand')
   })
 
   it('returns 401 when not authenticated', async () => {
@@ -94,6 +97,33 @@ describe('POST /api/deals/proposals/[proposalId]/respond', () => {
         data: expect.objectContaining({ recipientName: 'Acme Co', proposalTitle: 'Summer Campaign' }),
       })
     )
+  })
+
+  // WS-MSG-01 + D20: the original sender gets an in-app "Proposal accepted" row
+  // deep-linked to their deal detail (brand role here), not /dashboard.
+  it('dispatches an in-app proposal_accepted notification to the sender', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(respondToProposal).mockResolvedValue(
+      { id: 'p1', status: 'accepted', sender_id: 'sender-7', title: 'Summer Campaign' } as never
+    )
+    await POST(makePostRequest({ action: 'accepted' }), { params })
+    expect(dispatchNotification).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        userId: 'sender-7',
+        eventType: 'proposal_accepted',
+        metadata: { url: '/brand/deals/p1' },
+      })
+    )
+  })
+
+  it('does NOT dispatch a notification on decline', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(respondToProposal).mockResolvedValue(
+      { id: 'p1', status: 'declined', sender_id: 'sender-7', title: 'Summer Campaign' } as never
+    )
+    await POST(makePostRequest({ action: 'declined' }), { params })
+    expect(dispatchNotification).not.toHaveBeenCalled()
   })
 
   it('does NOT email on decline', async () => {

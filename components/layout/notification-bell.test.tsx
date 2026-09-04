@@ -87,4 +87,44 @@ describe('NotificationBell', () => {
     await userEvent.click(screen.getByRole('button', { name: /notifications/i }))
     expect(screen.getByText('New match')).toBeInTheDocument()
   })
+
+  // WS-MSG-13: a notification carrying metadata.url renders as a link to that
+  // deep link, and clicking it marks the notification read on the server.
+  it('renders a notification as a deep link and marks it read on click', async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: async () => [
+        { id: 'n9', title: 'New proposal', body: 'Acme sent a proposal', read_at: null, created_at: '2024-01-01', event_type: 'proposal_received', channel: 'in_app', metadata: { url: '/athlete/deals/p1' }, sent_at: '2024-01-01', user_id: 'u1' },
+      ],
+    } as Response)
+    render(<NotificationBell />)
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/notifications'))
+    await userEvent.click(screen.getByRole('button', { name: /notifications/i }))
+
+    const link = screen.getByRole('link', { name: /new proposal/i })
+    expect(link).toHaveAttribute('href', '/athlete/deals/p1')
+
+    await userEvent.click(link)
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/notifications/n9/read',
+      expect.objectContaining({ method: 'PATCH' })
+    )
+    // Optimistic: the unread badge clears without a reload.
+    await waitFor(() => expect(screen.queryByRole('status')).toBeNull())
+  })
+
+  // WS-MSG-13 / AA24: the bell re-polls so a notification arriving while the page
+  // is open is not stuck behind a stale fetch.
+  it('refetches notifications on an interval', async () => {
+    vi.useFakeTimers()
+    try {
+      vi.mocked(fetch).mockResolvedValue({ ok: true, json: async () => [] } as Response)
+      render(<NotificationBell />)
+      await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1))
+      await vi.advanceTimersByTimeAsync(30_000)
+      expect(vi.mocked(fetch).mock.calls.length).toBeGreaterThan(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })

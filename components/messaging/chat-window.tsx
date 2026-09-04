@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { EmptyState } from '@/components/ui/empty-state'
 import { createClient } from '@/lib/supabase/client'
+import { markMatchRead } from '@/lib/supabase/messaging'
 import {
   typingChannel,
   onTyping,
@@ -32,6 +33,13 @@ interface Props {
   currentUserId: string
   /** M-6 — role of the signed-in viewer, forwarded to proposal analytics. */
   viewerRole?: string | undefined
+  /**
+   * WS-MSG-05 — the other participant's user id. When provided, a minimal Block
+   * control is shown; blocking closes the channel (RLS refuses further messages
+   * and the conversation drops out of both inboxes). Omitted → no control (a
+   * later workstream builds out the messaging header/UX).
+   */
+  otherUserId?: string | undefined
 }
 
 /** Subscribe defensively: a channel may be mocked without a `.subscribe` in tests. */
@@ -64,11 +72,14 @@ export default function ChatWindow({
   proposals,
   currentUserId,
   viewerRole,
+  otherUserId,
 }: Props) {
   const [messages, setMessages] = useState<MessageRow[]>(initialMessages)
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
   const [otherTyping, setOtherTyping] = useState(false)
+  const [blocked, setBlocked] = useState(false)
+  const [blocking, setBlocking] = useState(false)
   // Id of the last message the other participant has read (drives read ticks).
   const [lastReadByOther, setLastReadByOther] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -109,13 +120,20 @@ export default function ChatWindow({
             if (prev.some((m) => m.id === msg.id)) return prev
             return [...prev, msg]
           })
+          // WS-MSG-02: an incoming message the viewer is looking at is read on
+          // arrival, so its unread badge never lingers on the inbox. Best-effort
+          // (own messages excluded); a failure just leaves the watermark for the
+          // next open to move.
+          if (msg.sender_id !== currentUserId) {
+            void markMatchRead(supabase, matchId).catch(() => {})
+          }
         }
       )
       .subscribe()
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [matchId])
+  }, [matchId, currentUserId])
 
   // Ephemeral typing + read-receipt signals via the shared realtime helpers (B10).
   useEffect(() => {
@@ -158,6 +176,30 @@ export default function ChatWindow({
     -1
   )
 
+  async function handleBlock() {
+    if (!otherUserId || blocking) return
+    if (!window.confirm('Block this user? They will no longer be able to message you, and this conversation will be hidden.')) {
+      return
+    }
+    setBlocking(true)
+    try {
+      const res = await fetch('/api/discovery/blocks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ blocked_id: otherUserId }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok && res.status !== 409) {
+        toast.error(data.error?.message ?? 'Failed to block user')
+        return
+      }
+      setBlocked(true)
+      toast.success('User blocked')
+    } finally {
+      setBlocking(false)
+    }
+  }
+
   function handleTextChange(value: string) {
     setText(value)
     const supabase = createClient()
@@ -182,6 +224,15 @@ export default function ChatWindow({
         return
       }
       setText('')
+      // WS-MSG-03: show the sender's own message immediately from the 201 body.
+      // The realtime INSERT stream is for the OTHER participant; the sender's own
+      // client is not guaranteed its own change event, so without this the
+      // composer would clear and the message would not appear until reload.
+      // Deduped by id so a realtime echo cannot double it.
+      const sent = data as MessageRow
+      if (sent?.id) {
+        setMessages((prev) => (prev.some((m) => m.id === sent.id) ? prev : [...prev, sent]))
+      }
       const supabase = createClient()
       const channel = typingChannel(supabase, matchId)
       safeSubscribe(channel)
@@ -205,6 +256,20 @@ export default function ChatWindow({
     // resolves min-width to its content width, and one long unbroken message or
     // a wide composer pushes the whole conversation off-screen.
     <div className="flex min-h-0 flex-1 min-w-0 flex-col">
+      {otherUserId && !blocked && (
+        <div className="flex items-center justify-end border-b border-border px-6 py-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleBlock}
+            disabled={blocking}
+            className="text-destructive"
+          >
+            {blocking ? 'Blocking…' : 'Block'}
+          </Button>
+        </div>
+      )}
       <div className="min-h-0 flex-1 min-w-0 space-y-4 overflow-y-auto overflow-x-hidden px-6 py-8">
         {messages.length === 0 && !otherTyping ? (
           <EmptyState
@@ -255,6 +320,11 @@ export default function ChatWindow({
         {otherTyping && <TypingIndicator />}
         <div ref={bottomRef} />
       </div>
+      {blocked ? (
+        <div className="border-t border-border px-6 py-4 text-center text-small text-muted-foreground">
+          You have blocked this user. This conversation is now closed.
+        </div>
+      ) : (
       <form
         onSubmit={sendText}
         className="flex w-full min-w-0 items-end gap-3 border-t border-border px-6 py-4"
@@ -287,6 +357,7 @@ export default function ChatWindow({
           <SendHorizonal className="size-4" aria-hidden="true" />
         </Button>
       </form>
+      )}
     </div>
   )
 }

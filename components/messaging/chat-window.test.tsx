@@ -127,9 +127,86 @@ describe('ChatWindow composer (PR-18)', () => {
   })
 })
 
+describe('ChatWindow Block control (WS-MSG-05)', () => {
+  it('does not render a Block control when otherUserId is absent', () => {
+    render(<ChatWindow {...props} />)
+    expect(screen.queryByRole('button', { name: 'Block' })).toBeNull()
+  })
+
+  it('blocks the other user via the discovery API and closes the composer', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: async () => ({ id: 'b1' }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+
+    render(<ChatWindow {...props} otherUserId="other" />)
+
+    const blockBtn = screen.getByRole('button', { name: 'Block' })
+    await act(async () => {
+      fireEvent.click(blockBtn)
+    })
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/discovery/blocks',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ blocked_id: 'other' }),
+      })
+    )
+    // Composer is replaced by the blocked notice.
+    expect(screen.queryByTestId('chat-composer')).toBeNull()
+    expect(screen.getByText(/you have blocked this user/i)).toBeInTheDocument()
+
+    vi.unstubAllGlobals()
+  })
+
+  it('does not call the API when the confirm is dismissed', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    vi.spyOn(window, 'confirm').mockReturnValue(false)
+
+    render(<ChatWindow {...props} otherUserId="other" />)
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Block' }))
+    })
+
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(screen.getByTestId('chat-composer')).toBeInTheDocument()
+    vi.unstubAllGlobals()
+  })
+})
+
 describe('ChatWindow empty state (UX-1)', () => {
   it('shows an empty state instead of a blank pane when there are no messages', () => {
     render(<ChatWindow {...props} initialMessages={[]} />)
     expect(screen.getByText('No messages yet')).toBeInTheDocument()
+  })
+})
+
+describe('ChatWindow send (WS-MSG-03)', () => {
+  it("appends the sender's own message from the 201 body without waiting for realtime", async () => {
+    const sent: MessageRow = { ...baseMsg, id: 'msg2', sender_id: 'me', text_content: 'Yo from me' }
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => sent })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<ChatWindow {...props} initialMessages={[]} />)
+    const composer = screen.getByTestId('chat-composer')
+    fireEvent.change(composer, { target: { value: 'Yo from me' } })
+    const form = composer.closest('form') as HTMLElement
+    await act(async () => {
+      fireEvent.submit(form)
+    })
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/messaging/matches/m1/messages',
+      expect.objectContaining({ method: 'POST' })
+    )
+    // The message shows immediately (the realtime INSERT stream is for the other
+    // participant; the sender's own copy comes from the response body).
+    expect(screen.getByText('Yo from me')).toBeInTheDocument()
+    vi.unstubAllGlobals()
   })
 })

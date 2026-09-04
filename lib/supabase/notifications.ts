@@ -19,10 +19,15 @@ export async function getNotifications(
   supabase: SupabaseClient<Database>,
   userId: string
 ): Promise<NotificationLogRow[]> {
+  // WS-MSG-14: the bell is the in-app surface only. A single domain event fans
+  // out to several notification_logs rows (in_app + email + push), so without
+  // this filter the bell would show — and count as unread — the email and push
+  // copies of every event alongside the in-app one.
   const { data, error } = await db(supabase)
     .from('notification_logs')
     .select('*')
     .eq('user_id', userId)
+    .eq('channel', 'in_app')
     .order('created_at', { ascending: false })
 
   if (error) {

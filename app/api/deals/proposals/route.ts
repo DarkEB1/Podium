@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import { getUser } from '@/lib/supabase/auth'
+import { getUser, getUserRole } from '@/lib/supabase/auth'
 import { sendProposal, getProposals, DealsError } from '@/lib/supabase/deals'
 import { getMatches } from '@/lib/supabase/messaging'
 import { RATE_LIMITS, consume, tooManyRequests, userKey } from '@/lib/rate-limit'
 import { PROPOSAL_TERMS_MAX, PROPOSAL_TITLE_MAX } from '@/lib/limits'
 import { sendTransactionalEmail } from '@/lib/email'
 import { absoluteUrl, nameOf, resolveDisplayNames, FALLBACK_OTHER_NAME } from '@/lib/email/notify'
-import { ROUTES } from '@/lib/routes'
+import { dispatchNotification } from '@/lib/notifications'
+import { dealDetailPath } from '@/lib/notifications/deep-links'
 import type { Database, Json } from '@/types/database'
 
 type PayType = Database['public']['Enums']['pay_type']
@@ -162,16 +163,34 @@ export async function POST(request: NextRequest) {
 
     if (recipientId) {
       const names = await resolveDisplayNames(admin, [recipientId, user.id])
+      // D20: "View proposal" must open the recipient's deal detail for THIS
+      // proposal, not /dashboard.
+      const recipientRole = await getUserRole(admin, recipientId)
+      const path = dealDetailPath(recipientRole, proposal.id)
+      const senderName = nameOf(names, user.id, FALLBACK_OTHER_NAME)
       await sendTransactionalEmail(admin, {
         event: 'proposal_received',
         userId: recipientId,
         data: {
           recipientName: nameOf(names, recipientId),
-          senderName: nameOf(names, user.id, FALLBACK_OTHER_NAME),
+          senderName,
           proposalTitle: proposal.title,
-          url: absoluteUrl(ROUTES.dashboard),
+          url: absoluteUrl(path),
         },
       })
+
+      // WS-MSG-01: in-app bell copy for the proposal recipient.
+      try {
+        await dispatchNotification(admin, {
+          userId: recipientId,
+          eventType: 'proposal_received',
+          title: 'New proposal',
+          body: `${senderName} sent you a proposal: ${proposal.title}.`,
+          metadata: { url: path },
+        })
+      } catch (notifyErr) {
+        console.error('[proposals] notification dispatch failed', notifyErr)
+      }
     }
 
     return NextResponse.json(proposal, { status: 201 })

@@ -30,8 +30,20 @@ vi.mock('@/lib/email/notify', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/email/notify')>()
   return { ...actual, resolveDisplayNames: vi.fn() }
 })
+vi.mock('@/lib/supabase/auth', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/supabase/auth')>()
+  return { ...actual, getUserRole: vi.fn() }
+})
+vi.mock('@/lib/supabase/messaging', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/supabase/messaging')>()
+  return { ...actual, insertPaymentConfirmationCard: vi.fn() }
+})
+vi.mock('@/lib/notifications', () => ({ dispatchNotification: vi.fn() }))
 
 import { createAdminClient } from '@/lib/supabase/server'
+import { getUserRole } from '@/lib/supabase/auth'
+import { insertPaymentConfirmationCard } from '@/lib/supabase/messaging'
+import { dispatchNotification } from '@/lib/notifications'
 import {
   upsertSubscription,
   updateSubscription,
@@ -139,6 +151,8 @@ beforeEach(() => {
   })
   vi.mocked(markWebhookEvent).mockResolvedValue(undefined)
   vi.mocked(resolveDisplayNames).mockResolvedValue({})
+  vi.mocked(getUserRole).mockResolvedValue('athlete')
+  vi.mocked(insertPaymentConfirmationCard).mockResolvedValue(null)
   vi.mocked(sendTransactionalEmail).mockResolvedValue({
     status: 'sent',
     deliveryId: 'd1',
@@ -994,6 +1008,7 @@ describe('POST /api/webhooks/stripe — email side effects', () => {
     id: 'pay-1',
     status: 'pending',
     processed_at: null,
+    contract_id: CONTRACT_ID,
     payee_id: PAYEE_ID,
     payer_id: PAYER_ID,
     amount: 50000,
@@ -1022,6 +1037,21 @@ describe('POST /api/webhooks/stripe — email side effects', () => {
         idempotencyKey: 'payment_received:pi_abc',
         data: expect.objectContaining({ amountFormatted: '£500.00' }),
       })
+    )
+    // WS-MSG-01 + D20: the payee also gets an in-app "Payment received" bell row
+    // deep-linked to their deals list (payees have no payments page).
+    expect(vi.mocked(dispatchNotification)).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        userId: PAYEE_ID,
+        eventType: 'payment_received',
+        metadata: { url: '/athlete/deals' },
+      })
+    )
+    // WS-MSG-04: a payment_confirmation card is dropped into the deal's chat.
+    expect(vi.mocked(insertPaymentConfirmationCard)).toHaveBeenCalledWith(
+      expect.anything(),
+      CONTRACT_ID
     )
   })
 
@@ -1053,6 +1083,11 @@ describe('POST /api/webhooks/stripe — email side effects', () => {
         idempotencyKey: 'subscription_started:sub_abc',
         data: expect.objectContaining({ tierName: 'Growth' }),
       })
+    )
+    // WS-MSG-01: in-app bell copy for the brand.
+    expect(vi.mocked(dispatchNotification)).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ userId: USER_ID, eventType: 'subscription_started' })
     )
   })
 
@@ -1086,6 +1121,11 @@ describe('POST /api/webhooks/stripe — email side effects', () => {
         userId: USER_ID,
         idempotencyKey: 'subscription_payment_failed:in_bad',
       })
+    )
+    // WS-MSG-01: in-app bell copy for the brand.
+    expect(vi.mocked(dispatchNotification)).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ userId: USER_ID, eventType: 'subscription_payment_failed' })
     )
   })
 

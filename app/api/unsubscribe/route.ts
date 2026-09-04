@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
-import { unsubscribeFromAllEmail } from '@/lib/supabase/settings'
+import { unsubscribeFromAllEmail, updateSettings } from '@/lib/supabase/settings'
 import { addSuppression, getUserEmail } from '@/lib/supabase/email'
 import { verifyUnsubscribeToken } from '@/lib/email/unsubscribe'
 import { captureException } from '@/lib/observability'
@@ -33,6 +33,17 @@ async function applyUnsubscribe(token: string | null): Promise<boolean> {
 
   const admin = createAdminClient()
   try {
+    // D24: honour the token's PURPOSE. A `marketing` unsubscribe must silence
+    // ONLY marketing — it must never stop the transactional receipts and
+    // payment-failure warnings a user needs (and is entitled to under PECR as
+    // service messages). Only a `purpose: 'all'` token turns everything off and
+    // adds the address to the suppression list (which blocks every send); a
+    // marketing token just clears the marketing opt-in.
+    if (claim.purpose === 'marketing') {
+      await updateSettings(admin, claim.userId, { marketing_opt_in: false })
+      return true
+    }
+
     // Turn off email preferences (marketing + per-event) for this user.
     await unsubscribeFromAllEmail(admin, claim.userId)
 
