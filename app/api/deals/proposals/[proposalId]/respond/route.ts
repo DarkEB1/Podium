@@ -94,6 +94,26 @@ export async function POST(
           { status: 403 }
         )
       }
+      // DP-11: accept_proposal is SECURITY DEFINER and raises these itself. A
+      // third party accepting someone else's proposal must get 403, not a 500
+      // that doubles as an existence oracle; the seat-resolution failures are
+      // client-uncorrectable state, so 409.
+      if (err.code === 'NOT_PARTICIPANT') {
+        return NextResponse.json(
+          { error: { code: 'NOT_PARTICIPANT', message: err.message } },
+          { status: 403 }
+        )
+      }
+      if (
+        err.code === 'NO_BRAND_PARTICIPANT' ||
+        err.code === 'AMBIGUOUS_BRAND_PARTICIPANTS' ||
+        err.code === 'COUNTERPARTY_NOT_ATHLETE_OR_TEAM'
+      ) {
+        return NextResponse.json(
+          { error: { code: err.code, message: err.message } },
+          { status: 409 }
+        )
+      }
       if (err.code === 'CONTRACT_CREATE_FAILED' || err.code === 'MATCH_NOT_FOUND') {
         return NextResponse.json(
           { error: { code: err.code, message: err.message } },

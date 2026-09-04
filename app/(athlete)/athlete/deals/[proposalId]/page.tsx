@@ -8,6 +8,8 @@ import { cn } from '@/lib/utils'
 import ContractSignButton from '@/components/deals/contract-sign-button'
 import ProposalRespondButtons from '@/components/deals/proposal-respond-buttons'
 import { AccentHeading } from '@/components/ui/accent-heading'
+import { formatMajorAmount } from '@/lib/money'
+import { formatDate, formatDateRange } from '@/lib/dates'
 import type { Database } from '@/types/database'
 
 type ContractRow = Database['public']['Tables']['contracts']['Row']
@@ -47,11 +49,9 @@ export default async function AthleteProposalDetailPage({
 
   const isSender = proposal.sender_id === user.id
   const payLabel = proposal.pay_type.replace('_', ' ')
-  const amount = new Intl.NumberFormat('en-GB', {
-    style: 'currency',
-    currency: proposal.pay_currency ?? 'GBP',
-    maximumFractionDigits: 0,
-  }).format(proposal.pay_amount)
+  // DP-4/DP-5: guarded 2dp formatter (the inline Intl call crashed the page on
+  // a junk currency and rounded amounts to whole pounds).
+  const amount = formatMajorAmount(proposal.pay_amount, proposal.pay_currency ?? 'GBP')
 
   return (
     <div className="mx-auto max-w-2xl space-y-12 px-6 py-12 md:px-16 md:py-16">
@@ -75,7 +75,7 @@ export default async function AthleteProposalDetailPage({
           {proposal.timeline_start && (
             <>
               <dt className="text-muted-foreground">Timeline</dt>
-              <dd className="min-w-0 break-words">{proposal.timeline_start}{proposal.timeline_end ? ` → ${proposal.timeline_end}` : ''}</dd>
+              <dd className="min-w-0 break-words">{formatDateRange(proposal.timeline_start, proposal.timeline_end)}</dd>
             </>
           )}
           {proposal.additional_terms && (

@@ -1,12 +1,21 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { motion, useReducedMotion } from 'motion/react'
 import { toast } from 'sonner'
 import { SendHorizonal } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { EmptyState } from '@/components/ui/empty-state'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import ProposalForm from '@/components/brand/proposal-form'
 import { createClient } from '@/lib/supabase/client'
 import {
   typingChannel,
@@ -65,10 +74,13 @@ export default function ChatWindow({
   currentUserId,
   viewerRole,
 }: Props) {
+  const router = useRouter()
   const [messages, setMessages] = useState<MessageRow[]>(initialMessages)
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
   const [otherTyping, setOtherTyping] = useState(false)
+  // WS-DEAL-01: the pending proposal the viewer is countering, if any.
+  const [counterTarget, setCounterTarget] = useState<ProposalRow | null>(null)
   // Id of the last message the other participant has read (drives read ticks).
   const [lastReadByOther, setLastReadByOther] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -232,7 +244,11 @@ export default function ChatWindow({
                   proposal={proposal}
                   isMine={isMine}
                   viewerRole={viewerRole}
-                  onResponded={() => {}}
+                  // DP-12: reflect the new status after Accept/Decline instead
+                  // of leaving a stale "pending" card with live buttons.
+                  onResponded={() => router.refresh()}
+                  // WS-DEAL-01: open the counter composer for this proposal.
+                  onCounter={() => setCounterTarget(proposal)}
                   paymentConfirmation={
                     isPayment
                       ? { amount: proposal.pay_amount, currency: proposal.pay_currency }
@@ -287,6 +303,29 @@ export default function ChatWindow({
           <SendHorizonal className="size-4" aria-hidden="true" />
         </Button>
       </form>
+
+      {/* WS-DEAL-01: counter-offer composer, reachable from any pending
+          proposal card the viewer received. Sending refreshes so the new
+          (child) proposal card appears and the parent shows as countered. */}
+      <Dialog open={counterTarget !== null} onOpenChange={(open) => !open && setCounterTarget(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Send a counter-offer</DialogTitle>
+            <DialogDescription>
+              Propose different terms. Your counter supersedes the current proposal.
+            </DialogDescription>
+          </DialogHeader>
+          {counterTarget && (
+            <ProposalForm
+              parentProposalId={counterTarget.id}
+              onSent={() => {
+                setCounterTarget(null)
+                router.refresh()
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

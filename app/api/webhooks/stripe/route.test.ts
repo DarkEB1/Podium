@@ -983,6 +983,121 @@ describe('POST /api/webhooks/stripe — payment_intent.payment_failed', () => {
 })
 
 // ---------------------------------------------------------------------------
+// DP-7: cancel / processing / refund handlers
+// ---------------------------------------------------------------------------
+
+describe('POST /api/webhooks/stripe — payment_intent.canceled (DP-7)', () => {
+  it('marks the payment failed so the contract is no longer blocked', async () => {
+    mockEvent(makePaymentIntentEvent('payment_intent.canceled', { status: 'canceled' }))
+    vi.mocked(getPaymentByIntentId).mockResolvedValueOnce({ id: 'pay-1', status: 'pending' } as never)
+    vi.mocked(updatePaymentRecord).mockResolvedValueOnce({} as never)
+
+    const res = await POST(makeRequest())
+
+    expect(res.status).toBe(200)
+    expect(vi.mocked(updatePaymentRecord)).toHaveBeenCalledWith(
+      expect.anything(),
+      'pi_abc',
+      expect.objectContaining({ status: 'failed' })
+    )
+  })
+
+  it('never downgrades an already-succeeded payment', async () => {
+    mockEvent(makePaymentIntentEvent('payment_intent.canceled', { status: 'canceled' }))
+    vi.mocked(getPaymentByIntentId).mockResolvedValueOnce({ id: 'pay-1', status: 'succeeded' } as never)
+
+    const res = await POST(makeRequest())
+
+    expect(res.status).toBe(200)
+    expect(vi.mocked(updatePaymentRecord)).not.toHaveBeenCalled()
+  })
+
+  it('ignores a cancelled intent outside the deal-payment flow', async () => {
+    mockEvent(makePaymentIntentEvent('payment_intent.canceled', { status: 'canceled', metadata: {} }))
+
+    const res = await POST(makeRequest())
+
+    expect(res.status).toBe(200)
+    expect(vi.mocked(getPaymentByIntentId)).not.toHaveBeenCalled()
+  })
+})
+
+describe('POST /api/webhooks/stripe — payment_intent.processing (DP-7)', () => {
+  it('records the processing status', async () => {
+    mockEvent(makePaymentIntentEvent('payment_intent.processing', { status: 'processing' }))
+    vi.mocked(getPaymentByIntentId).mockResolvedValueOnce({ id: 'pay-1', status: 'pending' } as never)
+    vi.mocked(updatePaymentRecord).mockResolvedValueOnce({} as never)
+
+    const res = await POST(makeRequest())
+
+    expect(res.status).toBe(200)
+    expect(vi.mocked(updatePaymentRecord)).toHaveBeenCalledWith(
+      expect.anything(),
+      'pi_abc',
+      expect.objectContaining({ status: 'processing' })
+    )
+  })
+
+  it('does not overwrite a terminal state', async () => {
+    mockEvent(makePaymentIntentEvent('payment_intent.processing', { status: 'processing' }))
+    vi.mocked(getPaymentByIntentId).mockResolvedValueOnce({ id: 'pay-1', status: 'succeeded' } as never)
+
+    const res = await POST(makeRequest())
+
+    expect(res.status).toBe(200)
+    expect(vi.mocked(updatePaymentRecord)).not.toHaveBeenCalled()
+  })
+})
+
+describe('POST /api/webhooks/stripe — charge.refunded (DP-7)', () => {
+  it('moves a settled payment to refunded', async () => {
+    mockEvent(
+      makeEvent('charge.refunded', {
+        id: 'ch_abc',
+        payment_intent: 'pi_abc',
+        metadata: PI_METADATA,
+      })
+    )
+    vi.mocked(getPaymentByIntentId).mockResolvedValueOnce({ id: 'pay-1', status: 'succeeded' } as never)
+    vi.mocked(updatePaymentRecord).mockResolvedValueOnce({} as never)
+
+    const res = await POST(makeRequest())
+
+    expect(res.status).toBe(200)
+    expect(vi.mocked(updatePaymentRecord)).toHaveBeenCalledWith(
+      expect.anything(),
+      'pi_abc',
+      expect.objectContaining({ status: 'refunded' })
+    )
+  })
+
+  it('is idempotent when already refunded', async () => {
+    mockEvent(
+      makeEvent('charge.refunded', {
+        id: 'ch_abc',
+        payment_intent: 'pi_abc',
+        metadata: PI_METADATA,
+      })
+    )
+    vi.mocked(getPaymentByIntentId).mockResolvedValueOnce({ id: 'pay-1', status: 'refunded' } as never)
+
+    const res = await POST(makeRequest())
+
+    expect(res.status).toBe(200)
+    expect(vi.mocked(updatePaymentRecord)).not.toHaveBeenCalled()
+  })
+
+  it('ignores a refund outside the deal-payment flow', async () => {
+    mockEvent(makeEvent('charge.refunded', { id: 'ch_x', payment_intent: 'pi_x', metadata: {} }))
+
+    const res = await POST(makeRequest())
+
+    expect(res.status).toBe(200)
+    expect(vi.mocked(getPaymentByIntentId)).not.toHaveBeenCalled()
+  })
+})
+
+// ---------------------------------------------------------------------------
 // Transactional email side effects (payment_received / subscription_started /
 // subscription_payment_failed). Each fires only after the primary DB write
 // settles, carries an idempotency key so a Stripe redelivery cannot double-send,

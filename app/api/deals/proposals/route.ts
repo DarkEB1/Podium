@@ -5,6 +5,12 @@ import { sendProposal, getProposals, DealsError } from '@/lib/supabase/deals'
 import { getMatches } from '@/lib/supabase/messaging'
 import { RATE_LIMITS, consume, tooManyRequests, userKey } from '@/lib/rate-limit'
 import { PROPOSAL_TERMS_MAX, PROPOSAL_TITLE_MAX } from '@/lib/limits'
+import {
+  normaliseCurrency,
+  validatePayAmount,
+  validateTimeline,
+  normaliseTimeline,
+} from '@/lib/deals-validation'
 import { sendTransactionalEmail } from '@/lib/email'
 import { absoluteUrl, nameOf, resolveDisplayNames, FALLBACK_OTHER_NAME } from '@/lib/email/notify'
 import { ROUTES } from '@/lib/routes'
@@ -93,9 +99,10 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  if (typeof pay_amount !== 'number' || pay_amount <= 0) {
+  const amountError = validatePayAmount(pay_amount)
+  if (amountError) {
     return NextResponse.json(
-      { error: { code: 'INVALID_PAY_AMOUNT', message: 'pay_amount must be a positive number' } },
+      { error: { code: 'INVALID_PAY_AMOUNT', message: amountError } },
       { status: 400 }
     )
   }
@@ -103,6 +110,31 @@ export async function POST(request: NextRequest) {
   if (!VALID_PAY_TYPES.has(pay_type as PayType)) {
     return NextResponse.json(
       { error: { code: 'INVALID_PAY_TYPE', message: 'Invalid pay_type value' } },
+      { status: 400 }
+    )
+  }
+
+  // WS-DEAL-04: only GBP/USD/EUR are billable. An unvalidated code makes
+  // Intl.NumberFormat throw RangeError on the deals pages (500 for both
+  // parties) and Stripe reject the intent. Default to GBP when omitted.
+  let payCurrency = 'GBP'
+  if (body.pay_currency !== undefined) {
+    const normalised = normaliseCurrency(body.pay_currency)
+    if (!normalised) {
+      return NextResponse.json(
+        { error: { code: 'INVALID_CURRENCY', message: 'Currency must be one of GBP, USD, EUR' } },
+        { status: 400 }
+      )
+    }
+    payCurrency = normalised
+  }
+
+  // DP-10: reject end-before-start / malformed dates here rather than letting a
+  // Postgres 22007 surface as raw text in a 422.
+  const timelineError = validateTimeline(body.timeline_start, body.timeline_end)
+  if (timelineError) {
+    return NextResponse.json(
+      { error: { code: 'INVALID_TIMELINE', message: timelineError } },
       { status: 400 }
     )
   }
@@ -140,10 +172,10 @@ export async function POST(request: NextRequest) {
       title,
       pay_amount,
       pay_type: pay_type as PayType,
+      pay_currency: payCurrency,
+      timeline_start: normaliseTimeline(body.timeline_start),
+      timeline_end: normaliseTimeline(body.timeline_end),
       ...(body.deliverables !== undefined && { deliverables: body.deliverables }),
-      ...(body.pay_currency !== undefined && { pay_currency: body.pay_currency }),
-      ...(body.timeline_start !== undefined && { timeline_start: body.timeline_start }),
-      ...(body.timeline_end !== undefined && { timeline_end: body.timeline_end }),
       ...(body.usage_rights !== undefined && { usage_rights: body.usage_rights }),
       ...(body.additional_terms !== undefined && { additional_terms: body.additional_terms }),
     })

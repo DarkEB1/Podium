@@ -148,4 +148,22 @@ describe('POST /api/deals/proposals/[proposalId]/respond', () => {
     const json = await res.json()
     expect(json.error.code).toBe('CONTRACT_CREATE_FAILED')
   })
+
+  // DP-11: a third party accepting someone else's proposal must get a JSON 403,
+  // not the bare 500 the SECURITY DEFINER RPC error used to become.
+  it('returns 403 for a non-participant accepting (DP-11)', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(respondToProposal).mockRejectedValue(new DealsError('NOT_PARTICIPANT', 'Not a participant'))
+    const res = await POST(makePostRequest({ action: 'accepted' }), { params })
+    expect(res.status).toBe(403)
+    expect((await res.json()).error.code).toBe('NOT_PARTICIPANT')
+  })
+
+  it('returns 409 for the seat-resolution failures (DP-11)', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(respondToProposal).mockRejectedValue(new DealsError('NO_BRAND_PARTICIPANT', 'no brand'))
+    const res = await POST(makePostRequest({ action: 'accepted' }), { params })
+    expect(res.status).toBe(409)
+    expect((await res.json()).error.code).toBe('NO_BRAND_PARTICIPANT')
+  })
 })

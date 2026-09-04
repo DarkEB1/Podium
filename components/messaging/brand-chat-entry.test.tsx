@@ -15,6 +15,12 @@ vi.mock('@/lib/supabase/client', () => ({
   }),
 }))
 
+// ChatWindow (rendered once a proposal exists) now calls useRouter().refresh()
+// after a proposal response and to close the counter composer (WS-DEAL-01/DP-12).
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }),
+}))
+
 // jsdom does not implement scrollIntoView, which ChatWindow calls on mount.
 beforeAll(() => {
   Element.prototype.scrollIntoView = vi.fn()

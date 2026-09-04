@@ -6,6 +6,8 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { track } from '@/lib/analytics'
+import { formatMajorAmount } from '@/lib/money'
+import { formatDate } from '@/lib/dates'
 import type { Database } from '@/types/database'
 
 type ProposalRow = Database['public']['Tables']['proposals']['Row']
@@ -61,7 +63,7 @@ export default function ProposalCardMessage({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action }),
       })
-      const data = await res.json()
+      const data = await res.json().catch(() => ({}))
       if (!res.ok) {
         toast.error(data.error?.message ?? 'Failed')
         return
@@ -74,6 +76,10 @@ export default function ProposalCardMessage({
       }
       toast.success(action === 'accepted' ? 'Proposal accepted!' : 'Proposal declined')
       onResponded()
+    } catch {
+      // DP-12: a dropped connection mid-request was an unhandled rejection with
+      // no user feedback. Surface it and let them retry.
+      toast.error('Something went wrong. Please try again.')
     } finally {
       setLoading(null)
     }
@@ -92,7 +98,7 @@ export default function ProposalCardMessage({
           <p className="text-medium font-semibold text-foreground">Payment confirmed</p>
         </div>
         <p className="text-medium text-foreground">
-          {paymentConfirmation.currency} {paymentConfirmation.amount.toLocaleString()}
+          {formatMajorAmount(paymentConfirmation.amount, paymentConfirmation.currency)}
         </p>
         <p className="text-small text-muted-foreground">{proposal.title}</p>
       </div>
@@ -119,9 +125,7 @@ export default function ProposalCardMessage({
       <dl className="space-y-1 text-medium">
         <div className="flex gap-2">
           <dt className="w-20 text-muted-foreground">Amount</dt>
-          <dd>
-            {proposal.pay_currency} {proposal.pay_amount.toLocaleString()}
-          </dd>
+          <dd>{formatMajorAmount(proposal.pay_amount, proposal.pay_currency)}</dd>
         </div>
         <div className="flex gap-2">
           <dt className="w-20 text-muted-foreground">Type</dt>
@@ -130,7 +134,7 @@ export default function ProposalCardMessage({
         {proposal.timeline_start && (
           <div className="flex gap-2">
             <dt className="w-20 text-muted-foreground">Start</dt>
-            <dd>{new Date(proposal.timeline_start).toLocaleDateString()}</dd>
+            <dd>{formatDate(proposal.timeline_start)}</dd>
           </div>
         )}
       </dl>

@@ -8,6 +8,7 @@ import {
   getLivePaymentForContract,
   PaymentsError,
 } from '@/lib/supabase/payments'
+import { randomUUID } from 'node:crypto'
 import { createPaymentIntent, toMinorUnits } from '@/lib/stripe'
 
 export async function POST(request: NextRequest) {
@@ -106,6 +107,11 @@ export async function POST(request: NextRequest) {
     amountMinor,
     currency: contract.pay_currency.toLowerCase(),
     customerId: subscription.stripe_customer_id,
+    // DP-6: a per-attempt key. The live-payment guard above already blocked a
+    // second intent while one is pending/succeeded, so reaching here means the
+    // previous attempt is terminal (failed/refunded) and this is a fresh charge
+    // that must get its own PaymentIntent id rather than replaying the old one.
+    idempotencyKey: `pi_${contractId}_${randomUUID()}`,
   })
 
   const payment = await createPaymentRecord(adminSupabase, {
