@@ -84,7 +84,6 @@ export default function PanelWhat() {
       aria-labelledby="what-heading"
       className="relative h-screen w-screen shrink-0"
       data-panel="03"
-      id="what-we-do"
     >
       <p
         className="absolute flex items-center gap-3 font-mono text-[10.5px] uppercase tracking-[.15em] text-foreground"

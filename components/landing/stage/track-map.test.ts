@@ -7,6 +7,7 @@ import {
   assemblyU,
   candidateTheta,
   trackXVw,
+  panelRestFromDataPanel,
 } from './track-map'
 
 // 16:9-ish desktop, the shape the corridor is authored against.
@@ -106,6 +107,28 @@ describe('corridor map', () => {
     ASSEMBLY_WINDOWS.forEach((w, i) => {
       expect(w[1]).toBeLessThan(rest)
       expect(assemblyU(rest, i)).toBe(1)
+    })
+  })
+
+  // The focusin handler (WS-LANDING-02) reads a focused control's nearest
+  // [data-panel] and travels the corridor to that panel's rest point. The
+  // panels label themselves '01'..'04'; the header, which carries no
+  // data-panel, must map to null so focusing the nav never jumps the corridor.
+  describe('panelRestFromDataPanel', () => {
+    it('maps each panel label to its rest point', () => {
+      expect(panelRestFromDataPanel('01')).toBe(REST_POINTS[0])
+      expect(panelRestFromDataPanel('02')).toBe(REST_POINTS[1])
+      expect(panelRestFromDataPanel('03')).toBe(REST_POINTS[2])
+      expect(panelRestFromDataPanel('04')).toBe(REST_POINTS[3])
+    })
+
+    it('returns null for no panel, an empty string, or out-of-range labels', () => {
+      expect(panelRestFromDataPanel(null)).toBeNull()
+      expect(panelRestFromDataPanel(undefined)).toBeNull()
+      expect(panelRestFromDataPanel('')).toBeNull()
+      expect(panelRestFromDataPanel('00')).toBeNull()
+      expect(panelRestFromDataPanel('05')).toBeNull()
+      expect(panelRestFromDataPanel('abc')).toBeNull()
     })
   })
 })
