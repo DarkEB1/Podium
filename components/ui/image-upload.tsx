@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
 import {
   createUploadUrl,
+  deleteObject,
   type StorageBucket,
 } from "@/lib/storage"
 
@@ -40,7 +41,17 @@ const ACCEPT_ATTR = [
   ".heif",
 ].join(",")
 
-export type UploadFile = (file: Blob, ext: string) => Promise<string>
+/**
+ * Uploads the cropped bytes and returns the stored URL. `previousUrl` is the
+ * object currently shown (the `value` prop): the default implementation removes
+ * it AFTER the new upload succeeds, so replacing a photo no longer orphans the
+ * old, world-readable object (WS-PROFILE-01 / PM-10).
+ */
+export type UploadFile = (
+  file: Blob,
+  ext: string,
+  previousUrl?: string | null
+) => Promise<string>
 
 export interface ImageUploadProps {
   value: string | null
@@ -72,7 +83,7 @@ function bucketFor(aspect: number, shape?: "circle" | "square"): StorageBucket {
 function makeDefaultUpload(
   bucket: StorageBucket
 ): UploadFile {
-  return async (file, ext) => {
+  return async (file, ext, previousUrl) => {
     const supabase = createClient()
     // We need the signed-in user id to namespace the object under RLS.
     const {
@@ -100,6 +111,13 @@ function makeDefaultUpload(
       throw new Error(
         `The ${bucket} bucket is private; an image surface needs a public bucket or a signed download URL.`
       )
+    }
+
+    // WS-PROFILE-01 / PM-10: the new object is safely stored, so remove the old
+    // one it replaced. Best-effort and only when it actually changed — never
+    // block the successful replace on cleanup of the previous file.
+    if (previousUrl && previousUrl !== publicUrl) {
+      await deleteObject(supabase, bucket, previousUrl)
     }
     return publicUrl
   }
@@ -300,9 +318,11 @@ export function ImageUpload({
       // rasterise (no canvas 2d context, un-decodable format) the original
       // blob is the fallback so the contract (a public URL) always holds.
       const cropped = await rasteriseCrop(pending, zoom, offset, cropW, cropH)
+      // Pass the current value so the default upload can remove the object this
+      // one replaces (WS-PROFILE-01 / PM-10).
       const url = cropped
-        ? await doUpload(cropped.blob, cropped.ext)
-        : await doUpload(pending.file, pending.ext)
+        ? await doUpload(cropped.blob, cropped.ext, value)
+        : await doUpload(pending.file, pending.ext, value)
       onUploaded(url)
       closeCropper()
     } catch (e) {

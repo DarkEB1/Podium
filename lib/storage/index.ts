@@ -203,6 +203,36 @@ export async function createSignedDownloadUrl(
 }
 
 /**
+ * WS-PROFILE-01 / PM-10: delete a single object from a bucket.
+ *
+ * Storage objects were NEVER removed anywhere in the app: replacing a profile
+ * photo minted a fresh uuid key and orphaned the old one, so every previous
+ * photo of an athlete — possibly a minor — stayed at its world-readable URL
+ * forever. Callers pass the previously-stored value (a bare path or a legacy
+ * absolute public URL); it is normalised to a bucket-relative path and removed.
+ *
+ * Owner-scoped by RLS: the `<uid>/<uuid>` path convention plus the
+ * delete-own-folder policy means a user can only ever delete their own objects,
+ * so this is safe to call from the browser with the user's JWT.
+ *
+ * Best-effort by contract: returns `false` (never throws) when there is nothing
+ * to delete or the value cannot be resolved to a path, so a replace/clear flow
+ * is never blocked by cleanup of the OLD object — the new upload has already
+ * succeeded by the time this runs.
+ */
+export async function deleteObject(
+  supabase: SupabaseClient<Database>,
+  bucket: StorageBucket,
+  pathOrUrl: string | null | undefined
+): Promise<boolean> {
+  const path = pathOrUrl ? objectPathFrom(bucket, pathOrUrl) : null
+  if (!path) return false
+
+  const { error } = await supabase.storage.from(bucket).remove([path])
+  return !error
+}
+
+/**
  * Normalise a stored value to a bucket-relative object path. Handles both a
  * bare path and a legacy absolute `.../storage/v1/object/public/<bucket>/<path>`
  * URL. Returns null when nothing usable can be extracted.

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
+import { revalidatePath } from 'next/cache'
 
 import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
@@ -8,7 +9,10 @@ import { getSettings, updateSettings } from '@/lib/supabase/settings'
 import {
   listTeamAdmins,
   inviteTeamAdmin,
+  updateTeamAdmin,
+  resendTeamAdminInvite,
   removeTeamAdmin,
+  updateTeamProfile,
   TeamError,
 } from '@/lib/supabase/teams'
 import SettingsShell from '@/components/layout/settings-shell'
@@ -69,6 +73,7 @@ export default async function TeamSettingsPage() {
       email: invite.email,
       role: invite.role,
     })
+    revalidatePath('/team/settings')
   }
 
   async function onResendInvite(adminId: string) {
@@ -81,13 +86,15 @@ export default async function TeamSettingsPage() {
     if (!target) {
       throw new TeamError('TEAM_ADMIN_NOT_FOUND', 'Administrator not found')
     }
-    // Re-issue the invite using the existing invite primitive (B9). The DB
-    // upsert keeps a single pending row per email.
-    await inviteTeamAdmin(sb, teamId, me.id, {
+    // PM-14: re-issue via an UPSERT on (team_id, invited_email). The old path
+    // ran a plain insert that violated the unique index every time while the UI
+    // still toasted success. This surfaces a real error and keeps one row.
+    await resendTeamAdminInvite(sb, teamId, me.id, {
       email: target.invited_email,
       role: target.role,
       ...(target.full_name ? { fullName: target.full_name } : {}),
     })
+    revalidatePath('/team/settings')
   }
 
   async function onRemoveAdmin(adminId: string) {
@@ -96,6 +103,7 @@ export default async function TeamSettingsPage() {
     const me = await getUser(sb)
     if (!me) redirect('/auth')
     await removeTeamAdmin(sb, adminId)
+    revalidatePath('/team/settings')
   }
 
   async function onUpdateVisibility(visible: boolean) {
@@ -123,23 +131,25 @@ export default async function TeamSettingsPage() {
     })
   }
 
-  // role-change and fan-reach quick-edit require Track B helpers that do not
-  // exist yet (updateTeamAdmin / updateTeamProfile); see follow-ups. They are
-  // surfaced as actions so the UI is complete and ready to wire.
-  async function onChangeAdminRole(_adminId: string, _role: TeamAdminRole) {
+  // WS-PROFILE-02: previously these threw "helper (pending)". Now wired to the
+  // real teams helpers, so administrator roles and fan-base reach are editable
+  // after onboarding.
+  async function onChangeAdminRole(adminId: string, role: TeamAdminRole) {
     'use server'
-    throw new TeamError(
-      'TEAM_ADMIN_ROLE_UNSUPPORTED',
-      'Changing administrator roles requires the updateTeamAdmin helper (pending).',
-    )
+    const sb = await createClient()
+    const me = await getUser(sb)
+    if (!me) redirect('/auth')
+    await updateTeamAdmin(sb, adminId, { role })
+    revalidatePath('/team/settings')
   }
 
-  async function onUpdateFanReach(_reach: FanReach) {
+  async function onUpdateFanReach(reach: FanReach) {
     'use server'
-    throw new TeamError(
-      'TEAM_FAN_REACH_UNSUPPORTED',
-      'Editing fan-base reach requires the updateTeamProfile helper (pending).',
-    )
+    const sb = await createClient()
+    const me = await getUser(sb)
+    if (!me) redirect('/auth')
+    await updateTeamProfile(sb, me.id, { fan_reach: reach })
+    revalidatePath('/team/settings')
   }
 
   return (

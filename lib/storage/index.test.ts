@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { createUploadUrl, STORAGE_BUCKETS, StorageError } from './index'
+import { createUploadUrl, deleteObject, STORAGE_BUCKETS, StorageError } from './index'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database'
 
@@ -146,5 +146,48 @@ describe('createUploadUrl', () => {
     const p1 = mock.createSignedUploadUrl.mock.calls[0]![0] as string
     const p2 = mock.createSignedUploadUrl.mock.calls[1]![0] as string
     expect(p1).not.toBe(p2)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// deleteObject (WS-PROFILE-01 / PM-10)
+// ---------------------------------------------------------------------------
+
+function makeDeleteClient(removeResult: { error: unknown } = { error: null }) {
+  const remove = vi.fn().mockResolvedValue(removeResult)
+  const from = vi.fn().mockReturnValue({ remove })
+  const client = { storage: { from } } as unknown as SupabaseClient<Database>
+  return { client, from, remove }
+}
+
+describe('deleteObject', () => {
+  it('removes the object by its bucket-relative path', async () => {
+    const m = makeDeleteClient()
+    const ok = await deleteObject(m.client, 'avatars', 'user-1/abc.jpg')
+    expect(m.from).toHaveBeenCalledWith('avatars')
+    expect(m.remove).toHaveBeenCalledWith(['user-1/abc.jpg'])
+    expect(ok).toBe(true)
+  })
+
+  it('normalises a legacy absolute public URL to a path before removing', async () => {
+    const m = makeDeleteClient()
+    await deleteObject(
+      m.client,
+      'avatars',
+      'https://proj.supabase.co/storage/v1/object/public/avatars/user-1/abc.jpg'
+    )
+    expect(m.remove).toHaveBeenCalledWith(['user-1/abc.jpg'])
+  })
+
+  it('is a no-op (false, never throws) for an empty or unresolvable value', async () => {
+    const m = makeDeleteClient()
+    expect(await deleteObject(m.client, 'avatars', null)).toBe(false)
+    expect(await deleteObject(m.client, 'avatars', '')).toBe(false)
+    expect(m.remove).not.toHaveBeenCalled()
+  })
+
+  it('returns false rather than throwing when Supabase reports an error', async () => {
+    const m = makeDeleteClient({ error: { message: 'not found' } })
+    expect(await deleteObject(m.client, 'avatars', 'user-1/abc.jpg')).toBe(false)
   })
 })

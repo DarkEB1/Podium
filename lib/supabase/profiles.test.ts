@@ -451,6 +451,63 @@ describe('updateProfile — field sanitization', () => {
     expect(updateArg['status']).toBeUndefined()
     expect(updateArg['admin_approved_by']).toBeUndefined()
   })
+
+  // PM-15: an emptied optional field must actually clear, not silently keep the
+  // old value. On update, '' maps to null so the column is nulled.
+  it('maps an empty string to null so an optional field can be cleared', async () => {
+    const { client, chain, setSingle } = makeMockClient()
+    setSingle({ id: 'p1', user_id: 'u1' })
+
+    await updateProfile(client, 'u1', 'athlete', {
+      display_name: 'Kept',
+      secondary_sport: '',
+      home_city: '',
+    })
+
+    const updateArg = chain.update.mock.calls[0]![0] as Record<string, unknown>
+    expect(updateArg['display_name']).toBe('Kept')
+    // Present AND null — a real clear, not a dropped key.
+    expect('secondary_sport' in updateArg).toBe(true)
+    expect(updateArg['secondary_sport']).toBeNull()
+    expect(updateArg['home_city']).toBeNull()
+  })
+
+  // Denylist composition: clearing must never become a way to WRITE a protected
+  // field. An empty string for a protected field is dropped by the filter before
+  // the empty->null map runs — so it is neither written nor nulled. This must
+  // still hold after WS-SEC extends PROTECTED_FIELDS.
+  it('never lets an empty string reach a protected field', async () => {
+    const { client, chain, setSingle } = makeMockClient()
+    setSingle({ id: 'p1', user_id: 'u1' })
+
+    await updateProfile(client, 'u1', 'athlete', {
+      display_name: 'Kept',
+      status: '',
+      is_under_18: '',
+      admin_approved_by: '',
+    })
+
+    const updateArg = chain.update.mock.calls[0]![0] as Record<string, unknown>
+    expect('status' in updateArg).toBe(false)
+    expect('is_under_18' in updateArg).toBe(false)
+    expect('admin_approved_by' in updateArg).toBe(false)
+  })
+
+  // On CREATE there is nothing to clear, so an empty string is dropped and the
+  // column default applies — distinct from the update path above.
+  it('drops empty strings on create so column defaults apply', async () => {
+    const { client, chain, setSingle } = makeMockClient()
+    setSingle({ id: 'p1', user_id: 'u1' })
+
+    await createProfile(client, 'u1', 'athlete', {
+      display_name: 'Alice',
+      secondary_sport: '',
+    })
+
+    const insertArg = chain.insert.mock.calls[0]![0] as Record<string, unknown>
+    expect(insertArg['display_name']).toBe('Alice')
+    expect('secondary_sport' in insertArg).toBe(false)
+  })
 })
 
 // ---------------------------------------------------------------------------
