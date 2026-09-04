@@ -14,6 +14,8 @@ export const metadata: Metadata = {
   title: 'Cookie Policy · Podium',
   description:
     'What cookies Podium sets, why, and how to accept, reject or change your choice at any time.',
+  // WS-INFRA P2: one canonical URL, resolved against metadataBase in app/layout.tsx.
+  alternates: { canonical: '/cookies' },
 }
 
 export default function CookiesPage() {
