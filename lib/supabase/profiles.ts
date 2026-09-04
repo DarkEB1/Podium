@@ -61,13 +61,39 @@ const PROTECTED_FIELDS = new Set([
   'stripe_connect_onboarded_at',
 ])
 
-function sanitizeProfileData(data: Record<string, unknown>): Record<string, unknown> {
+/**
+ * Strip protected fields and normalise the payload.
+ *
+ * `clearEmpty` chooses what an empty string means:
+ *  - create (`false`, default): drop it, so the column falls back to its DB
+ *    default. There is nothing to clear on a brand-new row.
+ *  - update (`true`): map it to `null` so a user can genuinely CLEAR a set
+ *    optional field (phone, secondary sport, city, LinkedIn…). Dropping it, as
+ *    the old code did for every path, silently kept the old value while the form
+ *    toasted "saved" (PM-15).
+ *
+ * DENYLIST COMPOSITION (WS-SEC coordination): the PROTECTED_FIELDS filter runs
+ * FIRST, unconditionally, before any empty->null mapping. So clearing can only
+ * ever touch a NON-protected field, and empty-string clearing can never become
+ * a back door for writing a protected column. This holds no matter how
+ * PROTECTED_FIELDS grows: when the WS-SEC branch merges its additions
+ * (guardian_accepted_at, payout_*, stripe_connect_*, onboarding_completed_at,
+ * verification_status), a `{ payout_account_last4: '' }` body is dropped by the
+ * filter and never reaches the `null` map. Keep the filter ahead of the map.
+ */
+function sanitizeProfileData(
+  data: Record<string, unknown>,
+  { clearEmpty = false }: { clearEmpty?: boolean } = {}
+): Record<string, unknown> {
   return Object.fromEntries(
-    Object.entries(data).filter(([key, value]) => {
-      if (PROTECTED_FIELDS.has(key)) return false
-      if (value === '') return false
-      return true
-    })
+    Object.entries(data)
+      // Denylist first — a protected field is gone before the map below can see it.
+      .filter(([key, value]) => {
+        if (PROTECTED_FIELDS.has(key)) return false
+        if (value === '' && !clearEmpty) return false
+        return true
+      })
+      .map(([key, value]) => [key, value === '' ? null : value])
   )
 }
 
@@ -132,7 +158,7 @@ export async function updateProfile(
   data: Record<string, unknown>
 ): Promise<ProfileRow> {
   const table = TABLE_FOR_ROLE[role]
-  const safe = sanitizeProfileData(data)
+  const safe = sanitizeProfileData(data, { clearEmpty: true })
   const { data: profile, error } = await db(supabase)
     .from(table)
     .update(safe)

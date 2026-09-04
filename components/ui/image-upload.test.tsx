@@ -177,6 +177,36 @@ describe("ImageUpload", () => {
     })
   })
 
+  // WS-PROFILE-01 / PM-10: replacing a photo must hand the previous URL to the
+  // upload pipeline so the old object can be removed instead of orphaned.
+  it("passes the existing value to the upload pipeline when replacing", async () => {
+    const user = userEvent.setup()
+    const onUploaded = vi.fn()
+    const uploadFile = vi
+      .fn()
+      .mockResolvedValue("https://cdn.example/new.jpg")
+    render(
+      <ImageUpload
+        value="https://cdn.example/old.jpg"
+        onUploaded={onUploaded}
+        aspect={1}
+        uploadFile={uploadFile}
+      />
+    )
+    const file = makeFile("good.jpg", "image/jpeg", 1024)
+    await user.upload(screen.getByTestId("image-upload-input"), file)
+    await screen.findByRole("dialog")
+    await user.click(screen.getByRole("button", { name: /save|apply|confirm/i }))
+    await waitFor(() => {
+      // third argument is the previous URL to clean up
+      expect(uploadFile).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.any(String),
+        "https://cdn.example/old.jpg"
+      )
+    })
+  })
+
   it("supports mandatory validation: marks the control invalid when required and empty", () => {
     render(
       <ImageUpload

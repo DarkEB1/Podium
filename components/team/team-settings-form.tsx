@@ -120,8 +120,15 @@ export default function TeamSettingsForm({
   }
 
   async function handleResend(adminId: string) {
-    await run(() => onResendInvite(adminId), 'Failed to resend invite')
-    toast.success('Invite resent.')
+    // PM-14: only report success when the action actually succeeded. The old
+    // code toasted "Invite resent." unconditionally, even though the underlying
+    // insert failed the unique index every time.
+    try {
+      await onResendInvite(adminId)
+      toast.success('Invite resent.')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to resend invite')
+    }
   }
 
   async function handleInvite(e: React.FormEvent) {
