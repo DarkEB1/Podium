@@ -499,86 +499,115 @@ export type Database = {
           },
         ]
       }
-      guardian_consent_tokens: {
+      brand_profiles: {
         Row: {
-          athlete_user_id: string
-          consumed_at: string | null
+          admin_approved_at: string | null
+          admin_approved_by: string | null
+          company_name: string
+          company_registration_number: string | null
+          cover_image_url: string | null
           created_at: string
-          expires_at: string
+          description: string | null
+          discovery_ui_mode: Database["public"]["Enums"]["ui_mode"]
+          display_theme: Database["public"]["Enums"]["display_theme"]
+          geographic_preference: string | null
+          headquarters_city: string | null
+          headquarters_country: string | null
           id: string
-          token_hash: string
-        }
-        Insert: {
-          athlete_user_id: string
-          consumed_at?: string | null
-          created_at?: string
-          expires_at: string
-          id?: string
-          token_hash: string
-        }
-        Update: {
-          athlete_user_id?: string
-          consumed_at?: string | null
-          created_at?: string
-          expires_at?: string
-          id?: string
-          token_hash?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "guardian_consent_tokens_athlete_user_id_fkey"
-            columns: ["athlete_user_id"]
-            isOneToOne: false
-            referencedRelation: "athlete_profiles"
-            referencedColumns: ["user_id"]
-          },
-        ]
-      }
-      verification_requests: {
-        Row: {
-          created_at: string
-          evidence_url: string | null
-          id: string
-          note: string | null
-          review_note: string | null
-          reviewed_at: string | null
-          reviewed_by: string | null
-          role: string
-          status: string
+          industry: Database["public"]["Enums"]["brand_industry"] | null
+          industry_other: string | null
+          linkedin_url: string | null
+          logo_url: string | null
+          notification_prefs: Json
+          onboarding_completed_at: string | null
+          rejection_reason: string | null
+          seeking: string[]
+          social_accounts: Json
+          status: Database["public"]["Enums"]["brand_status"]
+          target_level: string | null
+          target_sports: string[]
+          trading_name: string | null
           updated_at: string
           user_id: string
+          vat_number: string | null
+          website_url: string | null
         }
         Insert: {
+          admin_approved_at?: string | null
+          admin_approved_by?: string | null
+          company_name: string
+          company_registration_number?: string | null
+          cover_image_url?: string | null
           created_at?: string
-          evidence_url?: string | null
+          description?: string | null
+          discovery_ui_mode?: Database["public"]["Enums"]["ui_mode"]
+          display_theme?: Database["public"]["Enums"]["display_theme"]
+          geographic_preference?: string | null
+          headquarters_city?: string | null
+          headquarters_country?: string | null
           id?: string
-          note?: string | null
-          review_note?: string | null
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          role: string
-          status?: string
+          industry?: Database["public"]["Enums"]["brand_industry"] | null
+          industry_other?: string | null
+          linkedin_url?: string | null
+          logo_url?: string | null
+          notification_prefs?: Json
+          onboarding_completed_at?: string | null
+          rejection_reason?: string | null
+          seeking?: string[]
+          social_accounts?: Json
+          status?: Database["public"]["Enums"]["brand_status"]
+          target_level?: string | null
+          target_sports?: string[]
+          trading_name?: string | null
           updated_at?: string
           user_id: string
+          vat_number?: string | null
+          website_url?: string | null
         }
         Update: {
+          admin_approved_at?: string | null
+          admin_approved_by?: string | null
+          company_name?: string
+          company_registration_number?: string | null
+          cover_image_url?: string | null
           created_at?: string
-          evidence_url?: string | null
+          description?: string | null
+          discovery_ui_mode?: Database["public"]["Enums"]["ui_mode"]
+          display_theme?: Database["public"]["Enums"]["display_theme"]
+          geographic_preference?: string | null
+          headquarters_city?: string | null
+          headquarters_country?: string | null
           id?: string
-          note?: string | null
-          review_note?: string | null
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          role?: string
-          status?: string
+          industry?: Database["public"]["Enums"]["brand_industry"] | null
+          industry_other?: string | null
+          linkedin_url?: string | null
+          logo_url?: string | null
+          notification_prefs?: Json
+          onboarding_completed_at?: string | null
+          rejection_reason?: string | null
+          seeking?: string[]
+          social_accounts?: Json
+          status?: Database["public"]["Enums"]["brand_status"]
+          target_level?: string | null
+          target_sports?: string[]
+          trading_name?: string | null
           updated_at?: string
           user_id?: string
+          vat_number?: string | null
+          website_url?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "verification_requests_user_id_fkey"
-            columns: ["user_id"]
+            foreignKeyName: "brand_profiles_admin_approved_by_fkey"
+            columns: ["admin_approved_by"]
             isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brand_profiles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -615,205 +644,6 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "connect_accounts_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      social_connections: {
-        Row: {
-          access_token: string | null
-          connected_at: string
-          follower_count: number | null
-          handle: string | null
-          id: string
-          provider: string
-          provider_account_id: string | null
-          refresh_token: string | null
-          scope: string | null
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          access_token?: string | null
-          connected_at?: string
-          follower_count?: number | null
-          handle?: string | null
-          id?: string
-          provider: string
-          provider_account_id?: string | null
-          refresh_token?: string | null
-          scope?: string | null
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          access_token?: string | null
-          connected_at?: string
-          follower_count?: number | null
-          handle?: string | null
-          id?: string
-          provider?: string
-          provider_account_id?: string | null
-          refresh_token?: string | null
-          scope?: string | null
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "social_connections_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      push_subscriptions: {
-        Row: {
-          auth: string
-          created_at: string
-          endpoint: string
-          id: string
-          p256dh: string
-          user_agent: string | null
-          user_id: string
-        }
-        Insert: {
-          auth: string
-          created_at?: string
-          endpoint: string
-          id?: string
-          p256dh: string
-          user_agent?: string | null
-          user_id: string
-        }
-        Update: {
-          auth?: string
-          created_at?: string
-          endpoint?: string
-          id?: string
-          p256dh?: string
-          user_agent?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "push_subscriptions_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      brand_profiles: {
-        Row: {
-          admin_approved_at: string | null
-          admin_approved_by: string | null
-          company_name: string
-          company_registration_number: string | null
-          cover_image_url: string | null
-          created_at: string
-          description: string | null
-          discovery_ui_mode: Database["public"]["Enums"]["ui_mode"]
-          display_theme: Database["public"]["Enums"]["display_theme"]
-          geographic_preference: string | null
-          headquarters_city: string | null
-          headquarters_country: string | null
-          id: string
-          industry: Database["public"]["Enums"]["brand_industry"] | null
-          linkedin_url: string | null
-          logo_url: string | null
-          notification_prefs: Json
-          onboarding_completed_at: string | null
-          rejection_reason: string | null
-          seeking: string[]
-          social_accounts: Json
-          status: Database["public"]["Enums"]["brand_status"]
-          target_level: string | null
-          target_sports: string[]
-          trading_name: string | null
-          updated_at: string
-          user_id: string
-          vat_number: string | null
-          website_url: string | null
-        }
-        Insert: {
-          admin_approved_at?: string | null
-          admin_approved_by?: string | null
-          company_name: string
-          company_registration_number?: string | null
-          cover_image_url?: string | null
-          created_at?: string
-          description?: string | null
-          discovery_ui_mode?: Database["public"]["Enums"]["ui_mode"]
-          display_theme?: Database["public"]["Enums"]["display_theme"]
-          geographic_preference?: string | null
-          headquarters_city?: string | null
-          headquarters_country?: string | null
-          id?: string
-          industry?: Database["public"]["Enums"]["brand_industry"] | null
-          linkedin_url?: string | null
-          logo_url?: string | null
-          notification_prefs?: Json
-          onboarding_completed_at?: string | null
-          rejection_reason?: string | null
-          seeking?: string[]
-          social_accounts?: Json
-          status?: Database["public"]["Enums"]["brand_status"]
-          target_level?: string | null
-          target_sports?: string[]
-          trading_name?: string | null
-          updated_at?: string
-          user_id: string
-          vat_number?: string | null
-          website_url?: string | null
-        }
-        Update: {
-          admin_approved_at?: string | null
-          admin_approved_by?: string | null
-          company_name?: string
-          company_registration_number?: string | null
-          cover_image_url?: string | null
-          created_at?: string
-          description?: string | null
-          discovery_ui_mode?: Database["public"]["Enums"]["ui_mode"]
-          display_theme?: Database["public"]["Enums"]["display_theme"]
-          geographic_preference?: string | null
-          headquarters_city?: string | null
-          headquarters_country?: string | null
-          id?: string
-          industry?: Database["public"]["Enums"]["brand_industry"] | null
-          linkedin_url?: string | null
-          logo_url?: string | null
-          notification_prefs?: Json
-          onboarding_completed_at?: string | null
-          rejection_reason?: string | null
-          seeking?: string[]
-          social_accounts?: Json
-          status?: Database["public"]["Enums"]["brand_status"]
-          target_level?: string | null
-          target_sports?: string[]
-          trading_name?: string | null
-          updated_at?: string
-          user_id?: string
-          vat_number?: string | null
-          website_url?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "brand_profiles_admin_approved_by_fkey"
-            columns: ["admin_approved_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "brand_profiles_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: true
             referencedRelation: "users"
@@ -1118,6 +948,41 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      guardian_consent_tokens: {
+        Row: {
+          athlete_user_id: string
+          consumed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          token_hash: string
+        }
+        Insert: {
+          athlete_user_id: string
+          consumed_at?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          token_hash: string
+        }
+        Update: {
+          athlete_user_id?: string
+          consumed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guardian_consent_tokens_athlete_user_id_fkey"
+            columns: ["athlete_user_id"]
+            isOneToOne: false
+            referencedRelation: "athlete_profiles"
+            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -1737,6 +1602,44 @@ export type Database = {
           },
         ]
       }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          p256dh: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reports: {
         Row: {
           admin_notes: string | null
@@ -1912,6 +1815,56 @@ export type Database = {
           },
           {
             foreignKeyName: "shortlists_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      social_connections: {
+        Row: {
+          access_token: string | null
+          connected_at: string
+          follower_count: number | null
+          handle: string | null
+          id: string
+          provider: string
+          provider_account_id: string | null
+          refresh_token: string | null
+          scope: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token?: string | null
+          connected_at?: string
+          follower_count?: number | null
+          handle?: string | null
+          id?: string
+          provider: string
+          provider_account_id?: string | null
+          refresh_token?: string | null
+          scope?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string | null
+          connected_at?: string
+          follower_count?: number | null
+          handle?: string | null
+          id?: string
+          provider?: string
+          provider_account_id?: string | null
+          refresh_token?: string | null
+          scope?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_connections_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
@@ -2269,6 +2222,63 @@ export type Database = {
         }
         Relationships: []
       }
+      verification_requests: {
+        Row: {
+          created_at: string
+          evidence_url: string | null
+          id: string
+          note: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          role: string
+          status: Database["public"]["Enums"]["verification_request_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          evidence_url?: string | null
+          id?: string
+          note?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          role: string
+          status?: Database["public"]["Enums"]["verification_request_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          evidence_url?: string | null
+          id?: string
+          note?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          role?: string
+          status?: Database["public"]["Enums"]["verification_request_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "verification_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "verification_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       participant_display: {
@@ -2310,6 +2320,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      can_access_match_channel: { Args: { p_topic: string }; Returns: boolean }
       can_read_user_folder: { Args: { p_folder: string }; Returns: boolean }
       check_rate_limit: {
         Args: { p_key: string; p_limit: number; p_window_seconds: number }
@@ -2332,6 +2343,7 @@ export type Database = {
           event_status: Database["public"]["Enums"]["stripe_webhook_event_status"]
         }[]
       }
+      clear_expired_chat_messages: { Args: never; Returns: number }
       counter_proposal: {
         Args: {
           p_additional_terms?: string
@@ -2392,15 +2404,61 @@ export type Database = {
         }[]
       }
       is_admin: { Args: never; Returns: boolean }
+      is_blocked_between: {
+        Args: { p_user_a: string; p_user_b: string }
+        Returns: boolean
+      }
       is_match_participant: { Args: { p_match_id: string }; Returns: boolean }
       is_team_owner: { Args: { p_team_id: string }; Returns: boolean }
       mark_match_read: { Args: { p_match_id: string }; Returns: string }
+      match_has_block: { Args: { p_match_id: string }; Returns: boolean }
       process_scheduled_deletions: { Args: { p_limit?: number }; Returns: Json }
+      purge_expired_guardian_consent_tokens: { Args: never; Returns: number }
       purge_expired_rate_limits: {
         Args: { p_older_than_seconds?: number }
         Returns: number
       }
       reset_rate_limit: { Args: { p_key: string }; Returns: undefined }
+      send_proposal: {
+        Args: {
+          p_additional_terms?: string
+          p_deliverables?: Json
+          p_match_id: string
+          p_pay_amount: number
+          p_pay_currency?: string
+          p_pay_type: Database["public"]["Enums"]["pay_type"]
+          p_timeline_end?: string
+          p_timeline_start?: string
+          p_title: string
+          p_usage_rights?: Json
+        }
+        Returns: {
+          additional_terms: string | null
+          created_at: string
+          deliverables: Json
+          id: string
+          match_id: string
+          parent_proposal_id: string | null
+          pay_amount: number
+          pay_currency: string
+          pay_type: Database["public"]["Enums"]["pay_type"]
+          responded_at: string | null
+          sender_id: string
+          status: Database["public"]["Enums"]["proposal_status"]
+          timeline_end: string | null
+          timeline_start: string | null
+          title: string
+          updated_at: string
+          usage_rights: Json | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "proposals"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      transfer_control_for_new_adults: { Args: never; Returns: number }
     }
     Enums: {
       agent_verification_status: "unverified" | "pending" | "verified"
@@ -2478,7 +2536,12 @@ export type Database = {
         | "failed"
         | "refunded"
       payout_method: "bank_transfer" | "stripe_connect"
-      profile_status: "draft" | "pending_review" | "active" | "deactivated"
+      profile_status:
+        | "draft"
+        | "pending_review"
+        | "active"
+        | "deactivated"
+        | "suspended"
       proposal_status:
         | "pending"
         | "accepted"
@@ -2526,6 +2589,7 @@ export type Database = {
         | "international"
       ui_mode: "marketplace" | "swipe"
       user_role: "athlete" | "team" | "brand" | "agent" | "admin"
+      verification_request_status: "pending" | "approved" | "rejected"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2541,12 +2605,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2570,11 +2634,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2595,11 +2659,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2620,11 +2684,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2637,11 +2701,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2739,7 +2803,13 @@ export const Constants = {
         "refunded",
       ],
       payout_method: ["bank_transfer", "stripe_connect"],
-      profile_status: ["draft", "pending_review", "active", "deactivated"],
+      profile_status: [
+        "draft",
+        "pending_review",
+        "active",
+        "deactivated",
+        "suspended",
+      ],
       proposal_status: [
         "pending",
         "accepted",
@@ -2793,6 +2863,7 @@ export const Constants = {
       ],
       ui_mode: ["marketplace", "swipe"],
       user_role: ["athlete", "team", "brand", "agent", "admin"],
+      verification_request_status: ["pending", "approved", "rejected"],
     },
   },
 } as const
