@@ -107,6 +107,35 @@ describe('middleware', () => {
       const res = await middleware(request('/athlete/discover'))
       expect(redirectedTo(res)).toBe('/auth')
     })
+
+    // ── WS-SEC-05: an expired session must not turn API calls into false wins ──
+    // `fetch` follows the 307 to the sign-in HTML and reports it as a 200, so a
+    // client whose session expired saw "Contract signed" / "Saved to shortlist"
+    // with nothing written. A non-public /api/* request from a signed-out caller
+    // must come back as a readable JSON 401, never a redirect.
+    it('answers a signed-out /api/* request with JSON 401, not a redirect', async () => {
+      stubSupabase(null, {})
+      const res = await middleware(request('/api/deals/contracts/c1/sign'))
+      expect(redirectedTo(res)).toBeNull()
+      expect(res.status).toBe(401)
+      expect(res.headers.get('content-type')).toContain('application/json')
+      expect((await res.json()).error.code).toBe('UNAUTHENTICATED')
+    })
+
+    // A signed-out browser page still gets the redirect (that branch is untouched).
+    it('still redirects a signed-out browser page to sign-in', async () => {
+      stubSupabase(null, {})
+      const res = await middleware(request('/athlete/saved'))
+      expect(redirectedTo(res)).toBe('/auth')
+    })
+
+    // Public/self-authenticating API routes are unaffected.
+    it('still lets a signed-out caller reach a public /api route', async () => {
+      stubSupabase(null, {})
+      const res = await middleware(request('/api/webhooks/stripe'))
+      expect(res.status).not.toBe(401)
+      expect(redirectedTo(res)).toBeNull()
+    })
   })
 
   describe('mandatory, resumable onboarding (PR-9)', () => {

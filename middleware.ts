@@ -223,6 +223,16 @@ export async function middleware(request: NextRequest) {
   const isAdmin = ADMIN_PATHS.some((p) => pathname.startsWith(p))
 
   if (!user && !isPublic) {
+    // WS-SEC-05: `fetch` transparently follows a 307, so redirecting a
+    // non-public /api/* request to the sign-in HTML returns that page with a
+    // 200 — an expired session then reads as success ("Contract signed",
+    // "Saved to shortlist", profile saves) with nothing actually written. Give
+    // API callers a readable JSON 401 instead; browser navigations keep the
+    // redirect. (Only this unauthenticated branch changes — the matcher,
+    // PUBLIC_PATHS and everything below are untouched.)
+    if (pathname.startsWith('/api/')) {
+      return apiError(401, 'UNAUTHENTICATED', 'Authentication required')
+    }
     return redirectTo(ROUTES.auth.signIn)
   }
 
