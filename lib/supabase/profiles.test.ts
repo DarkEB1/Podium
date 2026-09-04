@@ -283,6 +283,59 @@ describe('getPublicProfile', () => {
 
     expect(mockFrom).toHaveBeenCalledWith('brand_profiles')
   })
+
+  // ── WS-SEC-01: getPublicProfile must never emit sensitive columns ──────────
+  // `select('*')` returned full_legal_name, date_of_birth, phone, guardian_*,
+  // payout_*, stripe_connect_*, commercial-manager/controller contacts, and the
+  // brand registration/VAT numbers into a public read. The projection is the
+  // in-app half of the fix (the migration is the PostgREST half).
+  const SENSITIVE = /guardian_|payout_|stripe_connect|full_legal_name|date_of_birth|\bphone\b|company_registration_number|vat_number|commercial_manager_|primary_controller_|admin_approved_|notification_prefs|is_under_18/
+
+  function selectArg(chain: { select: ReturnType<typeof vi.fn> }): string {
+    const calls = chain.select.mock.calls
+    return String(calls[calls.length - 1]?.[0] ?? '')
+  }
+
+  it('projects a public column list for athletes, not the whole row', async () => {
+    const { client, chain, setSingle } = makeMockClient()
+    setSingle({ id: 'p1', user_id: 'u1', status: 'active' })
+    await getPublicProfile(client, 'u1', 'athlete')
+    const cols = selectArg(chain)
+    expect(cols).not.toBe('*')
+    expect(cols).toMatch(/display_name/)
+    expect(cols).toMatch(/primary_sport/)
+    expect(cols).not.toMatch(SENSITIVE)
+  })
+
+  it('projects a public column list for teams, hiding manager/controller PII', async () => {
+    const { client, chain, setSingle } = makeMockClient()
+    setSingle({ id: 'p1', user_id: 'u1', status: 'active' })
+    await getPublicProfile(client, 'u1', 'team')
+    const cols = selectArg(chain)
+    expect(cols).not.toBe('*')
+    expect(cols).toMatch(/team_name/)
+    expect(cols).not.toMatch(SENSITIVE)
+  })
+
+  it('projects a public column list for brands, hiding registration/VAT numbers', async () => {
+    const { client, chain, setSingle } = makeMockClient()
+    setSingle({ id: 'p1', user_id: 'u1', status: 'active' })
+    await getPublicProfile(client, 'u1', 'brand')
+    const cols = selectArg(chain)
+    expect(cols).not.toBe('*')
+    expect(cols).toMatch(/company_name/)
+    expect(cols).not.toMatch(SENSITIVE)
+  })
+
+  it('projects a public column list for agents', async () => {
+    const { client, chain, setSingle } = makeMockClient()
+    setSingle({ id: 'p1', user_id: 'u1', status: 'active' })
+    await getPublicProfile(client, 'u1', 'agent')
+    const cols = selectArg(chain)
+    expect(cols).not.toBe('*')
+    expect(cols).toMatch(/agency_name/)
+    expect(cols).not.toMatch(SENSITIVE)
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -450,6 +503,44 @@ describe('updateProfile — field sanitization', () => {
     expect(updateArg['display_name']).toBe('Updated')
     expect(updateArg['status']).toBeUndefined()
     expect(updateArg['admin_approved_by']).toBeUndefined()
+  })
+
+  // WS-SEC-04 — the client zod schema is bypassable (a raw PATCH /api/profiles/me
+  // never runs it), so the server sanitizer is the real guard. It must also drop
+  // guardian consent, payout/Stripe-Connect financials, verification state and
+  // the onboarding stamp — fields no profile form legitimately writes.
+  it('strips consent, financial, verification and onboarding fields', async () => {
+    const { client, chain, setSingle } = makeMockClient()
+    setSingle({ id: 'p1', user_id: 'u1', display_name: 'Updated' })
+
+    await updateProfile(client, 'u1', 'athlete', {
+      display_name: 'Updated',
+      guardian_accepted_at: '2026-01-01T00:00:00Z',
+      payout_bank_name: 'Attacker Bank',
+      payout_account_last4: '9999',
+      payout_sort_code_last4: '00',
+      payout_account_holder: 'Mallory',
+      stripe_connect_account_id: 'acct_hack',
+      stripe_connect_status: 'active',
+      onboarding_completed_at: '2026-01-01T00:00:00Z',
+      verification_status: 'verified',
+    })
+
+    const updateArg = chain.update.mock.calls[0]![0] as Record<string, unknown>
+    expect(updateArg['display_name']).toBe('Updated')
+    for (const key of [
+      'guardian_accepted_at',
+      'payout_bank_name',
+      'payout_account_last4',
+      'payout_sort_code_last4',
+      'payout_account_holder',
+      'stripe_connect_account_id',
+      'stripe_connect_status',
+      'onboarding_completed_at',
+      'verification_status',
+    ]) {
+      expect(updateArg[key], key).toBeUndefined()
+    }
   })
 })
 
