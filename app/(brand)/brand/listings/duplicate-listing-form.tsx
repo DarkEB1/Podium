@@ -98,7 +98,10 @@ export default function DuplicateListingForm({ source }: Props) {
         <FormField control={form.control} name="type" render={({ field }) => (
           <FormItem>
             <FormLabel>Listing type</FormLabel>
-            <Select onValueChange={field.onChange} defaultValue={field.value}>
+            {/* PM-33: base-ui renders the raw enum value ("athlete_endorsement")
+                in the collapsed trigger unless the root is given the value→label
+                map, exactly as the main listing form does. */}
+            <Select items={LISTING_TYPE_LABEL} onValueChange={field.onChange} defaultValue={field.value}>
               <FormControl>
                 <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
               </FormControl>

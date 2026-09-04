@@ -3,6 +3,8 @@ import type { Database } from '@/types/database'
 import { CONNECTION_MESSAGE_BOUNDS, checkLength } from '@/lib/limits'
 
 type JobListingRow = Database['public']['Tables']['job_listings']['Row']
+type ListingStatus = Database['public']['Enums']['listing_status']
+type ListingType = Database['public']['Enums']['listing_type']
 
 /**
  * A listing plus the owning brand's **auth user id** (PR-19).
@@ -193,6 +195,99 @@ export async function publishListing(
   }
 }
 
+/**
+ * Allowed listing status transitions, keyed by the current status (WS-LISTING-02).
+ *
+ * Pause / Resume / Close in the brand listings manager PATCHed `{ status }` to
+ * the generic listing update, where `status` is a protected field that is
+ * stripped — so `updateListing` ran `.update({})` and the toast lied. This
+ * table is the explicit contract for `updateListingStatus`.
+ *
+ * Publishing (`draft -> active`) is deliberately absent: it goes through
+ * `publishListing` so the create-time entitlement gate is reused (WS-LISTING-04).
+ * `expired` is reversible per migration 20260720008000, so it can be sent back
+ * to `active` or closed. `filled` is terminal.
+ */
+const LISTING_STATUS_TRANSITIONS: Record<ListingStatus, ReadonlyArray<ListingStatus>> = {
+  draft: ['filled'],
+  active: ['paused', 'filled'],
+  paused: ['active', 'filled'],
+  expired: ['active', 'filled'],
+  filled: [],
+}
+
+/** True when a listing status change is a re-activation, which re-consumes a tier slot. */
+export function isListingActivation(from: ListingStatus, to: ListingStatus): boolean {
+  return to === 'active' && from !== 'active'
+}
+
+/**
+ * Moves a listing between statuses through the explicit transition table above
+ * (WS-LISTING-02). The current status is read from the owned row first, so the
+ * transition is validated against the real value rather than the client's
+ * claim, and the write is scoped to `brand_id` so a brand can only move its own
+ * listings.
+ *
+ * Callers that transition **to** `active` (Resume) must run the entitlement gate
+ * first — see isListingActivation and the status route — so pausing to free a
+ * slot then resuming cannot exceed the tier's active-listing cap.
+ */
+export async function updateListingStatus(
+  supabase: SupabaseClient<Database>,
+  listingId: string,
+  brandProfileId: string,
+  nextStatus: ListingStatus
+): Promise<JobListingRow> {
+  // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
+  const { data: current, error: readError } = await (supabase as SupabaseClient)
+    .from('job_listings')
+    .select('status')
+    .eq('id', listingId)
+    .eq('brand_id', brandProfileId)
+    .single()
+
+  if (readError) {
+    if ((readError as { code?: string }).code === 'PGRST116') {
+      throw new DiscoveryError('LISTING_NOT_FOUND', 'Listing not found or not owned by this brand')
+    }
+    throw new DiscoveryError('LISTING_STATUS_UPDATE_FAILED', (readError as { message: string }).message)
+  }
+
+  const from = (current as { status: ListingStatus }).status
+  if (from !== nextStatus && !LISTING_STATUS_TRANSITIONS[from].includes(nextStatus)) {
+    throw new DiscoveryError(
+      'INVALID_STATUS_TRANSITION',
+      `A ${STATUS_HUMAN[from]} listing cannot be changed to ${STATUS_HUMAN[nextStatus]}.`
+    )
+  }
+
+  const { data: listing, error } = await (supabase as SupabaseClient)
+    .from('job_listings')
+    .update({ status: nextStatus })
+    .eq('id', listingId)
+    .eq('brand_id', brandProfileId)
+    .select()
+    .single()
+
+  if (error) {
+    if ((error as { code?: string }).code === 'PGRST116') {
+      throw new DiscoveryError('LISTING_NOT_FOUND', 'Listing not found or not owned by this brand')
+    }
+    throw new DiscoveryError('LISTING_STATUS_UPDATE_FAILED', (error as { message: string }).message)
+  }
+
+  return listing as JobListingRow
+}
+
+/** User-facing status words for transition error copy. */
+const STATUS_HUMAN: Record<ListingStatus, string> = {
+  draft: 'draft',
+  active: 'active',
+  paused: 'paused',
+  expired: 'expired',
+  filled: 'closed',
+}
+
 export async function getListings(
   supabase: SupabaseClient<Database>
 ): Promise<JobListingWithBrand[]> {
@@ -319,18 +414,29 @@ export interface ListingPage {
  */
 export async function getActiveListingsPage(
   supabase: SupabaseClient<Database>,
-  options: { limit?: number; offset?: number; now?: Date } = {}
+  options: { limit?: number; offset?: number; now?: Date; type?: ListingType } = {}
 ): Promise<ListingPage> {
   const limit = Math.max(1, options.limit ?? LISTING_PAGE_SIZE)
   const offset = Math.max(0, options.offset ?? 0)
   const cutoff = listingDeadlineCutoff(options.now ?? new Date())
 
+  // WS-LISTING-03: the feed never filtered `type`, so the athlete surface showed
+  // team_sponsorship campaigns and the team surface showed athlete_endorsement
+  // ones. Each caller now passes the type its audience can actually act on.
+  // Applied BEFORE `.eq('status', ...)` so the status equality stays the last
+  // `.eq` in the chain for the existing paging tests.
   // as SupabaseClient: strips the Database generic to avoid deep PostgREST chain type inference
-  const { data, error } = await (supabase as SupabaseClient)
+  let query = (supabase as SupabaseClient)
     .from('job_listings')
     .select(
       `${LISTING_SUMMARY_COLUMNS}, brand_profiles!inner(user_id, company_name, trading_name, logo_url, cover_image_url, description)`,
     )
+
+  if (options.type) {
+    query = query.eq('type', options.type)
+  }
+
+  const { data, error } = await query
     .eq('status', 'active')
     .or(listingDeadlinePredicate(cutoff))
     .order('created_at', { ascending: false })

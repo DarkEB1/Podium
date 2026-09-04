@@ -123,4 +123,33 @@ describe('DiscoverFeed', () => {
     expect(screen.getByTestId('swipe-deck')).toBeInTheDocument()
     expect(screen.queryByTestId('discover-rails')).toBeNull()
   })
+
+  // -- WS-LISTING-06: empty states --------------------------------------
+
+  it('shows an empty state instead of a blank board when there are no listings', () => {
+    renderFeed({ listings: [], rails: [] })
+    expect(screen.getByTestId('discover-empty')).toBeInTheDocument()
+    expect(screen.getByText(/no opportunities yet/i)).toBeInTheDocument()
+    expect(screen.queryByTestId('discover-rails')).toBeNull()
+  })
+
+  it('shows a "no campaigns found" empty state with Clear all when a search matches nothing', async () => {
+    renderFeed()
+    await userEvent.type(
+      screen.getByRole('searchbox', { name: /search campaigns/i }),
+      'zzzzzznomatch'
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText(/no campaigns found/i)).toBeInTheDocument()
+    })
+    const clear = screen.getByRole('button', { name: /clear all filters/i })
+    expect(clear).toBeInTheDocument()
+
+    await userEvent.click(clear)
+    // clearing filters drops back to the rails surface
+    await waitFor(() => {
+      expect(screen.getByTestId('discover-rails')).toBeInTheDocument()
+    })
+  })
 })

@@ -5,6 +5,7 @@ import { GET as reconcileSubscriptions } from '@/app/api/cron/reconcile-subscrip
 import { GET as chatCleanup } from '@/app/api/cron/chat-cleanup/route'
 import { GET as guardianConsentExpiry } from '@/app/api/cron/guardian-consent-expiry/route'
 import { GET as adultTransfer } from '@/app/api/cron/adult-transfer/route'
+import { GET as listingExpiry } from '@/app/api/cron/listing-expiry/route'
 import { GET as dataExport } from '@/app/api/cron/data-export/route'
 
 /**
@@ -30,5 +31,6 @@ export const DAILY_CRON_JOBS: ReadonlyArray<{
   { path: '/api/cron/chat-cleanup', run: chatCleanup },
   { path: '/api/cron/guardian-consent-expiry', run: guardianConsentExpiry },
   { path: '/api/cron/adult-transfer', run: adultTransfer },
+  { path: '/api/cron/listing-expiry', run: listingExpiry },
   { path: '/api/cron/data-export', run: dataExport },
 ]

@@ -1,5 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { DiscoveryError } from '@/lib/supabase/discovery'
+import type { EntitlementCheck } from '@/lib/supabase/entitlements'
+
+/**
+ * The 402 envelope for a blocked listing activation (WS-LISTING-04), shared by
+ * the create, publish and resume paths so their shape and copy cannot drift.
+ * Publishing and resuming both bring a listing to `active`, which is the state
+ * the tier's active-listing cap counts, so both must be gated exactly like
+ * create.
+ */
+export function listingEntitlementResponse(gate: EntitlementCheck): NextResponse {
+  return NextResponse.json(
+    {
+      error: {
+        code: gate.reason === 'NO_SUBSCRIPTION' ? 'SUBSCRIPTION_REQUIRED' : 'LIMIT_REACHED',
+        message:
+          gate.reason === 'NO_SUBSCRIPTION'
+            ? 'An active subscription is required to publish listings.'
+            : `Your plan allows ${gate.limit} active listings. Pause or close one, or upgrade, to publish another.`,
+      },
+      limit: gate.limit,
+      used: gate.used,
+      tier: gate.tier,
+    },
+    { status: 402 }
+  )
+}
 
 /**
  * Shared route-handler error plumbing.
@@ -35,6 +61,8 @@ export async function readJsonBody(
 const LISTING_ERROR_STATUS: Record<string, number> = {
   LISTING_NOT_FOUND: 404,
   LISTING_CLOSED: 409,
+  INVALID_STATUS_TRANSITION: 409,
+  LISTING_VALIDATION_FAILED: 422,
 }
 
 /**
@@ -42,7 +70,12 @@ const LISTING_ERROR_STATUS: Record<string, number> = {
  * carries raw Postgres text (`invalid input syntax for type timestamp with time
  * zone: ""`), which names internal columns and types and must stay server-side.
  */
-const LISTING_SAFE_TO_SHOW = new Set(['LISTING_NOT_FOUND', 'LISTING_CLOSED'])
+const LISTING_SAFE_TO_SHOW = new Set([
+  'LISTING_NOT_FOUND',
+  'LISTING_CLOSED',
+  'INVALID_STATUS_TRANSITION',
+  'LISTING_VALIDATION_FAILED',
+])
 
 /**
  * Turn a DiscoveryError into a JSON response, or null if `err` is something
