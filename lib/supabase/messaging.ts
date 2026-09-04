@@ -240,6 +240,73 @@ export async function sendMessage(
   return message as MessageRow
 }
 
+/**
+ * WS-MSG-04: write the `payment_confirmation` timeline card for a settled deal
+ * payment, mirroring the `proposal_card` that `send_proposal` writes.
+ *
+ * ChatWindow renders a payment card for a message whose `metadata.proposal_id`
+ * resolves, so the card carries the contract's proposal id and is sent from the
+ * payer (the brand). Pass the SERVICE-ROLE client: this runs from the Stripe
+ * webhook, which has no session, and the insert must bypass the client-only
+ * messages_insert RLS (SEC-3 forbids clients creating system cards).
+ *
+ * Idempotent: a redelivered settlement must not stack duplicate cards, so it
+ * no-ops when a payment_confirmation for this proposal already exists. Returns
+ * the inserted row, or null when nothing was written (already present, or the
+ * contract could not be resolved). Never throws for a missing contract — the
+ * card is a best-effort side effect of a payment that has already settled.
+ */
+export async function insertPaymentConfirmationCard(
+  admin: SupabaseClient<Database>,
+  contractId: string
+): Promise<MessageRow | null> {
+  const { data: contract, error: contractError } = await db(admin)
+    .from('contracts')
+    .select('proposal_id, match_id, brand_id')
+    .eq('id', contractId)
+    .single()
+
+  if (contractError || !contract) return null
+
+  const { proposal_id, match_id, brand_id } = contract as {
+    proposal_id: string
+    match_id: string
+    brand_id: string
+  }
+
+  // Idempotency: only one payment_confirmation card per proposal.
+  const { data: existing } = await db(admin)
+    .from('messages')
+    .select('id')
+    .eq('match_id', match_id)
+    .eq('content_type', 'payment_confirmation')
+    .contains('metadata', { proposal_id })
+    .limit(1)
+
+  if (existing && existing.length > 0) return null
+
+  const { data: message, error: insertError } = await db(admin)
+    .from('messages')
+    .insert({
+      match_id,
+      sender_id: brand_id,
+      content_type: 'payment_confirmation',
+      // metadata is Json; the proposal id is what ChatWindow resolves the card by
+      metadata: { proposal_id } as MessageRow['metadata'],
+    })
+    .select()
+    .single()
+
+  if (insertError) {
+    throw new MessagingError(
+      'PAYMENT_CARD_INSERT_FAILED',
+      (insertError as { message: string }).message
+    )
+  }
+
+  return message as MessageRow
+}
+
 export async function getMessages(
   supabase: SupabaseClient<Database>,
   matchId: string

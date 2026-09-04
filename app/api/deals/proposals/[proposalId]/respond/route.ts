@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import { getUser } from '@/lib/supabase/auth'
+import { getUser, getUserRole } from '@/lib/supabase/auth'
 import { respondToProposal, DealsError } from '@/lib/supabase/deals'
 import { RATE_LIMITS, consume, tooManyRequests, userKey } from '@/lib/rate-limit'
 import { sendTransactionalEmail } from '@/lib/email'
 import { absoluteUrl, nameOf, resolveDisplayNames } from '@/lib/email/notify'
-import { ROUTES } from '@/lib/routes'
+import { dispatchNotification } from '@/lib/notifications'
+import { dealDetailPath } from '@/lib/notifications/deep-links'
 
 const VALID_ACTIONS = new Set(['accepted', 'declined'])
 
@@ -62,15 +63,32 @@ export async function POST(
     // needed. Side effect only — the email layer never throws.
     if (body.action === 'accepted') {
       const names = await resolveDisplayNames(adminSupabase, [proposal.sender_id])
+      // D20: "Review contract" must open the sender's deal detail for the
+      // accepted proposal (a contract now exists there), not /dashboard.
+      const senderRole = await getUserRole(adminSupabase, proposal.sender_id)
+      const path = dealDetailPath(senderRole, proposal.id)
       await sendTransactionalEmail(adminSupabase, {
         event: 'proposal_accepted',
         userId: proposal.sender_id,
         data: {
           recipientName: nameOf(names, proposal.sender_id),
           proposalTitle: proposal.title,
-          url: absoluteUrl(ROUTES.dashboard),
+          url: absoluteUrl(path),
         },
       })
+
+      // WS-MSG-01: in-app bell copy for the proposal's original sender.
+      try {
+        await dispatchNotification(adminSupabase, {
+          userId: proposal.sender_id,
+          eventType: 'proposal_accepted',
+          title: 'Proposal accepted',
+          body: `Your proposal "${proposal.title}" was accepted.`,
+          metadata: { url: path },
+        })
+      } catch (notifyErr) {
+        console.error('[proposals/respond] notification dispatch failed', notifyErr)
+      }
     }
 
     return NextResponse.json(proposal)

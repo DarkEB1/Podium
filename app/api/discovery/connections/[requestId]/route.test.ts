@@ -4,7 +4,7 @@ import { NextRequest } from 'next/server'
 vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn(), createAdminClient: vi.fn() }))
 vi.mock('@/lib/supabase/auth', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/supabase/auth')>()
-  return { ...actual, getUser: vi.fn() }
+  return { ...actual, getUser: vi.fn(), getUserRole: vi.fn() }
 })
 vi.mock('@/lib/supabase/discovery', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/supabase/discovery')>()
@@ -19,13 +19,15 @@ vi.mock('@/lib/email/notify', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/email/notify')>()
   return { ...actual, resolveDisplayNames: vi.fn() }
 })
+vi.mock('@/lib/notifications', () => ({ dispatchNotification: vi.fn() }))
 
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import { getUser } from '@/lib/supabase/auth'
+import { getUser, getUserRole } from '@/lib/supabase/auth'
 import { respondConnectionRequest, withdrawConnectionRequest, DiscoveryError } from '@/lib/supabase/discovery'
 import { getIncomingConnectionRequests } from '@/lib/supabase/connections'
 import { sendTransactionalEmail } from '@/lib/email'
 import { resolveDisplayNames } from '@/lib/email/notify'
+import { dispatchNotification } from '@/lib/notifications'
 import { PATCH } from './route'
 
 const fakeUser = {
@@ -59,6 +61,7 @@ describe('PATCH /api/discovery/connections/[requestId]', () => {
       deliveryId: 'd1',
       providerId: 'p1',
     })
+    vi.mocked(getUserRole).mockResolvedValue('athlete')
   })
 
   it('returns 401 when not authenticated', async () => {
@@ -134,6 +137,25 @@ describe('PATCH /api/discovery/connections/[requestId]', () => {
         event: 'connection_request_accepted',
         userId: 'sender-9',
         data: expect.objectContaining({ recipientName: 'Jordan Athlete', otherName: 'Acme Co' }),
+      })
+    )
+  })
+
+  // WS-MSG-01 + D20: the sender gets an in-app "Connection accepted" row that
+  // deep-links to their messages inbox (athlete role here), not /dashboard.
+  it('dispatches an in-app connection_request_accepted notification to the sender', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(getIncomingConnectionRequests).mockResolvedValue([
+      { id: 'cr1', sender_id: 'sender-9', recipient_id: 'user-1', message: 'Hi' } as never,
+    ])
+    vi.mocked(respondConnectionRequest).mockResolvedValue(undefined)
+    await PATCH(makeRequest({ action: 'accept' }), { params })
+    expect(dispatchNotification).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        userId: 'sender-9',
+        eventType: 'connection_request_accepted',
+        metadata: { url: '/athlete/messages' },
       })
     )
   })

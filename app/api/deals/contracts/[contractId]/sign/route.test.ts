@@ -6,7 +6,7 @@ vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn(),
   createAdminClient: vi.fn(),
 }))
-vi.mock('@/lib/supabase/auth', () => ({ getUser: vi.fn() }))
+vi.mock('@/lib/supabase/auth', () => ({ getUser: vi.fn(), getUserRole: vi.fn() }))
 vi.mock('@/lib/supabase/deals', () => ({
   signContract: vi.fn(),
   DealsError: class DealsError extends Error {
@@ -18,17 +18,30 @@ vi.mock('@/lib/supabase/deals', () => ({
     }
   },
 }))
+vi.mock('@/lib/email', () => ({ sendTransactionalEmail: vi.fn() }))
+vi.mock('@/lib/email/notify', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/email/notify')>()
+  return { ...actual, resolveDisplayNames: vi.fn() }
+})
+vi.mock('@/lib/notifications', () => ({ dispatchNotification: vi.fn() }))
 
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import { getUser } from '@/lib/supabase/auth'
+import { getUser, getUserRole } from '@/lib/supabase/auth'
 import { signContract, DealsError } from '@/lib/supabase/deals'
+import { sendTransactionalEmail } from '@/lib/email'
+import { resolveDisplayNames } from '@/lib/email/notify'
+import { dispatchNotification } from '@/lib/notifications'
 
 const mockSupabase = {} as ReturnType<typeof createClient> extends Promise<infer T> ? T : never
 const mockAdmin = {} as ReturnType<typeof createAdminClient>
 
 beforeEach(() => {
+  vi.clearAllMocks()
   vi.mocked(createClient).mockResolvedValue(mockSupabase as never)
   vi.mocked(createAdminClient).mockReturnValue(mockAdmin as never)
+  vi.mocked(getUserRole).mockResolvedValue('brand')
+  vi.mocked(resolveDisplayNames).mockResolvedValue({ brand1: 'Acme Co', athlete1: 'Jordan Athlete' })
+  vi.mocked(sendTransactionalEmail).mockResolvedValue({ status: 'sent', deliveryId: 'd1', providerId: 'p1' })
 })
 
 function makeRequest(contractId: string, body: Record<string, unknown> = {}) {
@@ -126,5 +139,40 @@ describe('POST /api/deals/contracts/[contractId]/sign', () => {
 
     const res = await POST(makeRequest('c1'), { params: Promise.resolve({ contractId: 'c1' }) })
     expect(res.status).toBe(409)
+  })
+
+  // WS-MSG-09: the signature that completes a contract emails BOTH parties a
+  // keyed contract_fully_signed (previously never fired) + an in-app bell row.
+  it('emails and notifies both parties when the contract becomes fully signed', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(signContract).mockResolvedValue(
+      { ...fakeContract, status: 'fully_signed', athlete_signed_at: '2026-06-02T00:00:00Z' } as never
+    )
+
+    const res = await POST(makeRequest('c1'), { params: Promise.resolve({ contractId: 'c1' }) })
+    expect(res.status).toBe(200)
+
+    for (const userId of ['brand1', 'athlete1']) {
+      expect(vi.mocked(sendTransactionalEmail)).toHaveBeenCalledWith(
+        mockAdmin,
+        expect.objectContaining({
+          event: 'contract_fully_signed',
+          userId,
+          idempotencyKey: `contract_fully_signed:c1:${userId}`,
+        })
+      )
+      expect(vi.mocked(dispatchNotification)).toHaveBeenCalledWith(
+        mockAdmin,
+        expect.objectContaining({ userId, eventType: 'contract_fully_signed' })
+      )
+    }
+  })
+
+  it('does NOT send a fully-signed email on a first (partial) signature', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(signContract).mockResolvedValue(fakeContract as never)
+    await POST(makeRequest('c1'), { params: Promise.resolve({ contractId: 'c1' }) })
+    expect(vi.mocked(sendTransactionalEmail)).not.toHaveBeenCalled()
+    expect(vi.mocked(dispatchNotification)).not.toHaveBeenCalled()
   })
 })

@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
-import { getMessages, getMatch, otherParticipantId } from '@/lib/supabase/messaging'
+import { getMessages, getMatch, markMatchRead, otherParticipantId } from '@/lib/supabase/messaging'
 import { getProposals } from '@/lib/supabase/deals'
 import { buttonVariants } from '@/components/ui/button'
 import BrandChatEntry from '@/components/messaging/brand-chat-entry'
@@ -51,6 +51,9 @@ export default async function BrandChatPage({
     proposals = (await getProposals(supabase, matchId)) as ProposalRow[]
     const match = await getMatch(supabase, matchId)
     if (match) otherUserId = otherParticipantId(match, user.id)
+    // WS-MSG-02: opening a conversation clears its unread count. Best-effort —
+    // a watermark write must not fail rendering the thread the user just opened.
+    await markMatchRead(supabase, matchId).catch(() => {})
   } catch {
     redirect('/brand/messages')
   }

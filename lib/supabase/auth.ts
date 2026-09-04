@@ -137,6 +137,41 @@ export async function getUser(
 }
 
 /**
+ * The role of an arbitrary user by id, or null when it cannot be resolved.
+ *
+ * Used by the notification/email layers to build a role-correct deep link for a
+ * RECIPIENT who is not the caller (a connection request's recipient, a
+ * proposal's counterparty, a payment's payee). Pass the SERVICE-ROLE client —
+ * these sends are cross-user and webhook-driven, so an RLS-scoped client would
+ * resolve nothing.
+ *
+ * Deliberately fail-soft: a deep link is a nicety layered on a best-effort
+ * notification, never worth throwing an error that could break the primary
+ * action. Any lookup failure returns null and the caller falls back to a
+ * role-agnostic destination.
+ */
+export async function getUserRole(
+  admin: SupabaseClient<Database>,
+  userId: string
+): Promise<ValidRole | null> {
+  try {
+    const { data, error } = await db(admin)
+      .from('users')
+      .select('role')
+      .eq('id', userId)
+      .single()
+
+    if (error || !data) return null
+    const role = (data as { role: string | null }).role
+    return role === 'athlete' || role === 'team' || role === 'brand' || role === 'agent'
+      ? role
+      : null
+  } catch {
+    return null
+  }
+}
+
+/**
  * L-7 — assigns a role exactly once, atomically.
  *
  * The guard MUST live in the WHERE clause. The previous implementation read

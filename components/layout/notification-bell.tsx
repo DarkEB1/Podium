@@ -1,23 +1,33 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Bell, BellOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { Database } from '@/types/database'
 
 type NotificationRow = Database['public']['Tables']['notification_logs']['Row']
 
+/** WS-MSG-13: how often the bell re-polls so a notification that lands while the
+ *  page is open appears without a full reload (AA24 — "bell never refetches"). */
+const REFETCH_INTERVAL_MS = 30_000
+
+/** The deep link a notification carries, if any. Stored on metadata.url. */
+function urlOf(n: NotificationRow): string | null {
+  const meta = n.metadata as { url?: unknown } | null
+  return meta && typeof meta.url === 'string' && meta.url.length > 0 ? meta.url : null
+}
+
 export default function NotificationBell() {
   const [notifications, setNotifications] = useState<NotificationRow[]>([])
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    // /api/notifications answers 401 (an expired session in another tab is
-    // enough) and 500 with an `{ error }` OBJECT. Storing that made the next
-    // render call .filter on a non-array, which threw and dropped every page
-    // rendering the bell into its route error boundary. A failed fetch leaves
-    // the list empty: the bell is ambient, never worth taking a page down for.
+  // /api/notifications answers 401 (an expired session in another tab is
+  // enough) and 500 with an `{ error }` OBJECT. Storing that made the next
+  // render call .filter on a non-array, which threw and dropped every page
+  // rendering the bell into its route error boundary. A failed fetch leaves
+  // the list unchanged: the bell is ambient, never worth taking a page down for.
+  const refetch = useCallback(() => {
     fetch('/api/notifications')
       .then((r) => (r.ok ? r.json() : null))
       .then((data: unknown) => {
@@ -26,6 +36,28 @@ export default function NotificationBell() {
         if (Array.isArray(data)) setNotifications(data as NotificationRow[])
       })
       .catch(() => {})
+  }, [])
+
+  // WS-MSG-13: fetch on mount, then poll, and refetch each time the panel opens
+  // so an unread badge cannot go stale for the life of the page.
+  useEffect(() => {
+    refetch()
+    const timer = setInterval(refetch, REFETCH_INTERVAL_MS)
+    return () => clearInterval(timer)
+  }, [refetch])
+
+  useEffect(() => {
+    if (open) refetch()
+  }, [open, refetch])
+
+  // WS-MSG-13: clicking a notification marks it read (server + optimistic local)
+  // so its unread styling and the badge count clear. Fire-and-forget with
+  // keepalive so it survives the navigation the link triggers.
+  const markRead = useCallback((id: string) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id && !n.read_at ? { ...n, read_at: new Date().toISOString() } : n))
+    )
+    fetch(`/api/notifications/${id}/read`, { method: 'PATCH', keepalive: true }).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -79,12 +111,36 @@ export default function NotificationBell() {
             </div>
           ) : (
             <ul className="max-h-80 overflow-y-auto divide-y">
-              {notifications.map((n) => (
-                <li key={n.id} className={`px-4 py-3 ${!n.read_at ? 'bg-muted/40' : ''}`}>
-                  <p className="text-sm font-medium">{n.title}</p>
-                  <p className="text-xs text-muted-foreground">{n.body}</p>
-                </li>
-              ))}
+              {notifications.map((n) => {
+                const href = urlOf(n)
+                const inner = (
+                  <>
+                    <p className="text-sm font-medium">{n.title}</p>
+                    <p className="text-xs text-muted-foreground">{n.body}</p>
+                  </>
+                )
+                const rowClass = `block px-4 py-3 text-left ${!n.read_at ? 'bg-muted/40' : ''}`
+                // WS-MSG-13: a notification is a link to what it is about, and
+                // reading it clears the unread state. When no deep link is
+                // carried, it is still a button so the click can mark it read.
+                return (
+                  <li key={n.id}>
+                    {href ? (
+                      <a href={href} className={rowClass} onClick={() => markRead(n.id)}>
+                        {inner}
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        className={`${rowClass} w-full`}
+                        onClick={() => markRead(n.id)}
+                      >
+                        {inner}
+                      </button>
+                    )}
+                  </li>
+                )
+              })}
             </ul>
           )}
         </div>

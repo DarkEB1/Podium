@@ -105,6 +105,15 @@ describe('getNotifications', () => {
     expect(result).toEqual([])
   })
 
+  // WS-MSG-14: the bell must only ever show the in_app copy of an event, never
+  // its email/push siblings.
+  it('filters to the in_app channel', async () => {
+    const mock = makeMockClient()
+    mock.queueList([notif1])
+    await getNotifications(mock.client, 'user-1')
+    expect(mock.chain.eq).toHaveBeenCalledWith('channel', 'in_app')
+  })
+
   it('throws NotificationsError on DB error', async () => {
     const mock = makeMockClient()
     mock.queueList(null, { message: 'connection error' })

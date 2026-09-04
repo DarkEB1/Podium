@@ -1,24 +1,31 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NextRequest } from 'next/server'
 
-vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }))
+vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn(), createAdminClient: vi.fn() }))
 vi.mock('@/lib/supabase/auth', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/supabase/auth')>()
-  return { ...actual, getUser: vi.fn() }
+  return { ...actual, getUser: vi.fn(), getUserRole: vi.fn() }
 })
 vi.mock('@/lib/supabase/messaging', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/supabase/messaging')>()
-  return { ...actual, getMessages: vi.fn(), sendMessage: vi.fn() }
+  return { ...actual, getMessages: vi.fn(), sendMessage: vi.fn(), getMatch: vi.fn() }
 })
 vi.mock('@/lib/supabase/entitlements', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/supabase/entitlements')>()
   return { ...actual, assertCanSendMessage: vi.fn() }
 })
+vi.mock('@/lib/email/notify', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/email/notify')>()
+  return { ...actual, resolveDisplayNames: vi.fn() }
+})
+vi.mock('@/lib/notifications', () => ({ dispatchNotification: vi.fn() }))
 
-import { createClient } from '@/lib/supabase/server'
-import { getUser } from '@/lib/supabase/auth'
-import { getMessages, sendMessage, MessagingError } from '@/lib/supabase/messaging'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { getUser, getUserRole } from '@/lib/supabase/auth'
+import { getMessages, sendMessage, getMatch, MessagingError } from '@/lib/supabase/messaging'
 import { assertCanSendMessage } from '@/lib/supabase/entitlements'
+import { resolveDisplayNames } from '@/lib/email/notify'
+import { dispatchNotification } from '@/lib/notifications'
 import { CHAT_MESSAGE_MAX } from '@/lib/limits'
 import { GET, POST } from './route'
 
@@ -96,9 +103,14 @@ describe('POST /api/messaging/matches/[matchId]/messages', () => {
     vi.mocked(createClient).mockResolvedValue(
       {} as unknown as Awaited<ReturnType<typeof createClient>>
     )
+    vi.mocked(createAdminClient).mockReturnValue({} as unknown as ReturnType<typeof createAdminClient>)
+    vi.mocked(dispatchNotification).mockClear()
     vi.mocked(assertCanSendMessage).mockResolvedValue({
       allowed: true, gated: true, tier: 1, limit: 100, used: 0,
     })
+    vi.mocked(getMatch).mockResolvedValue(null)
+    vi.mocked(getUserRole).mockResolvedValue('athlete')
+    vi.mocked(resolveDisplayNames).mockResolvedValue({ 'user-1': 'Acme Co' })
   })
 
   it('returns 401 when not authenticated', async () => {
@@ -254,6 +266,36 @@ describe('POST /api/messaging/matches/[matchId]/messages', () => {
       fakeUser.id,
       fakeUser.role
     )
+  })
+
+  // WS-MSG-01: a sent message writes an in-app "New message" row for the OTHER
+  // participant, deep-linked to their conversation thread.
+  it('dispatches an in-app new-message notification to the other participant', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(sendMessage).mockResolvedValue({ id: 'msg1', match_id: 'm1', sender_id: 'user-1' } as never)
+    vi.mocked(getMatch).mockResolvedValue({
+      id: 'm1', user_a_id: 'user-1', user_b_id: 'user-2', status: 'active',
+    } as never)
+    vi.mocked(getUserRole).mockResolvedValue('athlete')
+    const res = await POST(makePostRequest({ content_type: 'text', text_content: 'Hi' }), { params })
+    expect(res.status).toBe(201)
+    expect(dispatchNotification).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        userId: 'user-2',
+        eventType: 'message_received',
+        metadata: { url: '/athlete/messages/m1' },
+      })
+    )
+  })
+
+  it('still returns 201 when the new-message notification cannot be built', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(sendMessage).mockResolvedValue({ id: 'msg1', match_id: 'm1', sender_id: 'user-1' } as never)
+    vi.mocked(getMatch).mockRejectedValue(new Error('match lookup down'))
+    const res = await POST(makePostRequest({ content_type: 'text', text_content: 'Hi' }), { params })
+    expect(res.status).toBe(201)
+    expect(dispatchNotification).not.toHaveBeenCalled()
   })
 
   it('returns 402 when a Starter brand has hit its monthly message cap', async () => {

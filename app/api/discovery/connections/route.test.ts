@@ -4,7 +4,7 @@ import { NextRequest } from 'next/server'
 vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn(), createAdminClient: vi.fn() }))
 vi.mock('@/lib/supabase/auth', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/supabase/auth')>()
-  return { ...actual, getUser: vi.fn() }
+  return { ...actual, getUser: vi.fn(), getUserRole: vi.fn() }
 })
 vi.mock('@/lib/supabase/discovery', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/supabase/discovery')>()
@@ -15,16 +15,18 @@ vi.mock('@/lib/email/notify', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/email/notify')>()
   return { ...actual, resolveDisplayNames: vi.fn() }
 })
+vi.mock('@/lib/notifications', () => ({ dispatchNotification: vi.fn() }))
 vi.mock('@/lib/supabase/entitlements', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/supabase/entitlements')>()
   return { ...actual, assertCanSendConnectionRequest: vi.fn() }
 })
 
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import { getUser } from '@/lib/supabase/auth'
+import { getUser, getUserRole } from '@/lib/supabase/auth'
 import { sendConnectionRequest, DiscoveryError } from '@/lib/supabase/discovery'
 import { sendTransactionalEmail } from '@/lib/email'
 import { resolveDisplayNames } from '@/lib/email/notify'
+import { dispatchNotification } from '@/lib/notifications'
 import { assertCanSendConnectionRequest } from '@/lib/supabase/entitlements'
 import { POST } from './route'
 
@@ -63,6 +65,7 @@ describe('POST /api/discovery/connections', () => {
       limit: null,
       used: 0,
     })
+    vi.mocked(getUserRole).mockResolvedValue('brand')
   })
 
   it('returns 401 when not authenticated', async () => {
@@ -137,6 +140,31 @@ describe('POST /api/discovery/connections', () => {
           senderName: 'Jordan Athlete',
           message: 'Hello',
         }),
+      })
+    )
+  })
+
+  // WS-MSG-01 + D20: an in-app bell row is written for the recipient, deep-linked
+  // to their own requests inbox (not /dashboard).
+  it('dispatches an in-app connection_request_received notification to the recipient', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(sendConnectionRequest).mockResolvedValue(
+      { id: 'cr1', sender_id: 'user-1', recipient_id: 'u2', message: 'Hello' } as never
+    )
+    await POST(makeRequest({ recipient_id: 'u2', message: 'Hello' }))
+    expect(dispatchNotification).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        userId: 'u2',
+        eventType: 'connection_request_received',
+        metadata: { url: '/brand/requests' },
+      })
+    )
+    // The email CTA lands on the same deep link, never /dashboard.
+    expect(sendTransactionalEmail).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        data: expect.objectContaining({ url: expect.stringContaining('/brand/requests') }),
       })
     )
   })

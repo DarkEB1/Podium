@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { EmptyState } from '@/components/ui/empty-state'
 import { createClient } from '@/lib/supabase/client'
+import { markMatchRead } from '@/lib/supabase/messaging'
 import {
   typingChannel,
   onTyping,
@@ -119,13 +120,20 @@ export default function ChatWindow({
             if (prev.some((m) => m.id === msg.id)) return prev
             return [...prev, msg]
           })
+          // WS-MSG-02: an incoming message the viewer is looking at is read on
+          // arrival, so its unread badge never lingers on the inbox. Best-effort
+          // (own messages excluded); a failure just leaves the watermark for the
+          // next open to move.
+          if (msg.sender_id !== currentUserId) {
+            void markMatchRead(supabase, matchId).catch(() => {})
+          }
         }
       )
       .subscribe()
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [matchId])
+  }, [matchId, currentUserId])
 
   // Ephemeral typing + read-receipt signals via the shared realtime helpers (B10).
   useEffect(() => {
@@ -216,6 +224,15 @@ export default function ChatWindow({
         return
       }
       setText('')
+      // WS-MSG-03: show the sender's own message immediately from the 201 body.
+      // The realtime INSERT stream is for the OTHER participant; the sender's own
+      // client is not guaranteed its own change event, so without this the
+      // composer would clear and the message would not appear until reload.
+      // Deduped by id so a realtime echo cannot double it.
+      const sent = data as MessageRow
+      if (sent?.id) {
+        setMessages((prev) => (prev.some((m) => m.id === sent.id) ? prev : [...prev, sent]))
+      }
       const supabase = createClient()
       const channel = typingChannel(supabase, matchId)
       safeSubscribe(channel)

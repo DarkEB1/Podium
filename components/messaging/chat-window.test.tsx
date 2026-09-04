@@ -185,3 +185,28 @@ describe('ChatWindow empty state (UX-1)', () => {
     expect(screen.getByText('No messages yet')).toBeInTheDocument()
   })
 })
+
+describe('ChatWindow send (WS-MSG-03)', () => {
+  it("appends the sender's own message from the 201 body without waiting for realtime", async () => {
+    const sent: MessageRow = { ...baseMsg, id: 'msg2', sender_id: 'me', text_content: 'Yo from me' }
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => sent })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<ChatWindow {...props} initialMessages={[]} />)
+    const composer = screen.getByTestId('chat-composer')
+    fireEvent.change(composer, { target: { value: 'Yo from me' } })
+    const form = composer.closest('form') as HTMLElement
+    await act(async () => {
+      fireEvent.submit(form)
+    })
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/messaging/matches/m1/messages',
+      expect.objectContaining({ method: 'POST' })
+    )
+    // The message shows immediately (the realtime INSERT stream is for the other
+    // participant; the sender's own copy comes from the response body).
+    expect(screen.getByText('Yo from me')).toBeInTheDocument()
+    vi.unstubAllGlobals()
+  })
+})
