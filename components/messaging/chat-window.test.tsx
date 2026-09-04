@@ -34,6 +34,13 @@ vi.mock('@/lib/supabase/client', () => ({
   }),
 }))
 
+// WS-DEAL-01/DP-12: ChatWindow now calls useRouter().refresh() after a
+// proposal response and opens a counter composer.
+const refreshMock = vi.fn()
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh: refreshMock, push: vi.fn() }),
+}))
+
 beforeAll(() => {
   Element.prototype.scrollIntoView = vi.fn()
 })

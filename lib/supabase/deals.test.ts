@@ -40,6 +40,7 @@ function makeMockClient() {
     delete: vi.fn(),
     eq: vi.fn(),
     neq: vi.fn(),
+    is: vi.fn(),
     or: vi.fn(),
     order: vi.fn(),
     single: mockSingle,
@@ -59,6 +60,7 @@ function makeMockClient() {
   chain.delete.mockReturnValue(chain)
   chain.eq.mockReturnValue(chain)
   chain.neq.mockReturnValue(chain)
+  chain.is.mockReturnValue(chain)
   chain.or.mockReturnValue(chain)
   chain.order.mockReturnValue(chain)
 
@@ -755,42 +757,102 @@ describe('signContract', () => {
   })
 
   it('sets status to fully_signed when athlete signs and brand already signed', async () => {
+    // WS-DEAL-03: the completing signature is now two conditional statements —
+    // a guarded CLAIM (writes my signature) then a guarded COMPLETE (flips to
+    // fully_signed + locked_at). The CLAIM's RETURNING row shows both signatures.
     const auth = makeMockClient()
     const admin = makeMockClient()
     auth.queueSingle({ ...fakeContract, brand_signed_at: '2026-06-01T00:00:00Z' })
-    admin.queueSingle({ ...fakeContract, brand_signed_at: '2026-06-01T00:00:00Z', athlete_signed_at: '2026-06-02T00:00:00Z', status: 'fully_signed' })
+    // CLAIM result: both signed, still on the intermediate status.
+    admin.queueSingle({
+      ...fakeContract,
+      brand_signed_at: '2026-06-01T00:00:00Z',
+      athlete_signed_at: '2026-06-02T00:00:00Z',
+      status: 'pending_brand_signature',
+    })
+    // COMPLETE result: flipped to fully_signed and locked.
+    admin.queueSingle({
+      ...fakeContract,
+      brand_signed_at: '2026-06-01T00:00:00Z',
+      athlete_signed_at: '2026-06-02T00:00:00Z',
+      status: 'fully_signed',
+      locked_at: '2026-06-02T00:00:00Z',
+    })
 
     const result = await signContract(auth.client, admin.client, 'c1', 'athlete1')
 
+    // The second (COMPLETE) update flips to fully_signed with a lock timestamp.
     expect(admin.chain.update).toHaveBeenCalledWith(
-      expect.objectContaining({ status: 'fully_signed' })
+      expect.objectContaining({ status: 'fully_signed', locked_at: expect.any(String) })
     )
+    // and it is guarded so only one concurrent flip wins.
+    expect(admin.chain.neq).toHaveBeenCalledWith('status', 'fully_signed')
     expect(result.status).toBe('fully_signed')
+    expect(result.locked_at).toBeTruthy()
   })
 
-  it('locks the contract on the signature that completes it', async () => {
-    // QA-1.6: locked_at was never written, so no contract was ever locked and
-    // the trigger that computes retain_until (locked_at + 7 years) never fired.
+  it('repairs the concurrent-signing race so the pair still reaches fully_signed and locks', async () => {
+    // WS-DEAL-03: both parties sign near-simultaneously. This party's CLAIM
+    // commits last, so its RETURNING row shows BOTH signatures while the status
+    // the other CLAIM wrote is still intermediate. The COMPLETE step must then
+    // flip to fully_signed and set locked_at — the old code left it stranded.
     const auth = makeMockClient()
     const admin = makeMockClient()
-    auth.queueSingle({ ...fakeContract, brand_signed_at: '2026-06-01T00:00:00Z' })
-    admin.queueSingle({ ...fakeContract, status: 'fully_signed' })
+    auth.queueSingle(fakeContract) // read sees the other party still unsigned
+    admin.queueSingle({
+      ...fakeContract,
+      brand_signed_at: '2026-06-02T00:00:01Z', // landed concurrently
+      athlete_signed_at: '2026-06-02T00:00:00Z',
+      status: 'pending_brand_signature',
+    })
+    admin.queueSingle({
+      ...fakeContract,
+      brand_signed_at: '2026-06-02T00:00:01Z',
+      athlete_signed_at: '2026-06-02T00:00:00Z',
+      status: 'fully_signed',
+      locked_at: '2026-06-02T00:00:00Z',
+    })
 
-    await signContract(auth.client, admin.client, 'c1', 'athlete1')
+    const result = await signContract(auth.client, admin.client, 'c1', 'athlete1')
 
-    const update = admin.chain.update.mock.calls[0]?.[0] as Record<string, unknown>
-    expect(update.status).toBe('fully_signed')
-    expect(update.locked_at).toEqual(update.athlete_signed_at)
+    expect(admin.chain.update).toHaveBeenCalledTimes(2)
+    expect(result.status).toBe('fully_signed')
+    expect(result.locked_at).toBeTruthy()
+  })
+
+  it('guards the claim so a concurrent double-sign of the same party is a no-op', async () => {
+    // The CLAIM writes my signature only where my column is still null.
+    const auth = makeMockClient()
+    const admin = makeMockClient()
+    auth.queueSingle(fakeContract)
+    admin.queueSingle({ ...fakeContract, brand_signed_at: '2026-06-01T00:00:00Z', status: 'pending_athlete_signature' })
+
+    await signContract(auth.client, admin.client, 'c1', 'brand1')
+
+    expect(admin.chain.is).toHaveBeenCalledWith('brand_signed_at', null)
+  })
+
+  it('throws ALREADY_SIGNED when the claim finds the column already set (0 rows)', async () => {
+    const auth = makeMockClient()
+    const admin = makeMockClient()
+    auth.queueSingle(fakeContract) // read saw it unsigned…
+    admin.queueSingle(null, { code: 'PGRST116', message: 'no rows' }) // …but the guarded claim wrote nothing
+
+    await expect(signContract(auth.client, admin.client, 'c1', 'brand1')).rejects.toMatchObject({
+      code: 'ALREADY_SIGNED',
+    })
   })
 
   it('does not lock while the contract is still waiting for the other party', async () => {
     const auth = makeMockClient()
     const admin = makeMockClient()
     auth.queueSingle(fakeContract)
-    admin.queueSingle({ ...fakeContract, status: 'pending_athlete_signature' })
+    admin.queueSingle({ ...fakeContract, brand_signed_at: '2026-06-01T00:00:00Z', status: 'pending_athlete_signature' })
 
     await signContract(auth.client, admin.client, 'c1', 'brand1')
 
+    // Only the CLAIM ran; no COMPLETE, so no lock timestamp was written.
+    expect(admin.chain.update).toHaveBeenCalledTimes(1)
     const update = admin.chain.update.mock.calls[0]?.[0] as Record<string, unknown>
     expect(update).not.toHaveProperty('locked_at')
   })

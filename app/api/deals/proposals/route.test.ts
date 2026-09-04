@@ -134,6 +134,54 @@ describe('POST /api/deals/proposals', () => {
     expect(json.error.code).toBe('INVALID_PAY_AMOUNT')
   })
 
+  // DP-5: sub-penny, out-of-range, and >2dp amounts are rejected server-side.
+  it('rejects £0.01, huge, and >2dp amounts (DP-5)', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    for (const bad of [0.01, 1e15, 12.345]) {
+      const res = await POST(makePostRequest({ match_id: 'm1', title: 'T', pay_amount: bad, pay_type: 'flat_fee' }))
+      expect(res.status).toBe(400)
+      expect((await res.json()).error.code).toBe('INVALID_PAY_AMOUNT')
+    }
+    expect(sendProposal).not.toHaveBeenCalled()
+  })
+
+  // WS-DEAL-04: a junk currency must 400, not reach the DB and later crash the
+  // deals pages via Intl.NumberFormat.
+  it('rejects an unsupported/junk currency (WS-DEAL-04)', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    const res = await POST(
+      makePostRequest({ match_id: 'm1', title: 'T', pay_amount: 100, pay_type: 'flat_fee', pay_currency: '123' })
+    )
+    expect(res.status).toBe(400)
+    expect((await res.json()).error.code).toBe('INVALID_CURRENCY')
+    expect(sendProposal).not.toHaveBeenCalled()
+  })
+
+  it('normalises a supported lowercase currency to uppercase', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(sendProposal).mockResolvedValue({ id: 'p1' } as never)
+    await POST(
+      makePostRequest({ match_id: 'm1', title: 'T', pay_amount: 100, pay_type: 'flat_fee', pay_currency: 'usd' })
+    )
+    expect(sendProposal).toHaveBeenCalledWith(
+      expect.anything(), 'm1', 'user-1', expect.objectContaining({ pay_currency: 'USD' })
+    )
+  })
+
+  // DP-10: end-before-start is rejected here rather than as raw Postgres text.
+  it('rejects a timeline whose end precedes its start (DP-10)', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    const res = await POST(
+      makePostRequest({
+        match_id: 'm1', title: 'T', pay_amount: 100, pay_type: 'flat_fee',
+        timeline_start: '2026-08-31', timeline_end: '2026-06-01',
+      })
+    )
+    expect(res.status).toBe(400)
+    expect((await res.json()).error.code).toBe('INVALID_TIMELINE')
+    expect(sendProposal).not.toHaveBeenCalled()
+  })
+
   // PROPOSAL_TERMS_MAX was exported from lib/limits.ts and imported by nobody,
   // and `proposals.additional_terms` is plain `text` with no CHECK, so the
   // field was unbounded all the way to the database.

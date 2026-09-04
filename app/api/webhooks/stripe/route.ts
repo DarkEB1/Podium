@@ -490,6 +490,70 @@ async function handlePaymentIntentFailed(
   return PROCESSED
 }
 
+// DP-7: a PaymentIntent cancelled in the Stripe dashboard used to be ignored, so
+// the row stayed `pending` and `getLivePaymentForContract` answered 409 on every
+// retry — the contract could never be paid again. Cancelled is terminal like a
+// failure, which frees the contract for a fresh intent.
+async function handlePaymentIntentCanceled(
+  event: Stripe.PaymentIntentCanceledEvent,
+  admin: AdminClient
+): Promise<HandlerOutcome> {
+  const pi = event.data.object
+  if (!pi.metadata?.['contractId']) return PROCESSED
+
+  const existing = await getPaymentByIntentId(admin, pi.id)
+  if (!existing) return unprocessable(`no payments row for payment intent ${pi.id}`)
+
+  // A cancel that arrives after a settlement must never downgrade it.
+  if (existing.status === 'succeeded' || existing.status === 'refunded') return PROCESSED
+
+  await updatePaymentRecord(admin, pi.id, { status: 'failed' })
+  return PROCESSED
+}
+
+// DP-7: `payment_intent.processing` (e.g. delayed bank-debit methods) had no
+// handler, so the `processing` status was unreachable. Record it, but never
+// overwrite a terminal state.
+async function handlePaymentIntentProcessing(
+  event: Stripe.PaymentIntentProcessingEvent,
+  admin: AdminClient
+): Promise<HandlerOutcome> {
+  const pi = event.data.object
+  if (!pi.metadata?.['contractId']) return PROCESSED
+
+  const existing = await getPaymentByIntentId(admin, pi.id)
+  if (!existing) return unprocessable(`no payments row for payment intent ${pi.id}`)
+
+  if (existing.status === 'succeeded' || existing.status === 'refunded' || existing.status === 'failed') {
+    return PROCESSED
+  }
+
+  await updatePaymentRecord(admin, pi.id, { status: 'processing' })
+  return PROCESSED
+}
+
+// DP-7: a refund on a settled charge left the local row saying `succeeded`, so
+// the dashboard reported money that had been returned. `charge.refunded` moves
+// the payment to the terminal `refunded` state (full or partial — the amount
+// column is unchanged since there is no partial-refund column yet).
+async function handleChargeRefunded(
+  event: Stripe.ChargeRefundedEvent,
+  admin: AdminClient
+): Promise<HandlerOutcome> {
+  const charge = event.data.object
+  const paymentIntentId = idOf(charge.payment_intent)
+
+  if (!paymentIntentId || !charge.metadata?.['contractId']) return PROCESSED
+
+  const existing = await getPaymentByIntentId(admin, paymentIntentId)
+  if (!existing) return unprocessable(`no payments row for payment intent ${paymentIntentId}`)
+
+  if (existing.status === 'refunded') return PROCESSED
+
+  await updatePaymentRecord(admin, paymentIntentId, { status: 'refunded' })
+  return PROCESSED
+}
+
 // ---------------------------------------------------------------------------
 // Dispatch
 // ---------------------------------------------------------------------------
@@ -515,8 +579,16 @@ async function dispatch(event: Stripe.Event, admin: AdminClient): Promise<Handle
       return handleChargeSucceeded(event, admin)
     case 'payment_intent.payment_failed':
       return handlePaymentIntentFailed(event, admin)
+    case 'payment_intent.canceled':
+      return handlePaymentIntentCanceled(event, admin)
+    case 'payment_intent.processing':
+      return handlePaymentIntentProcessing(event, admin)
+    case 'charge.refunded':
+      return handleChargeRefunded(event, admin)
     default:
       // Unsubscribed event types are acknowledged without processing.
+      // (charge.dispute.* is acknowledged here too — a `disputed` status needs a
+      // new enum value / migration, tracked as a follow-up.)
       return PROCESSED
   }
 }

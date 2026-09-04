@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import ProposalCardMessage from './proposal-card-message'
 import type { Database } from '@/types/database'
@@ -42,6 +42,25 @@ describe('ProposalCardMessage', () => {
   it('does not show action buttons to the sender', () => {
     render(<ProposalCardMessage proposal={makeProposal()} isMine onResponded={() => {}} />)
     expect(screen.queryByRole('button', { name: /accept/i })).toBeNull()
+  })
+
+  it('invokes onCounter when the recipient clicks Counter (WS-DEAL-01)', () => {
+    const onCounter = vi.fn()
+    render(
+      <ProposalCardMessage
+        proposal={makeProposal()}
+        isMine={false}
+        onResponded={() => {}}
+        onCounter={onCounter}
+      />
+    )
+    fireEvent.click(screen.getByRole('button', { name: /counter/i }))
+    expect(onCounter).toHaveBeenCalledTimes(1)
+  })
+
+  it('disables Counter when no onCounter handler is wired', () => {
+    render(<ProposalCardMessage proposal={makeProposal()} isMine={false} onResponded={() => {}} />)
+    expect(screen.getByRole('button', { name: /counter/i })).toBeDisabled()
   })
 
   it('renders a payment confirmation as a green success card', () => {

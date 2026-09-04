@@ -9,6 +9,8 @@ import ContractSignButton from '@/components/deals/contract-sign-button'
 import ProposalRespondButtons from '@/components/deals/proposal-respond-buttons'
 import { AccentHeading } from '@/components/ui/accent-heading'
 import { ROUTES } from '@/lib/routes'
+import { formatMajorAmount } from '@/lib/money'
+import { formatDateRange } from '@/lib/dates'
 import type { Database } from '@/types/database'
 
 type ContractRow = Database['public']['Tables']['contracts']['Row']
@@ -37,11 +39,7 @@ export default async function TeamProposalDetailPage({
 
   const isSender = proposal.sender_id === user.id
   const payLabel = proposal.pay_type.replace('_', ' ')
-  const amount = new Intl.NumberFormat('en-GB', {
-    style: 'currency',
-    currency: proposal.pay_currency ?? 'GBP',
-    maximumFractionDigits: 0,
-  }).format(proposal.pay_amount)
+  const amount = formatMajorAmount(proposal.pay_amount, proposal.pay_currency ?? 'GBP')
 
   return (
     <div className="mx-auto max-w-2xl space-y-12 px-6 py-12 md:px-16 md:py-16">
@@ -67,10 +65,7 @@ export default async function TeamProposalDetailPage({
           {proposal.timeline_start && (
             <>
               <dt className="text-muted-foreground">Timeline</dt>
-              <dd>
-                {proposal.timeline_start}
-                {proposal.timeline_end ? ` → ${proposal.timeline_end}` : ''}
-              </dd>
+              <dd>{formatDateRange(proposal.timeline_start, proposal.timeline_end)}</dd>
             </>
           )}
           {proposal.additional_terms && (

@@ -324,6 +324,16 @@ export async function createPaymentIntent(params: {
   amountMinor: number
   currency: string
   customerId: string
+  /**
+   * DP-6: idempotency key for the create call. Defaults to `pi_${contractId}`,
+   * but a RETRY after a failed payment must pass a per-attempt key. Stripe
+   * replays the SAME PaymentIntent id for 24h on a repeated key, and inserting
+   * that id a second time violates the unique index on
+   * `payments.stripe_payment_intent_id` — a 500 on every retry. A fresh key per
+   * attempt gives each retry its own intent id; the live-payment guard in the
+   * route still prevents a genuine double-charge while one is in flight.
+   */
+  idempotencyKey?: string
 }): Promise<{ clientSecret: string; paymentIntentId: string }> {
   const { contractId, payerId, payeeId, amountMinor, currency, customerId } = params
 
@@ -334,7 +344,7 @@ export async function createPaymentIntent(params: {
       customer: customerId,
       metadata: buildPaymentMetadata({ contractId, payerId, payeeId }),
     },
-    { idempotencyKey: `pi_${contractId}` }
+    { idempotencyKey: params.idempotencyKey ?? `pi_${contractId}` }
   )
 
   return { clientSecret: intent.client_secret!, paymentIntentId: intent.id }

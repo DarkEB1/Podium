@@ -1,4 +1,6 @@
 import { cn } from '@/lib/utils'
+import { formatMajorAmount } from '@/lib/money'
+import { formatDateRange } from '@/lib/dates'
 import type { Database } from '@/types/database'
 
 type ProposalRow = Database['public']['Tables']['proposals']['Row']
@@ -21,11 +23,9 @@ interface ProposalCardProps {
 
 export default function ProposalCard({ proposal, href }: ProposalCardProps) {
   const payLabel = proposal.pay_type.replace('_', ' ')
-  const amount = new Intl.NumberFormat('en-GB', {
-    style: 'currency',
-    currency: proposal.pay_currency ?? 'GBP',
-    maximumFractionDigits: 0,
-  }).format(proposal.pay_amount)
+  // DP-4/DP-5: guarded 2dp formatter. The old inline Intl call threw RangeError
+  // on a junk currency (500-ing the page) and rounded 49.99 to "£50".
+  const amount = formatMajorAmount(proposal.pay_amount, proposal.pay_currency ?? 'GBP')
 
   return (
     <a
@@ -50,8 +50,7 @@ export default function ProposalCard({ proposal, href }: ProposalCardProps) {
       </div>
       {proposal.timeline_start && (
         <p className="text-xs text-muted-foreground mt-2">
-          {proposal.timeline_start}
-          {proposal.timeline_end ? ` → ${proposal.timeline_end}` : ''}
+          {formatDateRange(proposal.timeline_start, proposal.timeline_end)}
         </p>
       )}
     </a>

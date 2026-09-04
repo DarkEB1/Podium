@@ -56,6 +56,19 @@ export async function POST(request: NextRequest) {
   const appUrl = clientEnv().NEXT_PUBLIC_APP_URL
   const existing = await getSubscriptionForUser(supabase, user.id)
 
+  // DP-14: refuse a second checkout when the brand already holds a live
+  // subscription. Two tabs or a back-button re-submit otherwise created two
+  // Stripe subscriptions, and `upsertSubscription` (conflict on brand_id) keeps
+  // only the last webhook's row — the other billed invisibly. `trialing` and
+  // `active` are the states a running subscription is in; a past_due/paused/
+  // canceled row may legitimately re-subscribe.
+  if (existing && (existing.status === 'active' || existing.status === 'trialing')) {
+    return NextResponse.json(
+      { error: { code: 'ALREADY_SUBSCRIBED', message: 'You already have an active subscription' } },
+      { status: 409 }
+    )
+  }
+
   const { url, sessionId } = await createCheckoutSession({
     brandProfileId,
     userId: user.id,

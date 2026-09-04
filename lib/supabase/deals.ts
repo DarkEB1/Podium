@@ -427,39 +427,87 @@ export async function signContract(
 
   const now = new Date().toISOString()
   const { ip, device } = normaliseSigner(signer)
-  const updates: Record<string, string | null> = {}
 
-  if (isBrand) {
-    updates.brand_signed_at = now
-    updates.brand_signer_ip = ip
-    updates.brand_signer_device = device
-    updates.status = contract.athlete_signed_at ? 'fully_signed' : 'pending_athlete_signature'
-  } else {
-    updates.athlete_signed_at = now
-    updates.athlete_signer_ip = ip
-    updates.athlete_signer_device = device
-    updates.status = contract.brand_signed_at ? 'fully_signed' : 'pending_brand_signature'
-  }
+  // WS-DEAL-03: this used to read the OTHER party's signature in TypeScript and
+  // then write an unguarded UPDATE. Two people signing within the same second
+  // both read the other as unsigned, so the row ended with BOTH signatures but
+  // status stuck on `pending_*` and `locked_at`/`retain_until` never set — a
+  // permanent inconsistent state no UI could repair.
+  //
+  // The fix is two conditional statements, each atomic:
+  //
+  //   1. CLAIM: write my signature guarded by `my_signed_at IS NULL`. Exactly
+  //      one writer per side can win, so a double-click of the same party can
+  //      never double-write; a 0-row result means someone already signed for me
+  //      (ALREADY_SIGNED). The RETURNING row reflects the committed state at the
+  //      moment of the write, so it shows the other party's signature if it has
+  //      landed.
+  //
+  //   2. COMPLETE: if the claimed row now shows BOTH signatures but is not yet
+  //      `fully_signed`, flip it (guarded by `status <> 'fully_signed'` so only
+  //      one flip wins) and set `locked_at`. Whichever party COMMITS its claim
+  //      last runs this step seeing both signatures, so the pair always ends
+  //      `fully_signed` and locked, regardless of interleaving.
+  const guardColumn = isBrand ? 'brand_signed_at' : 'athlete_signed_at'
+  const claim: Record<string, string | null> = isBrand
+    ? {
+        brand_signed_at: now,
+        brand_signer_ip: ip,
+        brand_signer_device: device,
+        status: 'pending_athlete_signature',
+      }
+    : {
+        athlete_signed_at: now,
+        athlete_signer_ip: ip,
+        athlete_signer_device: device,
+        status: 'pending_brand_signature',
+      }
 
-  // This signature completes the contract, so lock it. Setting locked_at is
-  // also what fires contracts_set_retain_until, which computes the 7-year
-  // retention date the GDPR erasure logic reads.
-  if (updates.status === 'fully_signed') {
-    updates.locked_at = now
-  }
-
-  const { data: updated, error: updateError } = await (adminSupabase as SupabaseClient)
+  const { data: claimed, error: claimError } = await (adminSupabase as SupabaseClient)
     .from('contracts')
-    .update(updates)
+    .update(claim)
     .eq('id', contractId)
+    .is(guardColumn, null)
     .select()
     .single()
 
-  if (updateError) {
-    throw new DealsError('CONTRACT_SIGN_FAILED', (updateError as { message: string }).message)
+  if (claimError) {
+    // 0 rows: the guard column was already set, i.e. this side signed between
+    // our read and our write (a concurrent double-submit). It is signed either
+    // way, so report it as such rather than a generic failure.
+    if ((claimError as { code?: string }).code === 'PGRST116') {
+      throw new DealsError('ALREADY_SIGNED', 'You have already signed this contract')
+    }
+    throw new DealsError('CONTRACT_SIGN_FAILED', (claimError as { message: string }).message)
   }
 
-  return updated as ContractRow
+  const claimedRow = claimed as ContractRow
+
+  const bothSigned = !!claimedRow.brand_signed_at && !!claimedRow.athlete_signed_at
+  if (bothSigned && claimedRow.status !== 'fully_signed') {
+    // Setting locked_at is also what fires contracts_set_retain_until, which
+    // computes the 7-year retention date the GDPR erasure logic reads.
+    const { data: completed, error: completeError } = await (adminSupabase as SupabaseClient)
+      .from('contracts')
+      .update({ status: 'fully_signed', locked_at: now })
+      .eq('id', contractId)
+      .neq('status', 'fully_signed')
+      .select()
+      .single()
+
+    if (completeError) {
+      // Another concurrent writer completed it first (0 rows). The contract is
+      // fully signed; return the row we have with the terminal status applied.
+      if ((completeError as { code?: string }).code === 'PGRST116') {
+        return { ...claimedRow, status: 'fully_signed', locked_at: claimedRow.locked_at ?? now }
+      }
+      throw new DealsError('CONTRACT_SIGN_FAILED', (completeError as { message: string }).message)
+    }
+
+    return completed as ContractRow
+  }
+
+  return claimedRow
 }
 
 export async function getContract(
