@@ -599,6 +599,20 @@ export async function blockUser(
     throw new DiscoveryError('BLOCK_FAILED', (error as { message: string }).message)
   }
 
+  // WS-MSG-05: the block row alone is invisible to get_conversations (which
+  // filters on matches.status). Flip the pair's match to 'blocked' so the
+  // conversation drops out of both inboxes. Matches are stored canonically
+  // (least, greatest), so the pair can be in either column order. Best-effort:
+  // RLS on messages already enforces the block via match_has_block(); the status
+  // flip is the inbox-visibility half, so a failure here must not undo the block.
+  await (supabase as SupabaseClient)
+    .from('matches')
+    .update({ status: 'blocked' })
+    .or(
+      `and(user_a_id.eq.${blockerId},user_b_id.eq.${blockedId}),` +
+        `and(user_a_id.eq.${blockedId},user_b_id.eq.${blockerId})`
+    )
+
   return data as BlockRow
 }
 

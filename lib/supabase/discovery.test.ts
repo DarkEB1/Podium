@@ -760,6 +760,34 @@ describe('blockUser', () => {
     expect(result).toEqual(fakeBlock)
   })
 
+  // WS-MSG-05: the block must also drop the pair's conversation out of both
+  // inboxes by flipping matches.status to 'blocked' (get_conversations filters
+  // on status). Matches are stored canonically, so both column orders are hit.
+  it('flips the pair match to status=blocked after inserting the block', async () => {
+    const { client, chain, mockFrom, setSingle } = makeMockClient()
+    setSingle({ id: 'b1', blocker_id: 'u1', blocked_id: 'u2' })
+
+    await blockUser(client, 'u1', 'u2')
+
+    expect(mockFrom).toHaveBeenCalledWith('matches')
+    expect(chain.update).toHaveBeenCalledWith({ status: 'blocked' })
+    const orArg = chain.or.mock.calls[0]?.[0] as string
+    expect(orArg).toContain('user_a_id.eq.u1')
+    expect(orArg).toContain('user_b_id.eq.u2')
+    expect(orArg).toContain('user_a_id.eq.u2')
+    expect(orArg).toContain('user_b_id.eq.u1')
+  })
+
+  it('does not flip a match when the block insert fails', async () => {
+    const { client, chain, setSingle } = makeMockClient()
+    setSingle(null, { code: '23505', message: 'duplicate key' })
+
+    await expect(blockUser(client, 'u1', 'u2')).rejects.toMatchObject({
+      code: 'ALREADY_BLOCKED',
+    })
+    expect(chain.update).not.toHaveBeenCalled()
+  })
+
   it('throws ALREADY_BLOCKED on unique constraint violation (23505)', async () => {
     const { client, setSingle } = makeMockClient()
     setSingle(null, { code: '23505', message: 'duplicate key' })

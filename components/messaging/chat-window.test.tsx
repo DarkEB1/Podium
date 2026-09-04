@@ -127,6 +127,58 @@ describe('ChatWindow composer (PR-18)', () => {
   })
 })
 
+describe('ChatWindow Block control (WS-MSG-05)', () => {
+  it('does not render a Block control when otherUserId is absent', () => {
+    render(<ChatWindow {...props} />)
+    expect(screen.queryByRole('button', { name: 'Block' })).toBeNull()
+  })
+
+  it('blocks the other user via the discovery API and closes the composer', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: async () => ({ id: 'b1' }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+
+    render(<ChatWindow {...props} otherUserId="other" />)
+
+    const blockBtn = screen.getByRole('button', { name: 'Block' })
+    await act(async () => {
+      fireEvent.click(blockBtn)
+    })
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/discovery/blocks',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ blocked_id: 'other' }),
+      })
+    )
+    // Composer is replaced by the blocked notice.
+    expect(screen.queryByTestId('chat-composer')).toBeNull()
+    expect(screen.getByText(/you have blocked this user/i)).toBeInTheDocument()
+
+    vi.unstubAllGlobals()
+  })
+
+  it('does not call the API when the confirm is dismissed', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    vi.spyOn(window, 'confirm').mockReturnValue(false)
+
+    render(<ChatWindow {...props} otherUserId="other" />)
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Block' }))
+    })
+
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(screen.getByTestId('chat-composer')).toBeInTheDocument()
+    vi.unstubAllGlobals()
+  })
+})
+
 describe('ChatWindow empty state (UX-1)', () => {
   it('shows an empty state instead of a blank pane when there are no messages', () => {
     render(<ChatWindow {...props} initialMessages={[]} />)

@@ -45,6 +45,34 @@ export async function getMatches(
 }
 
 /**
+ * Fetch a single match by id (RLS scopes it to a participant), or null when the
+ * caller cannot see it. Used to resolve the OTHER participant's id for the chat
+ * Block control (WS-MSG-05) without leaking it through the message rows.
+ */
+export async function getMatch(
+  supabase: SupabaseClient<Database>,
+  matchId: string
+): Promise<MatchRow | null> {
+  const { data, error } = await db(supabase)
+    .from('matches')
+    .select('*')
+    .eq('id', matchId)
+    .single()
+
+  if (error) {
+    if ((error as { code?: string }).code === 'PGRST116') return null
+    throw new MessagingError('MATCH_FETCH_FAILED', (error as { message: string }).message)
+  }
+
+  return data as MatchRow
+}
+
+/** The other participant of a match, from the current user's perspective. */
+export function otherParticipantId(match: MatchRow, currentUserId: string): string {
+  return match.user_a_id === currentUserId ? match.user_b_id : match.user_a_id
+}
+
+/**
  * Inbox view-model row consumed by the MS1 `MatchList` component (spec §7.1).
  * Mirrors `components/messaging/match-list.tsx` `Conversation`.
  */
