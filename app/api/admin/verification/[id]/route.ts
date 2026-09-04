@@ -1,7 +1,9 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
-import { reviewVerification, VerificationError } from '@/lib/supabase/verification'
+import { reviewVerification } from '@/lib/supabase/verification'
+import { createAuditLog } from '@/lib/supabase/admin'
+import { safeErrorResponse } from '@/lib/api/errors'
 
 /** Admin: approve or reject a verification request. */
 export async function POST(
@@ -28,13 +30,32 @@ export async function POST(
   }
 
   const { id } = await params
+  const admin = createAdminClient()
   try {
-    const row = await reviewVerification(createAdminClient(), id, user.id, body.action, body.note)
+    const row = await reviewVerification(admin, id, user.id, body.action, body.note)
+
+    // WS-ADMIN-01: verification decisions are audited, and the review `note`
+    // (previously dropped from any log) is preserved here. Best-effort.
+    try {
+      await createAuditLog(admin, {
+        actor_id: user.id,
+        action: `verification_${body.action}`,
+        target_type: 'verification_request',
+        target_id: id,
+        metadata: {
+          status: row.status,
+          ...(typeof body.note === 'string' && body.note.length > 0 ? { note: body.note } : {}),
+        },
+      })
+    } catch (logErr) {
+      console.error('[admin/verification] audit log failed', logErr)
+    }
+
     return NextResponse.json({ status: row.status })
   } catch (err) {
-    if (err instanceof VerificationError) {
-      return NextResponse.json({ error: { code: err.code, message: err.message } }, { status: 500 })
-    }
+    // VerificationError carries raw driver text on REVIEW_FAILED; sanitize it.
+    const response = safeErrorResponse(err, { scope: 'admin/verification' })
+    if (response) return response
     throw err
   }
 }

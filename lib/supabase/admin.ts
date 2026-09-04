@@ -131,6 +131,17 @@ export async function createReport(
     .single()
 
   if (error) {
+    const code = (error as { code?: string }).code
+    // FK violation: the reported user or message does not exist. Passed through,
+    // Postgres answered with raw driver text as a 500; here it is a clean 404.
+    if (code === '23503') {
+      throw new AdminError('REPORT_TARGET_NOT_FOUND', 'The person or message you reported no longer exists')
+    }
+    // Partial unique index (20260904000903): an open report for this target
+    // already exists.
+    if (code === '23505') {
+      throw new AdminError('DUPLICATE_REPORT', 'You have already reported this. Our team is reviewing it.')
+    }
     throw new AdminError('REPORT_CREATE_FAILED', (error as { message: string }).message)
   }
 
@@ -326,7 +337,12 @@ export async function updateProfileStatus(
   status: AdminProfileStatus,
   adminId: string
 ): Promise<void> {
+  // `.select('id').single()` so a non-existent id is a PGRST116 (no rows) rather
+  // than a silent 200 no-op — moderation of an unknown profile must 404.
   if (profileType === 'athlete') {
+    // 'suspended' is a valid athlete reject target (profile_status enum,
+    // 20260904000901). types/database.ts still lists profile_status without it
+    // until types are regenerated; the runtime value is accepted by the DB.
     const athleteStatus = status as ProfileStatus
     const { error } = await (adminSupabase as SupabaseClient)
       .from('athlete_profiles')
@@ -335,8 +351,15 @@ export async function updateProfileStatus(
         ...(athleteStatus === 'active' ? { admin_approved_at: new Date().toISOString(), admin_approved_by: adminId } : {}),
       })
       .eq('id', id)
+      .select('id')
+      .single()
 
-    if (error) throw new AdminError('STATUS_UPDATE_FAILED', (error as { message: string }).message)
+    if (error) {
+      if ((error as { code?: string }).code === 'PGRST116') {
+        throw new AdminError('PROFILE_NOT_FOUND', 'Profile not found')
+      }
+      throw new AdminError('STATUS_UPDATE_FAILED', (error as { message: string }).message)
+    }
   } else {
     const brandStatus = status as BrandStatus
     const { error } = await (adminSupabase as SupabaseClient)
@@ -346,7 +369,14 @@ export async function updateProfileStatus(
         ...(brandStatus === 'active' ? { admin_approved_at: new Date().toISOString(), admin_approved_by: adminId } : {}),
       })
       .eq('id', id)
+      .select('id')
+      .single()
 
-    if (error) throw new AdminError('STATUS_UPDATE_FAILED', (error as { message: string }).message)
+    if (error) {
+      if ((error as { code?: string }).code === 'PGRST116') {
+        throw new AdminError('PROFILE_NOT_FOUND', 'Profile not found')
+      }
+      throw new AdminError('STATUS_UPDATE_FAILED', (error as { message: string }).message)
+    }
   }
 }

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
-import { createReport, getOwnReports, AdminError } from '@/lib/supabase/admin'
+import { createReport, getOwnReports } from '@/lib/supabase/admin'
+import { readJsonBody, safeErrorResponse, isUuid } from '@/lib/api/errors'
 import { RATE_LIMITS, consume, tooManyRequests, userKey } from '@/lib/rate-limit'
 import { REPORT_DETAIL_MAX } from '@/lib/limits'
 import { Constants, type Database } from '@/types/database'
@@ -12,22 +13,16 @@ type ReportReason = Database['public']['Enums']['report_reason']
 const REPORT_REASONS = new Set<string>(Constants.public.Enums.report_reason)
 
 /**
- * An AdminError message is raw driver text ("invalid input value for enum
- * report_reason: ..."), which names internal enums, columns and types. It is
- * logged server-side and replaced with copy the reporter can act on.
+ * Codes carrying a user-facing message we wrote (a bad target, a duplicate) keep
+ * it and their own status. Everything else — REPORT_CREATE_FAILED /
+ * REPORTS_FETCH_FAILED — holds raw driver text and is logged, then replaced with
+ * a generic 500.
  */
-function reportErrorResponse(scope: string, err: AdminError): NextResponse {
-  console.error(`[reports] ${scope} failed`, err.code, err.message)
-  return NextResponse.json(
-    {
-      error: {
-        code: err.code,
-        message: 'Something went wrong on our end. Please try again in a moment.',
-      },
-    },
-    { status: 500 }
-  )
+const REPORT_ERROR_STATUS: Record<string, number> = {
+  REPORT_TARGET_NOT_FOUND: 404,
+  DUPLICATE_REPORT: 409,
 }
+const REPORT_SAFE_CODES = ['REPORT_TARGET_NOT_FOUND', 'DUPLICATE_REPORT']
 
 export async function GET(_request: NextRequest) {
   const supabase = await createClient()
@@ -44,7 +39,12 @@ export async function GET(_request: NextRequest) {
     const reports = await getOwnReports(supabase, user.id)
     return NextResponse.json(reports)
   } catch (err) {
-    if (err instanceof AdminError) return reportErrorResponse('fetch', err)
+    const response = safeErrorResponse(err, {
+      scope: 'reports/fetch',
+      statusByCode: REPORT_ERROR_STATUS,
+      safeToShow: REPORT_SAFE_CODES,
+    })
+    if (response) return response
     throw err
   }
 }
@@ -65,8 +65,14 @@ export async function POST(request: NextRequest) {
   const limited = await consume(userKey('report_create', user.id), RATE_LIMITS.writeByUser)
   if (!limited.allowed) return tooManyRequests(limited.retryAfter)
 
-  const body = await request.json()
-  const { reported_user_id, reported_message_id, reason, detail } = body
+  const parsed = await readJsonBody(request)
+  if ('response' in parsed) return parsed.response
+  const { reported_user_id, reported_message_id, reason, detail } = parsed.body as {
+    reported_user_id?: unknown
+    reported_message_id?: unknown
+    reason?: unknown
+    detail?: unknown
+  }
 
   if (!reason) {
     return NextResponse.json(
@@ -92,6 +98,31 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // A user cannot report themselves. Unchecked, this filled the queue with
+  // self-reports; the FK is valid so it inserted cleanly. Checked before the
+  // UUID shape so "report yourself" is the message a real self-report gets.
+  if (reported_user_id && reported_user_id === user.id) {
+    return NextResponse.json(
+      { error: { code: 'SELF_REPORT', message: 'You cannot report yourself' } },
+      { status: 400 }
+    )
+  }
+
+  // A non-UUID id reached Postgres as SQLSTATE 22P02 and came back as a 500 with
+  // raw driver text. Validate the shape up front.
+  if (reported_user_id !== undefined && reported_user_id !== null && !isUuid(reported_user_id)) {
+    return NextResponse.json(
+      { error: { code: 'INVALID_TARGET', message: 'reported_user_id must be a valid id' } },
+      { status: 400 }
+    )
+  }
+  if (reported_message_id !== undefined && reported_message_id !== null && !isUuid(reported_message_id)) {
+    return NextResponse.json(
+      { error: { code: 'INVALID_TARGET', message: 'reported_message_id must be a valid id' } },
+      { status: 400 }
+    )
+  }
+
   // `detail` is an unbounded text column with no CHECK constraint, and every
   // report lands in the moderation queue a human reads.
   if (typeof detail === 'string' && detail.length > REPORT_DETAIL_MAX) {
@@ -110,13 +141,19 @@ export async function POST(request: NextRequest) {
     const report = await createReport(supabase, user.id, {
       // Narrowed by REPORT_REASONS above, which is the generated enum list.
       reason: reason as ReportReason,
-      ...(reported_user_id ? { reported_user_id } : {}),
-      ...(reported_message_id ? { reported_message_id } : {}),
-      ...(detail !== undefined ? { detail } : {}),
+      // Both ids validated as UUID strings (or absent) above.
+      ...(reported_user_id ? { reported_user_id: reported_user_id as string } : {}),
+      ...(reported_message_id ? { reported_message_id: reported_message_id as string } : {}),
+      ...(typeof detail === 'string' ? { detail } : {}),
     })
     return NextResponse.json(report, { status: 201 })
   } catch (err) {
-    if (err instanceof AdminError) return reportErrorResponse('create', err)
+    const response = safeErrorResponse(err, {
+      scope: 'reports/create',
+      statusByCode: REPORT_ERROR_STATUS,
+      safeToShow: REPORT_SAFE_CODES,
+    })
+    if (response) return response
     throw err
   }
 }

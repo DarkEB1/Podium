@@ -30,4 +30,12 @@ describe('POST /api/auth/logout', () => {
     // Max-Age=0 is the delete instruction to the browser.
     expect(setCookie).toContain('Max-Age=0')
   })
+
+  // WS-ADMIN P2: the admin 2FA pass cookie (8h TTL) must not survive logout, or
+  // the next person on this browser inherits the second factor.
+  it('clears the admin 2FA cookie on logout', async () => {
+    const res = await POST()
+    const setCookie = res.headers.get('set-cookie') ?? ''
+    expect(setCookie).toContain('podium_admin_2fa=')
+  })
 })

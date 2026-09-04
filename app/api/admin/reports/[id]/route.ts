@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
-import { getReport, resolveReport, AdminError } from '@/lib/supabase/admin'
+import { getReport, resolveReport, createAuditLog } from '@/lib/supabase/admin'
+import { readJsonBody, safeErrorResponse } from '@/lib/api/errors'
 import type { Database } from '@/types/database'
 
 type ReportStatus = Database['public']['Enums']['report_status']
 
 const VALID_STATUSES: ReportStatus[] = ['pending', 'under_review', 'resolved', 'dismissed']
+
+const REPORT_ERROR_STATUS: Record<string, number> = {
+  REPORT_NOT_FOUND: 404,
+}
 
 export async function GET(
   _request: NextRequest,
@@ -36,13 +41,12 @@ export async function GET(
     const report = await getReport(adminSupabase, id)
     return NextResponse.json(report)
   } catch (err) {
-    if (err instanceof AdminError) {
-      const status = err.code === 'REPORT_NOT_FOUND' ? 404 : 500
-      return NextResponse.json(
-        { error: { code: err.code, message: err.message } },
-        { status }
-      )
-    }
+    const response = safeErrorResponse(err, {
+      scope: 'admin/reports',
+      statusByCode: REPORT_ERROR_STATUS,
+      safeToShow: ['REPORT_NOT_FOUND'],
+    })
+    if (response) return response
     throw err
   }
 }
@@ -68,8 +72,9 @@ export async function PATCH(
     )
   }
 
-  const body = await request.json()
-  const { status, admin_notes } = body as { status?: ReportStatus; admin_notes?: string }
+  const parsed = await readJsonBody(request)
+  if ('response' in parsed) return parsed.response
+  const { status, admin_notes } = parsed.body as { status?: ReportStatus; admin_notes?: string }
 
   if (!status || !VALID_STATUSES.includes(status)) {
     return NextResponse.json(
@@ -86,15 +91,32 @@ export async function PATCH(
       status,
       ...(admin_notes !== undefined ? { admin_notes } : {}),
     })
+
+    // WS-ADMIN-01: moderation of a report is audited. Best-effort so a logging
+    // failure does not undo the resolution the admin just made.
+    try {
+      await createAuditLog(adminSupabase, {
+        actor_id: user.id,
+        action: `report_${status}`,
+        target_type: 'report',
+        target_id: id,
+        metadata: {
+          status,
+          ...(typeof admin_notes === 'string' && admin_notes.length > 0 ? { admin_notes } : {}),
+        },
+      })
+    } catch (logErr) {
+      console.error('[admin/reports] audit log failed', logErr)
+    }
+
     return NextResponse.json(report)
   } catch (err) {
-    if (err instanceof AdminError) {
-      const httpStatus = err.code === 'REPORT_NOT_FOUND' ? 404 : 500
-      return NextResponse.json(
-        { error: { code: err.code, message: err.message } },
-        { status: httpStatus }
-      )
-    }
+    const response = safeErrorResponse(err, {
+      scope: 'admin/reports',
+      statusByCode: REPORT_ERROR_STATUS,
+      safeToShow: ['REPORT_NOT_FOUND'],
+    })
+    if (response) return response
     throw err
   }
 }
