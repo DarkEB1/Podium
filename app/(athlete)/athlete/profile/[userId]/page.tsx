@@ -21,6 +21,7 @@ import ProfileSocialStrip, {
 } from '@/components/athlete/profile-social-strip'
 import ProfileSeeking from '@/components/athlete/profile-seeking'
 import ConnectRequestButton from '@/components/discovery/connect-request-button'
+import ReportDialog from '@/components/reports/report-dialog'
 
 /**
  * M-1 — deliberately GENERIC and identical for every record.
@@ -217,17 +218,22 @@ export default async function AthletePublicProfilePage({
       // send a request to themselves (the API rejects SELF_CONNECT anyway).
       <Button disabled>Send connection request</Button>
     ) : (
-      <ConnectRequestButton
-        recipientUserId={profile.user_id}
-        recipientName={name}
-        recipientRole="athlete"
-        surface="athlete_public_profile"
-        {...(openToRequests
-          ? {}
-          : {
-              unavailableReason: `${name} is browsing only right now and is not taking connection requests.`,
-            })}
-      />
+      // WS-ADMIN: a Report control lives beside the primary CTA so any viewer
+      // can flag the profile. The API validates self-reports and duplicates.
+      <div className="flex items-center gap-2">
+        <ConnectRequestButton
+          recipientUserId={profile.user_id}
+          recipientName={name}
+          recipientRole="athlete"
+          surface="athlete_public_profile"
+          {...(openToRequests
+            ? {}
+            : {
+                unavailableReason: `${name} is browsing only right now and is not taking connection requests.`,
+              })}
+        />
+        <ReportDialog reportedUserId={profile.user_id} targetLabel={name} />
+      </div>
     )
   }
 

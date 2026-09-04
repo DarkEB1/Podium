@@ -1,0 +1,16 @@
+-- WS-ADMIN-01 — an admin "reject" of an athlete must not be reversible by the
+-- athlete.
+--
+-- Reject wrote `status = 'deactivated'`, the exact value the athlete's own
+-- "Deactivate" toggle uses, and `POST /api/profiles/me/publish` sets the status
+-- back to 'active' with no admin check. So a rejected athlete simply
+-- re-published and undid the moderation decision.
+--
+-- The fix is a distinct `suspended` status that only the service role can write
+-- (enforced by the trigger in the next migration). Admin rejection moves an
+-- athlete to 'suspended'; the athlete cannot leave it.
+--
+-- `ALTER TYPE ... ADD VALUE` cannot be used in the same transaction that adds
+-- it, so the enforcement trigger that references the new literal lives in a
+-- separate migration (20260904000902).
+alter type public.profile_status add value if not exists 'suspended';

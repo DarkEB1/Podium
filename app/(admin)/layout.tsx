@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import SignOutButton from '@/components/auth/sign-out-button'
 
 const ADMIN_NAV = [
   { label: 'Dashboard', href: '/admin/dashboard' },
@@ -50,6 +51,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               ))}
             </div>
           </nav>
+          {/* WS-ADMIN P2: admins had no way to sign out. The logout route also
+              clears the admin 2FA cookie. */}
+          <SignOutButton variant="outline" size="sm" className="shrink-0" />
         </div>
       </header>
       <main className="flex-1">{children}</main>
