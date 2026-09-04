@@ -144,6 +144,63 @@ describe('POST /api/messaging/matches/[matchId]/messages', () => {
     }
   )
 
+  // WS-MSG-07: attachment_url is rendered as a download link + <img> for the
+  // other party with no server-side validation — an off-site phishing / tracking
+  // / IP-disclosure vector. Attachments are refused outright until the UI ships.
+  it('refuses an attachment_url on an otherwise-allowed text message', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(sendMessage).mockClear()
+    const res = await POST(
+      makePostRequest({
+        content_type: 'text',
+        text_content: 'look',
+        attachment_url: 'https://evil.example.com/pixel.png',
+      }),
+      { params }
+    )
+    expect(res.status).toBe(400)
+    const json = await res.json()
+    expect(json.error.code).toBe('ATTACHMENTS_NOT_ENABLED')
+    expect(sendMessage).not.toHaveBeenCalled()
+  })
+
+  it.each(['image', 'video', 'document'])(
+    'refuses the attachment content type %s',
+    async (contentType) => {
+      vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+      vi.mocked(sendMessage).mockClear()
+      const res = await POST(
+        makePostRequest({
+          content_type: contentType,
+          attachment_url: 'https://cdn.example.com/a.png',
+        }),
+        { params }
+      )
+      expect(res.status).toBe(400)
+      const json = await res.json()
+      expect(json.error.code).toBe('ATTACHMENTS_NOT_ENABLED')
+      expect(sendMessage).not.toHaveBeenCalled()
+    }
+  )
+
+  it('refuses attachment metadata fields (size / mime) even without a url', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(sendMessage).mockClear()
+    const res = await POST(
+      makePostRequest({
+        content_type: 'text',
+        text_content: 'hi',
+        attachment_size_bytes: 1024,
+        attachment_mime_type: 'image/png',
+      }),
+      { params }
+    )
+    expect(res.status).toBe(400)
+    const json = await res.json()
+    expect(json.error.code).toBe('ATTACHMENTS_NOT_ENABLED')
+    expect(sendMessage).not.toHaveBeenCalled()
+  })
+
   it('refuses client-supplied metadata even on an allowed content type', async () => {
     vi.mocked(getUser).mockResolvedValue(fakeUser as never)
     vi.mocked(sendMessage).mockClear()

@@ -124,6 +124,34 @@ export async function POST(
     )
   }
 
+  // WS-MSG-07: reject attachments outright until the attachment UI ships.
+  //
+  // The chat renders `attachment_url` for the OTHER party as a download link and,
+  // for images, an <img>. Nothing server-side validates that URL, so a sender
+  // could point it off-site: a phishing link, a tracking pixel, or a bare-IP
+  // logger that de-anonymises a viewer who may be a minor. No composer sends an
+  // attachment today (the only content_type sent is 'text'), so the safest and
+  // simplest fix is to refuse every attachment content type and every attachment
+  // field here. When the upload UI lands, replace this with: require an own-bucket
+  // (Supabase Storage) URL + a MIME allow-list + a size cap.
+  const ATTACHMENT_CONTENT_TYPES = new Set<MessageType>(['image', 'video', 'document'])
+  if (
+    ATTACHMENT_CONTENT_TYPES.has(body.content_type as MessageType) ||
+    body.attachment_url !== undefined ||
+    body.attachment_size_bytes !== undefined ||
+    body.attachment_mime_type !== undefined
+  ) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'ATTACHMENTS_NOT_ENABLED',
+          message: 'Attachments are not supported yet.',
+        },
+      },
+      { status: 400 }
+    )
+  }
+
   // SEC-3: `metadata` exists to carry the proposal id of a system card. No
   // client-creatable type uses it, so accepting it would just reopen the
   // forged-card path through a type that is still allowed.
