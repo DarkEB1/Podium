@@ -4,6 +4,8 @@ import {
   createListing,
   updateListing,
   publishListing,
+  updateListingStatus,
+  isListingActivation,
   getListings,
   getActiveListingsPage,
   getListing,
@@ -287,6 +289,94 @@ describe('publishListing', () => {
     await expect(publishListing(client, 'l1', 'bp1')).rejects.toMatchObject({
       code: 'LISTING_PUBLISH_FAILED',
     })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// updateListingStatus (WS-LISTING-02)
+// ---------------------------------------------------------------------------
+
+describe('updateListingStatus', () => {
+  it('reads the current status then writes the new one, scoped to the brand', async () => {
+    const { client, chain, mockFrom, queueSingle } = makeMockClient()
+    queueSingle({ status: 'active' }) // current row read
+    queueSingle({ id: 'l1', status: 'paused' }) // update result
+
+    const row = await updateListingStatus(client, 'l1', 'bp1', 'paused')
+
+    expect(mockFrom).toHaveBeenCalledWith('job_listings')
+    // status is written explicitly here — it is NOT stripped like on updateListing
+    expect(chain.update).toHaveBeenCalledWith({ status: 'paused' })
+    expect(chain.eq).toHaveBeenCalledWith('id', 'l1')
+    expect(chain.eq).toHaveBeenCalledWith('brand_id', 'bp1')
+    expect(row).toMatchObject({ id: 'l1', status: 'paused' })
+  })
+
+  it('allows resume (paused -> active)', async () => {
+    const { client, chain, queueSingle } = makeMockClient()
+    queueSingle({ status: 'paused' })
+    queueSingle({ id: 'l1', status: 'active' })
+
+    await updateListingStatus(client, 'l1', 'bp1', 'active')
+
+    expect(chain.update).toHaveBeenCalledWith({ status: 'active' })
+  })
+
+  it('allows close (active -> filled)', async () => {
+    const { client, chain, queueSingle } = makeMockClient()
+    queueSingle({ status: 'active' })
+    queueSingle({ id: 'l1', status: 'filled' })
+
+    await updateListingStatus(client, 'l1', 'bp1', 'filled')
+
+    expect(chain.update).toHaveBeenCalledWith({ status: 'filled' })
+  })
+
+  it('rejects an illegal transition without writing (draft -> paused)', async () => {
+    const { client, chain, queueSingle } = makeMockClient()
+    queueSingle({ status: 'draft' })
+
+    await expect(updateListingStatus(client, 'l1', 'bp1', 'paused')).rejects.toMatchObject({
+      code: 'INVALID_STATUS_TRANSITION',
+    })
+    expect(chain.update).not.toHaveBeenCalled()
+  })
+
+  it('rejects reviving a closed (filled) listing', async () => {
+    const { client, queueSingle } = makeMockClient()
+    queueSingle({ status: 'filled' })
+
+    await expect(updateListingStatus(client, 'l1', 'bp1', 'active')).rejects.toMatchObject({
+      code: 'INVALID_STATUS_TRANSITION',
+    })
+  })
+
+  it('throws LISTING_NOT_FOUND when the row is not owned by the brand', async () => {
+    const { client, setSingle } = makeMockClient()
+    setSingle(null, { code: 'PGRST116', message: 'no rows' })
+
+    await expect(updateListingStatus(client, 'l1', 'bp1', 'paused')).rejects.toMatchObject({
+      code: 'LISTING_NOT_FOUND',
+    })
+  })
+
+  it('throws LISTING_STATUS_UPDATE_FAILED on an unexpected read error', async () => {
+    const { client, setSingle } = makeMockClient()
+    setSingle(null, { code: '42501', message: 'permission denied' })
+
+    await expect(updateListingStatus(client, 'l1', 'bp1', 'paused')).rejects.toMatchObject({
+      code: 'LISTING_STATUS_UPDATE_FAILED',
+    })
+  })
+})
+
+describe('isListingActivation', () => {
+  it('is true only when transitioning to active from a non-active status', () => {
+    expect(isListingActivation('paused', 'active')).toBe(true)
+    expect(isListingActivation('expired', 'active')).toBe(true)
+    expect(isListingActivation('active', 'active')).toBe(false)
+    expect(isListingActivation('active', 'paused')).toBe(false)
+    expect(isListingActivation('paused', 'filled')).toBe(false)
   })
 })
 
@@ -912,6 +1002,48 @@ describe('getActiveListingsPage', () => {
     await getActiveListingsPage(client)
     expect(calls.eq).toEqual(['status', 'active'])
     expect(calls.order?.[0]).toBe('created_at')
+  })
+
+  // -- WS-LISTING-03: feeds are type-scoped -------------------------------
+
+  it('does not filter by type when no type is given (backward compatible)', async () => {
+    const eqCalls: unknown[][] = []
+    const chain: Record<string, unknown> = {}
+    const self = () => chain
+    chain['select'] = vi.fn(self)
+    chain['eq'] = vi.fn((...args: unknown[]) => {
+      eqCalls.push(args)
+      return self()
+    })
+    chain['or'] = vi.fn(self)
+    chain['order'] = vi.fn(self)
+    chain['range'] = vi.fn(() => Promise.resolve({ data: [], error: null }))
+    const client = { from: vi.fn(() => chain) } as unknown as SupabaseClient<Database>
+
+    await getActiveListingsPage(client)
+
+    expect(eqCalls).not.toContainEqual(['type', expect.anything()])
+    expect(eqCalls).toContainEqual(['status', 'active'])
+  })
+
+  it('filters by listing type in SQL when a type is given', async () => {
+    const eqCalls: unknown[][] = []
+    const chain: Record<string, unknown> = {}
+    const self = () => chain
+    chain['select'] = vi.fn(self)
+    chain['eq'] = vi.fn((...args: unknown[]) => {
+      eqCalls.push(args)
+      return self()
+    })
+    chain['or'] = vi.fn(self)
+    chain['order'] = vi.fn(self)
+    chain['range'] = vi.fn(() => Promise.resolve({ data: [], error: null }))
+    const client = { from: vi.fn(() => chain) } as unknown as SupabaseClient<Database>
+
+    await getActiveListingsPage(client, { type: 'athlete_endorsement' })
+
+    expect(eqCalls).toContainEqual(['type', 'athlete_endorsement'])
+    expect(eqCalls).toContainEqual(['status', 'active'])
   })
 
   // -- L-6 / DI-3: application deadlines -----------------------------------
