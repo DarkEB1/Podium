@@ -189,9 +189,12 @@ describe('getSubscription', () => {
 // ---------------------------------------------------------------------------
 
 describe('getSubscriptionForUser', () => {
-  it('returns subscription when brand has one', async () => {
+  // subscriptions.brand_id is UNIQUE, so PostgREST returns this embed as a
+  // to-one OBJECT in production, not an array. The array-shaped mocks below kept
+  // this green while live brands were falsely gated, so cover the object shape.
+  it('returns subscription when the embed is a to-one object (real PostgREST shape)', async () => {
     const mock = makeMockClient()
-    mock.setSingle({ id: 'bp-1', subscriptions: [SUBSCRIPTION] })
+    mock.setSingle({ id: 'bp-1', subscriptions: SUBSCRIPTION })
 
     const result = await getSubscriptionForUser(mock.client, 'user-1')
 
@@ -199,7 +202,25 @@ describe('getSubscriptionForUser', () => {
     expect(mock.mockFrom).toHaveBeenCalledWith('brand_profiles')
   })
 
-  it('returns null when brand has no subscription', async () => {
+  it('returns subscription when the embed is an array (defensive)', async () => {
+    const mock = makeMockClient()
+    mock.setSingle({ id: 'bp-1', subscriptions: [SUBSCRIPTION] })
+
+    const result = await getSubscriptionForUser(mock.client, 'user-1')
+
+    expect(result).toEqual(SUBSCRIPTION)
+  })
+
+  it('returns null when brand has no subscription (null embed)', async () => {
+    const mock = makeMockClient()
+    mock.setSingle({ id: 'bp-1', subscriptions: null })
+
+    const result = await getSubscriptionForUser(mock.client, 'user-1')
+
+    expect(result).toBeNull()
+  })
+
+  it('returns null when brand has no subscription (empty array)', async () => {
     const mock = makeMockClient()
     mock.setSingle({ id: 'bp-1', subscriptions: [] })
 
