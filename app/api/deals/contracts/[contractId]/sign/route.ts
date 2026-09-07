@@ -9,6 +9,7 @@ import { absoluteUrl, nameOf, resolveDisplayNames, FALLBACK_OTHER_NAME } from '@
 import { dispatchNotification } from '@/lib/notifications'
 import { dealDetailPath } from '@/lib/notifications/deep-links'
 import { clientIpFrom } from '@/lib/rate-limit'
+import { provider } from '@/lib/esign'
 
 export async function POST(
   request: NextRequest,
@@ -27,6 +28,21 @@ export async function POST(
   const { contractId } = await params
   const adminSupabase = createAdminClient()
 
+  const CONSENT_TEXT =
+    'I agree that this is my electronic signature and I intend to be legally bound by this contract.'
+
+  const body = await request.json().catch(() => ({}))
+  const typedName = typeof body?.typedName === 'string' ? body.typedName.trim() : ''
+  const consent = body?.consent === true
+  const signatureImage =
+    typeof body?.signatureImage === 'string' ? body.signatureImage : null
+  if (!typedName || !consent) {
+    return NextResponse.json(
+      { error: { code: 'SIGNATURE_INVALID', message: 'A typed name and consent are required to sign.' } },
+      { status: 400 }
+    )
+  }
+
   try {
     // QA-1.6 / spec 11.6: a signature event records where it came from, not just
     // when. Only this layer can see the request, so the audit values are read
@@ -35,6 +51,23 @@ export async function POST(
       ip: clientIpFrom(request.headers),
       device: request.headers.get('user-agent'),
     })
+
+    // Persist the signer's typed-name/consent/signature-image record via the
+    // e-sign provider (Task 10), keyed off which party this user is.
+    const signerRole: 'brand' | 'athlete' | 'agent' =
+      contract.brand_id === user.id ? 'brand'
+      : contract.agent_id === user.id ? 'agent'
+      : 'athlete'
+    const signedAt =
+      signerRole === 'brand' ? contract.brand_signed_at
+      : signerRole === 'agent' ? contract.agent_signed_at
+      : contract.athlete_signed_at
+    await provider().recordSignature(
+      contractId, signerRole, user.id,
+      { typedName, consentText: CONSENT_TEXT, signatureImageDataUrl: signatureImage,
+        ip: clientIpFrom(request.headers), device: request.headers.get('user-agent') },
+      signedAt as string
+    )
 
     // 2.3 hybrid half: when the signer is an under-18 athlete, send the guardian
     // an informational notice of the signed deal. Best-effort and never blocks
@@ -60,6 +93,7 @@ export async function POST(
     // guarded: a notification failure must never fail the signature itself.
     if (contract.status === 'fully_signed') {
       try {
+        await provider().finalizeContract(contractId)
         const parties: Array<{ userId: string; otherId: string }> = [
           { userId: contract.brand_id, otherId: contract.athlete_or_team_id },
           { userId: contract.athlete_or_team_id, otherId: contract.brand_id },
