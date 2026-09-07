@@ -11,7 +11,7 @@ function dataUrlToBytes(dataUrl: string | null | undefined): Buffer | null {
   if (!dataUrl) return null
   const m = /^data:image\/png;base64,(.+)$/.exec(dataUrl)
   if (!m) return null
-  return Buffer.from(m[1], 'base64')
+  return Buffer.from(m[1] ?? '', 'base64')
 }
 
 async function recordSignature(
