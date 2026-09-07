@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import ProposalForm from './proposal-form'
@@ -73,5 +73,30 @@ describe('ProposalForm', () => {
     const trigger = screen.getByRole('combobox', { name: /pay type/i })
     expect(trigger).toHaveTextContent('Monthly retainer')
     expect(trigger).not.toHaveTextContent(/monthly_retainer/)
+  })
+})
+
+describe('ProposalForm term fields', () => {
+  it('includes deliverables, usage rights and additional terms in the POST body', async () => {
+    const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ id: 'p1' }), { status: 201 })
+    )
+    render(<ProposalForm matchId="m1" onSent={() => {}} />)
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Summer Deal' } })
+    fireEvent.change(screen.getByLabelText('Amount'), { target: { value: '5000' } })
+    fireEvent.change(screen.getByLabelText(/deliverables/i), { target: { value: '3 Instagram posts' } })
+    fireEvent.change(screen.getByLabelText(/usage rights/i), { target: { value: 'Social, 6 months' } })
+    fireEvent.change(screen.getByLabelText(/additional terms/i), { target: { value: 'No competitors' } })
+    // (select pay_type via the existing Select interaction the other tests use)
+    await selectPayType(/^Flat fee$/)
+    fireEvent.click(screen.getByRole('button', { name: /send proposal/i }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled())
+    // Non-null: waitFor above already asserted the mock was called at least once.
+    const body = JSON.parse(String(fetchMock.mock.calls[0]![1]?.body))
+    expect(body).toMatchObject({
+      deliverables: { text: '3 Instagram posts' },
+      usage_rights: { text: 'Social, 6 months' },
+      additional_terms: 'No competitors',
+    })
   })
 })
