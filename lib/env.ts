@@ -47,6 +47,8 @@ const HINTS: Record<string, string> = {
   CRON_SECRET:
     'Any high-entropy string from `openssl rand -hex 32`, set as a Vercel project env var so Vercel Cron sends it as `Authorization: Bearer …`',
   SENTRY_DSN: 'Sentry → Project Settings → Client Keys (DSN). Optional; omit to log to stdout only',
+  ESIGN_WEBHOOK_SECRET:
+    'Any high-entropy string from `openssl rand -hex 32`, set in Vercel Preview + Production; matches the secret the provider signs webhooks with',
 }
 
 function formatIssues(error: z.ZodError, scope: string): never {
@@ -146,6 +148,22 @@ const serverSchema = z.object({
     .string()
     .min(16, 'must be at least 16 characters, generate with `openssl rand -hex 32`')
     .optional(),
+  /**
+   * E-signature provider selector. Defaults to the in-house Simple Electronic
+   * Signature implementation; a paid provider is selected by name later.
+   */
+  ESIGN_PROVIDER: z.enum(['podium']).default('podium'),
+  /**
+   * Shared HMAC secret verifying inbound provider webhooks at
+   * /api/webhooks/esign. VALIDATED-WHEN-PRESENT (same rationale as
+   * STRIPE_WEBHOOK_SECRET/CRON_SECRET): the in-house provider finalizes
+   * synchronously and needs no webhook, so a missing value must not take the
+   * server down at boot — the route fails closed when it is unset.
+   */
+  ESIGN_WEBHOOK_SECRET: z
+    .string()
+    .min(16, 'must be at least 16 characters, generate with `openssl rand -hex 32`')
+    .optional(),
 })
 
 export type ClientEnv = z.infer<typeof clientSchema>
@@ -201,6 +219,8 @@ export function serverEnv(): ServerEnv {
     EMAIL_FROM: process.env.EMAIL_FROM || undefined,
     EMAIL_REPLY_TO: process.env.EMAIL_REPLY_TO || undefined,
     UNSUBSCRIBE_SECRET: process.env.UNSUBSCRIBE_SECRET || undefined,
+    ESIGN_PROVIDER: process.env.ESIGN_PROVIDER || undefined,
+    ESIGN_WEBHOOK_SECRET: process.env.ESIGN_WEBHOOK_SECRET || undefined,
   })
 
   if (!parsed.success) formatIssues(parsed.error, 'server')
