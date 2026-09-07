@@ -226,14 +226,18 @@ begin
   -- so remove the contract-scoped objects here, gated on the same
   -- retain_until rule as Block B.
   -- ==========================================================
-  delete from storage.objects
-   where bucket_id = 'docs'
-     and (storage.foldername(name))[1] = 'contracts'
-     and (storage.foldername(name))[2] in (
-       select c.id::text from public.contracts c
-       where (c.brand_id = p_user_id or c.athlete_or_team_id = p_user_id or c.agent_id = p_user_id)
-         and c.retain_until is not null and c.retain_until <= now()
-     );
+  if to_regclass('storage.objects') is not null then
+    execute $store$
+      delete from storage.objects
+       where bucket_id = 'docs'
+         and (storage.foldername(name))[1] = 'contracts'
+         and (storage.foldername(name))[2] in (
+           select c.id::text from public.contracts c
+           where (c.brand_id = $1 or c.athlete_or_team_id = $1 or c.agent_id = $1)
+             and c.retain_until is not null and c.retain_until <= now()
+         )
+    $store$ using p_user_id;
+  end if;
 
   -- ==========================================================
   -- 8. PAYMENTS — receipt link dropped, figures retained.
