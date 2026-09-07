@@ -6,6 +6,7 @@ import { getContract } from '@/lib/supabase/deals'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import ContractSignButton from '@/components/deals/contract-sign-button'
+import { ContractTermsBlock } from '@/components/deals/contract-terms-block'
 import ProposalWithdrawButton from '@/components/deals/proposal-withdraw-button'
 import { AccentHeading } from '@/components/ui/accent-heading'
 import { formatMajorAmount } from '@/lib/money'
@@ -110,8 +111,21 @@ export default async function BrandProposalDetailPage({
             status={contract.status}
             isBrand={true}
             alreadySigned={!!contract.brand_signed_at}
+            terms={(contract.terms_snapshot ?? {}) as Record<string, unknown>}
           />
+          {contract.status === 'fully_signed' && contract.document_url && (
+            <Link
+              href={`/api/deals/contracts/${contract.id}/document`}
+              className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
+            >
+              View / Download PDF
+            </Link>
+          )}
         </div>
+      )}
+
+      {contract && (
+        <ContractTermsBlock terms={(contract.terms_snapshot ?? {}) as Record<string, unknown>} />
       )}
     </div>
   )
