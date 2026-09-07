@@ -2,11 +2,10 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import { apiFetch, ApiAuthError } from '@/lib/api/fetch-json'
 import { buttonVariants } from '@/components/ui/button'
 import GuardianConsentRequestButton from '@/components/guardian/request-consent-button'
+import { ReviewAndSignDialog } from '@/components/deals/review-and-sign-dialog'
 import type { Database } from '@/types/database'
 
 type ContractStatus = Database['public']['Enums']['contract_status']
@@ -16,6 +15,13 @@ interface ContractSignButtonProps {
   status: ContractStatus
   isBrand: boolean
   alreadySigned: boolean
+  /**
+   * `terms_snapshot` from the contract — rendered read-only in the dialog.
+   * Optional for now: the deal pages don't thread it through yet (Task 16
+   * wires it up); an absent snapshot renders an emptier — but still
+   * functional — term sheet rather than a type error.
+   */
+  terms?: Record<string, unknown>
 }
 
 export default function ContractSignButton({
@@ -23,8 +29,9 @@ export default function ContractSignButton({
   status,
   isBrand,
   alreadySigned,
+  terms = {},
 }: ContractSignButtonProps) {
-  const [loading, setLoading] = useState(false)
+  const [open, setOpen] = useState(false)
   const [guardianNeeded, setGuardianNeeded] = useState(false)
   const router = useRouter()
 
@@ -55,44 +62,28 @@ export default function ContractSignButton({
     )
   }
 
-  async function handleSign() {
-    setLoading(true)
-    try {
-      // WS-SEC-05: apiFetch throws ApiAuthError if the session has expired
-      // (a redirect to sign-in or a 401), so an expired session can never toast
-      // "Contract signed" with nothing written.
-      const res = await apiFetch(`/api/deals/contracts/${contractId}/sign`, { method: 'POST' })
-      if (!res.ok) {
-        const json = await res.json()
-        // 2.3 — an under-18 athlete is blocked until a guardian consents. Swap the
-        // sign button for a guardian-consent request rather than a bare error.
-        if (json.error?.code === 'GUARDIAN_CONSENT_REQUIRED') {
-          setGuardianNeeded(true)
-          return
-        }
-        toast.error(json.error?.message ?? 'Failed to sign contract')
-        return
-      }
-      toast.success('Contract signed successfully')
-      router.refresh()
-    } catch (err) {
-      if (err instanceof ApiAuthError) {
-        toast.error(err.message)
-        return
-      }
-      toast.error('An unexpected error occurred')
-    } finally {
-      setLoading(false)
-    }
-  }
-
   return (
-    <button
-      onClick={handleSign}
-      disabled={loading}
-      className={cn(buttonVariants(), loading && 'opacity-60 cursor-not-allowed')}
-    >
-      {loading ? 'Signing…' : 'Sign Contract'}
-    </button>
+    <>
+      <button onClick={() => setOpen(true)} className={cn(buttonVariants())}>
+        Review & Sign
+      </button>
+      <ReviewAndSignDialog
+        open={open}
+        contractId={contractId}
+        terms={terms}
+        onClose={() => setOpen(false)}
+        onSigned={() => {
+          setOpen(false)
+          router.refresh()
+        }}
+        // 2.3 — an under-18 athlete is blocked until a guardian consents. Swap
+        // the sign button for a guardian-consent request rather than a bare
+        // error toast.
+        onGuardianRequired={() => {
+          setOpen(false)
+          setGuardianNeeded(true)
+        }}
+      />
+    </>
   )
 }
