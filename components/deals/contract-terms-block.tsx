@@ -1,22 +1,6 @@
 import { formatMajorAmount } from '@/lib/money'
 import { formatDateRange } from '@/lib/dates'
-
-/**
- * Task 16 — mirrors `termsString` in `lib/esign/finalize.ts` and
- * `review-and-sign-dialog.tsx`: `terms_snapshot` jsonb fields come back as
- * either a plain string or `{ text }`, and this is the read-only surface
- * (deal detail pages) that needs to render one.
- */
-function termsString(v: unknown): string | null {
-  if (v == null) return null
-  if (typeof v === 'string') return v.trim() || null
-  if (typeof v === 'object') {
-    const t = (v as { text?: unknown }).text
-    if (typeof t === 'string') return t.trim() || null
-    return JSON.stringify(v)
-  }
-  return String(v)
-}
+import { termsString } from '@/lib/esign/terms'
 
 interface ContractTermsBlockProps {
   terms: Record<string, unknown>

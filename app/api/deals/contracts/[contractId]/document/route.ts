@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
+import { getContractDocumentInfo } from '@/lib/supabase/contracts'
 import { createSignedDownloadUrl, STORAGE_BUCKETS } from '@/lib/storage'
 import { provider } from '@/lib/esign'
 
@@ -42,12 +43,8 @@ export async function GET(
     )
 
   // RLS: this select returns a row only if the user is a participant/admin.
-  const { data: contract, error } = await supabase
-    .from('contracts')
-    .select('id, status, document_url')
-    .eq('id', contractId)
-    .single()
-  if (error || !contract) {
+  const contract = await getContractDocumentInfo(supabase, contractId)
+  if (!contract) {
     return notFound()
   }
 
@@ -60,12 +57,8 @@ export async function GET(
     // Idempotent + creates its own admin client — safe to call speculatively.
     await provider().finalizeContract(contractId)
 
-    const { data: refetched, error: refetchError } = await supabase
-      .from('contracts')
-      .select('id, status, document_url')
-      .eq('id', contractId)
-      .single()
-    if (refetchError || !refetched || !refetched.document_url) {
+    const refetched = await getContractDocumentInfo(supabase, contractId)
+    if (!refetched || !refetched.document_url) {
       return notFound()
     }
     documentUrl = refetched.document_url

@@ -62,6 +62,16 @@ export async function POST(
       signerRole === 'brand' ? contract.brand_signed_at
       : signerRole === 'agent' ? contract.agent_signed_at
       : contract.athlete_signed_at
+    // signContract (above) always sets THIS signer's `*_signed_at` column in
+    // the same call that returned `contract`, so signedAt is non-null here
+    // even though the column itself is nullable (it's null until that party
+    // signs) — hence the cast.
+    //
+    // Non-atomic edge: signContract commits `*_signed_at` first and this
+    // recordSignature call is a separate write. If recordSignature throws,
+    // the signature has already "taken" but the audit row is missing, and a
+    // retry from the client would hit ALREADY_SIGNED with no way to write
+    // the audit row after the fact.
     await provider().recordSignature(
       contractId, signerRole, user.id,
       { typedName, consentText: CONSENT_TEXT, signatureImageDataUrl: signatureImage,
@@ -92,8 +102,16 @@ export async function POST(
     // so a concurrent double-sign or a client retry cannot double-send. Fully
     // guarded: a notification failure must never fail the signature itself.
     if (contract.status === 'fully_signed') {
+      // Finalize (PDF generation) and the fully-signed notifications are
+      // independent failure domains: a finalize error must not also skip the
+      // emails/in-app notices, so each gets its own try/catch.
       try {
         await provider().finalizeContract(contractId)
+      } catch (finalizeErr) {
+        console.error('[contracts/sign] finalize failed', finalizeErr)
+      }
+
+      try {
         const parties: Array<{ userId: string; otherId: string }> = [
           { userId: contract.brand_id, otherId: contract.athlete_or_team_id },
           { userId: contract.athlete_or_team_id, otherId: contract.brand_id },

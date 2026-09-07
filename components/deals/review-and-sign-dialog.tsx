@@ -16,22 +16,7 @@ import { Label } from '@/components/ui/label'
 import { apiFetch, ApiAuthError } from '@/lib/api/fetch-json'
 import { formatMajorAmount } from '@/lib/money'
 import { formatDateRange } from '@/lib/dates'
-
-/**
- * Task 14 — mirrors `termsString` in `lib/esign/finalize.ts`: `terms_snapshot`
- * jsonb fields come back as either a plain string or `{ text }`, and this is
- * the one client-side place that needs to read one.
- */
-function termsString(v: unknown): string | null {
-  if (v == null) return null
-  if (typeof v === 'string') return v.trim() || null
-  if (typeof v === 'object') {
-    const t = (v as { text?: unknown }).text
-    if (typeof t === 'string') return t.trim() || null
-    return JSON.stringify(v)
-  }
-  return String(v)
-}
+import { termsString } from '@/lib/esign/terms'
 
 interface ReviewAndSignDialogProps {
   open: boolean
@@ -153,9 +138,12 @@ export function ReviewAndSignDialog({
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        toast.error(data?.error?.message ?? 'Failed to sign contract')
+        // The guardian panel IS the UX for this error — a generic error toast
+        // on top of it is noise, so only fire the toast for every other code.
         if (data?.error?.code === 'GUARDIAN_CONSENT_REQUIRED') {
           onGuardianRequired?.()
+        } else {
+          toast.error(data?.error?.message ?? 'Failed to sign contract')
         }
         return
       }

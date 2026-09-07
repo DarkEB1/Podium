@@ -113,7 +113,7 @@ export default async function BrandProposalDetailPage({
             alreadySigned={!!contract.brand_signed_at}
             terms={(contract.terms_snapshot ?? {}) as Record<string, unknown>}
           />
-          {contract.status === 'fully_signed' && contract.document_url && (
+          {contract.status === 'fully_signed' && (
             <Link
               href={`/api/deals/contracts/${contract.id}/document`}
               className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}

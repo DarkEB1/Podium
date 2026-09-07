@@ -16,15 +16,10 @@ vi.mock('@/lib/esign', () => ({
 
 let contractRow: unknown = { id: 'c1', status: 'fully_signed', document_url: 'contracts/c1/signed-a.pdf' }
 vi.mock('@/lib/supabase/server', () => ({
-  createClient: async () => ({
-    from: () => ({
-      select: () => ({
-        eq: () => ({
-          single: async () => ({ data: contractRow, error: contractRow ? null : { code: 'PGRST116' } }),
-        }),
-      }),
-    }),
-  }),
+  createClient: async () => ({}),
+}))
+vi.mock('@/lib/supabase/contracts', () => ({
+  getContractDocumentInfo: async () => contractRow,
 }))
 vi.mock('@/lib/supabase/auth', () => ({ getUser: async () => ({ id: 'brand1' }) }))
 
@@ -39,6 +34,7 @@ describe('GET contract document', () => {
   })
 
   it('redirects a participant to a signed URL', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test double
     const res = await GET(new Request('http://x') as any, params)
     expect(res.status).toBe(302)
     expect(res.headers.get('location')).toContain('signed.example')
@@ -46,6 +42,7 @@ describe('GET contract document', () => {
 
   it('404s when the contract is not visible / has no document', async () => {
     contractRow = null
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test double
     const res = await GET(new Request('http://x') as any, params)
     expect(res.status).toBe(404)
   })
@@ -59,6 +56,7 @@ describe('GET contract document', () => {
       return { documentPath: 'contracts/c1/signed-b.pdf', documentHash: 'h' }
     })
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test double
     const res = await GET(new Request('http://x') as any, params)
 
     expect(mockFinalize).toHaveBeenCalledWith('c1')
@@ -69,6 +67,7 @@ describe('GET contract document', () => {
 
   it('404s and does not finalize when the contract is not fully signed and has no document', async () => {
     contractRow = { id: 'c1', status: 'pending_athlete_signature', document_url: null }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test double
     const res = await GET(new Request('http://x') as any, params)
     expect(res.status).toBe(404)
     expect(mockFinalize).not.toHaveBeenCalled()
@@ -77,6 +76,7 @@ describe('GET contract document', () => {
   it('404s when finalize runs but still leaves document_url null', async () => {
     contractRow = { id: 'c1', status: 'fully_signed', document_url: null }
     mockFinalize.mockResolvedValue(null) // stays null on re-select
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test double
     const res = await GET(new Request('http://x') as any, params)
     expect(mockFinalize).toHaveBeenCalledWith('c1')
     expect(res.status).toBe(404)

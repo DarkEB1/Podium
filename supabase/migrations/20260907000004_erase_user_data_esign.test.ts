@@ -19,4 +19,10 @@ describe('20260907000004_erase_user_data_esign', () => {
   it('drops document_hash only after retention expires', () => {
     expect(sql).toMatch(/document_hash = case when retain_until is not null and retain_until <= now\(\)/)
   })
+  it('deletes the underlying signed-PDF/signature storage objects once retention expires', () => {
+    expect(sql).toMatch(/delete from storage\.objects/)
+    expect(sql).toMatch(/bucket_id = 'docs'/)
+    expect(sql).toMatch(/'contracts'/)
+    expect(sql).toMatch(/retain_until is not null and c\.retain_until <= now\(\)/)
+  })
 })

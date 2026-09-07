@@ -5,22 +5,12 @@ import { sha256Hex } from './audit'
 import { getContractSignatures } from '@/lib/supabase/contract-signatures'
 import { resolveDisplayNames, nameOf, FALLBACK_OTHER_NAME } from '@/lib/email/notify'
 import { STORAGE_BUCKETS } from '@/lib/storage'
+import { termsString } from './terms'
 
 type ContractRow = Pick<
   Database['public']['Tables']['contracts']['Row'],
   'id' | 'brand_id' | 'athlete_or_team_id' | 'agent_id' | 'document_url' | 'terms_snapshot'
 >
-
-function termsString(v: unknown): string | null {
-  if (v == null) return null
-  if (typeof v === 'string') return v.trim() || null
-  if (typeof v === 'object') {
-    const t = (v as { text?: unknown }).text
-    if (typeof t === 'string') return t.trim() || null
-    return JSON.stringify(v)
-  }
-  return String(v)
-}
 
 /**
  * Generate the signed contract PDF from terms_snapshot + captured signatures,

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { serverEnv } from '@/lib/env'
 import { createAdminClient } from '@/lib/supabase/server'
+import { getContractByEsignEnvelopeId, terminateContract } from '@/lib/supabase/contracts'
 import { provider } from '@/lib/esign'
 
 // This is the seam a future EXTERNAL e-signature provider would call back on.
@@ -71,13 +72,9 @@ export async function POST(request: NextRequest) {
   }
 
   const admin = createAdminClient()
-  const { data: contract, error } = await admin
-    .from('contracts')
-    .select('id, esignature_envelope_id')
-    .eq('esignature_envelope_id', payload.envelopeId ?? '')
-    .single()
+  const contract = await getContractByEsignEnvelopeId(admin, payload.envelopeId ?? '')
 
-  if (error || !contract) {
+  if (!contract) {
     // Unknown envelope — ack so the provider stops retrying a delivery this
     // app can never resolve to a contract.
     return NextResponse.json({ received: true, unknown: true }, { status: 200 })
@@ -87,14 +84,7 @@ export async function POST(request: NextRequest) {
     // Idempotent: finalizeContract is a no-op once document_url is set.
     await provider().finalizeContract(contract.id)
   } else if (payload.event === 'declined' || payload.event === 'voided') {
-    await admin
-      .from('contracts')
-      .update({
-        status: 'terminated',
-        terminated_at: new Date().toISOString(),
-        termination_reason: payload.reason ?? payload.event,
-      })
-      .eq('id', contract.id)
+    await terminateContract(admin, contract.id, payload.reason ?? payload.event)
   }
 
   return NextResponse.json({ received: true }, { status: 200 })

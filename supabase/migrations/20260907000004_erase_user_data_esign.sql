@@ -19,6 +19,12 @@
 --   are only nulled once retain_until has passed, for contracts where the
 --   erased user was the brand, athlete/team or agent party.
 --
+--   BLOCK C (new, placed immediately after Block B) — deletes the actual
+--   signed-PDF / signature-image storage objects under contracts/<id>/, once
+--   the same retain_until rule allows it. document_url/document_hash only
+--   point at these objects; nulling the columns without this delete would
+--   leave the objects themselves in storage past retention.
+--
 -- No existing statement from 20260720005003 is dropped, reordered or altered.
 -- ============================================================
 
@@ -212,6 +218,24 @@ begin
       or agent_id = p_user_id;
 
   -- ==========================================================
+  -- NEW BLOCK C (e-signature / GDPR spec-gap I3) — the signed PDF and any
+  -- signature-image PNGs are the actual storage objects that document_url /
+  -- document_hash (nulled above) and contract_signatures.signature_image_path
+  -- (nulled in Block A) merely point at. Deleting the rows without deleting
+  -- the objects leaves the personal data sitting in storage past retention,
+  -- so remove the contract-scoped objects here, gated on the same
+  -- retain_until rule as Block B.
+  -- ==========================================================
+  delete from storage.objects
+   where bucket_id = 'docs'
+     and (storage.foldername(name))[1] = 'contracts'
+     and (storage.foldername(name))[2] in (
+       select c.id::text from public.contracts c
+       where (c.brand_id = p_user_id or c.athlete_or_team_id = p_user_id or c.agent_id = p_user_id)
+         and c.retain_until is not null and c.retain_until <= now()
+     );
+
+  -- ==========================================================
   -- 8. PAYMENTS — receipt link dropped, figures retained.
   -- ==========================================================
   update public.payments
@@ -365,4 +389,4 @@ end;
 $$;
 
 comment on function public.erase_user_data(uuid) is
-  'GDPR Art. 17 erasure for a single user. SEC-6: refuses any JWT caller who is not the data subject, an admin or the service role (SQLSTATE PD011); re-targets message-only reports before deleting messages so reports_must_have_target cannot abort the run; deletes storage objects by path prefix as well as the deprecated owner column; deletes invited-but-unlinked team_admins by email; nulls stripe_webhook_events.payload referencing the user; clears deletion_requested_at on the tombstone; anonymises contract_signatures (keeping signed_at/signature_hash) and gates contracts.document_hash on retain_until, same as document_url.';
+  'GDPR Art. 17 erasure for a single user. SEC-6: refuses any JWT caller who is not the data subject, an admin or the service role (SQLSTATE PD011); re-targets message-only reports before deleting messages so reports_must_have_target cannot abort the run; deletes storage objects by path prefix as well as the deprecated owner column; deletes invited-but-unlinked team_admins by email; nulls stripe_webhook_events.payload referencing the user; clears deletion_requested_at on the tombstone; anonymises contract_signatures (keeping signed_at/signature_hash) and gates contracts.document_hash on retain_until, same as document_url; once retain_until has passed also deletes the underlying signed-PDF/signature-image objects under storage.objects (bucket docs, contracts/<id>/*).';
