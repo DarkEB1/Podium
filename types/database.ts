@@ -702,6 +702,53 @@ export type Database = {
           },
         ]
       }
+      // HAND-ADDED 2026-09-07 for migration 20260907000001; replace with a real
+      // `supabase gen types` regen once the migration is applied to staging.
+      contract_signatures: {
+        Row: {
+          id: string
+          contract_id: string
+          signer_role: string
+          signer_user_id: string
+          typed_name: string
+          signature_image_path: string | null
+          consent_text: string
+          signer_ip: string | null
+          signer_device: string | null
+          signed_at: string
+          signature_hash: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          contract_id: string
+          signer_role: string
+          signer_user_id: string
+          typed_name: string
+          signature_image_path?: string | null
+          consent_text: string
+          signer_ip?: string | null
+          signer_device?: string | null
+          signed_at: string
+          signature_hash: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          contract_id?: string
+          signer_role?: string
+          signer_user_id?: string
+          typed_name?: string
+          signature_image_path?: string | null
+          consent_text?: string
+          signer_ip?: string | null
+          signer_device?: string | null
+          signed_at?: string
+          signature_hash?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
       contracts: {
         Row: {
           agent_id: string | null
@@ -716,6 +763,7 @@ export type Database = {
           brand_signer_device: string | null
           brand_signer_ip: string | null
           created_at: string
+          document_hash: string | null
           document_url: string | null
           esignature_envelope_id: string | null
           esignature_provider: string | null
@@ -743,6 +791,7 @@ export type Database = {
           brand_signer_device?: string | null
           brand_signer_ip?: string | null
           created_at?: string
+          document_hash?: string | null
           document_url?: string | null
           esignature_envelope_id?: string | null
           esignature_provider?: string | null
@@ -770,6 +819,7 @@ export type Database = {
           brand_signer_device?: string | null
           brand_signer_ip?: string | null
           created_at?: string
+          document_hash?: string | null
           document_url?: string | null
           esignature_envelope_id?: string | null
           esignature_provider?: string | null
