@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { apiFetch, ApiAuthError } from '@/lib/api/fetch-json'
 import { buttonVariants } from '@/components/ui/button'
 import GuardianConsentRequestButton from '@/components/guardian/request-consent-button'
 import type { Database } from '@/types/database'
@@ -57,7 +58,10 @@ export default function ContractSignButton({
   async function handleSign() {
     setLoading(true)
     try {
-      const res = await fetch(`/api/deals/contracts/${contractId}/sign`, { method: 'POST' })
+      // WS-SEC-05: apiFetch throws ApiAuthError if the session has expired
+      // (a redirect to sign-in or a 401), so an expired session can never toast
+      // "Contract signed" with nothing written.
+      const res = await apiFetch(`/api/deals/contracts/${contractId}/sign`, { method: 'POST' })
       if (!res.ok) {
         const json = await res.json()
         // 2.3 — an under-18 athlete is blocked until a guardian consents. Swap the
@@ -71,7 +75,11 @@ export default function ContractSignButton({
       }
       toast.success('Contract signed successfully')
       router.refresh()
-    } catch {
+    } catch (err) {
+      if (err instanceof ApiAuthError) {
+        toast.error(err.message)
+        return
+      }
       toast.error('An unexpected error occurred')
     } finally {
       setLoading(false)

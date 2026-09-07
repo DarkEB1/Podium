@@ -21,15 +21,25 @@ const PROTECTED_TEAM_FIELDS = new Set<string>([
   'status',
 ])
 
+/**
+ * Strip protected fields and normalise the payload. `clearEmpty` mirrors
+ * profiles.sanitizeProfileData: on create ('' dropped, column default applies);
+ * on update ('' -> null so an optional field can genuinely be cleared, PM-15).
+ * The protected-field filter runs FIRST, so clearing can never write `status`,
+ * `id`, `user_id` or an audit column.
+ */
 function sanitizeTeamData(
-  data: Record<string, unknown>
+  data: Record<string, unknown>,
+  { clearEmpty = false }: { clearEmpty?: boolean } = {}
 ): Record<string, unknown> {
   return Object.fromEntries(
-    Object.entries(data).filter(([key, value]) => {
-      if (PROTECTED_TEAM_FIELDS.has(key)) return false
-      if (value === '') return false
-      return true
-    })
+    Object.entries(data)
+      .filter(([key, value]) => {
+        if (PROTECTED_TEAM_FIELDS.has(key)) return false
+        if (value === '' && !clearEmpty) return false
+        return true
+      })
+      .map(([key, value]) => [key, value === '' ? null : value])
   )
 }
 
@@ -68,6 +78,38 @@ export async function createTeamProfile(
 
   if (error) {
     throw new TeamError('TEAM_PROFILE_CREATE_FAILED', (error as { message: string }).message)
+  }
+
+  return row as TeamProfile
+}
+
+/**
+ * PM-12 / WS-PROFILE-02: edit an existing team profile after onboarding.
+ *
+ * The mirror of createTeamProfile for updates. `status` stays protected — it is
+ * owned by createTeamProfile and admin review, never by an edit form — and empty
+ * strings clear optional columns (fan_reach, home_city, website, socials…)
+ * rather than being silently dropped. Scoped by `user_id` so RLS owner policies
+ * apply and a team can only edit its own row.
+ */
+export async function updateTeamProfile(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  data: Record<string, unknown>
+): Promise<TeamProfile> {
+  const clean = sanitizeTeamData(data, { clearEmpty: true })
+  const { data: row, error } = await db(supabase)
+    .from('team_profiles')
+    .update(clean)
+    .eq('user_id', userId)
+    .select()
+    .single()
+
+  if (error) {
+    if ((error as { code?: string }).code === 'PGRST116') {
+      throw new TeamError('TEAM_PROFILE_NOT_FOUND', 'No team profile found for this user')
+    }
+    throw new TeamError('TEAM_PROFILE_UPDATE_FAILED', (error as { message: string }).message)
   }
 
   return row as TeamProfile
@@ -133,6 +175,77 @@ export async function inviteTeamAdmin(
 
   if (error) {
     throw new TeamError('TEAM_ADMIN_INVITE_FAILED', (error as { message: string }).message)
+  }
+
+  return data as TeamAdmin
+}
+
+/**
+ * WS-PROFILE-02: change an administrator's role. Previously the settings action
+ * threw "updateTeamAdmin helper (pending)". RLS restricts the write to the
+ * team's primary admin.
+ */
+export async function updateTeamAdmin(
+  supabase: SupabaseClient<Database>,
+  adminId: string,
+  patch: { role?: TeamAdminRole; fullName?: string }
+): Promise<TeamAdmin> {
+  const update: Record<string, unknown> = {}
+  if (patch.role !== undefined) update.role = patch.role
+  if (patch.fullName !== undefined) update.full_name = patch.fullName
+
+  const { data, error } = await db(supabase)
+    .from('team_admins')
+    .update(update)
+    .eq('id', adminId)
+    .select()
+    .single()
+
+  if (error) {
+    if ((error as { code?: string }).code === 'PGRST116') {
+      throw new TeamError('TEAM_ADMIN_NOT_FOUND', 'Administrator not found')
+    }
+    throw new TeamError('TEAM_ADMIN_UPDATE_FAILED', (error as { message: string }).message)
+  }
+
+  return data as TeamAdmin
+}
+
+/**
+ * PM-14 / WS-PROFILE-02: re-issue an invite for an already-invited admin.
+ *
+ * The old path re-ran `inviteTeamAdmin`, a plain INSERT that violates the
+ * `team_admins_team_email_unique (team_id, invited_email)` index — the write
+ * failed every time while the UI still toasted "Invite resent." Upsert on that
+ * unique key instead: it finds the existing pending row and refreshes it (and,
+ * were the row somehow missing, recreates it) rather than colliding. Returns the
+ * live row so the caller can trigger the invite email off a real success.
+ */
+export async function resendTeamAdminInvite(
+  supabase: SupabaseClient<Database>,
+  teamId: string,
+  invitedBy: string,
+  invite: { email: string; role?: TeamAdminRole; fullName?: string }
+): Promise<TeamAdmin> {
+  const { data, error } = await db(supabase)
+    .from('team_admins')
+    .upsert(
+      {
+        team_id: teamId,
+        invited_by: invitedBy,
+        invited_email: invite.email,
+        role: invite.role ?? 'standard',
+        full_name: invite.fullName ?? null,
+        invite_status: 'invited',
+        invited_at: new Date().toISOString(),
+      },
+      { onConflict: 'team_id,invited_email' }
+    )
+    .select()
+    .single()
+
+  if (error) {
+    throw new TeamError('TEAM_ADMIN_RESEND_FAILED', (error as { message: string }).message)
   }
 
   return data as TeamAdmin

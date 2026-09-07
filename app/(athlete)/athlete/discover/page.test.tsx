@@ -110,7 +110,10 @@ describe('AthleteDiscoverPage', () => {
   // FA-5
   it('requests one bounded page and shows no load-more when there is nothing more', async () => {
     await renderPage()
-    expect(getActiveListingsPageMock).toHaveBeenCalledWith(expect.anything(), { limit: 24 })
+    expect(getActiveListingsPageMock).toHaveBeenCalledWith(expect.anything(), {
+      limit: 24,
+      type: 'athlete_endorsement',
+    })
     expect(screen.queryByTestId('load-more')).toBeNull()
   })
 
@@ -124,7 +127,10 @@ describe('AthleteDiscoverPage', () => {
   it('honours the ?show= parameter so load-more actually loads more', async () => {
     getActiveListingsPageMock.mockResolvedValue({ listings: [listing()], hasMore: true })
     await renderPage({ show: '48' })
-    expect(getActiveListingsPageMock).toHaveBeenCalledWith(expect.anything(), { limit: 48 })
+    expect(getActiveListingsPageMock).toHaveBeenCalledWith(expect.anything(), {
+      limit: 48,
+      type: 'athlete_endorsement',
+    })
     expect(screen.getByRole('link', { name: /load more campaigns/i }).getAttribute('href')).toBe(
       '/athlete/discover?show=72'
     )

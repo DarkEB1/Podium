@@ -107,6 +107,119 @@ describe('middleware', () => {
       const res = await middleware(request('/athlete/discover'))
       expect(redirectedTo(res)).toBe('/auth')
     })
+
+    // ── WS-SEC-05: an expired session must not turn API calls into false wins ──
+    // `fetch` follows the 307 to the sign-in HTML and reports it as a 200, so a
+    // client whose session expired saw "Contract signed" / "Saved to shortlist"
+    // with nothing written. A non-public /api/* request from a signed-out caller
+    // must come back as a readable JSON 401, never a redirect.
+    it('answers a signed-out /api/* request with JSON 401, not a redirect', async () => {
+      stubSupabase(null, {})
+      const res = await middleware(request('/api/deals/contracts/c1/sign'))
+      expect(redirectedTo(res)).toBeNull()
+      expect(res.status).toBe(401)
+      expect(res.headers.get('content-type')).toContain('application/json')
+      expect((await res.json()).error.code).toBe('UNAUTHENTICATED')
+    })
+
+    // A signed-out browser page still gets the redirect (that branch is untouched).
+    it('still redirects a signed-out browser page to sign-in', async () => {
+      stubSupabase(null, {})
+      const res = await middleware(request('/athlete/saved'))
+      expect(redirectedTo(res)).toBe('/auth')
+    })
+
+    // Public/self-authenticating API routes are unaffected.
+    it('still lets a signed-out caller reach a public /api route', async () => {
+      stubSupabase(null, {})
+      const res = await middleware(request('/api/webhooks/stripe'))
+      expect(res.status).not.toBe(401)
+      expect(redirectedTo(res)).toBeNull()
+    })
+  })
+
+  // ── WS-INFRA-01: SEO / metadata routes must be crawlable ─────────────────
+  // `/robots.txt`, `/sitemap.xml`, the OG image and the web manifest were all
+  // 307-ing to /auth on production, so Google saw "no robots.txt", the sitemap
+  // was undiscoverable, and link previews had no image. They are public assets
+  // and must be reachable with no session.
+  describe('metadata routes are public (WS-INFRA-01)', () => {
+    it.each([
+      '/robots.txt',
+      '/sitemap.xml',
+      '/manifest.webmanifest',
+      '/opengraph-image',
+      '/twitter-image',
+    ])('lets a signed-out crawler reach %s without a redirect or 401', async (path) => {
+      stubSupabase(null, {})
+      const res = await middleware(request(path))
+      expect(redirectedTo(res)).toBeNull()
+      expect(res.status).not.toBe(401)
+    })
+  })
+
+  // ── WS-INFRA P2: unknown paths fall through to 404 rather than /auth ──────
+  // Deny-by-default used to 307 EVERY unknown path to /auth for a signed-out
+  // visitor, hiding the branded 404 and returning a soft 200 to crawlers for
+  // garbage URLs. Only genuinely private areas should bounce to sign-in now;
+  // anything else falls through so Next renders not-found.tsx / the 403 page.
+  describe('unknown paths fall through, private areas still gate (WS-INFRA P2)', () => {
+    it.each([
+      '/this-page-does-not-exist-qa',
+      '/Pricing',
+      '/index.html',
+      '/.env',
+      '/manifest.json',
+    ])('does not bounce a signed-out visitor on unknown path %s to /auth', async (path) => {
+      stubSupabase(null, {})
+      const res = await middleware(request(path))
+      // No redirect at all: the request forwards to Next, which 404s.
+      expect(redirectedTo(res)).toBeNull()
+      expect(res.status).not.toBe(401)
+    })
+
+    it('lets a signed-out visitor reach the branded 403 page', async () => {
+      stubSupabase(null, {})
+      const res = await middleware(request('/403'))
+      expect(redirectedTo(res)).toBeNull()
+    })
+
+    it.each([
+      '/athlete/discover',
+      '/brand/listings',
+      '/team/deals',
+      '/agent/clients',
+      '/admin/dashboard',
+      '/dashboard',
+      '/settings/notifications',
+      '/role-select',
+      '/update-password',
+    ])('still sends a signed-out visitor on private path %s to sign-in', async (path) => {
+      stubSupabase(null, {})
+      const res = await middleware(request(path))
+      expect(redirectedTo(res)).toBe('/auth')
+    })
+  })
+
+  // ── WS-INFRA P2: ?next= return-to after sign-in ──────────────────────────
+  // A signed-out visitor deep-linking into a private page landed on the generic
+  // dashboard after signing in, losing where they were headed. The middleware
+  // now carries the attempted path as `?next=` on the sign-in redirect.
+  describe('return-to after sign-in (?next=)', () => {
+    it('preserves the attempted private path as ?next on the redirect', async () => {
+      stubSupabase(null, {})
+      const res = await middleware(request('/athlete/discover'))
+      const loc = new URL(res.headers.get('location') as string)
+      expect(loc.pathname).toBe('/auth')
+      expect(loc.searchParams.get('next')).toBe('/athlete/discover')
+    })
+
+    it('preserves the query string of the attempted path too', async () => {
+      stubSupabase(null, {})
+      const res = await middleware(request('/brand/listings?tab=paused'))
+      const loc = new URL(res.headers.get('location') as string)
+      expect(loc.searchParams.get('next')).toBe('/brand/listings?tab=paused')
+    })
   })
 
   describe('mandatory, resumable onboarding (PR-9)', () => {
@@ -489,6 +602,37 @@ describe('middleware', () => {
       stubSupabase({ id: 'u1' }, { users: { role: 'athlete' } })
       const res = await middleware(request('/admin/dashboard', onboardedCookie))
       expect(redirectedTo(res)).toBe('/403')
+    })
+  })
+
+  // ── WS-ACCT-04: a recovery-link session cannot roam the app ────────────────
+  describe('recovery-session confinement', () => {
+    const recovery = { cookie: 'podium-recovery=1' }
+
+    it('redirects an app page to /update-password while the recovery marker is set', async () => {
+      stubSupabase({ id: 'u1' }, { users: { role: 'athlete' }, athlete_profiles: COMPLETE_ATHLETE })
+      const res = await middleware(request('/athlete/dashboard', recovery))
+      expect(redirectedTo(res)).toBe('/update-password')
+    })
+
+    it('lets the update-password page itself through', async () => {
+      stubSupabase({ id: 'u1' }, { users: { role: 'athlete' }, athlete_profiles: COMPLETE_ATHLETE })
+      const res = await middleware(request('/update-password', recovery))
+      expect(redirectedTo(res)).toBeNull()
+    })
+
+    it('lets the password-update and sign-out endpoints through so the flow can complete or be abandoned', async () => {
+      stubSupabase({ id: 'u1' }, { users: { role: 'athlete' } })
+      expect(
+        redirectedTo(await middleware(request('/api/auth/password-update', recovery))),
+      ).toBeNull()
+      expect(redirectedTo(await middleware(request('/api/auth/logout', recovery)))).toBeNull()
+    })
+
+    it('does not confine a normal session with no recovery marker', async () => {
+      stubSupabase({ id: 'u1' }, { users: { role: 'athlete' }, athlete_profiles: COMPLETE_ATHLETE })
+      const res = await middleware(request('/athlete/dashboard'))
+      expect(redirectedTo(res)).toBeNull()
     })
   })
 })

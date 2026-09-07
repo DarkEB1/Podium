@@ -78,28 +78,37 @@ export default function WordChip() {
             style={{ visibility: 'hidden' }}
           />
         ))}
-        {/* the tile itself, laid over that box and clipping the flip */}
+        {/* the tile itself, laid over that box and clipping the flip.
+            The flip is a rotateX about the words' bottom edge; when the
+            `perspective` sat on this same overflow-hidden box, Chromium did not
+            clip the 3D-transformed child and the outgoing word spilled below
+            the tile on every flip. Two things fix it: `clip-path` clips
+            transformed descendants where `overflow` alone does not, and the
+            `perspective` now lives on an inner wrapper so this box is a plain
+            clipping context. */}
         <span
           className="chip-wrap absolute inset-0 overflow-hidden bg-lime text-lime-foreground"
           style={{
             borderRadius: CHIP_RADIUS,
             boxShadow: CHIP_SHADOW,
-            perspective: '800px',
+            clipPath: `inset(0 round ${CHIP_RADIUS})`,
           }}
         >
-          {prev !== null && (
+          <span className="absolute inset-0" style={{ perspective: '800px' }}>
+            {prev !== null && (
+              <span
+                key={`out-${prev}-${index}`}
+                className={`chip-out absolute inset-x-0 top-0 inline-block ${CHIP_PAD}`}
+              >
+                {WORDS[prev]}
+              </span>
+            )}
             <span
-              key={`out-${prev}-${index}`}
-              className={`chip-out absolute inset-x-0 top-0 inline-block ${CHIP_PAD}`}
+              key={`in-${index}`}
+              className={`absolute inset-x-0 top-0 inline-block ${CHIP_PAD} ${prev !== null ? 'chip-in' : ''}`}
             >
-              {WORDS[prev]}
+              {WORDS[index]}
             </span>
-          )}
-          <span
-            key={`in-${index}`}
-            className={`absolute inset-x-0 top-0 inline-block ${CHIP_PAD} ${prev !== null ? 'chip-in' : ''}`}
-          >
-            {WORDS[index]}
           </span>
         </span>
       </span>

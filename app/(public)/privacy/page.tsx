@@ -12,6 +12,8 @@ export const metadata: Metadata = {
   title: 'Privacy Policy · Podium',
   description:
     'How Podium collects, uses, shares and retains personal data under UK GDPR, and how to exercise your data protection rights.',
+  // WS-INFRA P2: one canonical URL, resolved against metadataBase in app/layout.tsx.
+  alternates: { canonical: '/privacy' },
 }
 
 export default function PrivacyPage() {

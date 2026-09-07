@@ -6,6 +6,7 @@ import {
   getMatches,
   getConversations,
   markMatchRead,
+  insertPaymentConfirmationCard,
   MessagingError,
 } from './messaging'
 import type { SupabaseClient } from '@supabase/supabase-js'
@@ -32,6 +33,8 @@ function makeMockClient() {
     eq: vi.fn(),
     or: vi.fn(),
     order: vi.fn(),
+    contains: vi.fn(),
+    limit: vi.fn(),
     single: mockSingle,
     then(
       resolve: (v: unknown) => void,
@@ -49,6 +52,8 @@ function makeMockClient() {
   chain.eq.mockReturnValue(chain)
   chain.or.mockReturnValue(chain)
   chain.order.mockReturnValue(chain)
+  chain.contains.mockReturnValue(chain)
+  chain.limit.mockReturnValue(chain)
 
   const mockFrom = vi.fn().mockReturnValue(chain)
 
@@ -292,6 +297,54 @@ describe('getMessages', () => {
     await expect(getMessages(client, 'm1')).rejects.toMatchObject({
       code: 'MESSAGES_FETCH_FAILED',
     })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// insertPaymentConfirmationCard (WS-MSG-04)
+// ---------------------------------------------------------------------------
+
+describe('insertPaymentConfirmationCard', () => {
+  it('writes a payment_confirmation card from the payer to the deal thread', async () => {
+    const { client, mockFrom, chain, queueSingle, queueList } = makeMockClient()
+    // 1. contract lookup
+    queueSingle({ proposal_id: 'p1', match_id: 'm1', brand_id: 'brand-1' })
+    // 2. idempotency check — no existing card
+    queueList([])
+    // 3. inserted message row
+    queueSingle({ ...fakeMessage, content_type: 'payment_confirmation', metadata: { proposal_id: 'p1' } })
+
+    const result = await insertPaymentConfirmationCard(client, 'c1')
+
+    expect(mockFrom).toHaveBeenCalledWith('contracts')
+    expect(mockFrom).toHaveBeenCalledWith('messages')
+    expect(chain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        match_id: 'm1',
+        sender_id: 'brand-1',
+        content_type: 'payment_confirmation',
+        metadata: { proposal_id: 'p1' },
+      })
+    )
+    expect(result?.content_type).toBe('payment_confirmation')
+  })
+
+  it('is idempotent: no second card when one already exists for the proposal', async () => {
+    const { client, chain, queueSingle, queueList } = makeMockClient()
+    queueSingle({ proposal_id: 'p1', match_id: 'm1', brand_id: 'brand-1' })
+    queueList([{ id: 'existing-card' }])
+
+    const result = await insertPaymentConfirmationCard(client, 'c1')
+
+    expect(result).toBeNull()
+    expect(chain.insert).not.toHaveBeenCalled()
+  })
+
+  it('returns null (never throws) when the contract cannot be resolved', async () => {
+    const { client, queueSingle } = makeMockClient()
+    queueSingle(null, { code: 'PGRST116', message: 'no rows' })
+
+    await expect(insertPaymentConfirmationCard(client, 'missing')).resolves.toBeNull()
   })
 })
 

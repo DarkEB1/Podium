@@ -39,7 +39,9 @@ export default async function AthleteDiscoverPage({
   const shown = parseShowParam(params.show, LISTING_PAGE_SIZE)
 
   const [{ listings, hasMore }, mode, profile] = await Promise.all([
-    getActiveListingsPage(supabase, { limit: shown }),
+    // WS-LISTING-03: athletes only see brand-to-athlete endorsement campaigns,
+    // never team_sponsorship listings aimed at clubs.
+    getActiveListingsPage(supabase, { limit: shown, type: 'athlete_endorsement' }),
     getDiscoveryUiMode(supabase, user.id, 'athlete'),
     getOwnProfile(supabase, user.id, 'athlete'),
   ])

@@ -5,6 +5,7 @@ import CookieBanner from '@/components/legal/cookie-banner'
 import { Toaster } from '@/components/ui/sonner'
 import './globals.css'
 import type { ReactNode } from 'react'
+import { siteUrl } from './sitemap'
 
 // Type system: DM Sans everywhere (800 display / 500 UI / 300 secondary);
 // Geist_Mono only for micro-labels.
@@ -17,6 +18,10 @@ const dmSans = DM_Sans({
 const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] })
 
 export const metadata: Metadata = {
+  // WS-INFRA P2: a shared metadataBase so every page's relative `canonical` and
+  // `og:image` resolve to absolute URLs on the canonical host. Individual pages
+  // set their own `alternates.canonical`; without a base those would be dropped.
+  metadataBase: new URL(siteUrl()),
   title: 'Podium: Sports Sponsorship Marketplace',
   description: 'The marketplace connecting athletes and teams with sponsors.',
 }

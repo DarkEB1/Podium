@@ -17,10 +17,14 @@ import { INTENDED_ROLE_STORAGE_KEY, type SelectableRole } from './intended-role'
 import { track } from '@/lib/analytics'
 
 const schema = z.object({
-  email: z.string().email('Invalid email address'),
+  // Bound both fields client-side (P2): without a max the browser sent 255-char
+  // emails and 10k-char passwords and the server rejection surfaced only as a
+  // vanishing toast. 254 = RFC 5321; 128 mirrors the server password policy.
+  email: z.string().email('Invalid email address').max(254, 'Enter a valid email address'),
   password: z
     .string()
     .min(8, 'Password must be at least 8 characters')
+    .max(128, 'Password must be 128 characters or fewer')
     .regex(/[A-Z]/, 'Must contain at least one uppercase letter')
     .regex(/[0-9]/, 'Must contain at least one number')
     .regex(/[^A-Za-z0-9]/, 'Must contain at least one symbol'),
@@ -100,7 +104,10 @@ export default function SignUpForm({ role }: Props = {}) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      {/* noValidate: use react-hook-form's inline, associated errors instead of
+          the browser's native validation bubble, which hijacks the email field
+          and suppresses every other field's error (P2 a11y). */}
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
         <FormField
           control={form.control}
           name="email"
@@ -108,7 +115,7 @@ export default function SignUpForm({ role }: Props = {}) {
             <FormItem>
               <FormLabel>Email</FormLabel>
               <FormControl>
-                <Input type="email" autoComplete="email" placeholder="you@example.com" {...field} />
+                <Input type="email" autoComplete="email" maxLength={254} placeholder="you@example.com" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -121,7 +128,7 @@ export default function SignUpForm({ role }: Props = {}) {
             <FormItem>
               <FormLabel>Password</FormLabel>
               <FormControl>
-                <Input type="password" autoComplete="new-password" placeholder="••••••••" {...field} />
+                <Input type="password" autoComplete="new-password" maxLength={128} placeholder="••••••••" {...field} />
               </FormControl>
               <PasswordStrength password={password} />
               <FormMessage />

@@ -96,6 +96,29 @@ describe('POST /api/auth/signup', () => {
     expect(json.message).toMatch(/email/i)
   })
 
+  // P2 cluster: a backend failure must not masquerade as "Check your email".
+  it('returns 503 when signUp fails for a non-duplicate reason (backend down)', async () => {
+    mockSignUp.mockResolvedValue({
+      data: { user: null },
+      error: { code: 'unexpected_failure', message: 'Database error saving new user' },
+    })
+    const res = await POST(makeRequest({ email: 'x@example.com', password: 'ValidPass1!', ...CONSENT }))
+    expect(res.status).toBe(503)
+    expect((await res.json()).error.code).toBe('SIGNUP_UNAVAILABLE')
+  })
+
+  it('returns 400 INVALID_JSON on a malformed body', async () => {
+    const req = new NextRequest(new URL('/api/auth/signup', 'http://localhost'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: 'not json',
+    })
+    const res = await POST(req)
+    expect(res.status).toBe(400)
+    expect((await res.json()).error.code).toBe('INVALID_JSON')
+    expect(mockSignUp).not.toHaveBeenCalled()
+  })
+
   it('rejects a signup that does not accept the current policies (CL-5)', async () => {
     const res = await POST(makeRequest({ email: 'new@example.com', password: 'ValidPass1!' }))
     expect(res.status).toBe(400)

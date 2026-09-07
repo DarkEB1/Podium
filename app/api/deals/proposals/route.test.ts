@@ -4,7 +4,7 @@ import { NextRequest } from 'next/server'
 vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn(), createAdminClient: vi.fn() }))
 vi.mock('@/lib/supabase/auth', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/supabase/auth')>()
-  return { ...actual, getUser: vi.fn() }
+  return { ...actual, getUser: vi.fn(), getUserRole: vi.fn() }
 })
 vi.mock('@/lib/supabase/deals', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/supabase/deals')>()
@@ -19,14 +19,16 @@ vi.mock('@/lib/email/notify', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/email/notify')>()
   return { ...actual, resolveDisplayNames: vi.fn() }
 })
+vi.mock('@/lib/notifications', () => ({ dispatchNotification: vi.fn() }))
 
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import { getUser } from '@/lib/supabase/auth'
+import { getUser, getUserRole } from '@/lib/supabase/auth'
 import { PROPOSAL_TERMS_MAX, PROPOSAL_TITLE_MAX } from '@/lib/limits'
 import { getProposals, sendProposal, DealsError } from '@/lib/supabase/deals'
 import { getMatches } from '@/lib/supabase/messaging'
 import { sendTransactionalEmail } from '@/lib/email'
 import { resolveDisplayNames } from '@/lib/email/notify'
+import { dispatchNotification } from '@/lib/notifications'
 import { GET, POST } from './route'
 
 const fakeUser = { id: 'user-1', email: 'test@example.com', role: 'brand' as const, role_locked_at: '2026-04-19T00:00:00Z' }
@@ -99,6 +101,7 @@ describe('POST /api/deals/proposals', () => {
       deliveryId: 'd1',
       providerId: 'p1',
     })
+    vi.mocked(getUserRole).mockResolvedValue('athlete')
   })
 
   it('returns 401 when not authenticated', async () => {
@@ -129,6 +132,54 @@ describe('POST /api/deals/proposals', () => {
     expect(res.status).toBe(400)
     const json = await res.json()
     expect(json.error.code).toBe('INVALID_PAY_AMOUNT')
+  })
+
+  // DP-5: sub-penny, out-of-range, and >2dp amounts are rejected server-side.
+  it('rejects £0.01, huge, and >2dp amounts (DP-5)', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    for (const bad of [0.01, 1e15, 12.345]) {
+      const res = await POST(makePostRequest({ match_id: 'm1', title: 'T', pay_amount: bad, pay_type: 'flat_fee' }))
+      expect(res.status).toBe(400)
+      expect((await res.json()).error.code).toBe('INVALID_PAY_AMOUNT')
+    }
+    expect(sendProposal).not.toHaveBeenCalled()
+  })
+
+  // WS-DEAL-04: a junk currency must 400, not reach the DB and later crash the
+  // deals pages via Intl.NumberFormat.
+  it('rejects an unsupported/junk currency (WS-DEAL-04)', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    const res = await POST(
+      makePostRequest({ match_id: 'm1', title: 'T', pay_amount: 100, pay_type: 'flat_fee', pay_currency: '123' })
+    )
+    expect(res.status).toBe(400)
+    expect((await res.json()).error.code).toBe('INVALID_CURRENCY')
+    expect(sendProposal).not.toHaveBeenCalled()
+  })
+
+  it('normalises a supported lowercase currency to uppercase', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(sendProposal).mockResolvedValue({ id: 'p1' } as never)
+    await POST(
+      makePostRequest({ match_id: 'm1', title: 'T', pay_amount: 100, pay_type: 'flat_fee', pay_currency: 'usd' })
+    )
+    expect(sendProposal).toHaveBeenCalledWith(
+      expect.anything(), 'm1', 'user-1', expect.objectContaining({ pay_currency: 'USD' })
+    )
+  })
+
+  // DP-10: end-before-start is rejected here rather than as raw Postgres text.
+  it('rejects a timeline whose end precedes its start (DP-10)', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    const res = await POST(
+      makePostRequest({
+        match_id: 'm1', title: 'T', pay_amount: 100, pay_type: 'flat_fee',
+        timeline_start: '2026-08-31', timeline_end: '2026-06-01',
+      })
+    )
+    expect(res.status).toBe(400)
+    expect((await res.json()).error.code).toBe('INVALID_TIMELINE')
+    expect(sendProposal).not.toHaveBeenCalled()
   })
 
   // PROPOSAL_TERMS_MAX was exported from lib/limits.ts and imported by nobody,
@@ -239,6 +290,27 @@ describe('POST /api/deals/proposals', () => {
           senderName: 'Acme Co',
           proposalTitle: 'Summer Campaign',
         }),
+      })
+    )
+  })
+
+  // WS-MSG-01 + D20: the recipient gets an in-app "New proposal" row deep-linked
+  // to their own deal detail page for this proposal, not /dashboard.
+  it('dispatches an in-app proposal_received notification to the recipient', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(sendProposal).mockResolvedValue(
+      { id: 'p1', match_id: 'm1', title: 'Summer Campaign', sender_id: 'user-1' } as never
+    )
+    vi.mocked(getMatches).mockResolvedValue([
+      { id: 'm1', user_a_id: 'user-1', user_b_id: 'user-2', status: 'active' } as never,
+    ])
+    await POST(makePostRequest({ match_id: 'm1', title: 'Summer Campaign', pay_amount: 5000, pay_type: 'flat_fee' }))
+    expect(dispatchNotification).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        userId: 'user-2',
+        eventType: 'proposal_received',
+        metadata: { url: '/athlete/deals/p1' },
       })
     )
   })

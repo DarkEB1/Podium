@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import { getUser } from '@/lib/supabase/auth'
+import { getUser, getUserRole } from '@/lib/supabase/auth'
 import { sendConnectionRequest, DiscoveryError } from '@/lib/supabase/discovery'
 import { assertCanSendConnectionRequest } from '@/lib/supabase/entitlements'
 import { RATE_LIMITS, consume, tooManyRequests, userKey } from '@/lib/rate-limit'
 import { sendTransactionalEmail } from '@/lib/email'
 import { absoluteUrl, nameOf, resolveDisplayNames, FALLBACK_OTHER_NAME } from '@/lib/email/notify'
-import { ROUTES } from '@/lib/routes'
+import { dispatchNotification } from '@/lib/notifications'
+import { requestsInboxPath } from '@/lib/notifications/deep-links'
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
@@ -85,16 +86,35 @@ export async function POST(request: NextRequest) {
     // the template data only — never in logs or an idempotency key.
     const admin = createAdminClient()
     const names = await resolveDisplayNames(admin, [recipient_id, user.id])
+    // D20: the recipient of a connection request is the party who accepts it,
+    // so "Review request" must land on THEIR requests inbox, not /dashboard.
+    const recipientRole = await getUserRole(admin, recipient_id)
+    const path = requestsInboxPath(recipientRole)
+    const senderName = nameOf(names, user.id, FALLBACK_OTHER_NAME)
     await sendTransactionalEmail(admin, {
       event: 'connection_request_received',
       userId: recipient_id,
       data: {
         recipientName: nameOf(names, recipient_id),
-        senderName: nameOf(names, user.id, FALLBACK_OTHER_NAME),
+        senderName,
         message,
-        url: absoluteUrl(ROUTES.dashboard),
+        url: absoluteUrl(path),
       },
     })
+
+    // WS-MSG-01: the in-app bell copy of the same event. Best-effort: a
+    // notification failure must never undo the created request or mask its 201.
+    try {
+      await dispatchNotification(admin, {
+        userId: recipient_id,
+        eventType: 'connection_request_received',
+        title: 'New connection request',
+        body: `${senderName} wants to connect.`,
+        metadata: { url: path },
+      })
+    } catch (notifyErr) {
+      console.error('[connections] notification dispatch failed', notifyErr)
+    }
 
     return NextResponse.json(connectionRequest, { status: 201 })
   } catch (err) {

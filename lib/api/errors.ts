@@ -1,5 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { DiscoveryError } from '@/lib/supabase/discovery'
+import type { EntitlementCheck } from '@/lib/supabase/entitlements'
+
+/**
+ * The 402 envelope for a blocked listing activation (WS-LISTING-04), shared by
+ * the create, publish and resume paths so their shape and copy cannot drift.
+ * Publishing and resuming both bring a listing to `active`, which is the state
+ * the tier's active-listing cap counts, so both must be gated exactly like
+ * create.
+ */
+export function listingEntitlementResponse(gate: EntitlementCheck): NextResponse {
+  return NextResponse.json(
+    {
+      error: {
+        code: gate.reason === 'NO_SUBSCRIPTION' ? 'SUBSCRIPTION_REQUIRED' : 'LIMIT_REACHED',
+        message:
+          gate.reason === 'NO_SUBSCRIPTION'
+            ? 'An active subscription is required to publish listings.'
+            : `Your plan allows ${gate.limit} active listings. Pause or close one, or upgrade, to publish another.`,
+      },
+      limit: gate.limit,
+      used: gate.used,
+      tier: gate.tier,
+    },
+    { status: 402 }
+  )
+}
 
 /**
  * Shared route-handler error plumbing.
@@ -31,10 +57,83 @@ export async function readJsonBody(
   }
 }
 
+/** RFC 4122 shape check. PostgREST answers a non-UUID id with SQLSTATE 22P02
+ * and the raw driver text; validating here turns that into a clean 400. */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+export function isUuid(value: unknown): value is string {
+  return typeof value === 'string' && UUID_RE.test(value)
+}
+
+/** A domain error that carries a stable, non-driver `code`. */
+interface CodedError {
+  code: string
+  message: string
+}
+
+function isCodedError(err: unknown): err is CodedError {
+  if (!(err instanceof Error)) return false
+  const code = (err as { code?: unknown }).code
+  return typeof code === 'string' && code.length > 0
+}
+
+export interface SafeErrorOptions {
+  /** Log prefix, e.g. 'admin/profiles'. */
+  scope: string
+  /** Per-code HTTP status. Codes absent here fall back to `fallbackStatus`. */
+  statusByCode?: Record<string, number>
+  /** Codes whose OWN message is written by us and safe to show the user. */
+  safeToShow?: Iterable<string>
+  fallbackStatus?: number
+  fallbackMessage?: string
+}
+
+/**
+ * Turn a domain error (AdminError, VerificationError, …) into a JSON response
+ * whose body never carries raw Postgres/Stripe/GoTrue driver text. Returns null
+ * when `err` is not a coded domain error, so the caller re-throws it (Next then
+ * answers with its own 500 — the right behaviour for a genuine bug).
+ *
+ * Codes in `safeToShow` keep their own message (we wrote it). Everything else is
+ * logged server-side and replaced with a generic sentence, because an unmapped
+ * code means the message is raw driver text naming internal columns and types.
+ */
+export function safeErrorResponse(
+  err: unknown,
+  options: SafeErrorOptions
+): NextResponse | null {
+  if (!isCodedError(err)) return null
+
+  const status = options.statusByCode?.[err.code] ?? options.fallbackStatus ?? 500
+  const safe = new Set(options.safeToShow ?? [])
+
+  if (safe.has(err.code)) {
+    return NextResponse.json(
+      { error: { code: err.code, message: err.message } },
+      { status }
+    )
+  }
+
+  console.error(`[${options.scope}] rejected`, err.code, err.message)
+  return NextResponse.json(
+    {
+      error: {
+        code: err.code,
+        message:
+          options.fallbackMessage ??
+          'Something went wrong on our end. Please try again in a moment.',
+      },
+    },
+    { status }
+  )
+}
+
 /** Listing codes that carry their own status. Everything else is a rejected write, so 400. */
 const LISTING_ERROR_STATUS: Record<string, number> = {
   LISTING_NOT_FOUND: 404,
   LISTING_CLOSED: 409,
+  INVALID_STATUS_TRANSITION: 409,
+  LISTING_VALIDATION_FAILED: 422,
 }
 
 /**
@@ -42,7 +141,12 @@ const LISTING_ERROR_STATUS: Record<string, number> = {
  * carries raw Postgres text (`invalid input syntax for type timestamp with time
  * zone: ""`), which names internal columns and types and must stay server-side.
  */
-const LISTING_SAFE_TO_SHOW = new Set(['LISTING_NOT_FOUND', 'LISTING_CLOSED'])
+const LISTING_SAFE_TO_SHOW = new Set([
+  'LISTING_NOT_FOUND',
+  'LISTING_CLOSED',
+  'INVALID_STATUS_TRANSITION',
+  'LISTING_VALIDATION_FAILED',
+])
 
 /**
  * Turn a DiscoveryError into a JSON response, or null if `err` is something

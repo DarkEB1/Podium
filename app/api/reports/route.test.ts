@@ -30,7 +30,7 @@ const fakeUser = {
 const fakeReport = {
   id: 'report-1',
   reporter_id: 'user-1',
-  reported_user_id: 'user-2',
+  reported_user_id: '00000000-0000-4000-8000-000000000002',
   reported_message_id: null,
   reason: 'spam' as const,
   detail: null,
@@ -97,14 +97,14 @@ describe('POST /api/reports', () => {
 
   it('returns 401 when not authenticated', async () => {
     vi.mocked(getUser).mockResolvedValue(null)
-    const res = await POST(makePostRequest({ reported_user_id: 'user-2', reason: 'spam' }))
+    const res = await POST(makePostRequest({ reported_user_id: '00000000-0000-4000-8000-000000000002', reason: 'spam' }))
     expect(res.status).toBe(401)
     expect((await res.json()).error.code).toBe('UNAUTHENTICATED')
   })
 
   it('returns 400 when reason is missing', async () => {
     vi.mocked(getUser).mockResolvedValue(fakeUser as never)
-    const res = await POST(makePostRequest({ reported_user_id: 'user-2' }))
+    const res = await POST(makePostRequest({ reported_user_id: '00000000-0000-4000-8000-000000000002' }))
     expect(res.status).toBe(400)
     expect((await res.json()).error.code).toBe('MISSING_FIELDS')
   })
@@ -119,7 +119,7 @@ describe('POST /api/reports', () => {
   it('returns 201 with created report on success', async () => {
     vi.mocked(getUser).mockResolvedValue(fakeUser as never)
     vi.mocked(createReport).mockResolvedValue(fakeReport as never)
-    const res = await POST(makePostRequest({ reported_user_id: 'user-2', reason: 'spam' }))
+    const res = await POST(makePostRequest({ reported_user_id: '00000000-0000-4000-8000-000000000002', reason: 'spam' }))
     expect(res.status).toBe(201)
     const json = await res.json()
     expect(json.id).toBe('report-1')
@@ -128,7 +128,7 @@ describe('POST /api/reports', () => {
   it('returns 500 on AdminError', async () => {
     vi.mocked(getUser).mockResolvedValue(fakeUser as never)
     vi.mocked(createReport).mockRejectedValue(new AdminError('REPORT_CREATE_FAILED', 'insert failed'))
-    const res = await POST(makePostRequest({ reported_user_id: 'user-2', reason: 'spam' }))
+    const res = await POST(makePostRequest({ reported_user_id: '00000000-0000-4000-8000-000000000002', reason: 'spam' }))
     expect(res.status).toBe(500)
     expect((await res.json()).error.code).toBe('REPORT_CREATE_FAILED')
   })
@@ -139,7 +139,7 @@ describe('POST /api/reports', () => {
   it('returns 400 for a reason outside the enum, before the insert', async () => {
     vi.mocked(getUser).mockResolvedValue(fakeUser as never)
     vi.mocked(createReport).mockClear()
-    const res = await POST(makePostRequest({ reported_user_id: 'user-2', reason: 'whatever' }))
+    const res = await POST(makePostRequest({ reported_user_id: '00000000-0000-4000-8000-000000000002', reason: 'whatever' }))
     expect(res.status).toBe(400)
     expect((await res.json()).error.code).toBe('INVALID_REASON')
     expect(createReport).not.toHaveBeenCalled()
@@ -150,7 +150,7 @@ describe('POST /api/reports', () => {
     async (reason) => {
       vi.mocked(getUser).mockResolvedValue(fakeUser as never)
       vi.mocked(createReport).mockResolvedValue(fakeReport as never)
-      const res = await POST(makePostRequest({ reported_user_id: 'user-2', reason }))
+      const res = await POST(makePostRequest({ reported_user_id: '00000000-0000-4000-8000-000000000002', reason }))
       expect(res.status).toBe(201)
     },
   )
@@ -160,7 +160,7 @@ describe('POST /api/reports', () => {
     vi.mocked(createReport).mockClear()
     const res = await POST(
       makePostRequest({
-        reported_user_id: 'user-2',
+        reported_user_id: '00000000-0000-4000-8000-000000000002',
         reason: 'spam',
         detail: 'x'.repeat(REPORT_DETAIL_MAX + 1),
       }),
@@ -175,7 +175,7 @@ describe('POST /api/reports', () => {
     vi.mocked(createReport).mockResolvedValue(fakeReport as never)
     const res = await POST(
       makePostRequest({
-        reported_user_id: 'user-2',
+        reported_user_id: '00000000-0000-4000-8000-000000000002',
         reason: 'spam',
         detail: 'x'.repeat(REPORT_DETAIL_MAX),
       }),
@@ -189,7 +189,7 @@ describe('POST /api/reports', () => {
     const raw = 'invalid input value for enum report_reason: "whatever"'
     vi.mocked(getUser).mockResolvedValue(fakeUser as never)
     vi.mocked(createReport).mockRejectedValue(new AdminError('REPORT_CREATE_FAILED', raw))
-    const res = await POST(makePostRequest({ reported_user_id: 'user-2', reason: 'spam' }))
+    const res = await POST(makePostRequest({ reported_user_id: '00000000-0000-4000-8000-000000000002', reason: 'spam' }))
     const body = await res.json()
     expect(JSON.stringify(body)).not.toContain('report_reason')
     expect(body.error.message).not.toBe(raw)
@@ -202,5 +202,76 @@ describe('POST /api/reports', () => {
     vi.mocked(getOwnReports).mockRejectedValue(new AdminError('REPORTS_FETCH_FAILED', raw))
     const res = await GET(makeGetRequest())
     expect((await res.json()).error.message).not.toBe(raw)
+  })
+
+  // D18: a user must not be able to report themselves; unchecked, the FK was
+  // valid so it inserted and filled the queue.
+  it('rejects a self-report before the insert', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(createReport).mockClear()
+    const res = await POST(makePostRequest({ reported_user_id: 'user-1', reason: 'spam' }))
+    expect(res.status).toBe(400)
+    expect((await res.json()).error.code).toBe('SELF_REPORT')
+    expect(createReport).not.toHaveBeenCalled()
+  })
+
+  // D18: a non-UUID id reached Postgres as 22P02 and returned raw text as a 500.
+  it('rejects a non-UUID target with a 400', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(createReport).mockClear()
+    const res = await POST(makePostRequest({ reported_user_id: 'not-a-uuid', reason: 'spam' }))
+    expect(res.status).toBe(400)
+    expect((await res.json()).error.code).toBe('INVALID_TARGET')
+    expect(createReport).not.toHaveBeenCalled()
+  })
+
+  it('accepts a valid UUID target', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(createReport).mockResolvedValue(fakeReport as never)
+    const res = await POST(
+      makePostRequest({ reported_user_id: '11111111-1111-4111-8111-111111111111', reason: 'spam' }),
+    )
+    expect(res.status).toBe(201)
+  })
+
+  // D18: a duplicate open report is a 409, not a 500.
+  it('maps a duplicate report to 409 with a user-safe message', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(createReport).mockRejectedValue(
+      new AdminError('DUPLICATE_REPORT', 'You have already reported this. Our team is reviewing it.'),
+    )
+    const res = await POST(
+      makePostRequest({ reported_user_id: '22222222-2222-4222-8222-222222222222', reason: 'spam' }),
+    )
+    expect(res.status).toBe(409)
+    const body = await res.json()
+    expect(body.error.code).toBe('DUPLICATE_REPORT')
+    expect(body.error.message.length).toBeGreaterThan(0)
+  })
+
+  // D18: an unknown target (FK violation) is a 404, not a 500.
+  it('maps an unknown target to 404', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    vi.mocked(createReport).mockRejectedValue(
+      new AdminError('REPORT_TARGET_NOT_FOUND', 'The person or message you reported no longer exists'),
+    )
+    const res = await POST(
+      makePostRequest({ reported_user_id: '33333333-3333-4333-8333-333333333333', reason: 'spam' }),
+    )
+    expect(res.status).toBe(404)
+    expect((await res.json()).error.code).toBe('REPORT_TARGET_NOT_FOUND')
+  })
+
+  // AK12: a malformed body must be a 400 JSON envelope, not a thrown HTML 500.
+  it('returns 400 on malformed JSON', async () => {
+    vi.mocked(getUser).mockResolvedValue(fakeUser as never)
+    const req = new NextRequest(new URL('/api/reports', 'http://localhost'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{ not json',
+    })
+    const res = await POST(req)
+    expect(res.status).toBe(400)
+    expect((await res.json()).error.code).toBe('INVALID_JSON')
   })
 })

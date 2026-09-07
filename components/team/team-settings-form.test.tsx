@@ -11,6 +11,15 @@ if (typeof (globalThis as { PointerEvent?: unknown }).PointerEvent === 'undefine
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }))
 
+const toastSuccess = vi.fn()
+const toastError = vi.fn()
+vi.mock('sonner', () => ({
+  toast: {
+    success: (...args: unknown[]) => toastSuccess(...args),
+    error: (...args: unknown[]) => toastError(...args),
+  },
+}))
+
 function admin(overrides: Partial<TeamAdmin>): TeamAdmin {
   return {
     id: 'a1',
@@ -121,6 +130,18 @@ describe('TeamSettingsForm (TM3)', () => {
       screen.getByRole('button', { name: /resend invite to pending@club.com/i }),
     )
     await waitFor(() => expect(onResendInvite).toHaveBeenCalledWith('a3'))
+  })
+
+  // PM-14: a failed resend must NOT toast success.
+  it('does not report success when resend fails', async () => {
+    toastSuccess.mockClear()
+    toastError.mockClear()
+    setup({ onResendInvite: vi.fn().mockRejectedValue(new Error('duplicate key')) })
+    await userEvent.click(
+      screen.getByRole('button', { name: /resend invite to pending@club.com/i }),
+    )
+    await waitFor(() => expect(toastError).toHaveBeenCalled())
+    expect(toastSuccess).not.toHaveBeenCalled()
   })
 
   it('requires confirmation before removing an administrator', async () => {

@@ -61,10 +61,12 @@ function makeMockClient() {
 // ---------------------------------------------------------------------------
 
 describe('typingChannel', () => {
-  it('opens a channel namespaced to the match id', () => {
+  it('opens a PRIVATE channel namespaced to the match id (WS-MSG-08)', () => {
     const mock = makeMockClient()
     const ch = typingChannel(mock.client, 'match-1')
-    expect(mock.mockChannel).toHaveBeenCalledWith('typing:match-1')
+    expect(mock.mockChannel).toHaveBeenCalledWith('typing:match-1', {
+      config: { private: true },
+    })
     expect(ch).toBe(mock.channel)
   })
 
@@ -75,11 +77,11 @@ describe('typingChannel', () => {
 })
 
 describe('presenceChannel', () => {
-  it('opens a presence channel namespaced to the match id with the user key', () => {
+  it('opens a PRIVATE presence channel namespaced to the match id with the user key (WS-MSG-08)', () => {
     const mock = makeMockClient()
     const ch = presenceChannel(mock.client, 'match-1', 'user-1')
     expect(mock.mockChannel).toHaveBeenCalledWith('presence:match-1', {
-      config: { presence: { key: 'user-1' } },
+      config: { private: true, presence: { key: 'user-1' } },
     })
     expect(ch).toBe(mock.channel)
   })

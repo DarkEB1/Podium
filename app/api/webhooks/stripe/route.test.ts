@@ -30,8 +30,20 @@ vi.mock('@/lib/email/notify', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/email/notify')>()
   return { ...actual, resolveDisplayNames: vi.fn() }
 })
+vi.mock('@/lib/supabase/auth', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/supabase/auth')>()
+  return { ...actual, getUserRole: vi.fn() }
+})
+vi.mock('@/lib/supabase/messaging', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/supabase/messaging')>()
+  return { ...actual, insertPaymentConfirmationCard: vi.fn() }
+})
+vi.mock('@/lib/notifications', () => ({ dispatchNotification: vi.fn() }))
 
 import { createAdminClient } from '@/lib/supabase/server'
+import { getUserRole } from '@/lib/supabase/auth'
+import { insertPaymentConfirmationCard } from '@/lib/supabase/messaging'
+import { dispatchNotification } from '@/lib/notifications'
 import {
   upsertSubscription,
   updateSubscription,
@@ -139,6 +151,8 @@ beforeEach(() => {
   })
   vi.mocked(markWebhookEvent).mockResolvedValue(undefined)
   vi.mocked(resolveDisplayNames).mockResolvedValue({})
+  vi.mocked(getUserRole).mockResolvedValue('athlete')
+  vi.mocked(insertPaymentConfirmationCard).mockResolvedValue(null)
   vi.mocked(sendTransactionalEmail).mockResolvedValue({
     status: 'sent',
     deliveryId: 'd1',
@@ -983,6 +997,121 @@ describe('POST /api/webhooks/stripe — payment_intent.payment_failed', () => {
 })
 
 // ---------------------------------------------------------------------------
+// DP-7: cancel / processing / refund handlers
+// ---------------------------------------------------------------------------
+
+describe('POST /api/webhooks/stripe — payment_intent.canceled (DP-7)', () => {
+  it('marks the payment failed so the contract is no longer blocked', async () => {
+    mockEvent(makePaymentIntentEvent('payment_intent.canceled', { status: 'canceled' }))
+    vi.mocked(getPaymentByIntentId).mockResolvedValueOnce({ id: 'pay-1', status: 'pending' } as never)
+    vi.mocked(updatePaymentRecord).mockResolvedValueOnce({} as never)
+
+    const res = await POST(makeRequest())
+
+    expect(res.status).toBe(200)
+    expect(vi.mocked(updatePaymentRecord)).toHaveBeenCalledWith(
+      expect.anything(),
+      'pi_abc',
+      expect.objectContaining({ status: 'failed' })
+    )
+  })
+
+  it('never downgrades an already-succeeded payment', async () => {
+    mockEvent(makePaymentIntentEvent('payment_intent.canceled', { status: 'canceled' }))
+    vi.mocked(getPaymentByIntentId).mockResolvedValueOnce({ id: 'pay-1', status: 'succeeded' } as never)
+
+    const res = await POST(makeRequest())
+
+    expect(res.status).toBe(200)
+    expect(vi.mocked(updatePaymentRecord)).not.toHaveBeenCalled()
+  })
+
+  it('ignores a cancelled intent outside the deal-payment flow', async () => {
+    mockEvent(makePaymentIntentEvent('payment_intent.canceled', { status: 'canceled', metadata: {} }))
+
+    const res = await POST(makeRequest())
+
+    expect(res.status).toBe(200)
+    expect(vi.mocked(getPaymentByIntentId)).not.toHaveBeenCalled()
+  })
+})
+
+describe('POST /api/webhooks/stripe — payment_intent.processing (DP-7)', () => {
+  it('records the processing status', async () => {
+    mockEvent(makePaymentIntentEvent('payment_intent.processing', { status: 'processing' }))
+    vi.mocked(getPaymentByIntentId).mockResolvedValueOnce({ id: 'pay-1', status: 'pending' } as never)
+    vi.mocked(updatePaymentRecord).mockResolvedValueOnce({} as never)
+
+    const res = await POST(makeRequest())
+
+    expect(res.status).toBe(200)
+    expect(vi.mocked(updatePaymentRecord)).toHaveBeenCalledWith(
+      expect.anything(),
+      'pi_abc',
+      expect.objectContaining({ status: 'processing' })
+    )
+  })
+
+  it('does not overwrite a terminal state', async () => {
+    mockEvent(makePaymentIntentEvent('payment_intent.processing', { status: 'processing' }))
+    vi.mocked(getPaymentByIntentId).mockResolvedValueOnce({ id: 'pay-1', status: 'succeeded' } as never)
+
+    const res = await POST(makeRequest())
+
+    expect(res.status).toBe(200)
+    expect(vi.mocked(updatePaymentRecord)).not.toHaveBeenCalled()
+  })
+})
+
+describe('POST /api/webhooks/stripe — charge.refunded (DP-7)', () => {
+  it('moves a settled payment to refunded', async () => {
+    mockEvent(
+      makeEvent('charge.refunded', {
+        id: 'ch_abc',
+        payment_intent: 'pi_abc',
+        metadata: PI_METADATA,
+      })
+    )
+    vi.mocked(getPaymentByIntentId).mockResolvedValueOnce({ id: 'pay-1', status: 'succeeded' } as never)
+    vi.mocked(updatePaymentRecord).mockResolvedValueOnce({} as never)
+
+    const res = await POST(makeRequest())
+
+    expect(res.status).toBe(200)
+    expect(vi.mocked(updatePaymentRecord)).toHaveBeenCalledWith(
+      expect.anything(),
+      'pi_abc',
+      expect.objectContaining({ status: 'refunded' })
+    )
+  })
+
+  it('is idempotent when already refunded', async () => {
+    mockEvent(
+      makeEvent('charge.refunded', {
+        id: 'ch_abc',
+        payment_intent: 'pi_abc',
+        metadata: PI_METADATA,
+      })
+    )
+    vi.mocked(getPaymentByIntentId).mockResolvedValueOnce({ id: 'pay-1', status: 'refunded' } as never)
+
+    const res = await POST(makeRequest())
+
+    expect(res.status).toBe(200)
+    expect(vi.mocked(updatePaymentRecord)).not.toHaveBeenCalled()
+  })
+
+  it('ignores a refund outside the deal-payment flow', async () => {
+    mockEvent(makeEvent('charge.refunded', { id: 'ch_x', payment_intent: 'pi_x', metadata: {} }))
+
+    const res = await POST(makeRequest())
+
+    expect(res.status).toBe(200)
+    expect(vi.mocked(getPaymentByIntentId)).not.toHaveBeenCalled()
+  })
+})
+
+// ---------------------------------------------------------------------------
 // Transactional email side effects (payment_received / subscription_started /
 // subscription_payment_failed). Each fires only after the primary DB write
 // settles, carries an idempotency key so a Stripe redelivery cannot double-send,
@@ -994,6 +1123,7 @@ describe('POST /api/webhooks/stripe — email side effects', () => {
     id: 'pay-1',
     status: 'pending',
     processed_at: null,
+    contract_id: CONTRACT_ID,
     payee_id: PAYEE_ID,
     payer_id: PAYER_ID,
     amount: 50000,
@@ -1022,6 +1152,21 @@ describe('POST /api/webhooks/stripe — email side effects', () => {
         idempotencyKey: 'payment_received:pi_abc',
         data: expect.objectContaining({ amountFormatted: '£500.00' }),
       })
+    )
+    // WS-MSG-01 + D20: the payee also gets an in-app "Payment received" bell row
+    // deep-linked to their deals list (payees have no payments page).
+    expect(vi.mocked(dispatchNotification)).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        userId: PAYEE_ID,
+        eventType: 'payment_received',
+        metadata: { url: '/athlete/deals' },
+      })
+    )
+    // WS-MSG-04: a payment_confirmation card is dropped into the deal's chat.
+    expect(vi.mocked(insertPaymentConfirmationCard)).toHaveBeenCalledWith(
+      expect.anything(),
+      CONTRACT_ID
     )
   })
 
@@ -1053,6 +1198,11 @@ describe('POST /api/webhooks/stripe — email side effects', () => {
         idempotencyKey: 'subscription_started:sub_abc',
         data: expect.objectContaining({ tierName: 'Growth' }),
       })
+    )
+    // WS-MSG-01: in-app bell copy for the brand.
+    expect(vi.mocked(dispatchNotification)).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ userId: USER_ID, eventType: 'subscription_started' })
     )
   })
 
@@ -1086,6 +1236,11 @@ describe('POST /api/webhooks/stripe — email side effects', () => {
         userId: USER_ID,
         idempotencyKey: 'subscription_payment_failed:in_bad',
       })
+    )
+    // WS-MSG-01: in-app bell copy for the brand.
+    expect(vi.mocked(dispatchNotification)).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ userId: USER_ID, eventType: 'subscription_payment_failed' })
     )
   })
 

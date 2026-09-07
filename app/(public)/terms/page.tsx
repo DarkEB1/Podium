@@ -12,6 +12,8 @@ export const metadata: Metadata = {
   title: 'Terms of Service · Podium',
   description:
     'The terms on which Podium provides its sports sponsorship marketplace to athletes, teams, agents and brands in the UK.',
+  // WS-INFRA P2: one canonical URL, resolved against metadataBase in app/layout.tsx.
+  alternates: { canonical: '/terms' },
 }
 
 export default function TermsPage() {

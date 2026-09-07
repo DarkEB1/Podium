@@ -60,8 +60,14 @@ export async function getSubscriptionForUser(
     throw new PaymentsError('SUBSCRIPTION_FETCH_FAILED', (error as { message: string }).message)
   }
 
-  const row = data as { id: string; subscriptions: SubscriptionRow[] | null }
-  return (row.subscriptions ?? [])[0] ?? null
+  // subscriptions.brand_id is UNIQUE, so PostgREST resolves this embed as a
+  // to-one relationship and returns `subscriptions` as a single object, not a
+  // one-element array. Handle both shapes: an array indexed at [0] on the object
+  // form yields undefined, which silently read as "no subscription" and falsely
+  // gated every paying brand (listings, connections, messaging, payment intents).
+  const row = data as { id: string; subscriptions: SubscriptionRow | SubscriptionRow[] | null }
+  const sub = row.subscriptions
+  return Array.isArray(sub) ? (sub[0] ?? null) : (sub ?? null)
 }
 
 // Resolves brand_profiles.id (what subscriptions.brand_id references) from an

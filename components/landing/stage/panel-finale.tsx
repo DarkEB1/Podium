@@ -127,7 +127,7 @@ export default function PanelFinale() {
       {/* the one empty bar in the crowd: your spot, pulsing on the floor line */}
       <div
         aria-hidden="true"
-        className="absolute -translate-x-1/2 border-[1.5px] border-dashed border-foreground transition-colors duration-200 hover:border-solid hover:bg-lime/20"
+        className="absolute -translate-x-1/2 border-[1.5px] border-dashed border-foreground"
         style={{
           left: `${BAR_CENTER_VW}vw`,
           top: `calc(var(--floor-y) - ${BAR_H_VH}vh)`,

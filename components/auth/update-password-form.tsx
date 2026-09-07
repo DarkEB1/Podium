@@ -15,6 +15,7 @@ const schema = z
     password: z
       .string()
       .min(8, 'At least 8 characters')
+      .max(128, 'Password must be 128 characters or fewer')
       .regex(/[A-Z]/, 'Must contain uppercase')
       .regex(/[0-9]/, 'Must contain number')
       .regex(/[^A-Za-z0-9]/, 'Must contain symbol'),
@@ -49,7 +50,7 @@ export default function UpdatePasswordForm() {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
         <FormField
           control={form.control}
           name="password"
@@ -57,7 +58,7 @@ export default function UpdatePasswordForm() {
             <FormItem>
               <FormLabel>New password</FormLabel>
               <FormControl>
-                <Input type="password" autoComplete="new-password" placeholder="••••••••" {...field} />
+                <Input type="password" autoComplete="new-password" maxLength={128} placeholder="••••••••" {...field} />
               </FormControl>
               <PasswordStrength password={password} />
               <FormMessage />
@@ -71,7 +72,7 @@ export default function UpdatePasswordForm() {
             <FormItem>
               <FormLabel>Confirm password</FormLabel>
               <FormControl>
-                <Input type="password" autoComplete="new-password" placeholder="••••••••" {...field} />
+                <Input type="password" autoComplete="new-password" maxLength={128} placeholder="••••••••" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

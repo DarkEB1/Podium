@@ -5,15 +5,23 @@ import { TERMS_VERSION, PRIVACY_VERSION } from '@/lib/legal/versions'
 import { RATE_LIMITS, clientIpFrom, consumeAll, ipKey, tooManyRequests } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
-  const body = await request.json()
-  const { email, password, termsVersion, privacyVersion } = body as {
-    email?: string
-    password?: string
-    termsVersion?: string
-    privacyVersion?: string
+  let body: {
+    email?: unknown
+    password?: unknown
+    termsVersion?: unknown
+    privacyVersion?: unknown
   }
+  try {
+    body = (await request.json()) as typeof body
+  } catch {
+    return NextResponse.json(
+      { error: { code: 'INVALID_JSON', message: 'Request body must be valid JSON' } },
+      { status: 400 }
+    )
+  }
+  const { email, password, termsVersion, privacyVersion } = body
 
-  if (!email || !password) {
+  if (typeof email !== 'string' || typeof password !== 'string' || !email || !password) {
     return NextResponse.json(
       { error: { code: 'MISSING_FIELDS', message: 'Email and password are required' } },
       { status: 400 }
@@ -72,8 +80,29 @@ export async function POST(request: NextRequest) {
   // The response stays generic (never reveal whether an email exists), but the
   // failure must be visible in logs — a silently dropped signUp error is how
   // "the verification email never arrived" went undiagnosed.
+  //
+  // Distinguish "this email is already registered" (which we DELIBERATELY hide
+  // behind the generic success below, to avoid account enumeration) from every
+  // other error — a provider outage, misconfiguration or rate limit. The latter
+  // must NOT masquerade as "Check your email", or the user waits forever for a
+  // mail that was never sent. Those get an honest 503.
   if (signUpError) {
     console.error('[signup] supabase signUp failed', signUpError.code, signUpError.message)
+    const alreadyRegistered =
+      signUpError.code === 'user_already_exists' ||
+      signUpError.code === 'email_exists' ||
+      /already\s+registered|already\s+exists/i.test(signUpError.message ?? '')
+    if (!alreadyRegistered) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'SIGNUP_UNAVAILABLE',
+            message: 'We could not create your account right now. Please try again shortly.',
+          },
+        },
+        { status: 503 }
+      )
+    }
   }
 
   // Record consent against the account. Best-effort: a failure here must not

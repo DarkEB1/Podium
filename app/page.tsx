@@ -3,6 +3,7 @@ import PanelHero from '@/components/landing/stage/panel-hero'
 import PanelMarket from '@/components/landing/stage/panel-market'
 import PanelWhat from '@/components/landing/stage/panel-what'
 import PanelFinale from '@/components/landing/stage/panel-finale'
+import LandingMobile from '@/components/landing/landing-mobile'
 import { siteUrl } from './sitemap'
 
 // M-1: per-route metadata. This page is public and indexable — see app/sitemap.ts.
@@ -34,12 +35,19 @@ export default function Home() {
     // landing-light: this page is art-directed light-only (spec amendment);
     // system dark mode must not restyle it.
     <main className="landing-light bg-background text-foreground">
-      <Stage>
-        <PanelHero />
-        <PanelMarket />
-        <PanelWhat />
-        <PanelFinale />
-      </Stage>
+      {/* Desktop/tablet: the fixed horizontal corridor. Hidden below md, where
+          the corridor's vw/vh overlays collapse into overlapping text
+          (WS-LANDING-01). */}
+      <div className="hidden md:block">
+        <Stage>
+          <PanelHero />
+          <PanelMarket />
+          <PanelWhat />
+          <PanelFinale />
+        </Stage>
+      </div>
+      {/* Phones and portrait tablets: the same story as a scrolling stack. */}
+      <LandingMobile className="md:hidden" />
     </main>
   )
 }

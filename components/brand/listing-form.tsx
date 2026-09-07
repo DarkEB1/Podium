@@ -65,7 +65,11 @@ export default function ListingForm({ listing }: Props) {
       pay_amount: listing?.pay_amount ?? undefined,
       pay_currency: listing?.pay_currency ?? 'GBP',
       contract_duration_months: listing?.contract_duration_months ?? undefined,
-      application_deadline: listing?.application_deadline ?? '',
+      // PM-24: application_deadline is a timestamptz ("2026-07-20T00:00:00+00:00"),
+      // but <input type="date"> only accepts YYYY-MM-DD and silently blanks
+      // anything longer — so editing a listing with a deadline showed an empty
+      // field and re-saving wiped the deadline. Project to the date portion.
+      application_deadline: listing?.application_deadline?.slice(0, 10) ?? '',
     },
   })
 

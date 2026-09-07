@@ -21,6 +21,16 @@ const TABLE_FOR_ROLE = {
 
 // Fields users must never be able to set directly — status is controlled via publishProfile,
 // admin fields require service-role, computed fields are managed by DB triggers.
+//
+// WS-SEC-04: the earlier list stopped at status/admin/verified/is_under_18 and
+// let `PATCH /api/profiles/me` write guardian consent, payout + Stripe-Connect
+// financials, the onboarding stamp and `verification_status` — the client zod
+// schema that was meant to bound the body is bypassable (a raw PATCH never runs
+// it). Every field below is set only by a trusted server path (the guardian
+// consent endpoint, Stripe webhooks/onboarding, publish/onboarding-complete, or
+// admin review), never by a profile form. The DB triggers in
+// 20260904000102_profile_privileged_columns_immutable.sql are the matching
+// backstop for a direct PostgREST write.
 const PROTECTED_FIELDS = new Set([
   'id',
   'user_id',
@@ -33,16 +43,57 @@ const PROTECTED_FIELDS = new Set([
   'is_under_18',
   'is_verified',
   'verified_at',
+  'verification_status',
   'last_active_at',
+  // Guardian consent — stamped only by the guardian-consent endpoint.
+  'guardian_accepted_at',
+  // Onboarding completion — stamped by completeBrandOnboarding / publish.
+  'onboarding_completed_at',
+  // Payout + Stripe Connect — written by Stripe onboarding / webhooks only.
+  'payout_method',
+  'payout_bank_name',
+  'payout_account_holder',
+  'payout_account_last4',
+  'payout_sort_code_last4',
+  'payout_country',
+  'stripe_connect_account_id',
+  'stripe_connect_status',
+  'stripe_connect_onboarded_at',
 ])
 
-function sanitizeProfileData(data: Record<string, unknown>): Record<string, unknown> {
+/**
+ * Strip protected fields and normalise the payload.
+ *
+ * `clearEmpty` chooses what an empty string means:
+ *  - create (`false`, default): drop it, so the column falls back to its DB
+ *    default. There is nothing to clear on a brand-new row.
+ *  - update (`true`): map it to `null` so a user can genuinely CLEAR a set
+ *    optional field (phone, secondary sport, city, LinkedIn…). Dropping it, as
+ *    the old code did for every path, silently kept the old value while the form
+ *    toasted "saved" (PM-15).
+ *
+ * DENYLIST COMPOSITION (WS-SEC coordination): the PROTECTED_FIELDS filter runs
+ * FIRST, unconditionally, before any empty->null mapping. So clearing can only
+ * ever touch a NON-protected field, and empty-string clearing can never become
+ * a back door for writing a protected column. This holds no matter how
+ * PROTECTED_FIELDS grows: when the WS-SEC branch merges its additions
+ * (guardian_accepted_at, payout_*, stripe_connect_*, onboarding_completed_at,
+ * verification_status), a `{ payout_account_last4: '' }` body is dropped by the
+ * filter and never reaches the `null` map. Keep the filter ahead of the map.
+ */
+function sanitizeProfileData(
+  data: Record<string, unknown>,
+  { clearEmpty = false }: { clearEmpty?: boolean } = {}
+): Record<string, unknown> {
   return Object.fromEntries(
-    Object.entries(data).filter(([key, value]) => {
-      if (PROTECTED_FIELDS.has(key)) return false
-      if (value === '') return false
-      return true
-    })
+    Object.entries(data)
+      // Denylist first — a protected field is gone before the map below can see it.
+      .filter(([key, value]) => {
+        if (PROTECTED_FIELDS.has(key)) return false
+        if (value === '' && !clearEmpty) return false
+        return true
+      })
+      .map(([key, value]) => [key, value === '' ? null : value])
   )
 }
 
@@ -107,7 +158,7 @@ export async function updateProfile(
   data: Record<string, unknown>
 ): Promise<ProfileRow> {
   const table = TABLE_FOR_ROLE[role]
-  const safe = sanitizeProfileData(data)
+  const safe = sanitizeProfileData(data, { clearEmpty: true })
   const { data: profile, error } = await db(supabase)
     .from(table)
     .update(safe)
@@ -190,6 +241,61 @@ export async function completeBrandOnboarding(
   }
 }
 
+/**
+ * WS-SEC-01 — the columns a role's public profile is allowed to expose.
+ *
+ * `getPublicProfile` used `select('*')`, so a single public profile read (and
+ * `GET /api/profiles/[userId]`) returned every column of the row: an athlete's
+ * `full_legal_name`, `date_of_birth`, `phone`, `guardian_*` (minors),
+ * `payout_*`/`stripe_connect_account_id`; a team's commercial-manager and
+ * primary-controller contact details; a brand's `company_registration_number`
+ * and `vat_number`. These allowlists are the in-app half of the fix — an
+ * explicit projection so nothing sensitive is fetched for a public view. The
+ * PostgREST half (revoking the same columns from the `anon` role so a direct
+ * REST call cannot read them either) lives in
+ * supabase/migrations/20260904000101_public_profile_pii_lockdown.sql.
+ *
+ * Each list is the table's full column set MINUS the sensitive/private columns:
+ * identity/contact PII, financial (payout + Stripe Connect), admin-review
+ * bookkeeping, and per-user private preferences (notifications, theme,
+ * discovery UI mode).
+ */
+const PUBLIC_PROFILE_COLUMNS: Record<ProfileRole, string> = {
+  athlete: [
+    'id', 'user_id', 'status', 'display_name', 'profile_photo_url',
+    'primary_sport', 'secondary_sport', 'position', 'level', 'highest_level',
+    'years_active', 'height_cm', 'weight_kg', 'notable_achievements',
+    'performance_stats', 'social_accounts', 'home_city', 'home_country',
+    'travel_radius_km', 'availability_status', 'available_from_date',
+    'has_agent', 'seeking', 'is_seeking', 'action_photos', 'highlight_videos',
+    'academy_club', 'national_programme', 'university_city', 'university_country',
+    'university_team', 'last_active_at', 'created_at', 'updated_at',
+  ].join(', '),
+  team: [
+    'id', 'user_id', 'status', 'team_name', 'nickname', 'sports',
+    'competition_level', 'year_founded', 'logo_url', 'cover_photo_url', 'bio',
+    'home_city', 'home_country', 'home_venue', 'match_day_attendance',
+    'fan_reach', 'social_accounts', 'total_social_following', 'press_mentions',
+    'seeking_sponsorship_types', 'total_sponsorship_value_sought',
+    'annual_sponsorship_target', 'sponsorship_brief_url', 'media_pack_url',
+    'offers_to_sponsors', 'created_at', 'updated_at',
+  ].join(', '),
+  brand: [
+    'id', 'user_id', 'status', 'company_name', 'trading_name', 'industry',
+    'description', 'headquarters_city', 'headquarters_country', 'website_url',
+    'linkedin_url', 'social_accounts', 'logo_url', 'cover_image_url', 'seeking',
+    'target_sports', 'target_level', 'geographic_preference', 'created_at',
+    'updated_at',
+  ].join(', '),
+  agent: [
+    'id', 'user_id', 'status', 'agency_name', 'agent_full_name',
+    'years_in_industry', 'sports_specialisms', 'geographic_regions', 'bio',
+    'logo_url', 'website_url', 'linkedin_url', 'services_offered',
+    'commission_rate_display', 'is_verified', 'verified_at',
+    'verification_status', 'created_at', 'updated_at',
+  ].join(', '),
+}
+
 export async function getPublicProfile(
   supabase: SupabaseClient<Database>,
   targetUserId: string,
@@ -198,7 +304,7 @@ export async function getPublicProfile(
   const table = TABLE_FOR_ROLE[role]
   const { data, error } = await db(supabase)
     .from(table)
-    .select('*')
+    .select(PUBLIC_PROFILE_COLUMNS[role])
     .eq('user_id', targetUserId)
     .eq('status', 'active')
     .single()
@@ -208,7 +314,11 @@ export async function getPublicProfile(
     throw new ProfileError('PROFILE_FETCH_FAILED', (error as { message: string }).message)
   }
 
-  return data as ProfileRow
+  // as unknown as ProfileRow: the column list is built at runtime, so
+  // PostgREST's literal-type select parser cannot infer the row shape (same
+  // reason as the discovery summaries below). Sensitive columns are absent at
+  // runtime; no public consumer reads them.
+  return data as unknown as ProfileRow
 }
 
 export async function createRepresentationLink(

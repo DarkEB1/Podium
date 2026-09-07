@@ -536,6 +536,9 @@ export default function SettingsForm({
   // Section 8 — Account.
   const [deactivated, setDeactivated] = useState(profile.status === 'deactivated')
   const [deleteConfirm, setDeleteConfirm] = useState('')
+  const [deletePassword, setDeletePassword] = useState('')
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [deletingAccount, setDeletingAccount] = useState(false)
 
   // --- SET5: per-section dirty tracking ----------------------------------
   // A section's Save is enabled only when its fields differ from the last
@@ -756,9 +759,10 @@ export default function SettingsForm({
     }
   }
 
-  // SET2/SET4 — change email. Client-validated; the server route that actually
-  // re-issues the verification email does not exist yet (see NEEDS-USER), so a
-  // missing endpoint is reported honestly rather than faking success.
+  // SET2/SET4 — change email (WS-ACCT-02). Client-validated, then posted to
+  // /api/account/email, which calls updateUser({ email }) and (with Supabase's
+  // secure email change on) confirms via BOTH inboxes before the swap. The 404
+  // branch below is kept as a defensive fallback for older deployments.
   async function updateEmailHandler() {
     const email = newEmail.trim()
     if (!EMAIL_RE.test(email)) {
@@ -791,10 +795,11 @@ export default function SettingsForm({
     }
   }
 
-  // SET2/SET4 — change password. Requires the current password, a policy-valid
-  // new password and a matching confirmation. The current password is collected
-  // and sent, but the existing /api/auth/password-update route does not yet
-  // re-authenticate with it (see NEEDS-USER).
+  // SET2/SET4 — change password (WS-ACCT-03). Requires the current password, a
+  // policy-valid new password and a matching confirmation. The current password
+  // is sent to /api/auth/password-update, which now re-authenticates with it
+  // before the change (and rejects a wrong one with 401) and signs out other
+  // sessions on success.
   async function updatePasswordHandler() {
     if (!currentPassword) {
       setPasswordError('Enter your current password')
@@ -830,6 +835,40 @@ export default function SettingsForm({
       toast.error('Something went wrong. Please try again.')
     } finally {
       setSavingPassword(false)
+    }
+  }
+
+  // WS-ACCT-01 — request account deletion. The button was previously wired only
+  // to the optional `onDeleteAccount` prop, which a Server Component page cannot
+  // pass (functions do not cross the server/client boundary), so it was inert on
+  // every real page. This internal default POSTs to the re-auth-gated endpoint;
+  // the prop, when supplied (e.g. in tests), still wins.
+  async function deleteAccountHandler() {
+    if (deleteConfirm !== 'DELETE') return
+    if (!deletePassword) {
+      setDeleteError('Enter your current password to confirm')
+      return
+    }
+    setDeleteError(null)
+    setDeletingAccount(true)
+    try {
+      const res = await fetch('/api/account/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: deletePassword }),
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) {
+        setDeleteError(data?.error?.message ?? 'Failed to delete your account')
+        return
+      }
+      // The endpoint signs the session out; go to the sign-in screen.
+      toast.success('Your account is scheduled for deletion. Sign in within 14 days to cancel.')
+      window.location.assign('/auth')
+    } catch {
+      setDeleteError('Something went wrong. Please try again.')
+    } finally {
+      setDeletingAccount(false)
     }
   }
 
@@ -2560,13 +2599,32 @@ export default function SettingsForm({
                 autoComplete="off"
               />
             </div>
+            <div>
+              <label htmlFor="delete_password" className="mb-1 block text-small font-medium">
+                Confirm with your password
+              </label>
+              <Input
+                id="delete_password"
+                type="password"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                placeholder="••••••••"
+                autoComplete="current-password"
+                maxLength={128}
+              />
+            </div>
+            {deleteError && (
+              <p role="alert" className="text-small text-destructive">
+                {deleteError}
+              </p>
+            )}
             <Button
               type="button"
               variant="destructive"
-              disabled={deleteConfirm !== 'DELETE'}
-              onClick={() => onDeleteAccount?.()}
+              disabled={deleteConfirm !== 'DELETE' || deletingAccount}
+              onClick={() => (onDeleteAccount ? onDeleteAccount() : deleteAccountHandler())}
             >
-              Delete my account
+              {deletingAccount ? 'Deleting…' : 'Delete my account'}
             </Button>
           </div>
         </section>

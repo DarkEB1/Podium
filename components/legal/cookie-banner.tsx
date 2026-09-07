@@ -61,9 +61,12 @@ export default function CookieBanner() {
       aria-modal="false"
       aria-label="Cookie preferences"
       data-testid="cookie-banner"
-      className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-card/95 p-4 shadow-lg backdrop-blur md:p-6"
+      // Capped height with its own scroll so the banner never grows taller than
+      // the viewport at small sizes / high zoom (the top used to be unreachable
+      // at 400% zoom). Tighter padding and gaps on phones keep it compact.
+      className="fixed inset-x-0 bottom-0 z-50 max-h-[85dvh] overflow-y-auto border-t border-border bg-card/95 p-3 shadow-lg backdrop-blur sm:p-4 md:p-6"
     >
-      <div className="mx-auto flex max-w-4xl flex-col gap-4">
+      <div className="mx-auto flex max-w-4xl flex-col gap-3 sm:gap-4">
         <div>
           <p className="font-heading text-base font-bold text-foreground">
             Your cookie choices

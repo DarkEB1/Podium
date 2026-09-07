@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import { getUser } from '@/lib/supabase/auth'
+import { getUser, getUserRole } from '@/lib/supabase/auth'
 import { respondConnectionRequest, withdrawConnectionRequest, DiscoveryError } from '@/lib/supabase/discovery'
 import { getIncomingConnectionRequests, type ConnectionRequestRow } from '@/lib/supabase/connections'
 import { sendTransactionalEmail } from '@/lib/email'
 import { absoluteUrl, nameOf, resolveDisplayNames, FALLBACK_OTHER_NAME } from '@/lib/email/notify'
-import { ROUTES } from '@/lib/routes'
+import { dispatchNotification } from '@/lib/notifications'
+import { messagesInboxPath } from '@/lib/notifications/deep-links'
 
 const VALID_ACTIONS = new Set(['accept', 'decline', 'withdraw'])
 
@@ -66,15 +67,33 @@ export async function PATCH(
       // accepter (current user) is the "other" party.
       if (target) {
         const names = await resolveDisplayNames(admin, [target.sender_id, user.id])
+        // D20: acceptance opens a conversation, so "Open conversation" must land
+        // on the ORIGINAL SENDER's messages inbox, not /dashboard.
+        const senderRole = await getUserRole(admin, target.sender_id)
+        const path = messagesInboxPath(senderRole)
+        const otherName = nameOf(names, user.id, FALLBACK_OTHER_NAME)
         await sendTransactionalEmail(admin, {
           event: 'connection_request_accepted',
           userId: target.sender_id,
           data: {
             recipientName: nameOf(names, target.sender_id),
-            otherName: nameOf(names, user.id, FALLBACK_OTHER_NAME),
-            url: absoluteUrl(ROUTES.dashboard),
+            otherName,
+            url: absoluteUrl(path),
           },
         })
+
+        // WS-MSG-01: in-app bell copy for the sender.
+        try {
+          await dispatchNotification(admin, {
+            userId: target.sender_id,
+            eventType: 'connection_request_accepted',
+            title: 'Connection accepted',
+            body: `${otherName} accepted your connection request.`,
+            metadata: { url: path },
+          })
+        } catch (notifyErr) {
+          console.error('[connections] notification dispatch failed', notifyErr)
+        }
       }
     } else if (action === 'decline') {
       await respondConnectionRequest(supabase, requestId, user.id, false)

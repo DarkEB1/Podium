@@ -39,7 +39,9 @@ export default async function TeamDiscoverPage({
   // FA-5: one bounded, server-filtered page of active listings.
   const [profile, { listings, hasMore }] = await Promise.all([
     getOwnProfile(supabase, user.id, 'team'),
-    getActiveListingsPage(supabase, { limit: shown }),
+    // WS-LISTING-03: teams only see brand-to-team sponsorship listings, never
+    // athlete_endorsement campaigns aimed at individual athletes.
+    getActiveListingsPage(supabase, { limit: shown, type: 'team_sponsorship' }),
   ])
 
   // getOwnProfile returns the role union; role 'team' narrows it to TeamRow.

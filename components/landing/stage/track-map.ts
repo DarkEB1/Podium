@@ -164,3 +164,18 @@ export function panelIndex(p: number): number {
   })
   return best
 }
+
+/**
+ * The rest point a corridor panel sits at, from its `data-panel` attribute
+ * ('01'..'04'). Used by the stage's focusin handler so that tabbing to a
+ * control in a later panel travels the corridor to that panel instead of the
+ * browser scrolling the fixed viewport sideways and desyncing the scene
+ * (WS-LANDING-02). Returns null for a node with no panel ancestor (e.g. the
+ * header), so focusing the nav never moves the corridor.
+ */
+export function panelRestFromDataPanel(dataPanel: string | null | undefined): number | null {
+  if (dataPanel == null) return null
+  const idx = Number(dataPanel) - 1 // '01' → 0, '04' → 3
+  if (!Number.isInteger(idx) || idx < 0 || idx >= REST_POINTS.length) return null
+  return REST_POINTS[idx]!
+}

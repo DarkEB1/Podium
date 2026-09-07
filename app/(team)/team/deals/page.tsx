@@ -20,7 +20,10 @@ export default async function TeamDealsPage() {
   const proposals = await getProposalsForUser(supabase, user.id)
   const received = proposals.filter((p) => p.sender_id !== user.id)
   const pending = received.filter((p) => p.status === 'pending')
-  const history = received.filter((p) => p.status !== 'pending')
+  // WS-DEAL-02: an accepted proposal still needs the team's signature on the
+  // contract — Active, not History (the brand side calls it Active too).
+  const active = received.filter((p) => p.status === 'accepted')
+  const history = received.filter((p) => p.status !== 'pending' && p.status !== 'accepted')
 
   return (
     <div className="mx-auto max-w-3xl space-y-12 px-6 py-12 md:px-16 md:py-16">
@@ -39,6 +42,15 @@ export default async function TeamDealsPage() {
           ))
         )}
       </section>
+
+      {active.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-base font-semibold">Awaiting your signature ({active.length})</h2>
+          {active.map((p) => (
+            <ProposalCard key={p.id} proposal={p} href={ROUTES.team.deal(p.id)} />
+          ))}
+        </section>
+      )}
 
       {history.length > 0 && (
         <section className="space-y-3">

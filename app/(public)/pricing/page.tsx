@@ -12,6 +12,9 @@ export const metadata = {
   title: 'Pricing · Podium',
   description:
     'Free forever for athletes, teams and agents. Simple monthly tiers for brands.',
+  // WS-INFRA P2: canonicalises `/pricing?utm_source=…` and alias-host variants
+  // to one indexable URL. Resolved against metadataBase in app/layout.tsx.
+  alternates: { canonical: '/pricing' },
 }
 
 /**

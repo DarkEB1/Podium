@@ -34,18 +34,50 @@ describe('ListingsManager', () => {
     expect(screen.getByText('Winter Camp')).toBeInTheDocument()
   })
 
-  it('pauses an active listing via PATCH status=paused', async () => {
+  it('pauses an active listing via PATCH to the dedicated /status route', async () => {
     render(<ListingsManager listings={[listing()]} />)
     await userEvent.click(screen.getByRole('button', { name: /pause/i }))
     await waitFor(() =>
       expect(fetch).toHaveBeenCalledWith(
-        '/api/discovery/listings/list-1',
+        '/api/discovery/listings/list-1/status',
         expect.objectContaining({
           method: 'PATCH',
           body: JSON.stringify({ status: 'paused' }),
         }),
       ),
     )
+  })
+
+  it('resumes a paused listing to active via the /status route', async () => {
+    render(<ListingsManager listings={[listing({ status: 'paused' })]} />)
+    await userEvent.click(screen.getByRole('button', { name: /resume/i }))
+    await waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith(
+        '/api/discovery/listings/list-1/status',
+        expect.objectContaining({
+          method: 'PATCH',
+          body: JSON.stringify({ status: 'active' }),
+        }),
+      ),
+    )
+  })
+
+  it('shows a Publish action for a draft and POSTs to the publish route', async () => {
+    render(<ListingsManager listings={[listing({ status: 'draft' })]} />)
+    // a draft is not yet live, so it must not offer Pause
+    expect(screen.queryByRole('button', { name: /pause/i })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: /publish/i }))
+    await waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith(
+        '/api/discovery/listings/list-1/publish',
+        expect.objectContaining({ method: 'POST' }),
+      ),
+    )
+  })
+
+  it('does not offer Publish for an already-active listing', () => {
+    render(<ListingsManager listings={[listing({ status: 'active' })]} />)
+    expect(screen.queryByRole('button', { name: /publish/i })).not.toBeInTheDocument()
   })
 
   it('closes a listing only after confirming', async () => {

@@ -3,6 +3,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { clearSession } from '@/lib/supabase/sessions'
 import { clearOnboardedCookie } from '@/lib/auth/onboarded-cookie'
+import { ADMIN_2FA_COOKIE } from '@/lib/auth/admin-2fa-cookie'
 import { ROUTES } from '@/lib/routes'
 
 /**
@@ -37,5 +38,8 @@ export async function POST() {
   // Drop the onboarding fast-path cookie so it can never leak to a different
   // user who signs in next on this browser. See lib/auth/onboarded-cookie.ts.
   clearOnboardedCookie(response)
+  // WS-ADMIN P2: the admin "passed 2FA" cookie (8h TTL) survived logout, so the
+  // next person on this browser inherited the second factor. Drop it here too.
+  response.cookies.delete(ADMIN_2FA_COOKIE)
   return response
 }

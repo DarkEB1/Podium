@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { getUser } from '@/lib/supabase/auth'
-import { getMessages, sendMessage, MessagingError } from '@/lib/supabase/messaging'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { getUser, getUserRole } from '@/lib/supabase/auth'
+import { getMessages, sendMessage, getMatch, otherParticipantId, MessagingError } from '@/lib/supabase/messaging'
 import { assertCanSendMessage } from '@/lib/supabase/entitlements'
 import { RATE_LIMITS, consume, tooManyRequests, userKey } from '@/lib/rate-limit'
 import { CHAT_MESSAGE_MAX } from '@/lib/limits'
+import { dispatchNotification } from '@/lib/notifications'
+import { messageThreadPath } from '@/lib/notifications/deep-links'
+import { nameOf, resolveDisplayNames, FALLBACK_OTHER_NAME } from '@/lib/email/notify'
 import type { Database } from '@/types/database'
 
 type MessageType = Database['public']['Enums']['message_type']
@@ -124,6 +127,34 @@ export async function POST(
     )
   }
 
+  // WS-MSG-07: reject attachments outright until the attachment UI ships.
+  //
+  // The chat renders `attachment_url` for the OTHER party as a download link and,
+  // for images, an <img>. Nothing server-side validates that URL, so a sender
+  // could point it off-site: a phishing link, a tracking pixel, or a bare-IP
+  // logger that de-anonymises a viewer who may be a minor. No composer sends an
+  // attachment today (the only content_type sent is 'text'), so the safest and
+  // simplest fix is to refuse every attachment content type and every attachment
+  // field here. When the upload UI lands, replace this with: require an own-bucket
+  // (Supabase Storage) URL + a MIME allow-list + a size cap.
+  const ATTACHMENT_CONTENT_TYPES = new Set<MessageType>(['image', 'video', 'document'])
+  if (
+    ATTACHMENT_CONTENT_TYPES.has(body.content_type as MessageType) ||
+    body.attachment_url !== undefined ||
+    body.attachment_size_bytes !== undefined ||
+    body.attachment_mime_type !== undefined
+  ) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'ATTACHMENTS_NOT_ENABLED',
+          message: 'Attachments are not supported yet.',
+        },
+      },
+      { status: 400 }
+    )
+  }
+
   // SEC-3: `metadata` exists to carry the proposal id of a system card. No
   // client-creatable type uses it, so accepting it would just reopen the
   // forged-card path through a type that is still allowed.
@@ -168,6 +199,34 @@ export async function POST(
       content_type as MessageType,
       payload
     )
+
+    // WS-MSG-01: notify the OTHER participant in-app that a message arrived.
+    // Best-effort and fully guarded — a notification failure must never fail the
+    // send or mask its 201. Resolution runs on the service-role client because
+    // the recipient's role/name are cross-user reads the sender's RLS-scoped
+    // client cannot make.
+    try {
+      const admin = createAdminClient()
+      const match = await getMatch(admin, matchId)
+      if (match) {
+        const recipientId = otherParticipantId(match, user.id)
+        const [names, recipientRole] = await Promise.all([
+          resolveDisplayNames(admin, [user.id]),
+          getUserRole(admin, recipientId),
+        ])
+        const senderName = nameOf(names, user.id, FALLBACK_OTHER_NAME)
+        await dispatchNotification(admin, {
+          userId: recipientId,
+          eventType: 'message_received',
+          title: 'New message',
+          body: `${senderName} sent you a message.`,
+          metadata: { url: messageThreadPath(recipientRole, matchId) },
+        })
+      }
+    } catch (notifyErr) {
+      console.error('[messages] notification dispatch failed', notifyErr)
+    }
+
     return NextResponse.json(message, { status: 201 })
   } catch (err) {
     if (err instanceof MessagingError) {

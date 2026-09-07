@@ -9,6 +9,8 @@ export const metadata: Metadata = {
   title: 'Contact us · Podium',
   description:
     'Questions about Podium, your account or a partnership? Send us a message and we will get back to you.',
+  // WS-INFRA P2: one canonical URL, resolved against metadataBase in app/layout.tsx.
+  alternates: { canonical: '/contact' },
 }
 
 export default function ContactPage() {

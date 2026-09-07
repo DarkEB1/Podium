@@ -1,8 +1,9 @@
 'use client'
 
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, Search } from 'lucide-react'
 
 import { BrowseModeToggle, type BrowseMode } from '@/components/ui/browse-mode-toggle'
+import { EmptyState } from '@/components/ui/empty-state'
 import type { ScoredListing } from '@/lib/discovery/match'
 import type { Rail } from '@/lib/discovery/rails'
 
@@ -146,12 +147,34 @@ export function DiscoverFeed({ listings, rails, initialMode, athleteSport, foote
 
           {filters.hasActiveFilters ? (
             <div data-testid="discover-grid" className="space-y-6">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {filtered.map((listing) => (
-                  <OpportunityCard key={listing.id} listing={listing} />
-                ))}
-              </div>
+              {/* WS-LISTING-06: a search that survives to zero listings showed a
+                  bare empty grid with no way back. Mirror the ListingsGrid empty
+                  state and offer "Clear all filters". */}
+              {filtered.length === 0 ? (
+                <EmptyState
+                  icon={<Search />}
+                  title="No campaigns found"
+                  description="Try clearing a filter or broadening your search to see more opportunities."
+                  action={{ label: 'Clear all filters', onClick: filters.reset }}
+                />
+              ) : (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {filtered.map((listing) => (
+                    <OpportunityCard key={listing.id} listing={listing} />
+                  ))}
+                </div>
+              )}
               {footer}
+            </div>
+          ) : listings.length === 0 ? (
+            // WS-LISTING-06: with no listings at all the rails collapse to
+            // nothing; show a real empty state instead of a blank board.
+            <div data-testid="discover-empty">
+              <EmptyState
+                icon={<Search />}
+                title="No opportunities yet"
+                description="There are no live campaigns right now. Check back soon — new sponsorship offers are added regularly."
+              />
             </div>
           ) : (
             <div data-testid="discover-rails" className="space-y-6">

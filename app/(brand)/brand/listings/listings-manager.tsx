@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -37,10 +37,22 @@ export default function ListingsManager({ listings }: Props) {
   // id of the listing awaiting a close confirmation, if any
   const [confirmCloseId, setConfirmCloseId] = useState<string | null>(null)
 
+  // WS-LISTING-02: after an action we call router.refresh(), which re-runs the
+  // server component and hands down fresh `listings`. useState(listings) alone
+  // never picks that up, so the optimistic row could silently disagree with the
+  // server (the whole reason Pause/Close "worked" before while doing nothing).
+  // Resync whenever the server's copy changes.
+  useEffect(() => {
+    setRows(listings)
+  }, [listings])
+
+  // WS-LISTING-02: status changes go to the dedicated /status route, which runs
+  // updateListingStatus behind an explicit transition table. The old generic
+  // PATCH stripped `status` and changed nothing while toasting success.
   async function patchStatus(id: string, status: ListingStatus, successMsg: string) {
     setBusyId(id)
     try {
-      const res = await fetch(`/api/discovery/listings/${id}`, {
+      const res = await fetch(`/api/discovery/listings/${id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
@@ -61,6 +73,31 @@ export default function ListingsManager({ listings }: Props) {
     }
   }
 
+  // WS-LISTING-01: publishing an offer had no control in the product at all —
+  // the feed only ever showed seeded rows. Publish flips draft -> active through
+  // the entitlement-gated publish route, then resyncs from the server.
+  async function publish(id: string) {
+    setBusyId(id)
+    try {
+      const res = await fetch(`/api/discovery/listings/${id}/publish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error?.message ?? 'Failed to publish listing')
+        return
+      }
+      setRows((prev) => prev.map((r) => (r.id === id ? { ...r, status: 'active' } : r)))
+      toast.success('Listing published')
+      router.refresh()
+    } catch {
+      toast.error('Something went wrong. Please try again.')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
   function duplicate(id: string) {
     // Route to the create page, which pre-fills the form from the source listing.
     router.push(`/brand/listings/new?from=${id}`)
@@ -69,7 +106,9 @@ export default function ListingsManager({ listings }: Props) {
   return (
     <ul className="divide-y divide-border rounded-2xl border border-border bg-card shadow-sm">
       {rows.map((l) => {
+        const isDraft = l.status === 'draft'
         const isPaused = l.status === 'paused'
+        const isActive = l.status === 'active'
         const isClosed = l.status === 'filled' || l.status === 'expired'
         return (
           <li key={l.id} className="flex flex-col gap-3 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
@@ -89,26 +128,37 @@ export default function ListingsManager({ listings }: Props) {
                 Edit
               </Link>
 
-              {!isClosed &&
-                (isPaused ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={busyId === l.id}
-                    onClick={() => patchStatus(l.id, 'active', 'Listing resumed')}
-                  >
-                    Resume
-                  </Button>
-                ) : (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={busyId === l.id}
-                    onClick={() => patchStatus(l.id, 'paused', 'Listing paused')}
-                  >
-                    Pause
-                  </Button>
-                ))}
+              {isDraft && (
+                <Button
+                  size="sm"
+                  disabled={busyId === l.id}
+                  onClick={() => publish(l.id)}
+                >
+                  Publish
+                </Button>
+              )}
+
+              {isPaused && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={busyId === l.id}
+                  onClick={() => patchStatus(l.id, 'active', 'Listing resumed')}
+                >
+                  Resume
+                </Button>
+              )}
+
+              {isActive && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={busyId === l.id}
+                  onClick={() => patchStatus(l.id, 'paused', 'Listing paused')}
+                >
+                  Pause
+                </Button>
+              )}
 
               <Button
                 variant="outline"

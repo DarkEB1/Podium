@@ -16,8 +16,17 @@ import {
   CASCADE_END,
   TRAVEL_VIEWPORTS,
   panelIndex,
+  panelRestFromDataPanel,
   trackXVw,
 } from './track-map'
+
+// The corridor is a desktop/tablet experience; below this the landing renders
+// a stacked vertical layout instead (WS-LANDING-01), and this fixed stage is
+// CSS-hidden (`hidden md:block` in app/page.tsx). We must also stop the
+// corridor from DRIVING the page below the breakpoint: its wheel/touch/scroll
+// handlers call window.scrollTo/scrollBy and would hijack the mobile stack's
+// own scrolling. Tailwind's `md` is 768px.
+const DESKTOP_MQ = '(min-width: 768px)'
 
 // ————————————————————————————————————————————————————————————————————————
 // The stage: one 520vh scroll fabric driving a fixed 400vw corridor
@@ -104,6 +113,20 @@ export default function Stage({ children }: { children: ReactNode }) {
   const [panelIdx, setPanelIdx] = useState(0)
   const [navSolid, setNavSolid] = useState(false)
   const [introDone, setIntroDone] = useState(false)
+  // Desktop-first so the corridor renders and animates on the very first
+  // painted frame at desktop widths (no mobile flash). Below md this flips to
+  // false after mount and the interaction effects tear down. The 3D scene only
+  // mounts while this is true, so phones never pay for WebGL behind a hidden
+  // corridor.
+  const [isDesktop, setIsDesktop] = useState(true)
+
+  useEffect(() => {
+    const mq = window.matchMedia(DESKTOP_MQ)
+    const update = () => setIsDesktop(mq.matches)
+    update()
+    mq.addEventListener('change', update)
+    return () => mq.removeEventListener('change', update)
+  }, [])
 
   const apply = useCallback((p: number) => {
     pRef.current = p
@@ -152,6 +175,9 @@ export default function Stage({ children }: { children: ReactNode }) {
   // to watch the corridor travel there.
   useEffect(() => {
     if (window.location.hash !== '#what-we-do') return
+    // Below md there is no corridor to jump; the mobile stack carries the
+    // #what-we-do anchor and the browser scrolls to it natively.
+    if (!window.matchMedia(DESKTOP_MQ).matches) return
     const p = REST_POINTS[2]!
     const travel = window.innerHeight * TRAVEL_VIEWPORTS
     springPos.current = p
@@ -166,6 +192,10 @@ export default function Stage({ children }: { children: ReactNode }) {
   // animation, so a long swipe keeps travelling instead of being swallowed and
   // forcing them to lift off and start again.
   useEffect(() => {
+    // Only the desktop/tablet corridor is driven by scroll input. Below md the
+    // stage is hidden and the mobile stack owns the scroll, so attaching these
+    // would let the corridor hijack it (window.scrollTo/scrollBy).
+    if (!isDesktop) return
     const arm = () => {
       lastInputAt.current = performance.now()
       snapArmed.current = true
@@ -232,10 +262,12 @@ export default function Stage({ children }: { children: ReactNode }) {
       window.removeEventListener('touchend', arm)
       window.removeEventListener('scroll', onScroll)
     }
-  }, [])
+  }, [isDesktop])
 
   // Critically damped spring (k 170, c 26, m 1) between raw scroll and P.
   useEffect(() => {
+    // Corridor is hidden below md; don't run its rAF or write transforms there.
+    if (!isDesktop) return
     let raf = 0
     let last = performance.now()
     let lastY = -1
@@ -331,10 +363,12 @@ export default function Stage({ children }: { children: ReactNode }) {
     }
     raf = requestAnimationFrame(loop)
     return () => cancelAnimationFrame(raf)
-  }, [apply, jumpTo])
+  }, [apply, jumpTo, isDesktop])
 
-  // Keyboard: rest-point jumps (spec §4.5).
+  // Keyboard: rest-point jumps (spec §4.5). Corridor-only, so the arrow/page
+  // keys are not captured on the mobile stack.
   useEffect(() => {
+    if (!isDesktop) return
     const onKey = (e: KeyboardEvent) => {
       if (['ArrowRight', 'PageDown'].includes(e.key)) {
         e.preventDefault()
@@ -349,7 +383,26 @@ export default function Stage({ children }: { children: ReactNode }) {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [jumpTo])
+  }, [jumpTo, isDesktop])
+
+  // Keyboard focus travels the corridor (WS-LANDING-02). The stage root is
+  // `overflow-clip`, so the browser can no longer scroll the fixed viewport
+  // sideways to bring a focused control into view — which used to leave the
+  // header off screen and the 3D scene under the wrong panel. Instead, when a
+  // control in a panel receives focus we jump the corridor to that panel's
+  // rest point. Focusing the header (no [data-panel] ancestor) never moves it.
+  useEffect(() => {
+    if (!isDesktop) return
+    const root = rootRef.current
+    if (!root) return
+    const onFocusIn = (e: FocusEvent) => {
+      const panelEl = (e.target as HTMLElement | null)?.closest?.('[data-panel]')
+      const p = panelRestFromDataPanel(panelEl?.getAttribute('data-panel'))
+      if (p !== null && Math.abs(p - pRef.current) > 0.002) jumpTo(p)
+    }
+    root.addEventListener('focusin', onFocusIn)
+    return () => root.removeEventListener('focusin', onFocusIn)
+  }, [jumpTo, isDesktop])
 
   const api = useRef<StageApi>({
     getP: () => pRef.current,
@@ -365,10 +418,16 @@ export default function Stage({ children }: { children: ReactNode }) {
     <StageContext.Provider value={api.current}>
       {/* scroll length */}
       <div style={{ height: `${(TRAVEL_VIEWPORTS + 1) * 100}vh` }} aria-hidden="true" />
-      {/* the corridor viewport */}
-      <div ref={rootRef} data-testid="stage" className="fixed inset-0 overflow-hidden bg-background">
-        {/* 3D stage behind the DOM (spec §2.6) */}
-        <LandingScene />
+      {/* the corridor viewport. `overflow-clip` (not `overflow-hidden`) so the
+          browser cannot scroll this fixed box sideways to reveal a focused
+          control — that was WS-LANDING-02, where Tab desynced the corridor. */}
+      <div ref={rootRef} data-testid="stage" className="fixed inset-0 overflow-clip bg-background">
+        {/* 3D stage behind the DOM (spec §2.6). Mounted only on the corridor —
+            no WebGL runs behind the hidden stage on phones. */}
+        {isDesktop && <LandingScene />}
+        {/* Header first in DOM order so it leads the tab sequence (was last,
+            WS-LANDING-02); it is absolutely positioned, so order is visual-safe. */}
+        <StageNav solid={navSolid} activePanel={panelIdx} onNavigate={jumpTo} />
         <div
           ref={trackRef}
           data-testid="stage-track"
@@ -386,11 +445,11 @@ export default function Stage({ children }: { children: ReactNode }) {
           className="absolute inset-x-0 z-10 border-t-[1.5px] border-foreground"
           style={{ top: 'var(--floor-y)' }}
         />
-        <StageNav solid={navSolid} activePanel={panelIdx} onNavigate={jumpTo} />
-        {/* wayfinding (spec §2.4) */}
+        {/* wayfinding (spec §2.4). `left` clears the tick-tape "000" label,
+            which sits at the very edge, so the two never touch at small widths. */}
         <div
           className="absolute z-20 font-mono text-[10.5px] uppercase tracking-[.15em] text-muted-foreground"
-          style={{ left: 'var(--margin-x)', top: 'calc(var(--floor-y) + 12px)' }}
+          style={{ left: 'max(var(--margin-x), 44px)', top: 'calc(var(--floor-y) + 12px)' }}
           aria-hidden="true"
         >
           {`${PANEL_LABELS[panelIdx]} / 04`}
@@ -399,7 +458,7 @@ export default function Stage({ children }: { children: ReactNode }) {
           <button
             type="button"
             onClick={() => jumpTo(REST_POINTS[1]!)}
-            className="absolute z-20 font-mono text-[10.5px] uppercase tracking-[.15em] text-primary"
+            className="absolute z-20 cursor-pointer font-mono text-[10.5px] uppercase tracking-[.15em] text-primary transition-colors duration-150 hover:text-[#1F35C8]"
             style={{ right: 'var(--margin-x)', top: 'calc(var(--floor-y) + 12px)' }}
           >
             SKIP INTRO →
