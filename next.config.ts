@@ -62,6 +62,19 @@ const nextConfig: NextConfig = {
   // the workspace root, which misroots file tracing (and broke dev-watch
   // reliability for new directories). Pin the root to this project.
   outputFileTracingRoot: __dirname,
+  // @react-pdf/renderer -> pdfkit lazy-requires its standard font `.cjs` and
+  // `.afm` metric files by a constructed path, so Next's output-file-tracing
+  // cannot see them and Vercel omits them from the serverless bundle — contract
+  // PDF generation then throws MODULE_NOT_FOUND for
+  // pdfkit/js/standard-fonts/Helvetica.cjs (found via live staging test,
+  // 2026-09-08). Force-include the pdfkit runtime assets for the routes that
+  // render contract PDFs (sign completes → finalize; the document route lazily
+  // re-finalizes; the webhook seam finalizes for an external provider).
+  outputFileTracingIncludes: {
+    "/api/deals/contracts/[contractId]/sign": ["./node_modules/pdfkit/js/**"],
+    "/api/deals/contracts/[contractId]/document": ["./node_modules/pdfkit/js/**"],
+    "/api/webhooks/esign": ["./node_modules/pdfkit/js/**"],
+  },
   // Don't advertise the framework/version to every visitor and scanner.
   poweredByHeader: false,
   async headers() {
