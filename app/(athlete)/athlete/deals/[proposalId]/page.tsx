@@ -6,6 +6,7 @@ import { buttonVariants } from '@/components/ui/button'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import ContractSignButton from '@/components/deals/contract-sign-button'
+import { ContractTermsBlock } from '@/components/deals/contract-terms-block'
 import ProposalRespondButtons from '@/components/deals/proposal-respond-buttons'
 import { AccentHeading } from '@/components/ui/accent-heading'
 import { formatMajorAmount } from '@/lib/money'
@@ -115,8 +116,21 @@ export default async function AthleteProposalDetailPage({
             status={contract.status}
             isBrand={false}
             alreadySigned={!!contract.athlete_signed_at}
+            terms={(contract.terms_snapshot ?? {}) as Record<string, unknown>}
           />
+          {contract.status === 'fully_signed' && (
+            <Link
+              href={`/api/deals/contracts/${contract.id}/document`}
+              className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
+            >
+              View / Download PDF
+            </Link>
+          )}
         </div>
+      )}
+
+      {contract && (
+        <ContractTermsBlock terms={(contract.terms_snapshot ?? {}) as Record<string, unknown>} />
       )}
     </div>
   )

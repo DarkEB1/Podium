@@ -7,11 +7,12 @@ import { z } from 'zod'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { copy } from '@/lib/copy'
 import { track } from '@/lib/analytics'
-import { PROPOSAL_TITLE_MAX } from '@/lib/limits'
+import { PROPOSAL_TITLE_MAX, PROPOSAL_TERMS_MAX } from '@/lib/limits'
 import {
   SUPPORTED_CURRENCIES,
   PROPOSAL_AMOUNT_MIN,
@@ -45,6 +46,14 @@ const schema = z
     pay_currency: z.enum(SUPPORTED_CURRENCIES),
     timeline_start: z.string().optional(),
     timeline_end: z.string().optional(),
+    // DP-17: optional term-sheet fields. deliverables/usage_rights become jsonb
+    // { text } on submit (see onSubmit); additional_terms stays plain text and
+    // is capped at PROPOSAL_TERMS_MAX to match the server's own check, so the
+    // form and the route cannot drift apart (see title's PROPOSAL_TITLE_MAX
+    // above).
+    deliverables: z.string().max(PROPOSAL_TERMS_MAX).optional(),
+    usage_rights: z.string().max(PROPOSAL_TERMS_MAX).optional(),
+    additional_terms: z.string().max(PROPOSAL_TERMS_MAX).optional(),
   })
   // DP-10: end cannot precede start.
   .refine(
@@ -89,7 +98,17 @@ export default function ProposalForm({ matchId, parentProposalId, onSent }: Prop
       const url = isCounter
         ? `/api/deals/proposals/${parentProposalId}/counter`
         : '/api/deals/proposals'
-      const payload = isCounter ? values : { match_id: matchId, ...values }
+      // DP-17: deliverables/usage_rights are jsonb columns, so wrap the plain-text
+      // input as { text }; additional_terms is a text column and travels as-is.
+      // Only include a key when the brand actually filled it in, so an empty
+      // string never overwrites a later counter's already-set term.
+      const { deliverables, usage_rights, additional_terms, ...rest } = values
+      const terms = {
+        ...(deliverables ? { deliverables: { text: deliverables } } : {}),
+        ...(usage_rights ? { usage_rights: { text: usage_rights } } : {}),
+        ...(additional_terms ? { additional_terms } : {}),
+      }
+      const payload = isCounter ? { ...rest, ...terms } : { match_id: matchId, ...rest, ...terms }
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -187,6 +206,27 @@ export default function ProposalForm({ matchId, parentProposalId, onSent }: Prop
               </FormItem>
             )} />
           </div>
+          <FormField control={form.control} name="deliverables" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Deliverables <span className="text-muted-foreground text-xs">(optional)</span></FormLabel>
+              <FormControl><Textarea placeholder="3 Instagram posts, 1 story per month" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+          <FormField control={form.control} name="usage_rights" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Usage rights <span className="text-muted-foreground text-xs">(optional)</span></FormLabel>
+              <FormControl><Textarea placeholder="Social channels only, 6 months" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+          <FormField control={form.control} name="additional_terms" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Additional terms <span className="text-muted-foreground text-xs">(optional)</span></FormLabel>
+              <FormControl><Textarea placeholder="Any other terms for this deal" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
           <Button type="submit" disabled={loading}>
             {loading ? 'Sending…' : isCounter ? 'Send counter-offer' : 'Send proposal'}
           </Button>

@@ -272,6 +272,44 @@ describe('serverEnv optional operational secrets', () => {
   })
 })
 
+// ---------------------------------------------------------------------------
+// E-signature configuration
+// ---------------------------------------------------------------------------
+
+describe('esign env', () => {
+  const ESIGN_KEYS = ['ESIGN_PROVIDER', 'ESIGN_WEBHOOK_SECRET'] as const
+  const saved: Record<string, string | undefined> = {}
+
+  beforeEach(() => {
+    for (const k of ESIGN_KEYS) {
+      saved[k] = process.env[k]
+      delete process.env[k]
+    }
+    resetEnvCache()
+  })
+
+  afterEach(() => {
+    for (const k of ESIGN_KEYS) {
+      if (saved[k] === undefined) delete process.env[k]
+      else process.env[k] = saved[k]
+    }
+    resetEnvCache()
+  })
+
+  it('defaults ESIGN_PROVIDER to "podium" when unset', () => {
+    delete process.env['ESIGN_PROVIDER']
+    resetEnvCache()
+    expect(serverEnv().ESIGN_PROVIDER).toBe('podium')
+  })
+
+  it('accepts an explicit provider and a webhook secret', () => {
+    process.env['ESIGN_PROVIDER'] = 'podium'
+    process.env['ESIGN_WEBHOOK_SECRET'] = 'a-very-long-shared-webhook-secret-123456'
+    resetEnvCache()
+    expect(serverEnv().ESIGN_WEBHOOK_SECRET).toBe('a-very-long-shared-webhook-secret-123456')
+  })
+})
+
 describe('.env.local.example', () => {
   it('documents every optional operational secret', async () => {
     const { readFileSync } = await import('node:fs')
