@@ -25,4 +25,10 @@ describe('20260907000004_erase_user_data_esign', () => {
     expect(sql).toMatch(/'contracts'/)
     expect(sql).toMatch(/retain_until is not null and c\.retain_until <= now\(\)/)
   })
+  it('sets the storage.protect_delete bypass GUC so the storage deletes are permitted', () => {
+    // Newer Supabase storage installs storage.protect_delete(); without this
+    // transaction-local flag every DELETE FROM storage.objects (pre-existing and
+    // e-sign) aborts and the whole erasure fails.
+    expect(sql).toMatch(/set_config\('storage\.allow_delete_query', 'true', true\)/)
+  })
 })

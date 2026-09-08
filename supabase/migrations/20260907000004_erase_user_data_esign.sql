@@ -75,6 +75,16 @@ begin
 
   v_tombstone_email := 'deleted-' || p_user_id::text || '@deleted.podium.invalid';
 
+  -- Storage guard bypass. Newer Supabase storage images install a
+  -- storage.protect_delete() trigger (confirmed present on the hosted project
+  -- 2026-09-08) that rejects any direct DELETE FROM storage.objects with
+  -- SQLSTATE 42501 ("Use the Storage API instead") UNLESS this transaction-local
+  -- GUC is set to 'true'. Without it, the storage deletes below — both the
+  -- pre-existing owner/user-folder delete and the contract-scoped delete added
+  -- for e-signature artefacts — abort, and the entire erasure fails. Set once
+  -- here; it holds for the whole function (a single transaction).
+  perform set_config('storage.allow_delete_query', 'true', true);
+
   -- ==========================================================
   -- 1. STORAGE OBJECTS (defect I-a).
   --    `owner` is deprecated and is not populated for objects uploaded through
