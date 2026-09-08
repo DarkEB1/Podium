@@ -81,4 +81,13 @@ describe('GET contract document', () => {
     expect(mockFinalize).toHaveBeenCalledWith('c1')
     expect(res.status).toBe(404)
   })
+
+  it('404s (does not crash) when finalize throws on a fully-signed contract with no document', async () => {
+    contractRow = { id: 'c1', status: 'fully_signed', document_url: null }
+    mockFinalize.mockRejectedValue(new Error('pdfkit fonts MODULE_NOT_FOUND'))
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test double
+    const res = await GET(new Request('http://x') as any, params)
+    expect(mockFinalize).toHaveBeenCalledWith('c1')
+    expect(res.status).toBe(404)
+  })
 })

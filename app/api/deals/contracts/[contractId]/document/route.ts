@@ -55,7 +55,14 @@ export async function GET(
     }
 
     // Idempotent + creates its own admin client — safe to call speculatively.
-    await provider().finalizeContract(contractId)
+    // A finalize failure (e.g. a transient storage/PDF-render error) must not
+    // surface as a 500: swallow it so the re-select + null-check below returns
+    // a clean 404 instead.
+    try {
+      await provider().finalizeContract(contractId)
+    } catch (e) {
+      console.error('[deals/contracts/document] lazy finalize failed', e)
+    }
 
     const refetched = await getContractDocumentInfo(supabase, contractId)
     if (!refetched || !refetched.document_url) {
