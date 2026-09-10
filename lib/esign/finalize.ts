@@ -1,8 +1,10 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database'
-import { renderContractPdf, type ContractPdfParty, type ContractPdfSignature } from './pdf'
+import { renderContractPdf, type ContractPdfSignature } from './pdf'
+import type { AgreementParty } from './agreement'
 import { sha256Hex } from './audit'
 import { getContractSignatures } from '@/lib/supabase/contract-signatures'
+import { getAgreementPartyContext } from '@/lib/supabase/agreement-parties'
 import { resolveDisplayNames, nameOf, FALLBACK_OTHER_NAME } from '@/lib/email/notify'
 import { STORAGE_BUCKETS } from '@/lib/storage'
 import { termsString } from './terms'
@@ -31,13 +33,41 @@ export async function finalizeContractDocument(
     (x): x is string => Boolean(x)
   )
   const names = await resolveDisplayNames(admin, ids)
+  const partyCtx = await getAgreementPartyContext(admin, ids)
+  const detailOf = (id: string | null) => (id ? partyCtx[id] : undefined)
 
-  const parties: ContractPdfParty[] = [
-    { role: 'brand', displayName: nameOf(names, contract.brand_id, FALLBACK_OTHER_NAME) },
-    { role: 'athlete', displayName: nameOf(names, contract.athlete_or_team_id, FALLBACK_OTHER_NAME) },
+  const brandDetail = detailOf(contract.brand_id)
+  const athleteDetail = detailOf(contract.athlete_or_team_id)
+
+  const parties: AgreementParty[] = [
+    {
+      role: 'brand',
+      displayName: nameOf(names, contract.brand_id, FALLBACK_OTHER_NAME),
+      legalName: brandDetail?.legalName ?? null,
+      company: brandDetail?.company ?? null,
+      email: brandDetail?.email ?? null,
+      representativeName: brandDetail?.representativeName ?? null,
+      representativeTitle: brandDetail?.representativeTitle ?? null,
+    },
+    {
+      role: 'athlete',
+      displayName: nameOf(names, contract.athlete_or_team_id, FALLBACK_OTHER_NAME),
+      legalName: athleteDetail?.legalName ?? null,
+      email: athleteDetail?.email ?? null,
+      descriptor: athleteDetail?.descriptor ?? null,
+      representativeName: athleteDetail?.representativeName ?? null,
+      representativeTitle: athleteDetail?.representativeTitle ?? null,
+    },
   ]
   if (contract.agent_id) {
-    parties.push({ role: 'agent', displayName: nameOf(names, contract.agent_id, FALLBACK_OTHER_NAME) })
+    const agentDetail = detailOf(contract.agent_id)
+    parties.push({
+      role: 'agent',
+      displayName: nameOf(names, contract.agent_id, FALLBACK_OTHER_NAME),
+      legalName: agentDetail?.legalName ?? null,
+      email: agentDetail?.email ?? null,
+      representativeName: agentDetail?.representativeName ?? null,
+    })
   }
 
   const signatures: ContractPdfSignature[] = signatureRows.map((s) => ({
@@ -63,6 +93,8 @@ export async function finalizeContractDocument(
     },
     parties,
     signatures,
+    isMinor: athleteDetail?.isMinor ?? false,
+    guardian: athleteDetail?.guardian ?? null,
   })
 
   const documentHash = sha256Hex(pdf)
