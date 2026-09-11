@@ -201,12 +201,6 @@ export type Database = {
           national_programme: string | null
           notable_achievements: string | null
           notification_prefs: Json
-          payout_account_holder: string | null
-          payout_account_last4: string | null
-          payout_bank_name: string | null
-          payout_country: string | null
-          payout_method: Database["public"]["Enums"]["payout_method"] | null
-          payout_sort_code_last4: string | null
           performance_stats: Json
           phone: string | null
           position: string | null
@@ -216,11 +210,6 @@ export type Database = {
           seeking: Database["public"]["Enums"]["seeking_type"][]
           social_accounts: Json
           status: Database["public"]["Enums"]["profile_status"]
-          stripe_connect_account_id: string | null
-          stripe_connect_onboarded_at: string | null
-          stripe_connect_status:
-            | Database["public"]["Enums"]["stripe_connect_status"]
-            | null
           travel_radius_km: number | null
           university_city: string | null
           university_country: string | null
@@ -263,12 +252,6 @@ export type Database = {
           national_programme?: string | null
           notable_achievements?: string | null
           notification_prefs?: Json
-          payout_account_holder?: string | null
-          payout_account_last4?: string | null
-          payout_bank_name?: string | null
-          payout_country?: string | null
-          payout_method?: Database["public"]["Enums"]["payout_method"] | null
-          payout_sort_code_last4?: string | null
           performance_stats?: Json
           phone?: string | null
           position?: string | null
@@ -278,11 +261,6 @@ export type Database = {
           seeking?: Database["public"]["Enums"]["seeking_type"][]
           social_accounts?: Json
           status?: Database["public"]["Enums"]["profile_status"]
-          stripe_connect_account_id?: string | null
-          stripe_connect_onboarded_at?: string | null
-          stripe_connect_status?:
-            | Database["public"]["Enums"]["stripe_connect_status"]
-            | null
           travel_radius_km?: number | null
           university_city?: string | null
           university_country?: string | null
@@ -325,12 +303,6 @@ export type Database = {
           national_programme?: string | null
           notable_achievements?: string | null
           notification_prefs?: Json
-          payout_account_holder?: string | null
-          payout_account_last4?: string | null
-          payout_bank_name?: string | null
-          payout_country?: string | null
-          payout_method?: Database["public"]["Enums"]["payout_method"] | null
-          payout_sort_code_last4?: string | null
           performance_stats?: Json
           phone?: string | null
           position?: string | null
@@ -340,11 +312,6 @@ export type Database = {
           seeking?: Database["public"]["Enums"]["seeking_type"][]
           social_accounts?: Json
           status?: Database["public"]["Enums"]["profile_status"]
-          stripe_connect_account_id?: string | null
-          stripe_connect_onboarded_at?: string | null
-          stripe_connect_status?:
-            | Database["public"]["Enums"]["stripe_connect_status"]
-            | null
           travel_radius_km?: number | null
           university_city?: string | null
           university_country?: string | null
@@ -722,6 +689,7 @@ export type Database = {
           signed_at: string
           signature_hash: string
           created_at: string
+          payment_details: Json | null
         }
         Insert: {
           id?: string
@@ -736,6 +704,7 @@ export type Database = {
           signed_at: string
           signature_hash: string
           created_at?: string
+          payment_details?: Json | null
         }
         Update: {
           id?: string
@@ -750,6 +719,7 @@ export type Database = {
           signed_at?: string
           signature_hash?: string
           created_at?: string
+          payment_details?: Json | null
         }
         Relationships: []
       }
@@ -2590,7 +2560,6 @@ export type Database = {
         | "succeeded"
         | "failed"
         | "refunded"
-      payout_method: "bank_transfer" | "stripe_connect"
       profile_status:
         | "draft"
         | "pending_review"
@@ -2622,7 +2591,6 @@ export type Database = {
         | "nutrition_supplement"
         | "apparel_deal"
         | "university_nil_collective"
-      stripe_connect_status: "not_started" | "pending" | "restricted" | "active"
       stripe_webhook_event_status:
         | "received"
         | "processed"
@@ -2857,7 +2825,6 @@ export const Constants = {
         "failed",
         "refunded",
       ],
-      payout_method: ["bank_transfer", "stripe_connect"],
       profile_status: [
         "draft",
         "pending_review",
@@ -2893,7 +2860,6 @@ export const Constants = {
         "apparel_deal",
         "university_nil_collective",
       ],
-      stripe_connect_status: ["not_started", "pending", "restricted", "active"],
       stripe_webhook_event_status: [
         "received",
         "processed",

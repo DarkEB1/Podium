@@ -25,6 +25,20 @@ interface ReviewAndSignDialogProps {
   onSigned: (contract: unknown) => void
   onClose: () => void
   onGuardianRequired?: () => void
+  /**
+   * Show the optional "Payment details" fields, so the payee athlete can tell
+   * the Sponsor how to pay the Fee directly (P2P). Only the athlete/team side
+   * sees these; the Sponsor does not.
+   */
+  collectPayeeDetails?: boolean
+}
+
+const EMPTY_PAYMENT = {
+  accountHolderName: '',
+  bankName: '',
+  accountNumber: '',
+  sortCode: '',
+  instructions: '',
 }
 
 const CONSENT_LABEL =
@@ -44,10 +58,12 @@ export function ReviewAndSignDialog({
   onSigned,
   onClose,
   onGuardianRequired,
+  collectPayeeDetails = false,
 }: ReviewAndSignDialogProps) {
   const [name, setName] = useState('')
   const [consent, setConsent] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [payment, setPayment] = useState({ ...EMPTY_PAYMENT })
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const drawingRef = useRef(false)
   const hasDrawnRef = useRef(false)
@@ -65,7 +81,18 @@ export function ReviewAndSignDialog({
     setName('')
     setConsent(false)
     setSubmitting(false)
+    setPayment({ ...EMPTY_PAYMENT })
     clearSignature()
+  }
+
+  /** Collapse the payment fields to an object of only the non-empty values, or
+   *  undefined when the athlete left them all blank (nothing to send). */
+  function collectPaymentDetails(): Record<string, string> | undefined {
+    if (!collectPayeeDetails) return undefined
+    const entries = Object.entries(payment)
+      .map(([k, v]) => [k, v.trim()] as const)
+      .filter(([, v]) => v.length > 0)
+    return entries.length > 0 ? Object.fromEntries(entries) : undefined
   }
 
   function drawContext() {
@@ -134,7 +161,12 @@ export function ReviewAndSignDialog({
       const res = await apiFetch(`/api/deals/contracts/${contractId}/sign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ typedName: name.trim(), consent, signatureImage }),
+        body: JSON.stringify({
+          typedName: name.trim(),
+          consent,
+          signatureImage,
+          paymentDetails: collectPaymentDetails(),
+        }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
@@ -221,6 +253,68 @@ export function ReviewAndSignDialog({
               Clear
             </button>
           </div>
+
+          {collectPayeeDetails && (
+            <div className="space-y-3 rounded-xl border border-border bg-muted/20 p-4">
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Payment details (optional)</p>
+                <p className="text-xs text-muted-foreground">
+                  The Sponsor pays you directly. Add the account you want to be paid into and
+                  it will appear in the signed contract. You can also arrange this separately.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="space-y-1 sm:col-span-2">
+                  <Label htmlFor="pay-holder">Account holder name</Label>
+                  <Input
+                    id="pay-holder"
+                    value={payment.accountHolderName}
+                    onChange={(e) => setPayment((p) => ({ ...p, accountHolderName: e.target.value }))}
+                    autoComplete="off"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="pay-bank">Bank name</Label>
+                  <Input
+                    id="pay-bank"
+                    value={payment.bankName}
+                    onChange={(e) => setPayment((p) => ({ ...p, bankName: e.target.value }))}
+                    autoComplete="off"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="pay-sort">Sort code</Label>
+                  <Input
+                    id="pay-sort"
+                    value={payment.sortCode}
+                    onChange={(e) => setPayment((p) => ({ ...p, sortCode: e.target.value }))}
+                    autoComplete="off"
+                    inputMode="numeric"
+                  />
+                </div>
+                <div className="space-y-1 sm:col-span-2">
+                  <Label htmlFor="pay-account">Account number</Label>
+                  <Input
+                    id="pay-account"
+                    value={payment.accountNumber}
+                    onChange={(e) => setPayment((p) => ({ ...p, accountNumber: e.target.value }))}
+                    autoComplete="off"
+                    inputMode="numeric"
+                  />
+                </div>
+                <div className="space-y-1 sm:col-span-2">
+                  <Label htmlFor="pay-instructions">Other payment details or instructions</Label>
+                  <Input
+                    id="pay-instructions"
+                    value={payment.instructions}
+                    onChange={(e) => setPayment((p) => ({ ...p, instructions: e.target.value }))}
+                    placeholder="IBAN, SWIFT/BIC, payment reference, or another method"
+                    autoComplete="off"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="flex items-start gap-2">
             <input

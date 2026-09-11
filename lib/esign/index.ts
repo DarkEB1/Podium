@@ -9,6 +9,12 @@ export interface SignaturePayload {
   signatureImageDataUrl?: string | null
   ip: string | null
   device: string | null
+  /**
+   * The payee athlete's bank/payment details for this deal (P2P), captured at
+   * signing. Raw input; recordSignature normalizes it before storage. Absent
+   * for the Sponsor and when the Athlete leaves it blank.
+   */
+  paymentDetails?: unknown
 }
 
 export interface EsignProvider {

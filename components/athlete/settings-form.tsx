@@ -226,18 +226,6 @@ const CURRENCY_SYMBOL: Record<string, string> = {
   eur: '€',
 }
 
-const STRIPE_CONNECT_LABELS: Record<
-  NonNullable<AthleteRow['stripe_connect_status']>,
-  string
-> = {
-  // Forward-looking: payouts are optional until a paid deal exists, so this
-  // must not read as a broken setup (the status line is hidden for it anyway).
-  not_started: 'Not set up',
-  pending: 'Pending',
-  restricted: 'Restricted',
-  active: 'Active',
-}
-
 function formatMoney(minorUnits: number, currency: string): string {
   const symbol = CURRENCY_SYMBOL[currency.toLowerCase()] ?? ''
   return `${symbol}${(minorUnits / 100).toFixed(2)}`
@@ -516,7 +504,6 @@ export default function SettingsForm({
     settings?.display_currency ?? 'gbp',
   )
   const [savingPayments, setSavingPayments] = useState(false)
-  const [startingPayout, setStartingPayout] = useState(false)
 
   // Section 6 — Representation.
   const [revokeTargetId, setRevokeTargetId] = useState<string | null>(null)
@@ -623,28 +610,6 @@ export default function SettingsForm({
       toast.error('Failed to save setting')
     } finally {
       setSavingPayments(false)
-    }
-  }
-
-  // SET13 — begin Stripe Connect payout onboarding and hand off to the hosted
-  // flow. Wired to the existing /api/account/connect route.
-  async function startPayoutSetup() {
-    setStartingPayout(true)
-    try {
-      const res = await fetch('/api/account/connect', { method: 'POST' })
-      const json = (await res.json().catch(() => ({}))) as {
-        url?: string
-        error?: { message?: string }
-      }
-      if (!res.ok || !json.url) {
-        toast.error(json.error?.message ?? 'Could not start payout setup.')
-        return
-      }
-      window.location.href = json.url
-    } catch {
-      toast.error('Could not start payout setup.')
-    } finally {
-      setStartingPayout(false)
     }
   }
 
@@ -2125,48 +2090,18 @@ export default function SettingsForm({
             )}
           </div>
 
-          {/* Payout / bank + Stripe Connect status. Before anything is set up
-              this must read as optional and forward-looking, not broken: one
-              line, no "Not started" status, no double negative. Explicit
-              status wording stays for pending / restricted / active. */}
+          {/* How you get paid. Under the P2P model the Sponsor pays the
+              Athlete directly per deal; the Athlete supplies the receiving
+              account in the Review & Sign step, and it is written into that
+              contract. Podium never holds or disburses the Fee, so there is no
+              platform payout account or Stripe Connect onboarding here. */}
           <div className="space-y-2 rounded-[var(--radius)] border bg-card p-4 shadow-card">
-            <div className="flex items-center justify-between gap-4">
-              <p className="text-medium font-medium">Payout account</p>
-              {(profile.stripe_connect_status ?? 'not_started') !== 'not_started' && (
-                <span className="text-small text-muted-foreground">
-                  Stripe Connect:{' '}
-                  <span className="text-foreground">
-                    {STRIPE_CONNECT_LABELS[profile.stripe_connect_status ?? 'not_started']}
-                  </span>
-                </span>
-              )}
-            </div>
-            {profile.payout_method ? (
-              <p className="text-small text-muted-foreground">
-                {profile.payout_method === 'bank_transfer'
-                  ? 'Bank transfer'
-                  : 'Stripe Connect'}
-                {profile.payout_bank_name ? ` · ${profile.payout_bank_name}` : ''}
-                {profile.payout_account_last4
-                  ? ` · ending ${profile.payout_account_last4}`
-                  : ''}
-              </p>
-            ) : (
-              <div className="space-y-3">
-                <p className="text-small text-muted-foreground">
-                  Payouts are optional until you agree a paid deal. Set them up whenever
-                  you&apos;re ready to get paid.
-                </p>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={startPayoutSetup}
-                  disabled={startingPayout}
-                >
-                  {startingPayout ? 'Opening Stripe…' : 'Set up payouts'}
-                </Button>
-              </div>
-            )}
+            <p className="text-medium font-medium">How you get paid</p>
+            <p className="text-small text-muted-foreground">
+              Sponsors pay you directly for each deal. When you sign a contract you enter the
+              account you want to be paid into, and it is recorded in that contract. Podium does
+              not hold or process your payments.
+            </p>
           </div>
 
           {/* Tax information disclaimer */}

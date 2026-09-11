@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<body style="margin:0;padding:0;background:#F4F6FA;">
+  <span style="display:none!important;visibility:hidden;opacity:0;height:0;width:0;overflow:hidden;">Confirm the new email address for your Podium account.</span>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F6FA;padding:24px 0;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:12px;overflow:hidden;font-family:Helvetica,Arial,sans-serif;">
+          <tr>
+            <td style="padding:28px 32px 8px 32px;">
+              <span style="font-size:20px;font-weight:800;letter-spacing:-0.02em;color:#2E3440;">Podium</span>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:8px 32px 24px 32px;color:#2E3440;font-size:15px;line-height:1.55;">
+              <p style="margin:0 0 12px;">You asked to change the email address on your Podium account.</p>
+              <p style="margin:0 0 12px;">The account email is changing from <strong>{{ .Email }}</strong> to <strong>{{ .NewEmail }}</strong>. Confirm the change to keep it.</p>
+              <table role="presentation" cellpadding="0" cellspacing="0" style="margin:20px 0;">
+                <tr>
+                  <td style="border-radius:8px;background:#456489;">
+                    <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:11px 22px;color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;border-radius:8px;">Confirm email change</a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:0 0 4px;color:#434C5E;font-size:13px;">Or paste this code: <strong style="color:#2E3440;">{{ .Token }}</strong></p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 32px 28px 32px;border-top:1px solid #E5E9F0;color:#434C5E;font-size:12px;line-height:1.6;">
+              You are receiving this because someone asked to change the email address on a Podium account. If this was not you, you can ignore this email and no change will be made.
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

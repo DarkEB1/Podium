@@ -14,6 +14,7 @@
 //    or refund mechanism today, so the contract must not promise one.
 
 import type { ContractPdfTerms, ContractPdfSignature } from './pdf-types'
+import { normalizePaymentDetails, type AgreementPaymentDetails } from './payment-details'
 
 export interface AgreementParty {
   role: 'brand' | 'athlete' | 'agent'
@@ -42,9 +43,27 @@ export interface AgreementInput {
   signatures: ContractPdfSignature[]
   isMinor?: boolean
   guardian?: AgreementGuardian | null
+  /**
+   * The Athlete's payment details for this deal, captured at signing. Rendered
+   * into Section 6 so the Sponsor can pay directly (P2P). Omitted cleanly when
+   * absent — the clause then points the Sponsor at details the Athlete provides.
+   */
+  paymentDetails?: AgreementPaymentDetails | null
   /** Per-call override of the baked defaults. Rarely needed. */
   defaults?: Partial<AgreementDefaults>
 }
+
+/** Section 6 labels for each payment-detail field, in render order. */
+const PAYMENT_DETAIL_LABELS: Array<[keyof AgreementPaymentDetails, string]> = [
+  ['accountHolderName', 'Account holder'],
+  ['bankName', 'Bank'],
+  ['accountNumber', 'Account number'],
+  ['sortCode', 'Sort code'],
+  ['iban', 'IBAN'],
+  ['swiftBic', 'SWIFT/BIC'],
+  ['reference', 'Payment reference'],
+  ['instructions', 'Payment instructions'],
+]
 
 /**
  * The nine platform-wide values that fill the agreement's non-deal-specific
@@ -269,34 +288,54 @@ export function buildAgreement(input: AgreementInput): BuiltAgreement {
     ],
   })
 
-  // 6. Fee & Payment (facilitator-neutral: Sponsor pays, Podium facilitates)
+  // 6. Fee & Payment. The Fee is paid directly by the Sponsor to the Athlete
+  // (P2P, off-platform): Podium runs the brand subscription only and never
+  // receives, holds or disburses deal money, so the wording must not imply it
+  // does. When the Athlete supplied payment details at signing they are shown
+  // here; otherwise the clause points the Sponsor at details the Athlete
+  // provides (omitting the block entirely, never a placeholder).
   const expenses = d.expensesPayable
     ? 'Pre-approved, reasonable expenses are reimbursable.'
     : 'Expenses are not payable unless agreed in writing in advance.'
-  sections.push({
-    number: '6',
-    title: 'Sponsorship Fee & Payment',
-    blocks: [
-      {
-        kind: 'para',
-        text: `In consideration for the Services, the Sponsor shall pay the Athlete a total sponsorship fee of ${money(terms.payAmount, terms.payCurrency)} (the "Fee").`,
-      },
-      { kind: 'para', text: `The Fee is payable as ${payStructure(terms.payType)}.` },
-      {
-        kind: 'para',
-        text: `The Sponsor shall pay the Athlete within ${d.paymentTimingDays} days of the Athlete delivering the agreed Services, or of milestone approval where applicable. Payment is arranged through the Podium platform; Podium facilitates the Agreement and is not the payer of the Fee.`,
-      },
-      { kind: 'para', text: expenses },
-      {
-        kind: 'para',
-        text: 'The Parties acknowledge Podium may charge a platform or service fee as disclosed on the Platform.',
-      },
-      {
-        kind: 'para',
-        text: `Undisputed sums unpaid after the due date accrue interest at ${d.latePayment}. Each Party is responsible for its own taxes. The Athlete is an independent contractor, not an employee of the Sponsor or Podium.`,
-      },
-    ],
-  })
+  const feeBlocks: AgreementBlock[] = [
+    {
+      kind: 'para',
+      text: `In consideration for the Services, the Sponsor shall pay the Athlete a total sponsorship fee of ${money(terms.payAmount, terms.payCurrency)} (the "Fee").`,
+    },
+    { kind: 'para', text: `The Fee is payable as ${payStructure(terms.payType)}.` },
+    {
+      kind: 'para',
+      text: `The Sponsor shall pay the Athlete directly within ${d.paymentTimingDays} days of the Athlete delivering the agreed Services, or of milestone approval where applicable. Podium facilitates and administers this Agreement but is not a party to the payment and does not receive, hold, or disburse the Fee.`,
+    },
+  ]
+  const payment = normalizePaymentDetails(input.paymentDetails)
+  if (payment) {
+    feeBlocks.push({
+      kind: 'para',
+      text: 'The Sponsor shall pay the Fee to the Athlete using the payment details below:',
+    })
+    for (const [key, label] of PAYMENT_DETAIL_LABELS) {
+      const value = payment[key]
+      if (value) feeBlocks.push({ kind: 'termRow', label, value })
+    }
+  } else {
+    feeBlocks.push({
+      kind: 'para',
+      text: 'The Sponsor shall pay the Fee to the payment details the Athlete provides for this Agreement.',
+    })
+  }
+  feeBlocks.push(
+    { kind: 'para', text: expenses },
+    {
+      kind: 'para',
+      text: 'Any Podium subscription or platform fees are charged separately by Podium and do not form part of, or reduce, the Fee payable to the Athlete.',
+    },
+    {
+      kind: 'para',
+      text: `Undisputed sums unpaid after the due date accrue interest at ${d.latePayment}. Each Party is responsible for its own taxes. The Athlete is an independent contractor, not an employee of the Sponsor or Podium.`,
+    }
+  )
+  sections.push({ number: '6', title: 'Sponsorship Fee & Payment', blocks: feeBlocks })
 
   // 7. Licence & Usage Rights
   const licenceBlocks: AgreementBlock[] = [

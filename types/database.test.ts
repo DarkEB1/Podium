@@ -35,7 +35,6 @@ type RegenGuard = [
   Enums["athlete_level"],
   Enums["email_digest"],
   Enums["data_export_status"],
-  Enums["payout_method"],
   Enums["agent_verification_status"],
   Enums["team_admin_role"],
 ];
@@ -66,8 +65,6 @@ describe("types/database.ts (B7 regen)", () => {
     "location_precision",
     "display_currency",
     "data_export_status",
-    "payout_method",
-    "stripe_connect_status",
     "agent_verification_status",
     "team_admin_role",
   ])("includes new enum %s", (enumName) => {

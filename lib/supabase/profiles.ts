@@ -49,7 +49,11 @@ const PROTECTED_FIELDS = new Set([
   'guardian_accepted_at',
   // Onboarding completion — stamped by completeBrandOnboarding / publish.
   'onboarding_completed_at',
-  // Payout + Stripe Connect — written by Stripe onboarding / webhooks only.
+  // Payout + Stripe Connect: these columns were DROPPED from athlete_profiles
+  // (20260911000004) under the P2P model — the Sponsor pays the Athlete directly
+  // and Podium never held payout details. The keys are kept on the denylist as
+  // input sanitisation: a stale/malicious PATCH carrying one is stripped here
+  // rather than reaching PostgREST as an unknown column and 400-ing the update.
   'payout_method',
   'payout_bank_name',
   'payout_account_holder',

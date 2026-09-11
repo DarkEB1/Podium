@@ -30,6 +30,7 @@ vi.mock('@/lib/supabase/agreement-parties', () => ({
 }))
 
 import { finalizeContractDocument } from './finalize'
+import { getContractSignatures } from '@/lib/supabase/contract-signatures'
 
 const TERMS = {
   title: 'Deal', deliverables: '3 posts', pay_amount: 5000, pay_currency: 'GBP',
@@ -76,6 +77,24 @@ describe('finalizeContractDocument', () => {
     expect(arg.guardian).toEqual({ name: 'Guardian G', relationship: 'Parent' })
     expect(arg.parties.find((p) => p.role === 'brand')!.legalName).toBe('Brand One Ltd')
     expect(arg.parties.find((p) => p.role === 'athlete')!.legalName).toBe('Ath Onefull')
+  })
+
+  it('passes the athlete signature payment details into the PDF (P2P)', async () => {
+    vi.mocked(getContractSignatures).mockResolvedValueOnce([
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test double
+      { signer_role: 'brand', typed_name: 'A', signed_at: '2026-09-07T10:00:00.000Z', signer_ip: '1.1.1.1', signature_hash: 'h1', signature_image_path: null, payment_details: null } as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test double
+      { signer_role: 'athlete', typed_name: 'B', signed_at: '2026-09-07T11:00:00.000Z', signer_ip: '2.2.2.2', signature_hash: 'h2', signature_image_path: null, payment_details: { accountHolderName: 'B Payee', accountNumber: '12345678', sortCode: '20-00-00' } } as any,
+    ])
+    await finalizeContractDocument(mockAdmin(), CONTRACT)
+    const arg = (renderMock.mock.calls[0] as unknown[])[0] as {
+      paymentDetails?: { accountHolderName?: string; accountNumber?: string } | null
+    }
+    expect(arg.paymentDetails).toEqual({
+      accountHolderName: 'B Payee',
+      accountNumber: '12345678',
+      sortCode: '20-00-00',
+    })
   })
 
   it('renders, uploads and writes document_url + document_hash', async () => {

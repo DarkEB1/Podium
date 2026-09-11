@@ -269,6 +269,26 @@ otp_expiry = 3600
 # subject = "You have been invited"
 # content_path = "./supabase/templates/invite.html"
 
+# --- Podium branded auth email templates (PREPARED, NOT APPLIED) ---
+# DANGER: applying these to a hosted project requires `supabase config push`, which on this machine's CLI clobbers prod auth (see memory podium-supabase-config-push-hazard). Do NOT config push. Apply prod via the Supabase dashboard; staging only via a human-reviewed push.
+# Left commented so a local `supabase start` does not change behaviour and nothing is applied by accident.
+# [auth.email.template.confirmation]
+# subject = "Confirm your Podium email"
+# content_path = "./supabase/templates/confirmation.html"
+# [auth.email.template.recovery]
+# subject = "Reset your Podium password"
+# content_path = "./supabase/templates/recovery.html"
+# [auth.email.template.magic_link]
+# subject = "Your Podium sign-in link"
+# content_path = "./supabase/templates/magic_link.html"
+# [auth.email.template.email_change]
+# subject = "Confirm your new Podium email"
+# content_path = "./supabase/templates/email_change.html"
+# [auth.email.template.invite]
+# subject = "You have been invited to Podium"
+# content_path = "./supabase/templates/invite.html"
+# --- end Podium branded auth email templates ---
+
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]
 # enabled = true
