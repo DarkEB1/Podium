@@ -28,6 +28,7 @@ const MOCK_USER_ID = '00000000-0000-4000-8000-000000000001'
 const MOCK_PROFILE: AthleteRow = {
   academy_club: null,
   action_photos: [],
+  address: null,
   availability_status: 'available_now',
   available_from_date: null,
   chat_retention_days: null,

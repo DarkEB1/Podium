@@ -41,6 +41,7 @@ const makeProfile = (overrides: Partial<AthleteRow> = {}): AthleteRow => ({
   full_legal_name: null,
   date_of_birth: null,
   phone: null,
+  address: null,
   home_city: 'London',
   home_country: 'UK',
   primary_sport: 'Football',
@@ -639,6 +640,18 @@ describe('SettingsForm', () => {
       phone: '+44 7700 900000',
       home_city: 'London',
     })
+  })
+
+  it('renders and saves the postal address used on signed contracts', async () => {
+    render(
+      <SettingsForm profile={makeProfile({ address: '1 Old Road, Leeds' })} settings={makeSettings()} />,
+    )
+    const input = screen.getByLabelText(/^address/i)
+    expect(input).toHaveValue('1 Old Road, Leeds')
+    fireEvent.change(input, { target: { value: '2 New Road, Leeds LS1 4AB' } })
+    await userEvent.click(screen.getByRole('button', { name: /save profile/i }))
+    await waitFor(() => expect(fetch).toHaveBeenCalled())
+    expect(lastPatchBody()).toMatchObject({ address: '2 New Road, Leeds LS1 4AB' })
   })
 
   it('shows the university fields only for University/BUCS athletes', () => {

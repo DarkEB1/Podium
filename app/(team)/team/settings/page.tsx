@@ -152,6 +152,15 @@ export default async function TeamSettingsPage() {
     revalidatePath('/team/settings')
   }
 
+  async function onUpdateRegisteredAddress(registered_address: string) {
+    'use server'
+    const sb = await createClient()
+    const me = await getUser(sb)
+    if (!me) redirect('/auth')
+    await updateTeamProfile(sb, me.id, { registered_address })
+    revalidatePath('/team/settings')
+  }
+
   return (
     <SettingsShell sections={SECTIONS} active="administrators">
       <TeamSettingsForm
@@ -167,6 +176,8 @@ export default async function TeamSettingsPage() {
         onUpdateVisibility={onUpdateVisibility}
         onUpdateSectionVisibility={onUpdateSectionVisibility}
         onUpdateFanReach={onUpdateFanReach}
+        registeredAddress={profile.registered_address}
+        onUpdateRegisteredAddress={onUpdateRegisteredAddress}
       />
     </SettingsShell>
   )

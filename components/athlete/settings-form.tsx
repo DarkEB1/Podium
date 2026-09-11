@@ -430,6 +430,7 @@ export default function SettingsForm({
   )
   const [dateOfBirth, setDateOfBirth] = useState(profile.date_of_birth ?? '')
   const [phone, setPhone] = useState(profile.phone ?? '')
+  const [address, setAddress] = useState(profile.address ?? '')
   const [homeCity, setHomeCity] = useState(profile.home_city ?? '')
   const [homeCountry, setHomeCountry] = useState<string | null>(profile.home_country)
   // Conditional per-level fields, mirroring the wizard's §3A.3 gating.
@@ -547,7 +548,7 @@ export default function SettingsForm({
   // from the first render (props) and advanced on each successful save.
   const profileSnapshot = JSON.stringify({
     displayName, photoUrl, actionPhotos, videos, primarySport, secondarySport,
-    level, position, yearsActive, heightCm, weightKg, dateOfBirth, phone,
+    level, position, yearsActive, heightCm, weightKg, dateOfBirth, phone, address,
     homeCity, homeCountry, universityTeam, universityCity, universityCountry,
     highestLevel, academyClub, nationalProgramme, socialHandles, socialFollowers,
     stats, achievements,
@@ -953,6 +954,7 @@ export default function SettingsForm({
         highlight_videos: videos,
         date_of_birth: dateOfBirth || null,
         phone: phone || null,
+        address: address || null,
         home_city: homeCity || null,
         home_country: homeCountry,
         primary_sport: primarySport,
@@ -1174,6 +1176,16 @@ export default function SettingsForm({
                   placeholder="+44 7700 900000"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
+                />
+              </div>
+              <div>
+                <label htmlFor="address" className="mb-1 block text-medium font-medium">
+                  Address <span className="text-muted-foreground text-small">(used on signed contracts)</span>
+                </label>
+                <Input
+                  id="address"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
                 />
               </div>
               <div>

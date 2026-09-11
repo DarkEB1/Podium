@@ -170,6 +170,7 @@ export type Database = {
         Row: {
           academy_club: string | null
           action_photos: string[]
+          address: string | null
           availability_status:
             | Database["public"]["Enums"]["availability_status"]
             | null
@@ -521,6 +522,9 @@ export type Database = {
           notification_prefs: Json
           onboarding_completed_at: string | null
           rejection_reason: string | null
+          registered_address: string | null
+          representative_name: string | null
+          representative_title: string | null
           seeking: string[]
           social_accounts: Json
           status: Database["public"]["Enums"]["brand_status"]
@@ -2115,6 +2119,7 @@ export type Database = {
           primary_controller_name: string | null
           primary_controller_phone: string | null
           primary_controller_role: string | null
+          registered_address: string | null
           seeking_sponsorship_types: string[]
           social_accounts: Json
           sponsorship_brief_url: string | null

@@ -104,6 +104,21 @@ describe('buildAgreement — mapped commercial terms', () => {
     expect(text).toContain('Northwind Ltd')
     expect(text).toContain('Maya A. Okafor')
   })
+  it('renders a party postal address in the Section 1 identity line when present', () => {
+    const withAddr = buildAgreement({
+      ...base,
+      parties: [
+        { role: 'brand', displayName: 'Northwind Nutrition', legalName: 'Northwind Ltd', address: '1 High Street, London EC1A 1AA' },
+        { role: 'athlete', displayName: 'Maya Okafor', legalName: 'Maya A. Okafor' },
+      ],
+    })
+    const s1 = withAddr.sections.find((s) => s.number === '1')!
+    const text = s1.blocks.flatMap((b) => (b.kind === 'termRow' ? [b.label, b.value] : b.kind === 'para' ? [b.text] : b.items)).join('\n')
+    expect(text).toContain('of 1 High Street, London EC1A 1AA')
+    // and absent addresses never leave a placeholder
+    expect(allText(base)).not.toContain(' of ,')
+  })
+
   it('folds the deliverables and additional terms into scope', () => {
     const text = allText(base)
     expect(text).toContain('3 Instagram posts')

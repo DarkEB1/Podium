@@ -20,6 +20,7 @@ function makeProfile(overrides: Partial<AthleteRow> = {}): AthleteRow {
   const base: AthleteRow = {
     academy_club: null,
     action_photos: ['/action-1.jpg', '/action-2.jpg'],
+    address: null,
     availability_status: 'available_now',
     available_from_date: null,
     chat_retention_days: null,

@@ -47,6 +47,7 @@ function setup(props: Partial<React.ComponentProps<typeof TeamSettingsForm>> = {
     onUpdateVisibility: vi.fn().mockResolvedValue(undefined),
     onUpdateSectionVisibility: vi.fn().mockResolvedValue(undefined),
     onUpdateFanReach: vi.fn().mockResolvedValue(undefined),
+    onUpdateRegisteredAddress: vi.fn().mockResolvedValue(undefined),
   }
   render(
     <TeamSettingsForm
@@ -72,6 +73,7 @@ function setup(props: Partial<React.ComponentProps<typeof TeamSettingsForm>> = {
         }),
       ]}
       fanReach="regional"
+      registeredAddress={null}
       profileVisible
       sectionVisibility={{ contact: true, financials: false }}
       {...handlers}
@@ -194,5 +196,15 @@ describe('TeamSettingsForm (TM3)', () => {
       'national',
     )
     await waitFor(() => expect(onUpdateFanReach).toHaveBeenCalledWith('national'))
+  })
+
+  it('saves the registered address on blur', async () => {
+    const { onUpdateRegisteredAddress } = setup({ registeredAddress: '' })
+    const input = screen.getByLabelText('Registered address')
+    await userEvent.type(input, '10 Stadium Way, Manchester M1 1AA')
+    await userEvent.tab() // blur
+    await waitFor(() =>
+      expect(onUpdateRegisteredAddress).toHaveBeenCalledWith('10 Stadium Way, Manchester M1 1AA'),
+    )
   })
 })
