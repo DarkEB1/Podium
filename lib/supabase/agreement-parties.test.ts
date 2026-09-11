@@ -14,15 +14,22 @@ function mockClient(tables: Record<string, unknown[]>) {
 }
 
 describe('getAgreementPartyContext', () => {
-  it('resolves a brand to its legal + trading name and email', async () => {
+  it('resolves a brand to its legal + trading name, email, address and representative', async () => {
     const client = mockClient({
       users: [{ id: 'brand1', email: 'deals@northwind.test' }],
-      brand_profiles: [{ user_id: 'brand1', company_name: 'Northwind Nutrition Ltd', trading_name: 'Northwind' }],
+      brand_profiles: [{
+        user_id: 'brand1', company_name: 'Northwind Nutrition Ltd', trading_name: 'Northwind',
+        registered_address: '1 High Street, London EC1A 1AA',
+        representative_name: 'Alex Brandt', representative_title: 'Marketing Director',
+      }],
     })
     const ctx = await getAgreementPartyContext(client, ['brand1'])
     expect(ctx['brand1']!.legalName).toBe('Northwind Nutrition Ltd')
     expect(ctx['brand1']!.company).toBe('Northwind')
     expect(ctx['brand1']!.email).toBe('deals@northwind.test')
+    expect(ctx['brand1']!.address).toBe('1 High Street, London EC1A 1AA')
+    expect(ctx['brand1']!.representativeName).toBe('Alex Brandt')
+    expect(ctx['brand1']!.representativeTitle).toBe('Marketing Director')
   })
 
   it('resolves an adult athlete to full legal name + sport, not a minor', async () => {
@@ -30,7 +37,7 @@ describe('getAgreementPartyContext', () => {
       users: [{ id: 'ath1', email: 'maya@example.test' }],
       athlete_profiles: [{
         user_id: 'ath1', full_legal_name: 'Maya A. Okafor', display_name: 'Maya Okafor',
-        is_under_18: false, primary_sport: 'Athletics',
+        is_under_18: false, primary_sport: 'Athletics', address: '5 Track Lane, Leeds LS1 2AB',
         guardian_name: null, guardian_relationship: null, guardian_accepted_at: null,
       }],
     })
@@ -38,6 +45,7 @@ describe('getAgreementPartyContext', () => {
     expect(ctx['ath1']!.legalName).toBe('Maya A. Okafor')
     expect(ctx['ath1']!.descriptor).toBe('Athletics')
     expect(ctx['ath1']!.email).toBe('maya@example.test')
+    expect(ctx['ath1']!.address).toBe('5 Track Lane, Leeds LS1 2AB')
     expect(ctx['ath1']!.isMinor).toBe(false)
     expect(ctx['ath1']!.guardian).toBeNull()
   })
@@ -78,7 +86,7 @@ describe('getAgreementPartyContext', () => {
       team_profiles: [{
         user_id: 'team1', team_name: 'Example United',
         primary_controller_name: 'Dana Lee', primary_controller_role: 'Commercial Director',
-        primary_controller_email: 'dana@team.test',
+        primary_controller_email: 'dana@team.test', registered_address: '10 Stadium Way, Manchester M1 1AA',
       }],
     })
     const ctx = await getAgreementPartyContext(client, ['team1'])
@@ -86,6 +94,7 @@ describe('getAgreementPartyContext', () => {
     expect(ctx['team1']!.representativeName).toBe('Dana Lee')
     expect(ctx['team1']!.representativeTitle).toBe('Commercial Director')
     expect(ctx['team1']!.email).toBe('dana@team.test')
+    expect(ctx['team1']!.address).toBe('10 Stadium Way, Manchester M1 1AA')
   })
 
   it('returns a safe empty detail for an unknown id', async () => {

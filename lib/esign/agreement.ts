@@ -21,6 +21,8 @@ export interface AgreementParty {
   legalName?: string | null
   company?: string | null
   email?: string | null
+  /** Postal / registered address. Omitted from the identity line when absent. */
+  address?: string | null
   /** e.g. sport / team / institution for an athlete. Omitted when absent. */
   descriptor?: string | null
   /** Signatory acting for an entity, e.g. a team's commercial controller. */
@@ -137,6 +139,7 @@ function partyName(p: AgreementParty | undefined): string {
 function partyIdentity(p: AgreementParty | undefined): string {
   if (!p) return 'the Party'
   const bits: string[] = [partyName(p)]
+  if (p.address) bits.push(`of ${p.address}`)
   if (p.descriptor) bits.push(p.descriptor)
   if (p.representativeName) {
     bits.push(

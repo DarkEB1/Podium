@@ -67,6 +67,8 @@ export interface TeamSettingsFormProps {
   onUpdateVisibility: (visible: boolean) => Promise<void>
   onUpdateSectionVisibility: (section: string, visible: boolean) => Promise<void>
   onUpdateFanReach: (reach: FanReach) => Promise<void>
+  registeredAddress: string | null
+  onUpdateRegisteredAddress: (address: string) => Promise<void>
 }
 
 export default function TeamSettingsForm({
@@ -82,6 +84,8 @@ export default function TeamSettingsForm({
   onUpdateVisibility,
   onUpdateSectionVisibility,
   onUpdateFanReach,
+  registeredAddress,
+  onUpdateRegisteredAddress,
 }: TeamSettingsFormProps) {
   const inviteEmailId = useId()
 
@@ -90,6 +94,7 @@ export default function TeamSettingsForm({
     sectionVisibility ?? {},
   )
   const [reach, setReach] = useState<FanReach | ''>(fanReach ?? '')
+  const [address, setAddress] = useState(registeredAddress ?? '')
 
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState<TeamAdminRole>('standard')
@@ -164,6 +169,12 @@ export default function TeamSettingsForm({
   async function handleReach(next: FanReach) {
     setReach(next)
     await run(() => onUpdateFanReach(next), 'Failed to update fan-base reach')
+  }
+
+  // Registered address saves on blur (a text field, unlike the reach select),
+  // so we persist the finished value rather than every keystroke.
+  async function handleAddressSave() {
+    await run(() => onUpdateRegisteredAddress(address), 'Failed to update registered address')
   }
 
   const selectClass = cn(
@@ -430,6 +441,17 @@ export default function TeamSettingsForm({
               </option>
             ))}
           </select>
+        </div>
+        <div className="max-w-xs space-y-1">
+          <Label htmlFor="registered-address">Registered address</Label>
+          <Input
+            id="registered-address"
+            aria-label="Registered address"
+            placeholder="Used on signed contracts"
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            onBlur={handleAddressSave}
+          />
         </div>
       </section>
     </div>

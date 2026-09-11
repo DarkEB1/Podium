@@ -46,6 +46,7 @@ export async function finalizeContractDocument(
       legalName: brandDetail?.legalName ?? null,
       company: brandDetail?.company ?? null,
       email: brandDetail?.email ?? null,
+      address: brandDetail?.address ?? null,
       representativeName: brandDetail?.representativeName ?? null,
       representativeTitle: brandDetail?.representativeTitle ?? null,
     },
@@ -54,6 +55,7 @@ export async function finalizeContractDocument(
       displayName: nameOf(names, contract.athlete_or_team_id, FALLBACK_OTHER_NAME),
       legalName: athleteDetail?.legalName ?? null,
       email: athleteDetail?.email ?? null,
+      address: athleteDetail?.address ?? null,
       descriptor: athleteDetail?.descriptor ?? null,
       representativeName: athleteDetail?.representativeName ?? null,
       representativeTitle: athleteDetail?.representativeTitle ?? null,
@@ -66,6 +68,7 @@ export async function finalizeContractDocument(
       displayName: nameOf(names, contract.agent_id, FALLBACK_OTHER_NAME),
       legalName: agentDetail?.legalName ?? null,
       email: agentDetail?.email ?? null,
+      address: agentDetail?.address ?? null,
       representativeName: agentDetail?.representativeName ?? null,
     })
   }

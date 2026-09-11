@@ -24,6 +24,9 @@ type SubscriptionRow = Database['public']['Tables']['subscriptions']['Row']
 const schema = z.object({
   company_name: z.string().min(1, 'Company name is required').max(100),
   trading_name: z.string().max(100).optional(),
+  registered_address: z.string().max(300).optional(),
+  representative_name: z.string().max(120).optional(),
+  representative_title: z.string().max(120).optional(),
   headquarters_city: z.string().optional(),
   headquarters_country: z.string().optional(),
   website_url: z.string().url('Must be a valid URL').optional().or(z.literal('')),
@@ -93,6 +96,9 @@ export default function BrandSettingsForm({ profile, stats, subscription, billin
     defaultValues: {
       company_name: profile.company_name ?? '',
       trading_name: profile.trading_name ?? '',
+      registered_address: profile.registered_address ?? '',
+      representative_name: profile.representative_name ?? '',
+      representative_title: profile.representative_title ?? '',
       headquarters_city: profile.headquarters_city ?? '',
       headquarters_country: profile.headquarters_country ?? '',
       website_url: profile.website_url ?? '',
@@ -212,6 +218,29 @@ export default function BrandSettingsForm({ profile, stats, subscription, billin
                 <FormMessage />
               </FormItem>
             )} />
+            <FormField control={form.control} name="registered_address" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Registered address <span className="text-muted-foreground text-small">(used on signed contracts)</span></FormLabel>
+                <FormControl><Input {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField control={form.control} name="representative_name" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Signing representative <span className="text-muted-foreground text-small">(optional)</span></FormLabel>
+                  <FormControl><Input {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="representative_title" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Representative title <span className="text-muted-foreground text-small">(optional)</span></FormLabel>
+                  <FormControl><Input {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="headquarters_city" render={({ field }) => (
                 <FormItem>

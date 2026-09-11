@@ -15,6 +15,7 @@ export interface AgreementPartyDetail {
   legalName: string | null
   company: string | null
   email: string | null
+  address: string | null
   descriptor: string | null
   representativeName: string | null
   representativeTitle: string | null
@@ -27,6 +28,7 @@ function emptyDetail(): AgreementPartyDetail {
     legalName: null,
     company: null,
     email: null,
+    address: null,
     descriptor: null,
     representativeName: null,
     representativeTitle: null,
@@ -50,13 +52,16 @@ export async function getAgreementPartyContext(
     client.from('users').select('id, email').in('id', ids),
     client
       .from('athlete_profiles')
-      .select('user_id, full_legal_name, display_name, is_under_18, primary_sport, guardian_name, guardian_relationship, guardian_accepted_at')
+      .select('user_id, full_legal_name, display_name, is_under_18, primary_sport, address, guardian_name, guardian_relationship, guardian_accepted_at')
       .in('user_id', ids),
     client
       .from('team_profiles')
-      .select('user_id, team_name, primary_controller_name, primary_controller_role, primary_controller_email')
+      .select('user_id, team_name, primary_controller_name, primary_controller_role, primary_controller_email, registered_address')
       .in('user_id', ids),
-    client.from('brand_profiles').select('user_id, company_name, trading_name').in('user_id', ids),
+    client
+      .from('brand_profiles')
+      .select('user_id, company_name, trading_name, registered_address, representative_name, representative_title')
+      .in('user_id', ids),
     client.from('agent_profiles').select('user_id, agency_name, agent_full_name').in('user_id', ids),
   ])
 
@@ -69,11 +74,17 @@ export async function getAgreementPartyContext(
     user_id: string
     company_name: string
     trading_name: string | null
+    registered_address: string | null
+    representative_name: string | null
+    representative_title: string | null
   }[]) {
     const d = out[row.user_id]
     if (!d) continue
     d.legalName = row.company_name
     d.company = row.trading_name ?? row.company_name
+    d.address = row.registered_address
+    d.representativeName = row.representative_name
+    d.representativeTitle = row.representative_title
   }
 
   for (const row of (agents.data ?? []) as {
@@ -93,12 +104,14 @@ export async function getAgreementPartyContext(
     primary_controller_name: string | null
     primary_controller_role: string | null
     primary_controller_email: string | null
+    registered_address: string | null
   }[]) {
     const d = out[row.user_id]
     if (!d) continue
     d.legalName = row.team_name
     d.representativeName = row.primary_controller_name
     d.representativeTitle = row.primary_controller_role
+    d.address = row.registered_address
     if (row.primary_controller_email) d.email = row.primary_controller_email
   }
 
@@ -108,6 +121,7 @@ export async function getAgreementPartyContext(
     display_name: string | null
     is_under_18: boolean
     primary_sport: string | null
+    address: string | null
     guardian_name: string | null
     guardian_relationship: string | null
     guardian_accepted_at: string | null
@@ -116,6 +130,7 @@ export async function getAgreementPartyContext(
     if (!d) continue
     d.legalName = row.full_legal_name ?? row.display_name
     d.descriptor = row.primary_sport
+    d.address = row.address
     d.isMinor = row.is_under_18
     // Only surface the guardian once consent is actually recorded — the co-sign
     // statement must reflect a real, obtained consent, never a placeholder.

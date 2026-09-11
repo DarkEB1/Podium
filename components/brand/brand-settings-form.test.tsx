@@ -15,6 +15,9 @@ describe('BrandSettingsForm', () => {
     id: '1',
     company_name: 'Acme Corp',
     trading_name: '',
+    registered_address: '',
+    representative_name: '',
+    representative_title: '',
     headquarters_city: 'London',
     headquarters_country: 'UK',
     website_url: '',
@@ -41,6 +44,25 @@ describe('BrandSettingsForm', () => {
     await waitFor(() =>
       expect(fetch).toHaveBeenCalledWith('/api/profiles/me', expect.objectContaining({ method: 'PATCH' }))
     )
+  })
+
+  it('saves the registered address and signing representative in the PATCH body', async () => {
+    render(<BrandSettingsForm profile={{ ...(baseProfile as Record<string, unknown>), registered_address: '1 High St, London' } as never} />)
+    const addr = screen.getByLabelText(/registered address/i)
+    expect(addr).toHaveValue('1 High St, London')
+    await userEvent.clear(addr)
+    await userEvent.type(addr, '2 Market St, London EC1')
+    await userEvent.type(screen.getByLabelText(/signing representative/i), 'Alex Brandt')
+    await userEvent.type(screen.getByLabelText(/representative title/i), 'Marketing Director')
+    await userEvent.click(screen.getByRole('button', { name: /save settings/i }))
+    await waitFor(() => expect(fetch).toHaveBeenCalled())
+    const mockFetch = fetch as unknown as { mock: { calls: [string, { body: string }][] } }
+    const body = JSON.parse(mockFetch.mock.calls[mockFetch.mock.calls.length - 1]![1].body)
+    expect(body).toMatchObject({
+      registered_address: '2 Market St, London EC1',
+      representative_name: 'Alex Brandt',
+      representative_title: 'Marketing Director',
+    })
   })
 
   const subscription = {
