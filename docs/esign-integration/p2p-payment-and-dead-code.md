@@ -29,19 +29,35 @@ Flow: sign route body.paymentDetails -> `normalizePaymentDetails` -> `recordSign
 -> `contract_signatures.payment_details` -> `finalize` reads the athlete row ->
 `renderContractPdf` -> Section 6.
 
-### Migrations to apply (staging first, then prod, BEFORE code merges to main)
+### Migrations (3) — status + how to finish
 
-Both are additive and backward compatible with the code currently live.
+All backward compatible with currently-live code (the only consumer of the dropped
+columns, `getOwnProfile`, uses `select('*')` and the UI tolerates the columns being
+absent), so the drop is safe to apply before or after the code deploys.
 
-1. `supabase/migrations/20260911000002_contract_signatures_payment_details.sql`
-   - `alter table public.contract_signatures add column if not exists payment_details jsonb;`
-2. `supabase/migrations/20260911000003_erase_user_data_payment_details.sql`
-   - `create or replace function public.erase_user_data(...)` reproducing the current
-     body unchanged plus `payment_details = null` in the signature anonymisation block.
+1. `20260911000002_contract_signatures_payment_details.sql` — add `payment_details jsonb`.
+2. `20260911000003_erase_user_data_payment_details.sql` — erase_user_data nulls it.
+3. `20260911000004_drop_dead_payout_columns.sql` — drop the 9 dead columns + 2 enums.
 
-Apply via **direct psql** (NOT the supabase CLI, per the config-push hazard). Prod
-pooler host `aws-1-eu-west-2.pooler.supabase.com`, staging `aws-0-...`. Record the two
-version rows in `supabase_migrations.schema_migrations` after applying.
+**STAGING: DONE (2026-09-11).** Applied via direct psql to `cltvgjsmzujsrnmnfues`
+(host `aws-0-eu-west-2.pooler.supabase.com`), verified (column present, erase fn nulls
+it, 9 columns + 2 enums gone), and history rows recorded in
+`supabase_migrations.schema_migrations`.
+
+**PROD: PENDING (blocked from the agent by the auto-mode classifier, a prod-host /
+merge guardrail, not a code issue).** Apply the same three files to production via
+direct psql, exactly as staging was done (connection details in the
+config-push-hazard memory and the CLAUDE.md "Schema Changes" section). Apply each file
+in order with `-v ON_ERROR_STOP=1 -1 -f`, then insert the three `version` rows into
+`supabase_migrations.schema_migrations` (names: contract_signatures_payment_details,
+erase_user_data_payment_details, drop_dead_payout_columns). Do NOT use the supabase CLI.
+
+### Git rollout (also classifier-gated for the agent)
+
+- Feature branch `feat/esign-p2p-payment` is pushed to origin (its own Vercel preview
+  points at the already-migrated staging DB — verify there).
+- Promote to staging: `git push origin feat/esign-p2p-payment:staging` (fast-forward).
+- After prod migrations above, merge staging -> main for the prod deploy.
 
 ## Dead payout code (Task A cleanup)
 
