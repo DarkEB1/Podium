@@ -3,6 +3,7 @@ import type { Database } from '@/types/database'
 import { renderContractPdf, type ContractPdfSignature } from './pdf'
 import type { AgreementParty } from './agreement'
 import { sha256Hex } from './audit'
+import { normalizePaymentDetails } from './payment-details'
 import { getContractSignatures } from '@/lib/supabase/contract-signatures'
 import { getAgreementPartyContext } from '@/lib/supabase/agreement-parties'
 import { resolveDisplayNames, nameOf, FALLBACK_OTHER_NAME } from '@/lib/email/notify'
@@ -81,6 +82,12 @@ export async function finalizeContractDocument(
     signatureHash: s.signature_hash,
   }))
 
+  // P2P: the athlete supplies their payment details at signing, stored on their
+  // signature row. Render them into this contract's PDF so the Sponsor can pay
+  // directly. Absent → the clause falls back to reference wording.
+  const athleteSignature = signatureRows.find((s) => s.signer_role === 'athlete')
+  const paymentDetails = normalizePaymentDetails(athleteSignature?.payment_details)
+
   const pdf = await renderContractPdf({
     contractId: contract.id,
     terms: {
@@ -98,6 +105,7 @@ export async function finalizeContractDocument(
     signatures,
     isMinor: athleteDetail?.isMinor ?? false,
     guardian: athleteDetail?.guardian ?? null,
+    paymentDetails,
   })
 
   const documentHash = sha256Hex(pdf)

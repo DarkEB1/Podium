@@ -169,6 +169,31 @@ describe('POST /api/deals/contracts/[contractId]/sign', () => {
     expect(mockFinalize).not.toHaveBeenCalled()
   })
 
+  it('threads the athlete payment details through to the signature record (P2P)', async () => {
+    const athleteUser = { id: 'athlete1', role: 'athlete', email: 'a@example.com' }
+    vi.mocked(getUser).mockResolvedValue(athleteUser as never)
+    mockSignContract.mockResolvedValue(
+      { ...fakeContract, status: 'fully_signed', athlete_signed_at: '2026-06-02T00:00:00Z' }
+    )
+
+    await POST(
+      req({
+        typedName: 'Jordan Athlete',
+        consent: true,
+        paymentDetails: { accountHolderName: 'Jordan Athlete', accountNumber: '12345678', sortCode: '20-00-00' },
+      }),
+      params
+    )
+
+    expect(mockRecordSignature).toHaveBeenCalledWith(
+      'c1', 'athlete', 'athlete1',
+      expect.objectContaining({
+        paymentDetails: { accountHolderName: 'Jordan Athlete', accountNumber: '12345678', sortCode: '20-00-00' },
+      }),
+      '2026-06-02T00:00:00Z'
+    )
+  })
+
   it('finalizes the signed PDF when this signature completes the contract', async () => {
     vi.mocked(getUser).mockResolvedValue(fakeUser as never)
     mockSignContract.mockResolvedValue(

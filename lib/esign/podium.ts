@@ -2,8 +2,10 @@ import { randomUUID } from 'node:crypto'
 import { createAdminClient } from '@/lib/supabase/server'
 import { STORAGE_BUCKETS } from '@/lib/storage'
 import { insertContractSignature } from '@/lib/supabase/contract-signatures'
+import type { Json } from '@/types/database'
 import { signatureAuditHash } from './audit'
 import { finalizeContractDocument } from './finalize'
+import { normalizePaymentDetails } from './payment-details'
 import type { EsignProvider, SignaturePayload } from './index'
 
 /** Decode a "data:image/png;base64,…" URL to raw bytes, or null if not a data URL. */
@@ -63,6 +65,11 @@ async function recordSignature(
     signer_device: payload.device,
     signed_at: signedAt,
     signature_hash,
+    // P2P payment details (athlete only, when supplied); null otherwise. The
+    // normalizer returns a flat string map, stored as-is in the jsonb column;
+    // cast because AgreementPaymentDetails's optional fields don't structurally
+    // match Json's index signature.
+    payment_details: normalizePaymentDetails(payload.paymentDetails) as Json | null,
   })
 }
 

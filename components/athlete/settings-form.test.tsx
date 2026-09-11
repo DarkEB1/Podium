@@ -382,7 +382,7 @@ describe('SettingsForm', () => {
     expect(within(region).getByText(/pending/i)).toBeInTheDocument()
   })
 
-  it('shows Stripe Connect status and payout bank details', () => {
+  it('no longer offers Stripe Connect payout setup (P2P: the Sponsor pays direct per deal)', () => {
     render(
       <SettingsForm
         profile={makeProfile({
@@ -395,9 +395,12 @@ describe('SettingsForm', () => {
       />,
     )
     const region = screen.getByRole('region', { name: /payments & financial/i })
-    expect(within(region).getByText(/test bank/i)).toBeInTheDocument()
-    expect(within(region).getByText(/4242/)).toBeInTheDocument()
-    expect(within(region).getByText(/active/i)).toBeInTheDocument()
+    // The dead payout / Connect path is gone: no payout card, no "Set up
+    // payouts" button, no stored bank line. Athletes provide payment details
+    // per contract at signing instead.
+    expect(within(region).queryByText(/test bank/i)).toBeNull()
+    expect(within(region).queryByRole('button', { name: /set up payouts/i })).toBeNull()
+    expect(within(region).queryByText(/payout account/i)).toBeNull()
   })
 
   it('persists the display currency via updateSettings', async () => {
@@ -740,23 +743,6 @@ describe('SettingsForm', () => {
 
   // --- Payout copy: optional framing, not a broken setup ---
 
-  it('frames an unstarted payout setup as optional, with no double negative', () => {
-    render(
-      <SettingsForm
-        profile={makeProfile({ stripe_connect_status: null, payout_method: null })}
-        settings={makeSettings()}
-      />,
-    )
-    const region = screen.getByRole('region', { name: /payments & financial/i })
-    expect(
-      within(region).getByText(/payouts are optional until you agree a paid deal/i),
-    ).toBeInTheDocument()
-    expect(within(region).queryByText(/no payout method set up yet/i)).not.toBeInTheDocument()
-    expect(within(region).queryByText(/not started/i)).not.toBeInTheDocument()
-    // The status chip is hidden entirely until setup begins.
-    expect(within(region).queryByText(/stripe connect:/i)).not.toBeInTheDocument()
-  })
-
   it('shows an under-18 transition banner when the athlete is a minor', () => {
     render(
       <SettingsForm
@@ -850,17 +836,6 @@ describe('SettingsForm', () => {
   }, 15000)
 
   // --- SET13: dead-end empty states now carry a CTA ---
-
-  it('offers a payout setup CTA when no payout method exists', () => {
-    render(
-      <SettingsForm
-        profile={makeProfile({ payout_method: null, stripe_connect_status: null })}
-        settings={makeSettings()}
-      />,
-    )
-    const region = screen.getByRole('region', { name: /payments & financial/i })
-    expect(within(region).getByRole('button', { name: /set up payouts/i })).toBeInTheDocument()
-  })
 
   it('offers an invite-an-agent CTA when no agent is linked', () => {
     render(<SettingsForm profile={makeProfile()} settings={makeSettings()} linkedAgents={[]} />)

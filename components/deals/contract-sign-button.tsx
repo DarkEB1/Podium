@@ -71,6 +71,9 @@ export default function ContractSignButton({
         open={open}
         contractId={contractId}
         terms={terms}
+        // The athlete/team side is the payee: only they enter payment details so
+        // the Sponsor can pay the Fee directly (P2P).
+        collectPayeeDetails={!isBrand}
         onClose={() => setOpen(false)}
         onSigned={() => {
           setOpen(false)

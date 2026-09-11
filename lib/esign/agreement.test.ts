@@ -136,6 +136,57 @@ describe('buildAgreement — payment wording matches the real platform model', (
   })
 })
 
+describe('buildAgreement — direct P2P payment', () => {
+  function section6Text(input: AgreementInput): string {
+    const s6 = buildAgreement(input).sections.find((s) => s.number === '6')!
+    return s6.blocks
+      .flatMap((b) => (b.kind === 'para' ? [b.text] : b.kind === 'termRow' ? [b.label, b.value] : b.items))
+      .join('\n')
+  }
+
+  it('says the Sponsor pays the Athlete directly and drops the "arranged through the platform" wording', () => {
+    const text = section6Text(base)
+    expect(text.toLowerCase()).toContain('pay the athlete directly')
+    expect(text).not.toContain('arranged through the Podium platform')
+    // Podium explicitly does not touch the money.
+    expect(text.toLowerCase()).toContain('does not receive, hold, or disburse the fee')
+  })
+
+  it('renders the athlete payment details in Section 6 when provided', () => {
+    const text = section6Text({
+      ...base,
+      paymentDetails: {
+        accountHolderName: 'Maya A. Okafor',
+        bankName: 'Barclays',
+        accountNumber: '12345678',
+        sortCode: '20-00-00',
+        reference: 'Podium Summer 2026',
+      },
+    })
+    expect(text).toContain('Maya A. Okafor')
+    expect(text).toContain('12345678')
+    expect(text).toContain('20-00-00')
+    expect(text).toContain('Barclays')
+    expect(text).toContain('Podium Summer 2026')
+  })
+
+  it('falls back to reference wording and no placeholder when no payment details are given', () => {
+    const text = section6Text(base)
+    expect(text.toLowerCase()).toContain('payment details')
+    // no bank fields leaked, and the whole-agreement placeholder invariant holds
+    expect(text).not.toContain('Account holder')
+    expect(allText({ ...base, paymentDetails: null }).match(/\[[^\]]+\]/g)).toBeNull()
+  })
+
+  it('keeps the placeholder invariant with payment details present', () => {
+    const text = allText({
+      ...base,
+      paymentDetails: { accountHolderName: 'Maya A. Okafor', accountNumber: '12345678' },
+    })
+    expect(text.match(/\[[^\]]+\]/g)).toBeNull()
+  })
+})
+
 describe('buildAgreement — minor / guardian', () => {
   it('adds a guardian co-signature block only when the athlete is a minor', () => {
     const minor = buildAgreement({

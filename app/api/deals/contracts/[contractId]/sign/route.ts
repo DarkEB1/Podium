@@ -36,6 +36,9 @@ export async function POST(
   const consent = body?.consent === true
   const signatureImage =
     typeof body?.signatureImage === 'string' ? body.signatureImage : null
+  // P2P: the payee athlete may supply bank/payment details here so the Sponsor
+  // can pay directly. Raw input; recordSignature normalizes before storage.
+  const paymentDetails = body?.paymentDetails ?? null
   if (!typedName || !consent) {
     return NextResponse.json(
       { error: { code: 'SIGNATURE_INVALID', message: 'A typed name and consent are required to sign.' } },
@@ -75,6 +78,7 @@ export async function POST(
     await provider().recordSignature(
       contractId, signerRole, user.id,
       { typedName, consentText: CONSENT_TEXT, signatureImageDataUrl: signatureImage,
+        paymentDetails,
         ip: clientIpFrom(request.headers), device: request.headers.get('user-agent') },
       signedAt as string
     )

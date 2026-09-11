@@ -33,4 +33,57 @@ describe('ReviewAndSignDialog', () => {
     const [, init] = fetchMock.mock.calls[0]!
     expect(JSON.parse(String(init?.body))).toMatchObject({ typedName: 'Ada Buyer', consent: true })
   })
+
+  it('shows payment-detail fields only when collecting payee details', () => {
+    const { rerender } = render(
+      <ReviewAndSignDialog open contractId="c1" terms={terms} onSigned={() => {}} onClose={() => {}} />
+    )
+    expect(screen.queryByLabelText(/account holder/i)).toBeNull()
+
+    rerender(
+      <ReviewAndSignDialog open contractId="c1" terms={terms} collectPayeeDetails onSigned={() => {}} onClose={() => {}} />
+    )
+    expect(screen.getByLabelText(/account holder/i)).toBeTruthy()
+    expect(screen.getByLabelText(/account number/i)).toBeTruthy()
+    expect(screen.getByLabelText(/sort code/i)).toBeTruthy()
+  })
+
+  it('POSTs the entered payment details when collecting', async () => {
+    const onSigned = vi.fn()
+    const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ id: 'c1', status: 'fully_signed' }), { status: 200 })
+    )
+    render(
+      <ReviewAndSignDialog open contractId="c1" terms={terms} collectPayeeDetails onSigned={onSigned} onClose={() => {}} />
+    )
+    fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: 'Jordan Athlete' } })
+    fireEvent.change(screen.getByLabelText(/account holder/i), { target: { value: 'Jordan Athlete' } })
+    fireEvent.change(screen.getByLabelText(/account number/i), { target: { value: '12345678' } })
+    fireEvent.change(screen.getByLabelText(/sort code/i), { target: { value: '20-00-00' } })
+    fireEvent.click(screen.getByLabelText(/i agree/i))
+    fireEvent.click(screen.getByRole('button', { name: /sign contract/i }))
+    await waitFor(() => expect(onSigned).toHaveBeenCalled())
+    const [, init] = fetchMock.mock.calls[0]!
+    expect(JSON.parse(String(init?.body)).paymentDetails).toMatchObject({
+      accountHolderName: 'Jordan Athlete',
+      accountNumber: '12345678',
+      sortCode: '20-00-00',
+    })
+  })
+
+  it('omits paymentDetails when the fields are left blank', async () => {
+    const onSigned = vi.fn()
+    const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ id: 'c1', status: 'fully_signed' }), { status: 200 })
+    )
+    render(
+      <ReviewAndSignDialog open contractId="c1" terms={terms} collectPayeeDetails onSigned={onSigned} onClose={() => {}} />
+    )
+    fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: 'Jordan Athlete' } })
+    fireEvent.click(screen.getByLabelText(/i agree/i))
+    fireEvent.click(screen.getByRole('button', { name: /sign contract/i }))
+    await waitFor(() => expect(onSigned).toHaveBeenCalled())
+    const [, init] = fetchMock.mock.calls[0]!
+    expect(JSON.parse(String(init?.body)).paymentDetails).toBeUndefined()
+  })
 })

@@ -722,6 +722,7 @@ export type Database = {
           signed_at: string
           signature_hash: string
           created_at: string
+          payment_details: Json | null
         }
         Insert: {
           id?: string
@@ -736,6 +737,7 @@ export type Database = {
           signed_at: string
           signature_hash: string
           created_at?: string
+          payment_details?: Json | null
         }
         Update: {
           id?: string
@@ -750,6 +752,7 @@ export type Database = {
           signed_at?: string
           signature_hash?: string
           created_at?: string
+          payment_details?: Json | null
         }
         Relationships: []
       }

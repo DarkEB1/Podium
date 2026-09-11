@@ -70,6 +70,36 @@ describe('podiumProvider', () => {
     )
   })
 
+  it('persists normalized payment details on the athlete signature row', async () => {
+    await podiumProvider.recordSignature(
+      'c1', 'athlete', 'a1',
+      {
+        typedName: 'B', consentText: 'I agree', ip: null, device: null,
+        paymentDetails: { accountHolderName: '  B Payee ', accountNumber: '12345678', junk: 'x' },
+      },
+      '2026-09-07T11:00:00.000Z'
+    )
+    expect(insertMock).toHaveBeenCalledWith(
+      mockAdminSingleton,
+      expect.objectContaining({
+        signer_user_id: 'a1',
+        payment_details: { accountHolderName: 'B Payee', accountNumber: '12345678' },
+      })
+    )
+  })
+
+  it('stores null payment_details when none are supplied', async () => {
+    await podiumProvider.recordSignature(
+      'c1', 'brand', 'b1',
+      { typedName: 'A', consentText: 'I agree', ip: null, device: null },
+      '2026-09-07T10:00:00.000Z'
+    )
+    expect(insertMock).toHaveBeenCalledWith(
+      mockAdminSingleton,
+      expect.objectContaining({ payment_details: null })
+    )
+  })
+
   it('finalizeContract delegates to finalizeContractDocument', async () => {
     const out = await podiumProvider.finalizeContract('c1')
     expect(finalizeMock).toHaveBeenCalled()
