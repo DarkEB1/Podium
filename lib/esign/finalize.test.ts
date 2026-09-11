@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
+const { renderMock } = vi.hoisted(() => ({
+  renderMock: vi.fn(async () => Buffer.from('%PDF-1.7 fake')),
+}))
 vi.mock('./pdf', () => ({
-  renderContractPdf: vi.fn(async () => Buffer.from('%PDF-1.7 fake')),
+  renderContractPdf: renderMock,
 }))
 vi.mock('@/lib/supabase/contract-signatures', () => ({
   getContractSignatures: vi.fn(async () => [
@@ -16,6 +19,14 @@ vi.mock('@/lib/email/notify', () => ({
   // behaviour in lib/email/notify.ts.
   nameOf: (names: Record<string, string>, userId: string, fallback = 'Someone') => names[userId] ?? fallback,
   FALLBACK_OTHER_NAME: 'Someone',
+}))
+// Rich party detail has its own unit tests (agreement-parties.test.ts); mock it
+// here so finalize's test stays focused on assembly + storage.
+const partyCtx = vi.hoisted(() => ({
+  value: {} as Record<string, unknown>,
+}))
+vi.mock('@/lib/supabase/agreement-parties', () => ({
+  getAgreementPartyContext: vi.fn(async () => partyCtx.value),
 }))
 
 import { finalizeContractDocument } from './finalize'
@@ -45,7 +56,27 @@ function mockAdmin() {
 }
 
 describe('finalizeContractDocument', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    partyCtx.value = {}
+  })
+
+  it('passes the parties legal names and the minor guardian into the PDF', async () => {
+    partyCtx.value = {
+      brand1: { legalName: 'Brand One Ltd', company: 'Brand One', email: 'b@x.test', descriptor: null, representativeName: null, representativeTitle: null, isMinor: false, guardian: null },
+      ath1: { legalName: 'Ath Onefull', company: null, email: 'a@x.test', descriptor: 'Athletics', representativeName: null, representativeTitle: null, isMinor: true, guardian: { name: 'Guardian G', relationship: 'Parent' } },
+    }
+    await finalizeContractDocument(mockAdmin(), CONTRACT)
+    const arg = (renderMock.mock.calls[0] as unknown[])[0] as {
+      parties: { role: string; legalName?: string | null }[]
+      isMinor?: boolean
+      guardian?: { name: string } | null
+    }
+    expect(arg.isMinor).toBe(true)
+    expect(arg.guardian).toEqual({ name: 'Guardian G', relationship: 'Parent' })
+    expect(arg.parties.find((p) => p.role === 'brand')!.legalName).toBe('Brand One Ltd')
+    expect(arg.parties.find((p) => p.role === 'athlete')!.legalName).toBe('Ath Onefull')
+  })
 
   it('renders, uploads and writes document_url + document_hash', async () => {
     const admin = mockAdmin()
