@@ -81,15 +81,6 @@ const makeProfile = (overrides: Partial<AthleteRow> = {}): AthleteRow => ({
   university_team: null,
   university_city: null,
   university_country: null,
-  payout_account_holder: null,
-  payout_account_last4: null,
-  payout_bank_name: null,
-  payout_country: null,
-  payout_method: null,
-  payout_sort_code_last4: null,
-  stripe_connect_account_id: null,
-  stripe_connect_onboarded_at: null,
-  stripe_connect_status: null,
   created_at: '2024-01-01',
   updated_at: '2024-01-01',
   ...overrides,
@@ -383,24 +374,15 @@ describe('SettingsForm', () => {
   })
 
   it('no longer offers Stripe Connect payout setup (P2P: the Sponsor pays direct per deal)', () => {
-    render(
-      <SettingsForm
-        profile={makeProfile({
-          stripe_connect_status: 'active',
-          payout_method: 'bank_transfer',
-          payout_bank_name: 'Test Bank',
-          payout_account_last4: '4242',
-        })}
-        settings={makeSettings()}
-      />,
-    )
+    render(<SettingsForm profile={makeProfile()} settings={makeSettings()} />)
     const region = screen.getByRole('region', { name: /payments & financial/i })
     // The dead payout / Connect path is gone: no payout card, no "Set up
-    // payouts" button, no stored bank line. Athletes provide payment details
-    // per contract at signing instead.
-    expect(within(region).queryByText(/test bank/i)).toBeNull()
+    // payouts" button, no "payout account" heading. Athletes provide payment
+    // details per contract at signing instead.
     expect(within(region).queryByRole('button', { name: /set up payouts/i })).toBeNull()
     expect(within(region).queryByText(/payout account/i)).toBeNull()
+    // The new note explains direct payment.
+    expect(within(region).getByText(/how you get paid/i)).toBeTruthy()
   })
 
   it('persists the display currency via updateSettings', async () => {
