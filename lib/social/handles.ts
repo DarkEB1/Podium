@@ -23,7 +23,9 @@ interface PlatformSpec {
   buildUrl: (handle: string) => string
 }
 
-const HANDLE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/
+// Letters, digits, dots, underscores and hyphens anywhere, including the first
+// character: Instagram and TikTok handles commonly start with "_" or ".".
+const HANDLE_PATTERN = /^[A-Za-z0-9._-]{1,64}$/
 
 const PLATFORMS: Record<SocialPlatform, PlatformSpec> = {
   instagram: {

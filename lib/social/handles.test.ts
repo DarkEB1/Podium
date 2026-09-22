@@ -46,6 +46,15 @@ describe('parseSocialInput', () => {
     expect(parseSocialInput('instagram', '@')).toBeNull()
   })
 
+  it('accepts handles that start or end with underscores, dots or hyphens', () => {
+    expect(parseSocialInput('instagram', '@_jane_')?.handle).toBe('_jane_')
+    expect(parseSocialInput('instagram', '.jane.doe')?.handle).toBe('.jane.doe')
+    expect(parseSocialInput('tiktok', '@__jane')?.handle).toBe('__jane')
+    expect(parseSocialInput('twitter', '_jane')?.handle).toBe('_jane')
+    expect(parseSocialInput('youtube', '-jane-')?.handle).toBe('-jane-')
+    expect(parseSocialInput('instagram', 'https://www.instagram.com/_jane_/')?.handle).toBe('_jane_')
+  })
+
   it('returns null for empty and missing input', () => {
     expect(parseSocialInput('instagram', '')).toBeNull()
     expect(parseSocialInput('instagram', '   ')).toBeNull()
