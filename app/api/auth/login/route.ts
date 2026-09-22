@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
         {
           error: {
             code: 'EMAIL_NOT_CONFIRMED',
-            message: 'Please confirm your email address first. Check your inbox for the verification link.',
+            message: 'Please confirm your email address first. Check your inbox, and your spam or junk folder, for the verification link.',
           },
         },
         { status: 403 }

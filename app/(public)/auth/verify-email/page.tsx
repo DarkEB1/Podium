@@ -19,12 +19,13 @@ export default function VerifyEmailPage() {
           </h1>
           <p className="mt-3 text-medium text-muted-foreground">
             We sent a verification link to your email address. Click it to activate your account.
-            The link expires after 24 hours.
+            If it is not in your inbox, check your spam or junk folder. The link expires after 24
+            hours.
           </p>
         </div>
         <div className="flex flex-col items-center gap-4 rounded-2xl border border-border bg-card p-8 text-center shadow-card">
           <p className="text-medium text-muted-foreground">
-            Didn&apos;t receive it? Check your spam folder.
+            Didn&apos;t receive it? Give it a few minutes and check spam or junk again.
           </p>
           <Link href="/auth" className={buttonVariants({ variant: 'outline' })}>
             Back to login
