@@ -111,3 +111,23 @@ describe('OpportunityCard', () => {
     expect(screen.getByRole('button', { name: /save/i })).toBeDisabled()
   })
 })
+
+describe('OpportunityCard Unlimited-plan perks', () => {
+  it('shows the Verified brand badge and the Featured chip for a premium brand in the athlete area', () => {
+    render(<OpportunityCard listing={makeListing({ brandVerified: true, featured: true })} />)
+    expect(screen.getByTitle('Verified brand')).toHaveTextContent('Verified')
+    expect(screen.getByTestId('featured-chip')).toHaveTextContent('Featured')
+  })
+
+  it('shows the badge but no Featured chip for a premium brand outside the athlete area', () => {
+    render(<OpportunityCard listing={makeListing({ brandVerified: true, featured: false })} />)
+    expect(screen.getByTitle('Verified brand')).toBeInTheDocument()
+    expect(screen.queryByTestId('featured-chip')).not.toBeInTheDocument()
+  })
+
+  it('shows neither for an ordinary brand', () => {
+    render(<OpportunityCard listing={makeListing()} />)
+    expect(screen.queryByTitle('Verified brand')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('featured-chip')).not.toBeInTheDocument()
+  })
+})

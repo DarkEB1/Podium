@@ -6,7 +6,16 @@ import { AccentHeading } from '@/components/ui/accent-heading'
 import { cn } from '@/lib/utils'
 import { ROUTES } from '@/lib/routes'
 import Footer from '@/components/layout/footer'
-import { TIERS, TIER_NAMES, TIER_PRICE_DISPLAY, TIER_TAGLINE, POPULAR_TIER, featureBullets } from '@/lib/entitlements'
+import {
+  TIERS,
+  TIER_NAMES,
+  TIER_PRICE_DISPLAY,
+  TIER_TAGLINE,
+  TIER_HIGHLIGHTS,
+  POPULAR_TIER,
+  GROWTH_UPSELL_NUDGE,
+  featureBullets,
+} from '@/lib/entitlements'
 
 export const metadata = {
   title: 'Pricing · Podium',
@@ -109,10 +118,22 @@ export default function PricingPage() {
                     popular ? 'border-primary' : 'border-border',
                   )}
                 >
-                  {popular ? (
-                    <span className="self-start rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">
-                      Most popular
-                    </span>
+                  {popular || TIER_HIGHLIGHTS[tier].length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {popular ? (
+                        <span className="rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">
+                          Most popular
+                        </span>
+                      ) : null}
+                      {TIER_HIGHLIGHTS[tier].map((label) => (
+                        <span
+                          key={label}
+                          className="rounded-full bg-success/10 px-3 py-1 text-sm font-semibold text-success"
+                        >
+                          {label}
+                        </span>
+                      ))}
+                    </div>
                   ) : null}
                   <h3 className="mt-5 font-heading text-2xl font-extrabold tracking-tight text-foreground">
                     {TIER_NAMES[tier]}
@@ -138,6 +159,9 @@ export default function PricingPage() {
                   >
                     Start free trial
                   </Link>
+                  {tier === 2 ? (
+                    <p className="mt-3 text-center text-sm font-medium text-primary">{GROWTH_UPSELL_NUDGE}</p>
+                  ) : null}
                 </div>
               )
             })}

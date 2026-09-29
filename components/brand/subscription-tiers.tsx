@@ -13,7 +13,9 @@ import {
   TIER_NAMES,
   TIER_PRICE_DISPLAY,
   TIER_TAGLINE,
+  TIER_HIGHLIGHTS,
   POPULAR_TIER,
+  GROWTH_UPSELL_NUDGE,
   COMPARISON_ROWS,
   isTier,
   type Tier as TierId,
@@ -33,6 +35,9 @@ interface Tier {
   cadence: string
   tagline: string
   popular?: boolean
+  highlights: string[]
+  /** Copy shown under the CTA: the nudge from Growth onto Unlimited. */
+  nudge?: string
 }
 
 const TIERS: Tier[] = CONFIG_TIERS.map((tier) => ({
@@ -42,6 +47,8 @@ const TIERS: Tier[] = CONFIG_TIERS.map((tier) => ({
   cadence: '/mo',
   tagline: TIER_TAGLINE[tier],
   popular: tier === POPULAR_TIER,
+  highlights: TIER_HIGHLIGHTS[tier],
+  ...(tier === 2 ? { nudge: GROWTH_UPSELL_NUDGE } : {}),
 }))
 
 // Feature comparison matrix. `value` is either a boolean (tick/cross) or a string (e.g. limits).
@@ -167,7 +174,17 @@ export default function SubscriptionTiers({ subscription }: Props) {
               </>
             )}
             <div className="space-y-1">
-              <p className="text-medium font-bold">{t.name}</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-medium font-bold">{t.name}</p>
+                {t.highlights.map((label) => (
+                  <span
+                    key={label}
+                    className="rounded-full bg-success/10 px-2 py-0.5 text-small font-semibold text-success"
+                  >
+                    {label}
+                  </span>
+                ))}
+              </div>
               <p className="text-medium text-muted-foreground">{t.tagline}</p>
             </div>
             <div className="mt-4 flex items-baseline gap-1">
@@ -187,6 +204,9 @@ export default function SubscriptionTiers({ subscription }: Props) {
             >
               {loadingTier === t.tier ? 'Redirecting…' : 'Start Free Trial'}
             </Button>
+            {t.nudge ? (
+              <p className="mt-3 text-center text-small font-medium text-primary">{t.nudge}</p>
+            ) : null}
           </div>
         ))}
       </div>

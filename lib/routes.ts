@@ -120,7 +120,7 @@ export const ROUTES = {
     profile: '/brand/profile',
     payments: '/brand/payments',
     subscription: '/brand/subscription',
-    /** Enterprise-gated outreach analytics; non-Enterprise brands see an upsell. */
+    /** Top-tier (Unlimited) outreach analytics; other brands see an upsell. */
     analytics: '/brand/analytics',
     settings: '/brand/settings',
     onboarding: '/brand/onboarding',

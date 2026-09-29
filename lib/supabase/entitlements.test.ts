@@ -60,34 +60,34 @@ describe('entitlement guards', () => {
     expect(res).toMatchObject({ allowed: false, reason: 'NO_SUBSCRIPTION' })
   })
 
-  it('allows a Starter brand under the 15-request cap', async () => {
+  it('allows a Starter brand under the 3-request cap', async () => {
     vi.mocked(getSubscriptionForUser).mockResolvedValue(sub() as never)
-    const res = await assertCanSendConnectionRequest(clientReturningCount(14), 'u1', 'brand')
-    expect(res).toMatchObject({ allowed: true, limit: 15, used: 14, tier: 1 })
+    const res = await assertCanSendConnectionRequest(clientReturningCount(2), 'u1', 'brand')
+    expect(res).toMatchObject({ allowed: true, limit: 3, used: 2, tier: 1 })
   })
 
-  it('blocks a Starter brand at the 15-request cap', async () => {
+  it('blocks a Starter brand at the 3-request cap', async () => {
     vi.mocked(getSubscriptionForUser).mockResolvedValue(sub() as never)
-    const res = await assertCanSendConnectionRequest(clientReturningCount(15), 'u1', 'brand')
-    expect(res).toMatchObject({ allowed: false, reason: 'LIMIT_REACHED', limit: 15, used: 15 })
+    const res = await assertCanSendConnectionRequest(clientReturningCount(3), 'u1', 'brand')
+    expect(res).toMatchObject({ allowed: false, reason: 'LIMIT_REACHED', limit: 3, used: 3 })
   })
 
-  it('treats Enterprise messaging as unlimited (no count query)', async () => {
+  it('treats Unlimited messaging as unlimited (no count query)', async () => {
     vi.mocked(getSubscriptionForUser).mockResolvedValue(sub({ tier: 3 }) as never)
     const res = await assertCanSendMessage(clientReturningCount(9999), 'u1', 'brand')
     expect(res).toMatchObject({ allowed: true, limit: null, tier: 3 })
   })
 
-  it('allows a Starter brand under the 3-listing cap', async () => {
+  it('allows a Starter brand under the 1-listing cap', async () => {
     vi.mocked(getSubscriptionForUser).mockResolvedValue(sub() as never)
-    const res = await assertCanCreateListing(clientReturningCount(2), 'u1', 'brand')
-    expect(res).toMatchObject({ allowed: true, limit: 3, used: 2, tier: 1 })
+    const res = await assertCanCreateListing(clientReturningCount(0), 'u1', 'brand')
+    expect(res).toMatchObject({ allowed: true, limit: 1, used: 0, tier: 1 })
   })
 
-  it('blocks a Starter brand at the 3-listing cap', async () => {
+  it('blocks a Starter brand at the 1-listing cap', async () => {
     vi.mocked(getSubscriptionForUser).mockResolvedValue(sub() as never)
-    const res = await assertCanCreateListing(clientReturningCount(3), 'u1', 'brand')
-    expect(res).toMatchObject({ allowed: false, reason: 'LIMIT_REACHED', limit: 3, used: 3 })
+    const res = await assertCanCreateListing(clientReturningCount(1), 'u1', 'brand')
+    expect(res).toMatchObject({ allowed: false, reason: 'LIMIT_REACHED', limit: 1, used: 1 })
   })
 
   it('verifies request count query filters by sender_id and billing window', async () => {
@@ -153,9 +153,9 @@ describe('getEntitlementUsage', () => {
     expect(res).toMatchObject({
       tier: 1,
       analytics: false,
-      requests: { limit: 15, used: 5 },
-      listings: { limit: 3, used: 1 },
-      messages: { limit: 100, used: 25 },
+      requests: { limit: 3, used: 5 },
+      listings: { limit: 1, used: 1 },
+      messages: { limit: 20, used: 25 },
     })
   })
 })

@@ -14,7 +14,7 @@ import StatStrip from '@/components/layout/stat-strip'
 import SettingsShell from '@/components/layout/settings-shell'
 import CancelSubscription from '@/components/brand/cancel-subscription'
 import { cn } from '@/lib/utils'
-import { TIERS, TIER_NAMES, TIER_PRICE_GBP, isTier } from '@/lib/entitlements'
+import { TIERS, TIER_NAMES, TIER_PRICE_GBP, formatGbp, isTier } from '@/lib/entitlements'
 import type { Database } from '@/types/database'
 import type { BillingHistoryItem } from '@/lib/supabase/payments'
 
@@ -352,9 +352,9 @@ export default function BrandSettingsForm({ profile, stats, subscription, billin
                         {isUpgrade ? 'Upgrade' : 'Downgrade'} to {t.name}
                       </p>
                       <p className="text-small text-muted-foreground">
-                        £{t.price}/mo ·{' '}
+                        {formatGbp(t.price)}/mo ·{' '}
                         <span className="font-medium text-foreground">
-                          {diff >= 0 ? `+£${diff}` : `-£${Math.abs(diff)}`}/mo
+                          {diff >= 0 ? `+${formatGbp(diff)}` : `-${formatGbp(Math.abs(diff))}`}/mo
                         </span>
                       </p>
                     </div>
@@ -418,7 +418,7 @@ export default function BrandSettingsForm({ profile, stats, subscription, billin
           </h2>
           <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
             <p className="text-medium text-muted-foreground">
-              You are on Tier {activeSubscription.tier}. Your subscription renews on{' '}
+              You are on {isTier(activeSubscription.tier) ? TIER_NAMES[activeSubscription.tier] : `Tier ${activeSubscription.tier}`}. Your subscription renews on{' '}
               <span className="text-foreground font-medium">
                 {new Date(activeSubscription.currentPeriodEnd).toLocaleDateString()}
               </span>

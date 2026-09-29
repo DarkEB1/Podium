@@ -14,7 +14,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { ROUTES } from '@/lib/routes'
-import { ENTITLEMENTS, isTier } from '@/lib/entitlements'
+import { ENTITLEMENTS, TIER_NAMES, UNLIMITED_TIER, isTier } from '@/lib/entitlements'
 import type { Database } from '@/types/database'
 
 type BrandRow = Database['public']['Tables']['brand_profiles']['Row']
@@ -124,7 +124,7 @@ export default async function BrandDashboardPage() {
           {!hasAnalytics && (
             <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
               <Lock size={12} aria-hidden="true" />
-              Enterprise
+              {TIER_NAMES[UNLIMITED_TIER]}
             </span>
           )}
         </Link>

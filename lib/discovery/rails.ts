@@ -26,6 +26,13 @@ export function buildRails(
   const now = opts.now ?? new Date()
   const rails: Rail[] = []
 
+  // Unlimited-plan perk: premium brands' listings in the athlete's area lead
+  // the board (decorateWithPremium sets `featured`).
+  const featured = scored.filter((listing) => listing.featured === true).sort(byMatchScoreDesc).slice(0, RAIL_CAP)
+  if (featured.length > 0) {
+    rails.push({ id: 'featured-near-you', title: 'Featured near you', subtitle: 'From verified brands in your area', listings: featured })
+  }
+
   if (opts.athleteSport) {
     const sport = opts.athleteSport
     const onSport = scored

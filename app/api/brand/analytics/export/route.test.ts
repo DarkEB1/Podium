@@ -48,7 +48,7 @@ describe('GET /api/brand/analytics/export', () => {
     expect((await res.json()).error.code).toBe('FORBIDDEN')
   })
 
-  it('403 for a non-Enterprise brand', async () => {
+  it('403 for a non-Unlimited brand', async () => {
     vi.mocked(getSubscriptionForUser).mockResolvedValue({
       tier: 1,
       status: 'active',
@@ -60,7 +60,7 @@ describe('GET /api/brand/analytics/export', () => {
     expect(res.status).toBe(403)
   })
 
-  it('403 for an Enterprise brand whose subscription is canceled', async () => {
+  it('403 for an Unlimited brand whose subscription is canceled', async () => {
     vi.mocked(getSubscriptionForUser).mockResolvedValue({
       tier: 3,
       status: 'canceled',
@@ -72,7 +72,7 @@ describe('GET /api/brand/analytics/export', () => {
     expect(res.status).toBe(403)
   })
 
-  it('returns text/csv for an Enterprise brand', async () => {
+  it('returns text/csv for an Unlimited brand', async () => {
     vi.mocked(getSubscriptionForUser).mockResolvedValue({
       tier: 3,
       status: 'active',

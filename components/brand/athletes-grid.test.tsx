@@ -117,6 +117,40 @@ describe('AthletesGrid', () => {
     expect(screen.queryByRole('complementary', { name: /upgrade/i })).not.toBeInTheDocument()
   })
 
+  it('on Starter, hides the level, availability and audience facets and explains why', () => {
+    render(<AthletesGrid athletes={athletes} tier={1} />)
+    expect(screen.getByLabelText(/sport/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/location radius/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/^level$/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/availability/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/min following/i)).not.toBeInTheDocument()
+    expect(screen.getByTestId('search-limited-note')).toHaveTextContent(/Growth and above/)
+  })
+
+  it('on Starter, the search box matches sport and location but not names', async () => {
+    const user = userEvent.setup()
+    render(<AthletesGrid athletes={athletes} tier={1} />)
+    const box = screen.getByRole('textbox', { name: /search athletes/i })
+    await user.type(box, 'Swimming')
+    expect(screen.getByText('Maya Stone')).toBeInTheDocument()
+    expect(screen.queryByText('Jordan Pace')).not.toBeInTheDocument()
+    await user.clear(box)
+    await user.type(box, 'Maya')
+    expect(screen.queryByText('Maya Stone')).not.toBeInTheDocument()
+  })
+
+  it('on Growth and above, every facet is available and name search works', async () => {
+    const user = userEvent.setup()
+    render(<AthletesGrid athletes={athletes} tier={2} />)
+    expect(screen.getByLabelText(/^level$/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/availability/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/min following/i)).toBeInTheDocument()
+    expect(screen.queryByTestId('search-limited-note')).not.toBeInTheDocument()
+    await user.type(screen.getByRole('textbox', { name: /search athletes/i }), 'Maya')
+    expect(screen.getByText('Maya Stone')).toBeInTheDocument()
+    expect(screen.queryByText('Jordan Pace')).not.toBeInTheDocument()
+  })
+
   it('passes initial shortlist state down so saved athletes render as saved', () => {
     render(<AthletesGrid athletes={athletes} savedUserIds={['u1']} />)
     expect(screen.getByRole('button', { name: /remove from saved/i })).toBeInTheDocument()
