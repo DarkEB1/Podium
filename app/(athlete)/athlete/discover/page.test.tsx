@@ -15,6 +15,10 @@ vi.mock('next/navigation', () => ({
   },
 }))
 vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn(async () => ({})) }))
+const getPremiumBrandUserIdsMock = vi.fn(async () => new Set<string>())
+vi.mock('@/lib/supabase/premium-brands', () => ({
+  getPremiumBrandUserIds: (...a: unknown[]) => getPremiumBrandUserIdsMock(...(a as [])),
+}))
 vi.mock('@/lib/supabase/auth', () => ({ getUser: (...a: unknown[]) => getUserMock(...a) }))
 vi.mock('@/lib/supabase/discovery', () => ({
   LISTING_PAGE_SIZE: 24,
@@ -23,7 +27,7 @@ vi.mock('@/lib/supabase/discovery', () => ({
 vi.mock('@/lib/supabase/profiles', () => ({
   getDiscoveryUiMode: (...a: unknown[]) => getDiscoveryUiModeMock(...a),
   // The page now fetches the athlete profile to rank listings by match (spec §10).
-  getOwnProfile: vi.fn(async () => ({ primary_sport: 'Football', level: 'amateur' })),
+  getOwnProfile: vi.fn(async () => ({ primary_sport: 'Football', level: 'amateur', home_city: 'London', home_country: 'United Kingdom' })),
 }))
 
 import AthleteDiscoverPage from './page'
@@ -54,6 +58,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   getUserMock.mockResolvedValue({ id: 'athlete-1' })
   getDiscoveryUiModeMock.mockResolvedValue('marketplace')
+  getPremiumBrandUserIdsMock.mockResolvedValue(new Set())
   getActiveListingsPageMock.mockResolvedValue({ listings: [listing()], hasMore: false })
 })
 
@@ -89,6 +94,22 @@ describe('AthleteDiscoverPage', () => {
     expect(screen.getByTestId('discover-rails')).toBeInTheDocument()
     // buildRails always emits a "Top matches" rail for a non-empty page.
     expect(screen.getByRole('region', { name: /top matches/i })).toBeInTheDocument()
+  })
+
+  it('asks which brands on the page are premium and renders a Featured rail for in-area ones', async () => {
+    getPremiumBrandUserIdsMock.mockResolvedValue(new Set(['brand-user-1']))
+    getActiveListingsPageMock.mockResolvedValue({
+      listings: [listing({ location: 'London' })],
+      hasMore: false,
+    })
+    await renderPage()
+    expect(getPremiumBrandUserIdsMock).toHaveBeenCalledWith(expect.anything(), ['brand-user-1'])
+    expect(screen.getByRole('region', { name: /featured near you/i })).toBeInTheDocument()
+  })
+
+  it('renders no Featured rail when no brand on the page is premium', async () => {
+    await renderPage()
+    expect(screen.queryByRole('region', { name: /featured near you/i })).not.toBeInTheDocument()
   })
 
   it('starts in the mode persisted on the profile', async () => {

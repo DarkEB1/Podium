@@ -2429,6 +2429,7 @@ export type Database = {
         }[]
       }
       is_admin: { Args: never; Returns: boolean }
+      premium_brand_user_ids: { Args: { p_user_ids: string[] }; Returns: string[] }
       is_blocked_between: {
         Args: { p_user_a: string; p_user_b: string }
         Returns: boolean

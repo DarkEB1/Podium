@@ -16,24 +16,35 @@ describe('SubscriptionTiers', () => {
     // each tier name appears in both its card and the comparison-table column header
     expect(screen.getAllByText(/starter/i).length).toBeGreaterThanOrEqual(1)
     expect(screen.getAllByText(/growth/i).length).toBeGreaterThanOrEqual(1)
-    expect(screen.getAllByText(/enterprise/i).length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText(/unlimited/i).length).toBeGreaterThanOrEqual(1)
+    expect(screen.queryByText(/enterprise/i)).not.toBeInTheDocument()
   })
 
-  it('highlights Tier 2 as Most Popular with a Sticker on a featured card', () => {
+  it('highlights Unlimited (tier 3) as Most Popular with a Sticker on a featured card', () => {
     render(<SubscriptionTiers subscription={null} />)
     // The "Most popular" label is rendered as a Sticker (rotated accent pill).
     const sticker = screen.getByText(/most popular/i)
     expect(sticker).toBeInTheDocument()
     expect(sticker.closest('[data-slot="sticker"]')).not.toBeNull()
     // The popular tier card carries the featured treatment.
-    expect(screen.getByTestId('tier-card-2')).toHaveAttribute('data-featured', 'true')
+    expect(screen.getByTestId('tier-card-3')).toHaveAttribute('data-featured', 'true')
+    expect(screen.getByTestId('tier-card-2')).toHaveAttribute('data-featured', 'false')
+    expect(within(screen.getByTestId('tier-card-3')).getByText(/best value/i)).toBeInTheDocument()
   })
 
   it('shows a 7-day free trial Sticker on the featured card', () => {
     render(<SubscriptionTiers subscription={null} />)
-    const featured = screen.getByTestId('tier-card-2')
+    const featured = screen.getByTestId('tier-card-3')
     const trialSticker = within(featured).getByText(/7-day free trial/i)
     expect(trialSticker.closest('[data-slot="sticker"]')).not.toBeNull()
+  })
+
+  it('shows the £29 nudge under the Growth button only', () => {
+    render(<SubscriptionTiers subscription={null} />)
+    const growth = screen.getByTestId('tier-card-2')
+    expect(within(growth).getByText('Just £29 more for unlimited')).toBeInTheDocument()
+    expect(within(screen.getByTestId('tier-card-1')).queryByText(/more for unlimited/i)).toBeNull()
+    expect(within(screen.getByTestId('tier-card-3')).queryByText(/more for unlimited/i)).toBeNull()
   })
 
   it('still explains the 7-day free trial on every plan in the footnote', () => {

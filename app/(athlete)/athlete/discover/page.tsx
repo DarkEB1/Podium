@@ -5,6 +5,8 @@ import { getUser } from '@/lib/supabase/auth'
 import { getActiveListingsPage, LISTING_PAGE_SIZE } from '@/lib/supabase/discovery'
 import { getDiscoveryUiMode, getOwnProfile } from '@/lib/supabase/profiles'
 import { decorateWithMatch } from '@/lib/discovery/match'
+import { decorateWithPremium } from '@/lib/discovery/featured'
+import { getPremiumBrandUserIds } from '@/lib/supabase/premium-brands'
 import { buildRails } from '@/lib/discovery/rails'
 import type { Database } from '@/types/database'
 import { DiscoverFeed } from '@/components/discovery/discover-feed'
@@ -53,7 +55,14 @@ export default async function AthleteDiscoverPage({
   // the flat grid each sort on their own, so the page no longer pre-sorts.
   const athlete = profile as Database['public']['Tables']['athlete_profiles']['Row'] | null
   const athleteSport = athlete?.primary_sport ?? null
-  const scored = decorateWithMatch(listings, athlete)
+  // Unlimited-plan perks athletes can see: the Verified brand badge on every
+  // premium brand's card, and a "Featured near you" rail for their listings in
+  // this athlete's area. One RPC over the brands on this page only.
+  const premiumBrands = await getPremiumBrandUserIds(
+    supabase,
+    listings.map((l) => l.brand_user_id)
+  )
+  const scored = decorateWithPremium(decorateWithMatch(listings, athlete), premiumBrands, athlete)
   const rails = buildRails(scored, { athleteSport })
 
   return (

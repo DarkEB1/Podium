@@ -131,3 +131,18 @@ it('a listing may appear in more than one rail', () => {
     expect(rail.listings.map((l) => l.id)).toContain('multi')
   }
 })
+
+it('leads with a "Featured near you" rail when any listing is featured, sorted by matchScore desc', () => {
+  const featuredLow = listing({ id: 'f-low', matchScore: 10, featured: true, brandVerified: true })
+  const featuredHigh = listing({ id: 'f-high', matchScore: 80, featured: true, brandVerified: true })
+  const verifiedElsewhere = listing({ id: 'v', matchScore: 95, featured: false, brandVerified: true })
+  const rails = buildRails([featuredLow, verifiedElsewhere, featuredHigh], { now })
+  expect(rails[0]!.id).toBe('featured-near-you')
+  expect(rails[0]!.title).toBe('Featured near you')
+  expect(rails[0]!.listings.map((l) => l.id)).toEqual(['f-high', 'f-low'])
+})
+
+it('omits the featured rail when nothing is featured', () => {
+  const rails = buildRails([listing({ id: 'a', brandVerified: true })], { now })
+  expect(rails.map((r) => r.id)).not.toContain('featured-near-you')
+})

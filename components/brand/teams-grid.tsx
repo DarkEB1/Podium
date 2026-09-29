@@ -2,11 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion, useReducedMotion } from 'motion/react'
-import { Users } from 'lucide-react'
+import { Lock, Users } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { EmptyState } from '@/components/ui/empty-state'
 import { SPRING } from '@/lib/motion/springs'
+import { ROUTES } from '@/lib/routes'
+import { hasFullSearch, TIER_NAMES } from '@/lib/entitlements'
 import TeamCard from './team-card'
 import type { TeamSummary } from '@/lib/supabase/profiles'
 import type { Database } from '@/types/database'
@@ -17,6 +19,8 @@ interface Props {
   teams: TeamSummary[]
   /** Team user_ids already on the brand's shortlist. */
   savedUserIds?: string[]
+  /** Brand's tier; on Starter the level facet is hidden (search is sport and location only). */
+  tier?: number
   /** Rendered under the grid — the "Load more" affordance (FA-5). */
   footer?: React.ReactNode
 }
@@ -33,10 +37,11 @@ function labelize(value: string): string {
   return value.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
-export default function TeamsGrid({ teams, savedUserIds = [], footer }: Props) {
+export default function TeamsGrid({ teams, savedUserIds = [], tier, footer }: Props) {
   const [search, setSearch] = useState('')
   const [sport, setSport] = useState('')
   const [level, setLevel] = useState('')
+  const fullSearch = hasFullSearch(tier)
 
   // Entry-motion guard (UX audit M4): stagger cards in on FIRST mount only, then
   // render statically so filter/search re-renders never replay the animation.
@@ -66,23 +71,25 @@ export default function TeamsGrid({ teams, savedUserIds = [], footer }: Props) {
     const q = search.trim().toLowerCase()
     return teams.filter((t) => {
       if (q) {
-        const hay = [t.team_name, t.nickname, ...(t.sports ?? []), t.home_city, t.home_country]
+        const hay = (fullSearch
+          ? [t.team_name, t.nickname, ...(t.sports ?? []), t.home_city, t.home_country]
+          : [...(t.sports ?? []), t.home_city, t.home_country])
           .filter(Boolean)
           .join(' ')
           .toLowerCase()
         if (!hay.includes(q)) return false
       }
       if (sport && !(t.sports ?? []).includes(sport)) return false
-      if (level && t.competition_level !== level) return false
+      if (fullSearch && level && t.competition_level !== level) return false
       return true
     })
-  }, [teams, search, sport, level])
+  }, [teams, search, sport, level, fullSearch])
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-2">
         <Input
-          placeholder="Search by name, sport, location…"
+          placeholder={fullSearch ? 'Search by name, sport, location…' : 'Search by sport or location…'}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-sm flex-1"
@@ -109,6 +116,7 @@ export default function TeamsGrid({ teams, savedUserIds = [], footer }: Props) {
             </select>
           </div>
 
+          {fullSearch ? (
           <div className="space-y-1">
             <Label htmlFor="team-filter-level">Competition level</Label>
             <select
@@ -125,6 +133,21 @@ export default function TeamsGrid({ teams, savedUserIds = [], footer }: Props) {
               ))}
             </select>
           </div>
+          ) : (
+            <p
+              data-testid="search-limited-note"
+              className="flex items-center gap-2 self-end text-small text-muted-foreground"
+            >
+              <Lock className="size-3.5 shrink-0" aria-hidden="true" />
+              <span>
+                {TIER_NAMES[1]} searches by sport and location. The level filter comes with{' '}
+                {TIER_NAMES[2]} and above.{' '}
+                <a href={ROUTES.brand.subscription} className="font-medium text-primary underline">
+                  See plans
+                </a>
+              </span>
+            </p>
+          )}
         </div>
       </div>
 

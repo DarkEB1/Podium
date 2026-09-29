@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { Bookmark, Check } from 'lucide-react'
+import { BadgeCheck, Bookmark, Check } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
@@ -112,8 +112,14 @@ export function OpportunityDetail({ listing, open, onOpenChange }: Props) {
                   </span>
                 )}
                 <div className="min-w-0">
-                  <DialogTitle className="text-large font-bold text-background">
+                  <DialogTitle className="flex flex-wrap items-center gap-2 text-large font-bold text-background">
                     {heading}
+                    {listing.brandVerified ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-background/15 px-2 py-0.5 text-[11px] font-semibold text-background">
+                        <BadgeCheck className="size-3.5" aria-hidden="true" />
+                        Verified brand
+                      </span>
+                    ) : null}
                   </DialogTitle>
                   <DialogDescription className="mt-0.5 font-mono text-small text-background/60">
                     {listing.title}

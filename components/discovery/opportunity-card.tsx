@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { Bookmark, Check, X } from 'lucide-react'
+import { BadgeCheck, Bookmark, Check, X } from 'lucide-react'
 
 import { ROUTES } from '@/lib/routes'
 import { getUrgency } from '@/lib/discovery/urgency'
@@ -87,9 +87,18 @@ export function OpportunityCard({ listing }: Props) {
         }}
         className="flex cursor-pointer flex-col rounded-xl border border-border bg-card p-4 text-left shadow-card transition hover:-translate-y-0.5 hover:shadow-card-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
       >
-        {/* Score + urgency */}
+        {/* Score + featured + urgency */}
         <div className="mb-3.5 flex items-start justify-between gap-3">
           <MatchScore score={listing.matchScore} size="sm" />
+          <div className="flex flex-wrap justify-end gap-1.5">
+          {listing.featured ? (
+            <span
+              data-testid="featured-chip"
+              className="rounded-md bg-primary/10 px-2 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-primary"
+            >
+              Featured
+            </span>
+          ) : null}
           {urgency ? (
             <span
               className={
@@ -101,6 +110,7 @@ export function OpportunityCard({ listing }: Props) {
               {urgency.label}
             </span>
           ) : null}
+          </div>
         </div>
 
         {/* Brand lockup */}
@@ -126,6 +136,15 @@ export function OpportunityCard({ listing }: Props) {
             <span className="min-w-0 truncate font-mono text-small font-semibold uppercase tracking-wide text-muted-foreground">
               {brandName}
             </span>
+            {listing.brandVerified ? (
+              <span
+                className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary"
+                title="Verified brand"
+              >
+                <BadgeCheck className="size-3.5" aria-hidden="true" />
+                Verified
+              </span>
+            ) : null}
           </div>
         ) : null}
 

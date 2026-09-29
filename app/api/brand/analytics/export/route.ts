@@ -19,7 +19,7 @@ function csvField(value: string | number): string {
 // requests would make the second caller's res.json()/text() throw.
 function forbidden() {
   return NextResponse.json(
-    { error: { code: 'FORBIDDEN', message: 'Analytics export is an Enterprise feature' } },
+    { error: { code: 'FORBIDDEN', message: 'Analytics export is an Unlimited plan feature' } },
     { status: 403 }
   )
 }
@@ -27,11 +27,11 @@ function forbidden() {
 /**
  * GET /api/brand/analytics/export
  *
- * Enterprise-gated (tier 3, active/trialing) CSV download of the same
+ * Unlimited-gated (tier 3, active/trialing) CSV download of the same
  * analytics `getBrandAnalytics` powers on the dashboard (Task 8/9). Every
  * other caller (no session, non-brand role, no subscription, tier 1/2, or a
- * lapsed Enterprise subscription) gets a uniform 403 — the response never
- * distinguishes "not a brand" from "not Enterprise" so it can't be used to
+ * lapsed Unlimited subscription) gets a uniform 403 — the response never
+ * distinguishes "not a brand" from "not Unlimited" so it can't be used to
  * fingerprint account state.
  */
 export async function GET() {

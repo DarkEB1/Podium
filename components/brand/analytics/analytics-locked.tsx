@@ -5,10 +5,13 @@ import { Icon } from '@/components/ui/icon'
 import { buttonVariants } from '@/components/ui/button'
 import { ROUTES } from '@/lib/routes'
 import { cn } from '@/lib/utils'
+import { TIER_NAMES, UNLIMITED_TIER } from '@/lib/entitlements'
+
+const TOP_TIER = TIER_NAMES[UNLIMITED_TIER]
 
 /**
  * AnalyticsLocked, the upsell state shown in place of the analytics dashboard
- * for any brand that isn't on an active/trialing Enterprise subscription.
+ * for any brand that isn't on an active/trialing Unlimited (top tier) subscription.
  */
 export function AnalyticsLocked() {
   return (
@@ -18,17 +21,17 @@ export function AnalyticsLocked() {
           <Icon icon={Lock} size={28} />
         </div>
         <AccentHeading as="h1" className="justify-center text-large">
-          Analytics is an Enterprise feature
+          Analytics is an {TOP_TIER} feature
         </AccentHeading>
         <p className="mx-auto mt-3 max-w-[52ch] text-medium text-muted-foreground">
-          Upgrade to Enterprise to see your outreach funnel, acceptance and response rates,
+          Upgrade to {TOP_TIER} to see your outreach funnel, acceptance and response rates,
           audience reach, and daily trends for every campaign.
         </p>
         <Link
           href={ROUTES.brand.subscription}
           className={cn(buttonVariants({ size: 'lg' }), 'mt-6')}
         >
-          Upgrade to Enterprise
+          Upgrade to {TOP_TIER}
         </Link>
       </div>
     </div>

@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/supabase/auth'
 import { getActiveTeamProfilesPage, TEAM_PAGE_SIZE, getDiscoveryUiMode } from '@/lib/supabase/profiles'
 import { getShortlist } from '@/lib/supabase/discovery'
+import { getSubscriptionForUser } from '@/lib/supabase/payments'
 import TeamsBrowser from '@/components/discovery/teams-browser'
 import DiscoverySwitch from '@/components/brand/discovery-switch'
 import LoadMore from '@/components/discovery/load-more'
@@ -29,10 +30,11 @@ export default async function BrandTeamsDiscoverPage({
   const params = (await searchParams) ?? {}
   const shown = parseShowParam(params.show, TEAM_PAGE_SIZE)
 
-  const [{ teams, hasMore }, shortlist, mode] = await Promise.all([
+  const [{ teams, hasMore }, shortlist, mode, subscription] = await Promise.all([
     getActiveTeamProfilesPage(supabase, { limit: shown }),
     getShortlist(supabase, user.id),
     getDiscoveryUiMode(supabase, user.id, 'brand'),
+    getSubscriptionForUser(supabase, user.id),
   ])
 
   const savedUserIds = shortlist.map((s) => s.target_user_id)
@@ -55,6 +57,7 @@ export default async function BrandTeamsDiscoverPage({
         teams={teams}
         initialMode={mode}
         savedUserIds={savedUserIds}
+        {...(subscription ? { tier: subscription.tier } : {})}
         {...(hasMore
           ? {
               footer: (

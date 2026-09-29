@@ -17,6 +17,8 @@ interface Props {
   /** Persisted `profiles.discovery_ui_mode` for this brand. */
   initialMode: BrowseMode
   savedUserIds?: string[]
+  /** Brand's subscription tier; gates the grid's facets on Starter. */
+  tier?: number
   footer?: React.ReactNode
 }
 
@@ -24,7 +26,7 @@ interface Props {
  * TeamsBrowser — 2.2, the brand-side team mirror of AthletesBrowser. Swiping
  * "Save" runs the same shortlist mutation as the grid's bookmark.
  */
-export default function TeamsBrowser({ teams, initialMode, savedUserIds = [], footer }: Props) {
+export default function TeamsBrowser({ teams, initialMode, savedUserIds = [], tier, footer }: Props) {
   const { mode, setMode, pending } = useBrowseMode(initialMode)
   const [swiped, setSwiped] = useState<string[]>([])
   const [saved, setSaved] = useState<string[]>(savedUserIds)
@@ -82,7 +84,12 @@ export default function TeamsBrowser({ teams, initialMode, savedUserIds = [], fo
           }
         />
       ) : (
-        <TeamsGrid teams={teams} savedUserIds={saved} footer={footer} />
+        <TeamsGrid
+          teams={teams}
+          savedUserIds={saved}
+          footer={footer}
+          {...(typeof tier === 'number' ? { tier } : {})}
+        />
       )}
     </div>
   )

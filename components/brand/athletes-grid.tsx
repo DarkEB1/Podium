@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion, useReducedMotion } from 'motion/react'
-import { SlidersHorizontal, Sparkles, Users } from 'lucide-react'
+import { Lock, SlidersHorizontal, Sparkles, Users } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { buttonVariants } from '@/components/ui/button'
@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils'
 import { SPRING } from '@/lib/motion/springs'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ROUTES } from '@/lib/routes'
+import { hasFullSearch, TIER_NAMES } from '@/lib/entitlements'
 import AthleteCard from './athlete-card'
 import type { AthleteSummary } from '@/lib/supabase/profiles'
 import type { Database } from '@/types/database'
@@ -20,7 +21,11 @@ type AthleteLevel = Database['public']['Enums']['athlete_level']
 
 interface Props {
   athletes: AthleteRow[]
-  /** Brand's current subscription tier (1-3). Drives the non-intrusive upgrade banner. */
+  /**
+   * Brand's current subscription tier (1-3). Drives the non-intrusive upgrade
+   * banner, and on Starter limits search to sport and location only (the
+   * advertised entitlement). Omitted = ungated (admin previews, tests).
+   */
   tier?: number
   /** Athlete user_ids already on the brand's shortlist (persisted, no request sent). */
   savedUserIds?: string[]
@@ -79,6 +84,10 @@ export default function AthletesGrid({
   const [minFollowing, setMinFollowing] = useState('')
   const [panelOpen, setPanelOpen] = useState(false)
 
+  // Starter's advertised search is sport + location; the level, availability
+  // and audience facets (and name search) are Growth and above.
+  const fullSearch = hasFullSearch(tier)
+
   // Entry-motion guard (UX audit M4): stagger cards in on FIRST mount only, then
   // render statically so filter/search re-renders never replay the animation.
   const reduced = useReducedMotion()
@@ -109,10 +118,8 @@ export default function AthletesGrid({
 
   const activeFilterCount =
     (sport ? 1 : 0) +
-    (level ? 1 : 0) +
-    (availability ? 1 : 0) +
     (radiusKm ? 1 : 0) +
-    (minFollowing ? 1 : 0)
+    (fullSearch ? (level ? 1 : 0) + (availability ? 1 : 0) + (minFollowing ? 1 : 0) : 0)
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -121,20 +128,23 @@ export default function AthletesGrid({
 
     return athletes.filter((a) => {
       if (q) {
-        const hay = [a.display_name, a.primary_sport, a.home_city, a.home_country, a.level]
+        const hay = (fullSearch
+          ? [a.display_name, a.primary_sport, a.home_city, a.home_country, a.level]
+          : [a.primary_sport, a.home_city, a.home_country])
           .filter(Boolean)
           .join(' ')
           .toLowerCase()
         if (!hay.includes(q)) return false
       }
       if (sport && a.primary_sport !== sport) return false
+      if (radius != null && (a.travel_radius_km ?? 0) < radius) return false
+      if (!fullSearch) return true
       if (level && a.level !== level) return false
       if (availability && a.availability_status !== availability) return false
-      if (radius != null && (a.travel_radius_km ?? 0) < radius) return false
       if (minFollowingN != null && followerCount(a) < minFollowingN) return false
       return true
     })
-  }, [athletes, search, sport, level, availability, radiusKm, minFollowing])
+  }, [athletes, search, sport, level, availability, radiusKm, minFollowing, fullSearch])
 
   const showUpgrade = typeof tier === 'number' && tier < MAX_TIER
 
@@ -142,7 +152,7 @@ export default function AthletesGrid({
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-2">
         <Input
-          placeholder="Search by name, sport, location…"
+          placeholder={fullSearch ? 'Search by name, sport, location…' : 'Search by sport or location…'}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-sm flex-1"
@@ -193,6 +203,7 @@ export default function AthletesGrid({
             </select>
           </div>
 
+          {fullSearch ? (
           <div className="space-y-1">
             <Label htmlFor="filter-level">Level</Label>
             <select
@@ -209,7 +220,9 @@ export default function AthletesGrid({
               ))}
             </select>
           </div>
+          ) : null}
 
+          {fullSearch ? (
           <div className="space-y-1">
             <Label htmlFor="filter-availability">Availability</Label>
             <select
@@ -226,6 +239,7 @@ export default function AthletesGrid({
               ))}
             </select>
           </div>
+          ) : null}
 
           <div className="space-y-1">
             <Label htmlFor="filter-radius">Location radius (km)</Label>
@@ -240,6 +254,7 @@ export default function AthletesGrid({
             />
           </div>
 
+          {fullSearch ? (
           <div className="space-y-1">
             <Label htmlFor="filter-following">Min following</Label>
             <Input
@@ -252,6 +267,23 @@ export default function AthletesGrid({
               placeholder="Any"
             />
           </div>
+          ) : null}
+
+          {!fullSearch ? (
+            <p
+              data-testid="search-limited-note"
+              className="flex items-center gap-2 text-small text-muted-foreground sm:col-span-2 lg:col-span-3"
+            >
+              <Lock className="size-3.5 shrink-0" aria-hidden="true" />
+              <span>
+                {TIER_NAMES[1]} searches by sport and location. Level, availability and audience
+                filters, plus name search, come with {TIER_NAMES[2]} and above.{' '}
+                <a href={ROUTES.brand.subscription} className="font-medium text-primary underline">
+                  See plans
+                </a>
+              </span>
+            </p>
+          ) : null}
 
           {/*
             A "Verified athletes only" checkbox used to live here. There is no

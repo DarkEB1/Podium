@@ -8,6 +8,10 @@ import type { ListingSummary } from '@/lib/supabase/discovery'
 export type ScoredListing = ListingSummary & {
   matchScore: number
   matchReasons: string[]
+  /** Brand is on the top (Unlimited) plan: shows the Verified brand badge. */
+  brandVerified?: boolean
+  /** Premium brand AND the listing is in the athlete's area (lib/discovery/featured.ts). */
+  featured?: boolean
 }
 
 export function decorateWithMatch(

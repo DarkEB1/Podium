@@ -43,7 +43,7 @@ const HINTS: Record<string, string> = {
     'Stripe Dashboard → Developers → Webhooks → endpoint → Signing secret, or `stripe listen` output (whsec_…)',
   STRIPE_PRICE_TIER_1: 'Stripe Dashboard → Product catalogue → Starter plan → Price ID (price_…)',
   STRIPE_PRICE_TIER_2: 'Stripe Dashboard → Product catalogue → Growth plan → Price ID (price_…)',
-  STRIPE_PRICE_TIER_3: 'Stripe Dashboard → Product catalogue → Enterprise plan → Price ID (price_…)',
+  STRIPE_PRICE_TIER_3: 'Stripe Dashboard → Product catalogue → Unlimited plan → Price ID (price_…)',
   CRON_SECRET:
     'Any high-entropy string from `openssl rand -hex 32`, set as a Vercel project env var so Vercel Cron sends it as `Authorization: Bearer …`',
   SENTRY_DSN: 'Sentry → Project Settings → Client Keys (DSN). Optional; omit to log to stdout only',
